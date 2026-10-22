@@ -80,14 +80,54 @@ export interface EolInfo {
 }
 
 /**
- * 脆弱性照合ステータス (Version 1.1 ADD-05)
+ * オフライン脆弱性DB照合ステータス (Rev.2.1 IMP-06 / 5.5)
+ * - Matched: 収録済み脆弱性の影響バージョン範囲に一致
+ * - No Match: 収録済み技術だが該当する脆弱性なし (安全を保証するものではない)
+ * - Not Covered: DB収録対象外の技術
+ * - Unknown Version: バージョンが不明・パース不能
+ * - Lookup Error: 照合処理エラー
+ */
+export type OfflineMatchStatus =
+  | 'Matched'
+  | 'No Match'
+  | 'Not Covered'
+  | 'Unknown Version'
+  | 'Lookup Error';
+
+/**
+ * DB鮮度レベル (Rev.2.1 IMP-06 / 5.8)
+ * - fresh: 0〜7日 (最新に近い)
+ * - moderate: 8〜30日 (更新確認推奨)
+ * - stale: 31日以上 (古い)
+ * - unknown: 更新日不明
+ */
+export type DbFreshnessLevel = 'fresh' | 'moderate' | 'stale' | 'unknown';
+
+/**
+ * 脆弱性DBスナップショットメタデータ (Rev.2.1 IMP-06 / 5.4)
+ */
+export interface AdvisoryDbMetadata {
+  schemaVersion: string;
+  dataVersion: string;
+  generatedAt: string;
+  sources: string[];
+  coverage: {
+    technologies: string[];
+  };
+  advisoryCount: number;
+  productCount: number;
+  syncStatus: 'success' | 'partial' | 'failed';
+}
+
+/**
+ * 脆弱性照合ステータス (Version 1.1 ADD-05 / 後方互換保持)
  */
 export type AdvisoryMatchStatus =
-  | 'Potentially Affected'  // 影響バージョン範囲に一致
-  | 'Not Affected'          // 対象アドバイザリの影響範囲外
-  | 'Needs Review'          // 追加確認が必要
-  | 'No Data'               // 該当情報が見つからない
-  | 'Lookup Failed';        // 情報取得に失敗
+  | 'Potentially Affected'  // 影響バージョン範囲に一致 (Matched)
+  | 'Not Affected'          // 対象アドバイザリの影響範囲外 (No Match)
+  | 'Needs Review'          // 追加確認が必要 (Unknown Version)
+  | 'No Data'               // 該当情報が見つからない (Not Covered)
+  | 'Lookup Failed';        // 情報取得に失敗 (Lookup Error)
 
 /**
  * 脆弱性 (CVE / GHSA) 詳細アイテム
@@ -161,6 +201,11 @@ export interface DetectedTechnology {
   eolInfo?: EolInfo;
   /** 脆弱性照合ステータス */
   advisoryMatchStatus?: AdvisoryMatchStatus;
+  /** オフライン照合ステータス (Rev.2.1 IMP-06) */
+  offlineMatchStatus?: OfflineMatchStatus;
+  /** DB鮮度ステータス (Rev.2.1 IMP-06) */
+  isStale?: boolean;
+  dbFreshness?: DbFreshnessLevel;
   /** 該当する既知脆弱性一覧 */
   advisories?: SecurityAdvisory[];
   /** 最大CVSSスコア */

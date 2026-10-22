@@ -347,10 +347,14 @@ function showTechModal(tech: DetectedTechnology): void {
 
   // 既知脆弱性 (CVE) ブロック
   let cveHtml = '';
+  const statusLabel = tech.offlineMatchStatus || 'Not Covered';
+  const staleNotice = tech.isStale ? '<span style="color:var(--warning-color);margin-left:6px;font-size:11px;">⚠️ DB鮮度: 31日以上経過</span>' : '';
+
   if (tech.advisories && tech.advisories.length > 0) {
     cveHtml = `
       <div>
-        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件)</div>
+        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">照合ステータス: <strong>${statusLabel}</strong></div>
         ${tech.advisories
           .map(
             (adv) => `
@@ -370,6 +374,20 @@ function showTechModal(tech: DetectedTechnology): void {
         `
           )
           .join('')}
+      </div>
+    `;
+  } else {
+    let statusText = 'この技術のオフライン脆弱性データは未収録です。';
+    if (statusLabel === 'No Match') {
+      statusText = 'オフラインDBに収録されていますが、検出されたバージョンには該当する既知脆弱性はありません。';
+    } else if (statusLabel === 'Unknown Version') {
+      statusText = 'バージョン不明、またはLinuxディストリビューション固有パッケージのため脆弱性断定を保留しています。';
+    }
+    cveHtml = `
+      <div>
+        <div class="detail-section-title">脆弱性照合状況 (オフラインDB) ${staleNotice}</div>
+        <div style="font-size:12px;">ステータス: <strong>${statusLabel}</strong></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(statusText)}</div>
       </div>
     `;
   }

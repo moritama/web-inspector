@@ -1,6 +1,30 @@
 {
+  "schemaVersion": "2.1",
   "version": "2026.10",
-  "generatedAt": "2026-10-22T17:08:35.407Z",
+  "dataVersion": "20261023",
+  "generatedAt": "2026-10-22T17:17:08.367Z",
+  "sources": [
+    "endoflife.date API",
+    "NVD / NIST CVE Catalog",
+    "GitHub Security Advisories"
+  ],
+  "coverage": {
+    "technologies": [
+      "jquery",
+      "bootstrap",
+      "react",
+      "vue",
+      "angular",
+      "lodash",
+      "wordpress",
+      "php",
+      "nginx",
+      "apache"
+    ]
+  },
+  "advisoryCount": 21,
+  "productCount": 10,
+  "syncStatus": "success",
   "libraries": {
     "jquery": {
       "aliases": [

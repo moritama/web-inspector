@@ -4,6 +4,18 @@
  */
 
 /**
+ * Linuxディストリビューション固有のパッケージバージョン表記（例: "2.4.52-1ubuntu4", "1.18.0-0ubuntu1.4", "2.4.6-97.el7"）かを検出する (Rev.2.1 IMP-06 / 5.6)
+ *
+ * @param version バージョン文字列
+ * @returns boolean
+ */
+export function isLinuxPackageVersion(version: string | null | undefined): boolean {
+  if (!version) return false;
+  const lower = version.toLowerCase().trim();
+  return /[-+]([0-9]+)?(ubuntu|deb|debian|el[0-9]|amzn|redhat|centos|arch|alpine|fc[0-9]+)/i.test(lower);
+}
+
+/**
  * バージョン番号文字列（例: "3.6.0", "4.3.1-beta"）を数値配列にパースする
  *
  * @param version バージョン文字列

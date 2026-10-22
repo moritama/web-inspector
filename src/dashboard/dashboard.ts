@@ -245,10 +245,18 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
           ? '<span class="badge badge-high">Supported</span>'
           : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
 
-      const cveBadge =
-        t.advisories && t.advisories.length > 0
-          ? `<span class="badge badge-cve">該当 ${t.advisories.length}件 (CVSS ${t.maxCvss || '6.1'})</span>`
-          : '<span class="badge sev-pass">該当なし</span>';
+      let cveBadge = '<span class="badge sev-pass">該当なし</span>';
+      if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
+        cveBadge = `<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${t.maxCvss || '6.1'})</span>`;
+      } else if (t.offlineMatchStatus === 'Not Covered') {
+        cveBadge = '<span style="color:var(--text-muted);font-size:11px;">未登録</span>';
+      } else if (t.offlineMatchStatus === 'Unknown Version') {
+        cveBadge = '<span class="badge badge-medium">要確認</span>';
+      }
+
+      if (t.isStale) {
+        cveBadge += ' <span style="font-size:10px;color:var(--warning-color);">[DB古]</span>';
+      }
 
       const integrityBadge = t.versionIntegrity
         ? t.versionIntegrity.status === 'match'
@@ -258,12 +266,14 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
           : '<span style="color:var(--text-muted);font-size:11px;">判定不能</span>'
         : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
 
-      const recommendation =
-        t.advisories && t.advisories.length > 0
-          ? `脆弱性修正版（v${t.advisories[0].fixedVersion || '最新'}以上）への更新推奨`
-          : t.supportStatus === 'EOL'
-          ? 'EOLのため最新LTS系列への移行推奨'
-          : '現状維持';
+      let recommendation = '現状維持';
+      if (t.advisories && t.advisories.length > 0) {
+        recommendation = `脆弱性修正版（v${t.advisories[0].fixedVersion || '最新'}以上）への更新推奨`;
+      } else if (t.supportStatus === 'EOL') {
+        recommendation = 'EOLのため最新LTS系列への移行推奨';
+      } else if (t.offlineMatchStatus === 'Unknown Version' && t.version) {
+        recommendation = 'パッケージ固有版のため個別セキュリティ情報の確認を推奨';
+      }
 
       return `
         <tr>

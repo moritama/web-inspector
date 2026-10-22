@@ -1,16 +1,17 @@
 {
   "name": "web-inspector",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
   "type": "module",
   "scripts": {
-    "sync:advisories": "node scripts/sync-advisories.mjs",
-    "build": "node scripts/sync-advisories.mjs && vite build",
+    "advisories:sync": "node scripts/sync-advisories.mjs",
+    "advisories:validate": "node scripts/validate-advisories.mjs",
+    "build": "vite build",
     "watch": "vite build --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test-server": "node test-server/server.mjs",
-    "package": "npm run build && node scripts/package.mjs"
+    "package": "npm run advisories:validate && npm run build && node scripts/package.mjs"
   },
   "keywords": [
     "chrome-extension",

@@ -313,29 +313,59 @@ async function fetchOnlineEolData(product) {
 }
 
 async function main() {
-  console.log('[sync-advisories] オフライン脆弱性・EOLスナップショットDBを生成中...');
+  console.log('[sync-advisories] オフライン脆弱性・EOLスナップショットDB (Rev.2.1) を生成中...');
 
-  const db = {
-    version: '2026.10',
-    generatedAt: new Date().toISOString(),
-    libraries: {}
-  };
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const dataVersion = `${yyyy}${mm}${dd}`;
+
+  const libraries = {};
+  let totalAdvisories = 0;
+  let hasPartialError = false;
 
   for (const [key, lib] of Object.entries(BASE_LIBRARIES)) {
     let eolList = lib.eol;
 
-    // 外部APIからの動的補完（PHP, Nginx等で可能な場合）
-    const onlineEol = await fetchOnlineEolData(key);
-    if (onlineEol && onlineEol.length > 0) {
-      eolList = onlineEol;
+    try {
+      // 外部APIからの動的補完（PHP, Nginx等で可能な場合）
+      const onlineEol = await fetchOnlineEolData(key);
+      if (onlineEol && onlineEol.length > 0) {
+        eolList = onlineEol;
+      }
+    } catch (err) {
+      console.warn(`[sync-advisories] ${key} のオンラインEOL取得に失敗しました (ローカルデータを使用):`, err);
+      hasPartialError = true;
     }
 
-    db.libraries[key] = {
+    libraries[key] = {
       aliases: lib.aliases,
       versions: lib.versions,
       eol: eolList
     };
+    totalAdvisories += (lib.versions || []).length;
   }
+
+  // Rev.2.1 メタデータ仕様に準拠
+  const db = {
+    schemaVersion: '2.1',
+    version: `${yyyy}.${mm}`, // 後方互換性用
+    dataVersion,
+    generatedAt: today.toISOString(),
+    sources: [
+      'endoflife.date API',
+      'NVD / NIST CVE Catalog',
+      'GitHub Security Advisories'
+    ],
+    coverage: {
+      technologies: Object.keys(BASE_LIBRARIES)
+    },
+    advisoryCount: totalAdvisories,
+    productCount: Object.keys(BASE_LIBRARIES).length,
+    syncStatus: hasPartialError ? 'partial' : 'success',
+    libraries
+  };
 
   // ディレクトリ作成確認
   const outDir = path.dirname(OUTPUT_FILE);
@@ -343,12 +373,20 @@ async function main() {
     fs.mkdirSync(outDir, { recursive: true });
   }
 
-  // JSONファイル書き出し
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(db, null, 2), 'utf-8');
-  console.log(`[sync-advisories] 正常に生成完了: ${OUTPUT_FILE} (登録技術数: ${Object.keys(db.libraries).length})`);
+  // 一時ファイルへのアトミック書き出し（失敗時に既存DBを保護）
+  const tempFile = `${OUTPUT_FILE}.tmp`;
+  fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), 'utf-8');
+  fs.renameSync(tempFile, OUTPUT_FILE);
+
+  console.log(`[sync-advisories] 正常に生成完了: ${OUTPUT_FILE}`);
+  console.log(`  - schemaVersion: ${db.schemaVersion}`);
+  console.log(`  - dataVersion: ${db.dataVersion}`);
+  console.log(`  - 登録製品数: ${db.productCount}, 登録脆弱性数: ${db.advisoryCount}`);
+  console.log(`  - 同期ステータス: ${db.syncStatus}`);
 }
 
 main().catch((err) => {
-  console.error('[sync-advisories] 生成エラー:', err);
+  console.error('[sync-advisories] 生成エラー (既存のDBは保持されます):', err);
   process.exit(1);
 });
+

@@ -1,0 +1,235 @@
+[
+  {
+    "id": "react",
+    "name": "React",
+    "category": "js-framework",
+    "website": "https://react.dev/",
+    "description": "Metaが開発するユーザーインターフェース構築のための宣言型JavaScriptライブラリ",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[data-reactroot], [data-reactid]",
+        "pattern": "data-react",
+        "weight": 90
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/react(?:\\.production\\.min|\\.development)?\\.js|react-dom",
+        "weight": 85
+      },
+      {
+        "type": "dom",
+        "target": "script#__NEXT_DATA__",
+        "pattern": "__NEXT_DATA__",
+        "weight": 70
+      }
+    ]
+  },
+  {
+    "id": "nextjs",
+    "name": "Next.js",
+    "category": "js-framework",
+    "website": "https://nextjs.org/",
+    "description": "Vercelが開発するフルスタックReactフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "script#__NEXT_DATA__",
+        "pattern": "__NEXT_DATA__",
+        "weight": 95
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/_next/static/",
+        "weight": 90
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "/_next/static/",
+        "weight": 85
+      },
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Next\\.js",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "vue",
+    "name": "Vue.js",
+    "category": "js-framework",
+    "website": "https://vuejs.org/",
+    "description": "プログレッシブなJavaScriptフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[data-v-]",
+        "pattern": "data-v-",
+        "weight": 90
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/vue(?:\\.runtime)?(?:\\.global)?(?:\\.min)?\\.js",
+        "weight": 85
+      },
+      {
+        "type": "dom",
+        "target": "#__nuxt",
+        "pattern": "__nuxt",
+        "weight": 70
+      }
+    ]
+  },
+  {
+    "id": "nuxtjs",
+    "name": "Nuxt",
+    "category": "js-framework",
+    "website": "https://nuxt.com/",
+    "description": "直感的で高機能なVueフルスタックフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "#__nuxt, script#__NUXT_DATA__",
+        "pattern": "__nuxt|__NUXT_DATA__",
+        "weight": 95
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/_nuxt/",
+        "weight": 90
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "/_nuxt/",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "angular",
+    "name": "Angular",
+    "category": "js-framework",
+    "website": "https://angular.dev/",
+    "description": "Googleが開発する大規模エンタープライズ対応Webアプリケーションプラットフォーム",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[ng-version]",
+        "pattern": "ng-version=\"([0-9.]+)\"",
+        "versionRegex": "ng-version=\"([0-9.]+)\"",
+        "weight": 95
+      },
+      {
+        "type": "dom",
+        "target": "[ng-app], [ng-controller]",
+        "pattern": "ng-",
+        "weight": 85
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "angular(?:\\.min)?\\.js",
+        "weight": 80
+      }
+    ]
+  },
+  {
+    "id": "svelte",
+    "name": "Svelte",
+    "category": "js-framework",
+    "website": "https://svelte.dev/",
+    "description": "コンパイル時に効率的なバニラJSへ変換するサイバネティックWebUIフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[class*='svelte-']",
+        "pattern": "svelte-",
+        "weight": 90
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/_app/immutable/",
+        "weight": 75
+      }
+    ]
+  },
+  {
+    "id": "jquery",
+    "name": "jQuery",
+    "category": "js-css-library",
+    "website": "https://jquery.com/",
+    "description": "DOM操作とイベント処理を簡易化する定番JavaScriptライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "jquery[.-]([0-9.]+)(?:\\.min)?\\.js",
+        "versionRegex": "jquery[.-]([0-9.]+)(?:\\.min)?\\.js",
+        "weight": 90
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "jquery(?:\\.min)?\\.js",
+        "weight": 75
+      }
+    ]
+  },
+  {
+    "id": "bootstrap",
+    "name": "Bootstrap",
+    "category": "js-css-library",
+    "website": "https://getbootstrap.com/",
+    "description": "レスポンシブWebデザインのためのオープンソースフロントエンドツールキット",
+    "signals": [
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "bootstrap(?:\\.min)?\\.css",
+        "weight": 85
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "bootstrap(?:\\.bundle)?(?:\\.min)?\\.js",
+        "weight": 80
+      },
+      {
+        "type": "dom",
+        "target": ".container, .row, .col-",
+        "pattern": "container",
+        "weight": 40
+      }
+    ]
+  },
+  {
+    "id": "tailwind",
+    "name": "Tailwind CSS",
+    "category": "js-css-library",
+    "website": "https://tailwindcss.com/",
+    "description": "ユーティリティファーストのCSSフレームワーク",
+    "signals": [
+      {
+        "type": "css",
+        "target": "class",
+        "pattern": "(?:flex|grid|hidden|block)\\s+(?:items-|justify-|space-|p-|m-|text-|bg-)",
+        "weight": 80
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "tailwindcss|cdn\\.tailwindcss\\.com",
+        "weight": 90
+      }
+    ]
+  }
+]

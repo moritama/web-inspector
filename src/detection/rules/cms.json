@@ -1,0 +1,147 @@
+[
+  {
+    "id": "wordpress",
+    "name": "WordPress",
+    "category": "cms",
+    "website": "https://wordpress.org/",
+    "description": "世界で最も広く利用されているオープンソースCMS",
+    "signals": [
+      {
+        "type": "meta",
+        "target": "generator",
+        "pattern": "WordPress(?:\\s+([0-9.]+))?",
+        "versionRegex": "WordPress\\s+([0-9.]+)",
+        "weight": 95
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/wp-includes/|/wp-content/",
+        "weight": 85
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "/wp-content/|/wp-includes/|/wp-json/",
+        "weight": 80
+      },
+      {
+        "type": "header",
+        "target": "link",
+        "pattern": "<https?://[^>]+/wp-json/>; rel=\"https://api\\.w\\.org/\"",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "drupal",
+    "name": "Drupal",
+    "category": "cms",
+    "website": "https://www.drupal.org/",
+    "description": "拡張性とセキュリティに定評のあるエンタープライズ向けオープンソースCMS",
+    "signals": [
+      {
+        "type": "meta",
+        "target": "generator",
+        "pattern": "Drupal(?:\\s+([0-9.]+))?",
+        "versionRegex": "Drupal\\s+([0-9.]+)",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-generator",
+        "pattern": "Drupal(?:\\s+([0-9.]+))?",
+        "versionRegex": "Drupal\\s+([0-9.]+)",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-drupal-cache",
+        "pattern": ".*",
+        "weight": 85
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/sites/default/files/|/misc/drupal\\.js|/core/misc/drupal\\.js",
+        "weight": 80
+      }
+    ]
+  },
+  {
+    "id": "joomla",
+    "name": "Joomla",
+    "category": "cms",
+    "website": "https://www.joomla.org/",
+    "description": "多言語対応と柔軟性を備えた定評あるオープンソースCMS",
+    "signals": [
+      {
+        "type": "meta",
+        "target": "generator",
+        "pattern": "Joomla!(?:\\s+([0-9.]+))?",
+        "versionRegex": "Joomla!\\s+([0-9.]+)",
+        "weight": 95
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "/media/system/js/|/media/jui/js/",
+        "weight": 80
+      }
+    ]
+  },
+  {
+    "id": "shopify",
+    "name": "Shopify",
+    "category": "cms",
+    "website": "https://www.shopify.com/",
+    "description": "世界規模のEコマースプラットフォーム",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "cloudflare.*shopify|Shopify",
+        "weight": 90
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "cdn\\.shopify\\.com",
+        "weight": 90
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "cdn\\.shopify\\.com",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "wix",
+    "name": "Wix",
+    "category": "cms",
+    "website": "https://www.wix.com/",
+    "description": "ドラッグ＆ドロップでサイトを構築できるクラウドベースのホームページ作成ツール",
+    "signals": [
+      {
+        "type": "meta",
+        "target": "generator",
+        "pattern": "Wix\\.com",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-wix-request-id",
+        "pattern": ".*",
+        "weight": 95
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "static\\.wixstatic\\.com",
+        "weight": 90
+      }
+    ]
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "name": "web-inspector",
+  "version": "1.0.0",
+  "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test-server": "node test-server/server.mjs"
+  },
+  "keywords": [
+    "chrome-extension",
+    "security-scanner",
+    "technology-profiler",
+    "wappalyzer-alternative",
+    "manifest-v3"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "vitest": "^1.6.0"
+  }
+}

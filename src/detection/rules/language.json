@@ -1,0 +1,174 @@
+[
+  {
+    "id": "php",
+    "name": "PHP",
+    "category": "programming-language",
+    "website": "https://www.php.net/",
+    "description": "Web開発に特化したサーバーサイドスクリプト言語",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "PHP(?:/([0-9.]+))?",
+        "versionRegex": "PHP/([0-9.]+)",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "PHP(?:/([0-9.]+))?",
+        "versionRegex": "PHP/([0-9.]+)",
+        "weight": 85
+      },
+      {
+        "type": "cookie",
+        "target": "PHPSESSID",
+        "pattern": "^PHPSESSID$",
+        "weight": 55
+      },
+      {
+        "type": "url",
+        "target": "path",
+        "pattern": "\\.php(?:$|\\?)",
+        "weight": 50
+      }
+    ]
+  },
+  {
+    "id": "aspnet",
+    "name": "ASP.NET",
+    "category": "programming-language",
+    "website": "https://dotnet.microsoft.com/apps/aspnet",
+    "description": "Microsoftの.NETフレームワーク上に構築されたWeb開発環境",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-aspnet-version",
+        "pattern": "^([0-9.]+)$",
+        "versionRegex": "^([0-9.]+)$",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-aspnetmvc-version",
+        "pattern": "^([0-9.]+)$",
+        "versionRegex": "^([0-9.]+)$",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "ASP\\.NET",
+        "weight": 90
+      },
+      {
+        "type": "cookie",
+        "target": ".ASPXAUTH",
+        "pattern": "^\\.ASPXAUTH$",
+        "weight": 70
+      },
+      {
+        "type": "cookie",
+        "target": "ASP.NET_SessionId",
+        "pattern": "^ASP\\.NET_SessionId$",
+        "weight": 65
+      },
+      {
+        "type": "url",
+        "target": "path",
+        "pattern": "\\.(?:aspx|axd|asmx)(?:$|\\?)",
+        "weight": 60
+      }
+    ]
+  },
+  {
+    "id": "java",
+    "name": "Java",
+    "category": "programming-language",
+    "website": "https://www.java.com/",
+    "description": "エンタープライズWebシステムで幅広く使用されている堅牢なプログラミング言語",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "JSESSIONID",
+        "pattern": "^JSESSIONID$",
+        "weight": 60
+      },
+      {
+        "type": "url",
+        "target": "path",
+        "pattern": "\\.(?:jsp|jspx|do|action)(?:$|\\?)",
+        "weight": 55
+      },
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "(?:Servlet|JSP|Tomcat|JBoss|WildFly)",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "python-django",
+    "name": "Django",
+    "category": "programming-language",
+    "website": "https://www.djangoproject.com/",
+    "description": "迅速な開発とクリーンな設計を促進するPythonの高機能Webフレームワーク",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "csrftoken",
+        "pattern": "^csrftoken$",
+        "weight": 40
+      },
+      {
+        "type": "dom",
+        "target": "input[name='csrfmiddlewaretoken']",
+        "pattern": "csrfmiddlewaretoken",
+        "weight": 80
+      }
+    ]
+  },
+  {
+    "id": "ruby-on-rails",
+    "name": "Ruby on Rails",
+    "category": "programming-language",
+    "website": "https://rubyonrails.org/",
+    "description": "設定より規約（CoC）を重視するRuby製Webフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "meta[name='csrf-param']",
+        "pattern": "authenticity_token",
+        "weight": 70
+      },
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Phusion Passenger",
+        "weight": 80
+      }
+    ]
+  },
+  {
+    "id": "laravel",
+    "name": "Laravel",
+    "category": "programming-language",
+    "website": "https://laravel.com/",
+    "description": "洗練された文法と高機能を特徴とするPHP Webフレームワーク",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "laravel_session",
+        "pattern": "laravel_session",
+        "weight": 75
+      },
+      {
+        "type": "cookie",
+        "target": "XSRF-TOKEN",
+        "pattern": "^XSRF-TOKEN$",
+        "weight": 30
+      }
+    ]
+  }
+]

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Inspector</title>
+  <link rel="stylesheet" href="/src/popup/popup.css">
+</head>
+<body class="theme-dark">
+  <div class="app-container">
+    <!-- ヘッダー -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-icon">🔍</div>
+        <div class="brand-text">
+          <h1 class="brand-title">Web Inspector</h1>
+          <span class="brand-version">v1.0.0</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="icon-btn" title="テーマ切り替え">🌓</button>
+        <button id="openDashboardBtn" class="icon-btn" title="詳細ダッシュボードを開く">↗</button>
+      </div>
+    </header>
+
+    <!-- サイト概要バー -->
+    <section class="site-bar">
+      <div class="site-info">
+        <span class="status-indicator ready" id="statusIndicator"></span>
+        <span class="site-hostname" id="siteHostname">読み込み中...</span>
+      </div>
+      <button id="rescanBtn" class="action-btn" title="再調査を実行">
+        <span class="btn-icon">↻</span> 再調査
+      </button>
+    </section>
+
+    <!-- サマリー統計カード -->
+    <section class="summary-cards">
+      <div class="card stat-card">
+        <span class="stat-value" id="techCount">0</span>
+        <span class="stat-label">検出技術</span>
+      </div>
+      <div class="card stat-card attention">
+        <span class="stat-value" id="attentionCount">0</span>
+        <span class="stat-label">要確認</span>
+      </div>
+      <div class="card stat-card">
+        <span class="stat-value" id="checkCount">0</span>
+        <span class="stat-label">診断項目</span>
+      </div>
+    </section>
+
+    <!-- タブ切り替えバー -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="techsTab">使用技術 (<span id="tabTechCount">0</span>)</button>
+      <button class="tab-btn" data-tab="securityTab">セキュリティ (<span id="tabSecCount">0</span>)</button>
+      <button class="tab-btn" data-tab="cookiesTab">Cookie (<span id="tabCookieCount">0</span>)</button>
+    </nav>
+
+    <!-- タブコンテンツエリア -->
+    <main class="content-area">
+      <!-- 1. 使用技術タブ -->
+      <div id="techsTab" class="tab-pane active">
+        <div id="techsList" class="items-list">
+          <div class="empty-state">技術情報を取得しています...</div>
+        </div>
+      </div>
+
+      <!-- 2. セキュリティ診断タブ -->
+      <div id="securityTab" class="tab-pane">
+        <div id="securityList" class="items-list">
+          <div class="empty-state">セキュリティ設定を診断中...</div>
+        </div>
+      </div>
+
+      <!-- 3. Cookie診断タブ -->
+      <div id="cookiesTab" class="tab-pane">
+        <div class="privacy-notice">※値は保存・表示されません（属性のみ診断）</div>
+        <div id="cookiesList" class="items-list">
+          <div class="empty-state">Cookie情報を取得中...</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- フッターアクションバー -->
+    <footer class="footer">
+      <div class="export-group">
+        <button id="exportJsonBtn" class="footer-btn">JSON保存</button>
+        <button id="exportCsvBtn" class="footer-btn">CSV保存</button>
+      </div>
+      <button id="fullReportBtn" class="footer-btn primary">全画面レポート</button>
+    </footer>
+
+    <!-- 詳細モーダルダイアログ -->
+    <div id="detailModal" class="modal-overlay hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h2 id="modalTitle" class="modal-title">項目詳細</h2>
+          <button id="closeModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- 動的コンテンツ -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/popup/popup.ts"></script>
+</body>
+</html>

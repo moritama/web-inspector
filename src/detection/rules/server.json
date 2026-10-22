@@ -1,0 +1,80 @@
+[
+  {
+    "id": "apache",
+    "name": "Apache",
+    "category": "web-server",
+    "website": "https://httpd.apache.org/",
+    "description": "世界中で広く利用されているオープンソースのHTTP Webサーバー",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Apache(?:/([0-9.]+))?",
+        "versionRegex": "Apache/([0-9.]+)",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "nginx",
+    "name": "Nginx",
+    "category": "web-server",
+    "website": "https://nginx.org/",
+    "description": "高並行処理と軽量性に優れたオープンソースのWebサーバーおよびリバースプロキシ",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "nginx(?:/([0-9.]+))?",
+        "versionRegex": "nginx/([0-9.]+)",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "iis",
+    "name": "Microsoft-IIS",
+    "category": "web-server",
+    "website": "https://www.iis.net/",
+    "description": "Microsoft Windows Serverに統合されたWebサーバー機能",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Microsoft-IIS(?:/([0-9.]+))?",
+        "versionRegex": "Microsoft-IIS/([0-9.]+)",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "litespeed",
+    "name": "LiteSpeed",
+    "category": "web-server",
+    "website": "https://www.litespeedtech.com/",
+    "description": "Apache互換の高速でスケーラブルな商用Webサーバー",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "LiteSpeed",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "caddy",
+    "name": "Caddy",
+    "category": "web-server",
+    "website": "https://caddyserver.com/",
+    "description": "自動HTTPS機能を備えたGo言語製のモダンWebサーバー",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Caddy",
+        "weight": 95
+      }
+    ]
+  }
+]

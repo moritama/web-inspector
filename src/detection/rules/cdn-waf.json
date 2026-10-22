@@ -1,0 +1,110 @@
+[
+  {
+    "id": "cloudflare",
+    "name": "Cloudflare",
+    "category": "cdn-waf",
+    "website": "https://www.cloudflare.com/",
+    "description": "グローバルCDN・DDoS対策・WAFクラウドプラットフォーム",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "cloudflare",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "cf-ray",
+        "pattern": ".*",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "cf-cache-status",
+        "pattern": ".*",
+        "weight": 90
+      },
+      {
+        "type": "cookie",
+        "target": "__cf_bm",
+        "pattern": "^__cf_bm$",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "cloudfront",
+    "name": "Amazon CloudFront",
+    "category": "cdn-waf",
+    "website": "https://aws.amazon.com/cloudfront/",
+    "description": "低遅延で高転送速度を提供するAWSの高速コンテンツ配信ネットワーク(CDN)",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-amz-cf-id",
+        "pattern": ".*",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "via",
+        "pattern": "CloudFront",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-cache",
+        "pattern": "(?:Hit|Miss|Error) from cloudfront",
+        "weight": 90
+      }
+    ]
+  },
+  {
+    "id": "fastly",
+    "name": "Fastly",
+    "category": "cdn-waf",
+    "website": "https://www.fastly.com/",
+    "description": "エッジクラウドプラットフォーム・プログラマブルCDN",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-served-by",
+        "pattern": "cache-[a-z0-9]+",
+        "weight": 85
+      },
+      {
+        "type": "header",
+        "target": "fastly-debug-digest",
+        "pattern": ".*",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "x-fastly-request-id",
+        "pattern": ".*",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "akamai",
+    "name": "Akamai",
+    "category": "cdn-waf",
+    "website": "https://www.akamai.com/",
+    "description": "世界有数のコンテンツ配信ネットワークおよびクラウドセキュリティソリューション",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-akamai-transformed",
+        "pattern": ".*",
+        "weight": 95
+      },
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "AkamaiGHost",
+        "weight": 95
+      }
+    ]
+  }
+]

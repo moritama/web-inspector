@@ -1,0 +1,264 @@
+# Web Technology & Security Inspector
+
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](package.json)
+[![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
+[![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
+
+Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定と外部から確認できるセキュリティ設定の受動的診断を行うブラウザ拡張機能（Manifest V3）です。
+
+Wappalyzerのような技術検出機能に加え、セキュリティ調査に不可欠な**「検出根拠（エビデンス）」「設定の問題点」「具体的な改善方法」**まで、ブラウザ内で完結して確認できます。
+
+---
+
+## 目次
+
+1. [主な特徴・原則](#主な特徴原則)
+2. [機能一覧](#機能一覧)
+3. [システムアーキテクチャ](#システムアーキテクチャ)
+4. [インストール方法 (Chrome / Edge)](#インストール方法-chrome--edge)
+5. [クイックスタート・検証用テスト環境](#クイックスタート検証用テスト環境)
+6. [開発・ビルドコマンド](#開発ビルドコマンド)
+7. [セキュリティ・プライバシー設計](#セキュリティプライバシー設計)
+8. [ディレクトリ構成](#ディレクトリ構成)
+
+---
+
+## 主な特徴・原則
+
+- **受動的な調査を基本とする**: 閲覧中のページとそのHTTP通信のみを解析し、ログイン試行や脆弱性攻撃（SQLインジェクション、XSS攻撃等）は一切行いません。
+- **判定根拠の完全追跡**: 「なぜその技術・問題と判定したか」（HTTPレスポンスヘッダー名・値、metaタグ、DOMマーカー、URLパス等）を必ず記録・表示します。
+- **未検出と未使用の明確な区別**: 外部から確証が得られない場合は安易に「未使用」「安全」と断定せず、「不明」または未検出として扱います。
+- **プライバシー保護の徹底**: Cookieの値（Value）やAuthorizationヘッダー、ページ本文は保存・取得しません。データはすべてローカル（`chrome.storage.local`）に保存され、外部送信は一切行いません。
+
+---
+
+## 機能一覧
+
+| 機能ID | 機能名 | 説明 |
+|---|---|---|
+| **F01** | Webサーバー検出 | Apache, Nginx, Microsoft-IIS, LiteSpeed, Caddy 等の検出とバージョン特定 |
+| **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel 等の検出 |
+| **F03** | CMS検出 | WordPress, Drupal, Joomla, Shopify, Wix 等の検出とバージョン特定 |
+| **F04** | JavaScriptフレームワーク検出 | React, Next.js, Vue.js, Nuxt, Angular, Svelte 等の検出 |
+| **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS 等の検出 |
+| **F06** | CDN / WAF推定 | Cloudflare, Amazon CloudFront, Fastly, Akamai 等の検出 |
+| **F07** | HTTPセキュリティヘッダー診断 | HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CORS, Server/X-Powered-By情報露出 |
+| **F08** | Cookie属性診断 | Secure, HttpOnly, SameSite, `__Host-`/`__Secure-` プレフィックス整合性（値は非保持） |
+| **F09** | HTTPS・混在コンテンツ診断 | 平文HTTP警告、アクティブ/パッシブ混在コンテンツ（Mixed Content）の検出 |
+| **F10** | 検出根拠・確信度表示 | エビデンス種別・値・取得元、確信度スコア（高: 80〜100, 中: 50〜79, 低: 1〜49） |
+| **F11** | JSON・CSVエクスポート | 診断根拠を含む整形JSONおよびExcel対応UTF-8 BOM付きCSVの出力 |
+| **F12** | 調査履歴 & 差分比較 (Diff) | 過去の調査レポート保存（最大50件）、一覧検索、2つのレポートの差分比較（ビフォーアフター） |
+
+---
+
+## システムアーキテクチャ
+
+```mermaid
+graph TD
+    subgraph Browser ["Webブラウザ (Chrome / Edge)"]
+        subgraph ActiveTab ["閲覧中のWebページ"]
+            PageDOM["DOM / HTML / Scripts / CSS"]
+            MixedRes["混在コンテンツ (HTTPリソース)"]
+        end
+
+        subgraph Extension ["Web Inspector 拡張機能 (Manifest V3)"]
+            CS["Content Script<br>(DOM/アセット/混在コンテンツ収集)"]
+            SW["Service Worker (バックグラウンド)<br>(HTTPヘッダー収集 / Cookie属性取得 / 統括)"]
+            
+            subgraph Engine ["解析エンジン"]
+                DE["Detection Engine<br>(技術検出 / ルール照合 / 確信度計算)"]
+                SE["Security Engine<br>(ヘッダー / Cookie / HTTPS評価)"]
+            end
+
+            subgraph StorageArea ["ストレージ"]
+                LocalStorage["chrome.storage.local<br>(調査履歴 / 設定)"]
+            end
+
+            subgraph UI ["ユーザーインターフェース"]
+                Popup["Popup UI (ポップアップ画面)<br>・サマリーカード<br>・技術/セキュリティ/Cookieタブ<br>・根拠モーダル"]
+                Dashboard["Dashboard UI (詳細画面)<br>・新タブフルスクリーン画面<br>・履歴一覧 & 差分比較 (Diff)<br>・JSON / CSVエクスポート"]
+            end
+        end
+    end
+
+    ActiveTab -->|DOM解析・監視| CS
+    ActiveTab -->|HTTP通信 (webRequest)| SW
+    CS -->|メッセージ送信| SW
+    SW --> DE
+    SW --> SE
+    DE --> SW
+    SE --> SW
+    SW --> LocalStorage
+    SW <-->|状態取得・操作| Popup
+    LocalStorage <--> Dashboard
+```
+
+### 診断・通信シーケンス
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as ユーザー
+    participant Tab as 対象Webページ
+    participant SW as Service Worker
+    participant CS as Content Script
+    participant Engine as Detection & Security Engine
+    participant Popup as Popup / Dashboard
+    participant Storage as chrome.storage.local
+
+    Note over Tab,SW: ページアクセス時
+    Tab->>SW: HTTPレスポンス発生 (onHeadersReceived)
+    SW->>SW: レスポンスヘッダー情報の一時キャッシュ
+
+    User->>Popup: 拡張機能アイコンをクリック
+    Popup->>SW: 調査リクエスト送信 (tabId, url)
+    SW->>CS: DOM情報解析リクエスト
+    CS->>Tab: meta, script, link, HTML特徴, 混在コンテンツ収集
+    CS-->>SW: DOM解析結果返却
+    SW->>SW: chrome.cookies.getAll (属性のみ取得・値は除外)
+    SW->>Engine: 全シグナルを照合して解析実行
+    Engine->>Engine: 技術判定 (ルール照合・確信度計算・根拠生成)
+    Engine->>Engine: セキュリティ診断 (HSTS, CSP, Cookie, 混在コンテンツ等)
+    Engine-->>SW: 統合解析結果 (InspectionReport)
+    SW->>Storage: 調査履歴として保存 (最大50件)
+    SW-->>Popup: 診断結果返却
+    Popup->>User: リッチUIで結果を表示 (技術、セキュリティ、根拠、対応策)
+```
+
+---
+
+## インストール方法 (Chrome / Edge)
+
+ビルド済みのパッケージ（`dist` ディレクトリ）をブラウザに読み込ませることで、すぐに利用できます。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as ユーザー
+    participant Browser as Chrome / Edge
+    participant ExtPage as 拡張機能管理画面 (chrome://extensions)
+    participant Dist as ビルド生成物 (dist/)
+
+    User->>Browser: アドレスバーに「chrome://extensions」を入力してEnter
+    User->>ExtPage: 右上の「デベロッパー モード」をONにする
+    User->>ExtPage: 「パッケージ化されていない拡張機能を読み込む」をクリック
+    User->>Dist: 本リポジトリの「dist」フォルダを選択
+    ExtPage-->>User: インストール完了！ツールバーにピン留めして利用可能
+```
+
+1. Google Chrome または Microsoft Edge を開きます。
+2. アドレスバーに `chrome://extensions`（Edgeの場合は `edge://extensions`）と入力してEnterキーを押します。
+3. 画面右上にある **「デベロッパー モード」** のトグルを **ON** にします。
+4. 画面左上に表示される **「パッケージ化されていない拡張機能を読み込む」** ボタンをクリックします。
+5. ファイル選択ダイアログで、本プロジェクトの **`dist`** フォルダを選択します。
+6. 拡張機能一覧に「Web Technology & Security Inspector」が表示されればインストール完了です。
+
+---
+
+## クイックスタート・検証用テスト環境
+
+拡張機能の全機能をローカルで安全にテストできるよう、PHP 8.2、Apache 2.4、WordPress 6.4、React、Next.js、Tailwind CSS、および各種セキュリティヘッダー・Cookieをシミュレートするテストサーバーが同梱されています。
+
+```bash
+# テストサーバーの起動 (ポート 3000)
+npm run test-server
+```
+
+1. ブラウザで `http://localhost:3000` を開きます。
+2. ツールバーの **「Web Inspector」アイコン** をクリックします。
+3. 検出された技術（PHP 8.2、Apache 2.4、WordPress 6.4、React等）と、セキュリティ指摘（HSTS未設定、CSP unsafe-inline、Cookie属性の課題等）が即座に表示されます。
+4. 各項目をクリックして、判定根拠や推奨改善策を確認できます。
+
+---
+
+## 開発・ビルドコマンド
+
+```bash
+# 依存パッケージのインストール
+npm install
+
+# 本番用ビルド (dist/ フォルダに拡張機能パッケージを生成)
+npm run build
+
+# ファイル変更監視ビルド (開発用)
+npm run watch
+
+# 単体テスト実行 (Vitest)
+npm test
+
+# 検証用テストサーバー起動
+npm run test-server
+```
+
+---
+
+## セキュリティ・プライバシー設計
+
+本ツールはセキュリティ調査ツール自体がユーザーの情報を漏えいさせないよう、厳格なプライバシー設計を採用しています。
+
+- **Cookie値の完全除外**: Cookieは名前、ドメイン、パス、Secure、HttpOnly、SameSite、有効期限のみを検査し、**Cookieの値（Value）は一切取得・保存・ログ出力しません**。
+- **外部送信ゼロ**: 収集した通信情報やDOM情報はブラウザ内（Service Workerおよび`chrome.storage.local`）でのみ処理され、外部の解析サーバーへ送信されることはありません。
+- **受動的・安全**: 対象Webサイトに対して悪意あるペイロードや過度なリクエストを送信せず、通常のページ閲覧に伴う通信のみを分析します。
+- **履歴管理**: 調査結果はローカルに保存され、ユーザー自身の操作により1件ずつの削除、または全履歴の完全クリアが可能です。
+
+---
+
+## ディレクトリ構成
+
+```text
+siteChecker/
+├── public/                  # 静的アセット
+│   ├── manifest.json        # Manifest V3 定義
+│   └── icons/               # 拡張機能アイコン (16x16, 48x48, 128x128)
+├── src/
+│   ├── background/
+│   │   └── service-worker.ts # HTTPレスポンスヘッダー傍受・Cookie取得・統括
+│   ├── content/
+│   │   └── content-script.ts # DOM・meta・script・混在コンテンツ収集
+│   ├── detection/           # 技術検出エンジン
+│   │   ├── engine.ts        # 検出エンジン本体
+│   │   ├── confidence.ts    # 確信度計算ロジック (0〜100, 高/中/低)
+│   │   └── rules/           # JSON検出ルール
+│   │       ├── server.json   # Webサーバー
+│   │       ├── language.json # 開発言語・フレームワーク
+│   │       ├── cms.json      # CMS
+│   │       ├── frontend.json # フロントエンド (React, Vue, Tailwind等)
+│   │       └── cdn-waf.json  # CDN / WAF
+│   ├── security/            # セキュリティ診断エンジン
+│   │   ├── engine.ts        # 統合セキュリティエンジン
+│   │   ├── headers.ts       # HTTPヘッダー診断 (HSTS, CSP, XFO, CORS等)
+│   │   ├── cookies.ts       # Cookie属性診断 (Secure, HttpOnly, プレフィックス)
+│   │   └── https.ts         # HTTPS・混在コンテンツ診断
+│   ├── storage/
+│   │   └── history.ts       # 履歴管理 (保存・検索・Diff比較)
+│   ├── export/
+│   │   ├── json.ts          # JSONエクスポート
+│   │   └── csv.ts           # Excel対応UTF-8 BOM付きCSVエクスポート
+│   ├── popup/               # ポップアップ画面
+│   │   ├── popup.css
+│   │   └── popup.ts
+│   ├── dashboard/           # 詳細ダッシュボード画面
+│   │   ├── dashboard.css
+│   │   └── dashboard.ts
+│   └── shared/
+│       └── types.ts         # 共通型定義
+├── test-server/             # 動作検証用モックサーバー
+│   └── server.mjs
+├── tests/                   # 単体テスト (Vitest)
+│   ├── detection.test.ts
+│   ├── security.test.ts
+│   └── export.test.ts
+├── popup.html               # ポップアップHTMLエントリー
+├── dashboard.html           # ダッシュボードHTMLエントリー
+├── dist/                    # Chrome読み込み用ビルド生成物
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
+```
+
+---
+
+## ライセンス
+
+MIT License

@@ -8,7 +8,8 @@
     "watch": "vite build --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test-server": "node test-server/server.mjs"
+    "test-server": "node test-server/server.mjs",
+    "package": "npm run build && node scripts/package.mjs"
   },
   "keywords": [
     "chrome-extension",

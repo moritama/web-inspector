@@ -4,6 +4,7 @@
  */
 
 import { SecurityCheckResult } from '../shared/types';
+import { analyzeCSPHeader } from './csp-parser';
 
 /**
  * HTTPレスポンスヘッダーを診断する
@@ -116,45 +117,8 @@ export function checkHttpHeaders(
       scope: url,
     });
   } else if (csp) {
-    const issues: string[] = [];
-    if (/unsafe-inline/i.test(csp)) {
-      issues.push("'unsafe-inline'ディレクティブが許可されており、インラインスクリプト実行を防止できません。");
-    }
-    if (/unsafe-eval/i.test(csp)) {
-      issues.push("'unsafe-eval'ディレクティブが許可されており、eval()等による文字列コード実行が可能です。");
-    }
-    if (/default-src\s+[^;]*\*/i.test(csp) || /script-src\s+[^;]*\*/i.test(csp)) {
-      issues.push("ワイルドカード(*)が指定されており、任意の外部ドメインからの読み込みが許可されています。");
-    }
-
-    if (issues.length > 0) {
-      results.push({
-        checkId: 'SEC-CSP-03',
-        category: 'http-headers',
-        name: 'CSP (Content-Security-Policy)',
-        status: 'warning',
-        severity: 'low',
-        observed: csp,
-        description: `CSPが設定されていますが、以下の緩和設定が含まれています: ${issues.join(' ')}`,
-        recommendation:
-          'NonceまたはSHA-256ハッシュベースのCSPへの移行を検討し、unsafe-inlineやワイルドカードの削除を推奨します。',
-        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/CSP'],
-        scope: url,
-      });
-    } else {
-      results.push({
-        checkId: 'SEC-CSP-00',
-        category: 'http-headers',
-        name: 'CSP (Content-Security-Policy)',
-        status: 'pass',
-        severity: 'info',
-        observed: csp,
-        description: '堅牢なContent-Security-Policyが設定されています。',
-        recommendation: '定期的にポリシーの更新とリソースのホワイトリストを見直してください。',
-        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/CSP'],
-        scope: url,
-      });
-    }
+    const hasXfo = !!getHeader('x-frame-options');
+    results.push(...analyzeCSPHeader(csp, url, hasXfo));
   }
 
   // --- 3. X-Frame-Options (クリックジャッキング対策) ---

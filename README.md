@@ -1,13 +1,13 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
 
-Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定、外部から確認できるセキュリティ設定の診断、**JavaScript/CSSライブラリのバージョン検出、CSS・JS整合性確認、EOL（サポート終了）照合、既知脆弱性（CVE/GHSA）照合**を行うブラウザ拡張機能（Manifest V3）です。
+Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定、外部から確認できるセキュリティ設定の診断、**JavaScript/CSSライブラリのバージョン検出、CSS・JS整合性確認、EOL（サポート終了）照合、既知脆弱性（CVE/GHSA）照合、CSPディレクティブ構文解析、Cookie用途別リスク判定**を行うブラウザ拡張機能（Manifest V3）です。
 
-Wappalyzerのような技術検出機能に加え、保守・セキュリティ管理に不可欠な**「検出根拠（エビデンス）」「CSS/JS整合性」「サポート状況（EOL）」「既知脆弱性（CVE）」「具体的な改善方法」**まで、ブラウザ内で完結して確認できます。
+Wappalyzerのような技術検出機能に加え、保守・セキュリティ管理に不可欠な**「検出根拠（エビデンス）」「CSS/JS整合性」「サポート状況（EOL）」「既知脆弱性（CVE）」「CSP構文解析・フォールバック評価」「Cookie用途別重み付け（誤検知削減）」「完全オフライン突合」**まで、ブラウザ内で完結して確認できます。
 
 ---
 
@@ -16,7 +16,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - [Web Technology \& Security Inspector](#web-technology--security-inspector)
   - [目次](#目次)
   - [主な特徴・原則](#主な特徴原則)
-  - [機能一覧](#機能一覧)
+  - [機能一覧 (v1.2.0)](#機能一覧-v120)
   - [システムアーキテクチャ](#システムアーキテクチャ)
     - [診断・通信シーケンス](#診断通信シーケンス)
   - [インストール方法 (Chrome / Edge)](#インストール方法-chrome--edge)
@@ -31,23 +31,27 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 ## 主な特徴・原則
 
 - **受動的な調査を基本とする**: 閲覧中のページとそのHTTP通信のみを解析し、ログイン試行や脆弱性攻撃（SQLインジェクション、XSS攻撃等）は一切行いません。
+- **完全オフライン・外部送信ゼロ**: 検出されたライブラリや閲覧先URLを外部API（OSV APIやNVD API）へ送信せず、ビルド時に生成された圧縮スナップショットDB（`advisory-db.json`）によりローカルで高速照合します。
+- **ノイズ（誤検知）削減**: Cookie用途別判定（認証、CSRF、解析タグ、UI設定）により、JavaScript連携が前提のCookieで不要なHttpOnly警告を出さない実効的なスコアリングを実現します。
 - **判定根拠の完全追跡**: 「なぜその技術・問題と判定したか」（HTTPレスポンスヘッダー名・値、metaタグ、DOMマーカー、URLパス等）を必ず記録・表示します。
 - **未検出と未使用の明確な区別**: 外部から確証が得られない場合は安易に「未使用」「安全」と断定せず、「不明」または未検出として扱います。
-- **プライバシー保護の徹底**: Cookieの値（Value）やAuthorizationヘッダー、ページ本文は保存・取得しません。データはすべてローカル（`chrome.storage.local`）に保存され、外部送信は一切行いません。
 
 ---
 
-## 機能一覧
+## 機能一覧 (v1.2.0)
 
-| 機能ID | 機能名 | 説明 |
+| 機能ID | 項目 | 概要 |
 |---|---|---|
 | **F01** | Webサーバー検出 | Apache, Nginx, Microsoft-IIS, LiteSpeed, Caddy 等の検出とバージョン特定 |
 | **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel 等の検出 |
 | **F03** | CMS検出 | WordPress, Drupal, Joomla, Shopify, Wix 等の検出とバージョン特定 |
 | **F04** | JavaScriptフレームワーク検出 | React, Next.js, Vue.js, Nuxt, Angular, Svelte 等の検出 |
 | **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS 等の検出 |
+| **IMP-03** | オフライン既知脆弱性・EOL照合 (F05改善) | ビルド時静的DBによる完全ローカルCVE/GHSA/EOL突合（外部送信ゼロ） |
 | **F06** | CDN / WAF推定 | Cloudflare, Amazon CloudFront, Fastly, Akamai 等の検出 |
+| **IMP-02** | CSPディレクティブ構文解析 (F07改善) | CSP文字列をパースし、`script-src` $\rightarrow$ `default-src` フォールバックや危険キーワード（`'unsafe-inline'`, `'unsafe-eval'`, `*`, `data:`, `object-src`）を詳細評価 |
 | **F07** | HTTPセキュリティヘッダー診断 | HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CORS, Server/X-Powered-By情報露出 |
+| **IMP-01** | Cookie属性用途別判定 (F08改善) | 認証・CSRF・解析・UI設定に応じた動的重大度判定。誤検知（ノイズ）を大幅削減 |
 | **F08** | Cookie属性診断 | Secure, HttpOnly, SameSite, `__Host-`/`__Secure-` プレフィックス整合性（値は非保持） |
 | **F09** | HTTPS・混在コンテンツ診断 | 平文HTTP警告、アクティブ/パッシブ混在コンテンツ（Mixed Content）の検出 |
 | **F10** | 検出根拠・確信度表示 | エビデンス種別・値・取得元、確信度スコア（高: 80〜100, 中: 50〜79, 低: 1〜49） |
@@ -170,9 +174,11 @@ npm run test-server
 ```
 
 1. ブラウザで `http://localhost:3000` を開きます。
-2. ツールバーの **「Web Inspector」アイコン** をクリックします。
-3. 検出された技術（PHP 8.2、Apache 2.4、WordPress 6.4、React等）と、セキュリティ指摘（HSTS未設定、CSP unsafe-inline、Cookie属性の課題等）が即座に表示されます。
-4. 各項目をクリックして、判定根拠や推奨改善策を確認できます。
+2. ナビゲーションから各テスト用エンドポイントを検証できます：
+   - `http://localhost:3000/insecure-cookie`: **Cookie用途別判定 (IMP-01)**（認証系Cookie警告、CSRFのHttpOnly許容、設定Cookieのノイズ削減）
+   - `http://localhost:3000/loose-csp`: **CSPディレクティブ構文解析 (IMP-02)**（`unsafe-inline`、`unsafe-eval`、`*`、`object-src` 未指定等の詳細検知）
+   - `http://localhost:3000/legacy-lib`: **レガシーライブラリ照合 (IMP-03)**（古い jQuery 2.2.4、WordPress 5.2、PHP 7.4のオフライン既知脆弱性・EOL検知）
+3. ツールバーの **「Web Inspector」アイコン** をクリックし、診断結果と根拠を確認できます。
 
 ---
 

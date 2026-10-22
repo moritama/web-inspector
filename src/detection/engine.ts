@@ -6,6 +6,7 @@
 
 import { checkCveAdvisories } from '../security/cve/cve-engine';
 import { checkEolStatus } from '../security/eol/eol-engine';
+import { matchOfflineAdvisories } from './advisory';
 import {
   DetectedTechnology,
   DomSignals,
@@ -361,11 +362,16 @@ export class DetectionEngine {
           versionIntegrity = this.evaluateVersionIntegrity(jsVersion, cssVersion);
         }
 
-        // --- E. EOL・サポート状況判定 (ADD-04) ---
-        const eolInfo = checkEolStatus(rule.name, detectedVersion);
-
-        // --- F. 既知脆弱性 (CVE) 照合 (ADD-05) ---
-        const cveResult = checkCveAdvisories(rule.name, detectedVersion);
+        // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05) ---
+        const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion);
+        const eolInfo =
+          offlineResult.eolInfo.status !== 'Unknown'
+            ? offlineResult.eolInfo
+            : checkEolStatus(rule.name, detectedVersion);
+        const cveResult =
+          offlineResult.matchStatus !== 'No Data'
+            ? offlineResult
+            : checkCveAdvisories(rule.name, detectedVersion);
 
         results.push({
           technology: rule.name,

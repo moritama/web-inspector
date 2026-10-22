@@ -214,6 +214,38 @@ export interface SecurityCheckResult {
 }
 
 /**
+ * Cookieの用途別カテゴリ (Version 1.2 IMP-01)
+ */
+export type CookieCategory =
+  | 'authentication'  // 認証・セッション
+  | 'csrf'            // CSRF保護トークン
+  | 'analytics'       // トラッキング・アクセス解析
+  | 'preferences'     // UI・表示設定
+  | 'general';        // 一般・その他
+
+/**
+ * Cookie診断における個別指摘事項
+ */
+export interface CookieIssue {
+  id: string;
+  name: string;
+  category: CookieCategory;
+  severity: SecuritySeverity;
+  missingAttributes: ('Secure' | 'HttpOnly' | 'SameSite' | 'Prefix')[];
+  description: string;
+  recommendation: string;
+}
+
+/**
+ * Cookie属性診断用サマリー
+ */
+export interface CookieAnalysisResult {
+  totalCount: number;
+  secureCount: number;
+  issues: CookieIssue[];
+}
+
+/**
  * Cookie診断用属性情報 (※値は除外)
  */
 export interface InspectedCookieInfo {
@@ -227,6 +259,7 @@ export interface InspectedCookieInfo {
   expirationDate?: number;
   hostPrefixValid?: boolean;
   securePrefixValid?: boolean;
+  category?: CookieCategory;
   issues: string[];
 }
 

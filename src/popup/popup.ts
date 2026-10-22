@@ -50,10 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version;
-    if (ver) {
-      versionEl.textContent = `v${ver}`;
-    }
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.2';
+    versionEl.textContent = `v${ver}`;
   }
 }
 
@@ -256,6 +254,14 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
       sevLabel = '注意';
     }
 
+    const isAccepted =
+      c.exceptionStatus === 'accepted' ||
+      c.exceptionStatus === 'false-positive' ||
+      c.exceptionStatus === 'muted';
+    const exceptionBadge = isAccepted
+      ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:4px;">許容済</span>'
+      : '';
+
     row.innerHTML = `
       <div class="item-main">
         <div class="item-texts">
@@ -264,6 +270,7 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
         </div>
       </div>
       <div class="item-side">
+        ${exceptionBadge}
         <span class="badge ${sevClass}">${sevLabel}</span>
       </div>
     `;
@@ -426,6 +433,38 @@ function showTechModal(tech: DetectedTechnology): void {
 
 function showSecurityModal(check: SecurityCheckResult): void {
   modalTitle.textContent = check.name;
+
+  const isAccepted =
+    check.exceptionStatus === 'accepted' ||
+    check.exceptionStatus === 'false-positive' ||
+    check.exceptionStatus === 'muted';
+
+  let exceptionSectionHtml = '';
+  if (isAccepted) {
+    exceptionSectionHtml = `
+      <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:8px 12px;margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong style="color:var(--accent-color);">🛡️ この指摘は許容設定済みです</strong>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">理由: ${escapeHtml(check.exceptionReason || '未指定')}</div>
+          </div>
+          <button id="modalRevokeExceptionBtn" class="action-btn" style="font-size:11px;padding:3px 8px;">許容を解除</button>
+        </div>
+      </div>
+    `;
+  } else if (check.status === 'warning' || check.status === 'fail') {
+    exceptionSectionHtml = `
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button id="modalAcceptFindingBtn" class="action-btn" style="flex:1;font-size:11px;padding:6px 10px;">
+          🛡️ この指摘を許容する (リスク受容)
+        </button>
+        <button id="modalFalsePositiveBtn" class="action-btn" style="flex:1;font-size:11px;padding:6px 10px;">
+          ❌ 誤検知として除外
+        </button>
+      </div>
+    `;
+  }
+
   modalBody.innerHTML = `
     <div>
       <div class="detail-section-title">観測された値</div>
@@ -454,7 +493,63 @@ function showSecurityModal(check: SecurityCheckResult): void {
     `
         : ''
     }
+
+    ${exceptionSectionHtml}
   `;
+
+  // イベントリスナー設定
+  const acceptBtn = document.getElementById('modalAcceptFindingBtn');
+  if (acceptBtn && check.findingId) {
+    acceptBtn.addEventListener('click', async () => {
+      const reason = prompt('許容する理由（社内合意、暫定運用等）を入力してください:', '運用要件に基づくリスク受容') || '運用上のリスク受容';
+      await chrome.runtime.sendMessage({
+        type: 'SAVE_FINDING_EXCEPTION',
+        exception: {
+          id: `ex_${Date.now()}`,
+          findingId: check.findingId,
+          targetUrl: currentReport?.url,
+          status: 'accepted',
+          reason,
+          createdAt: new Date().toISOString(),
+        },
+      });
+      detailModal.classList.add('hidden');
+      runScan();
+    });
+  }
+
+  const fpBtn = document.getElementById('modalFalsePositiveBtn');
+  if (fpBtn && check.findingId) {
+    fpBtn.addEventListener('click', async () => {
+      const reason = prompt('誤検知の理由を入力してください:', '対象環境における仕様上不要') || '誤検知';
+      await chrome.runtime.sendMessage({
+        type: 'SAVE_FINDING_EXCEPTION',
+        exception: {
+          id: `ex_${Date.now()}`,
+          findingId: check.findingId,
+          targetUrl: currentReport?.url,
+          status: 'false-positive',
+          reason,
+          createdAt: new Date().toISOString(),
+        },
+      });
+      detailModal.classList.add('hidden');
+      runScan();
+    });
+  }
+
+  const revokeBtn = document.getElementById('modalRevokeExceptionBtn');
+  if (revokeBtn && (check.exceptionId || check.findingId)) {
+    revokeBtn.addEventListener('click', async () => {
+      await chrome.runtime.sendMessage({
+        type: 'DELETE_FINDING_EXCEPTION',
+        id: check.exceptionId || check.findingId,
+      });
+      detailModal.classList.add('hidden');
+      runScan();
+    });
+  }
+
   detailModal.classList.remove('hidden');
 }
 

@@ -73,6 +73,9 @@ export async function clearAllHistory(): Promise<void> {
   await chrome.storage.local.remove(STORAGE_KEY_HISTORY);
 }
 
+export { compareReportsEnhanced } from './diff';
+import { compareReportsEnhanced } from './diff';
+
 /**
  * 2つの調査結果レポートを比較する（差分比較Diff）
  */
@@ -90,45 +93,5 @@ export function compareReports(
   reportA: InspectionReport, // 古い方
   reportB: InspectionReport  // 新しい方
 ): ReportComparison {
-  const techsA = new Set(reportA.technologies.map((t) => t.technology));
-  const techsB = new Set(reportB.technologies.map((t) => t.technology));
-
-  const addedTechnologies = Array.from(techsB).filter((t) => !techsA.has(t));
-  const removedTechnologies = Array.from(techsA).filter((t) => !techsB.has(t));
-
-  const versionChanges: Array<{ technology: string; before: string | null; after: string | null }> = [];
-  for (const tB of reportB.technologies) {
-    const tA = reportA.technologies.find((x) => x.technology === tB.technology);
-    if (tA && tA.version !== tB.version) {
-      versionChanges.push({
-        technology: tB.technology,
-        before: tA.version,
-        after: tB.version,
-      });
-    }
-  }
-
-  const issuesA = new Set(
-    reportA.securityChecks
-      .filter((c) => c.status === 'warning' || c.status === 'fail')
-      .map((c) => c.name)
-  );
-  const issuesB = new Set(
-    reportB.securityChecks
-      .filter((c) => c.status === 'warning' || c.status === 'fail')
-      .map((c) => c.name)
-  );
-
-  const newSecurityIssues = Array.from(issuesB).filter((name) => !issuesA.has(name));
-  const resolvedSecurityIssues = Array.from(issuesA).filter((name) => !issuesB.has(name));
-
-  return {
-    reportA,
-    reportB,
-    addedTechnologies,
-    removedTechnologies,
-    versionChanges,
-    newSecurityIssues,
-    resolvedSecurityIssues,
-  };
+  return compareReportsEnhanced(reportA, reportB);
 }

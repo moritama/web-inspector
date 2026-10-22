@@ -256,6 +256,97 @@ export interface SecurityCheckResult {
   recommendation: string;
   referenceUrls: string[];
   scope: string;
+  /** 安定ID (Rev.2.1 IMP-07 / IMP-10) */
+  findingId?: string;
+  /** 例外・許容ステータス (Rev.2.1 IMP-10) */
+  exceptionStatus?: ExceptionStatus;
+  /** 許容設定の理由 (Rev.2.1 IMP-10) */
+  exceptionReason?: string;
+  /** 許容設定ID (Rev.2.1 IMP-10) */
+  exceptionId?: string;
+}
+
+/**
+ * 差分種別 (Rev.2.1 IMP-09 / 8.2)
+ */
+export type DiffType =
+  | 'Added'      // 新規検出
+  | 'Removed'    // 未検出化
+  | 'Changed'    // 値や設定の変化
+  | 'Resolved'   // 問題の解消を観測
+  | 'Regressed'  // 新たな問題を検出
+  | 'Unchanged'  // 変化なし
+  | 'Unknown';   // 比較不能
+
+/**
+ * 差分原因分類 (Rev.2.1 IMP-09 / 8.3)
+ */
+export type DiffCause =
+  | 'site-change'            // サイト側の構成・設定変更
+  | 'advisory-update'        // CVE/EOL情報の更新
+  | 'rule-update'            // Web Inspectorの診断ルール変更
+  | 'inspection-difference'  // 調査権限・対象範囲の違い
+  | 'unknown';               // 原因不明・複数候補
+
+/**
+ * 詳細差分項目 (Rev.2.1 IMP-09)
+ */
+export interface DetailedDiffItem {
+  id: string;
+  category: 'technology' | 'security' | 'cookie' | 'coverage';
+  target: string;
+  diffType: DiffType;
+  diffCause: DiffCause;
+  causeExplanation: string;
+  before: string | null;
+  after: string | null;
+}
+
+/**
+ * 拡張レポート比較結果 (Rev.2.1 IMP-09)
+ */
+export interface EnhancedReportComparison {
+  reportA: InspectionReport;
+  reportB: InspectionReport;
+  diffItems: DetailedDiffItem[];
+  summary: {
+    addedCount: number;
+    removedCount: number;
+    changedCount: number;
+    resolvedCount: number;
+    regressedCount: number;
+    causes: Record<DiffCause, number>;
+  };
+  addedTechnologies: string[];
+  removedTechnologies: string[];
+  versionChanges: Array<{ technology: string; before: string | null; after: string | null }>;
+  newSecurityIssues: string[];
+  resolvedSecurityIssues: string[];
+}
+
+/**
+ * 診断項目の例外状態 (Rev.2.1 IMP-10 / 9.2)
+ */
+export type ExceptionStatus =
+  | 'active'          // 通常表示 (例外未設定)
+  | 'accepted'        // リスク許容
+  | 'false-positive'  // 誤検知
+  | 'muted'           // 通知抑制
+  | 'expired';        // 許容期限切れ
+
+/**
+ * 診断項目の許容・除外設定エンティティ (Rev.2.1 IMP-10 / 9.3)
+ */
+export interface FindingException {
+  id: string;               // UUID
+  findingId: string;        // 安定ID (FindingIdentity / checkId / checkId:resource)
+  targetUrl?: string;       // 適用対象URL (空ならホスト全体または全サイト)
+  targetHost?: string;      // 適用対象ホスト名
+  status: 'accepted' | 'false-positive' | 'muted';
+  reason: string;           // 許容理由
+  createdAt: string;        // ISO日時
+  expiresAt?: string;       // 有効期限 (任意)
+  ruleVersion?: string;     // 設定時のルールバージョン
 }
 
 /**

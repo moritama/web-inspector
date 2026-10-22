@@ -13,7 +13,7 @@
       <div class="sidebar-brand">
         <div class="brand-logo">🔍</div>
         <div>
-          <h1 class="brand-name">Web Inspector <span class="brand-version-badge" id="dashboardVersion">v1.2.0</span></h1>
+          <h1 class="brand-name">Web Inspector <span class="brand-version-badge" id="dashboardVersion">v1.3.2</span></h1>
           <span class="brand-sub">Security & Tech Dashboard</span>
         </div>
       </div>
@@ -36,6 +36,9 @@
         </button>
         <button class="nav-item" data-view="compareView">
           <span class="nav-icon">⚖️</span> 履歴比較 (Diff)
+        </button>
+        <button class="nav-item" data-view="exceptionsView">
+          <span class="nav-icon">🛡️</span> 許容設定 (Exceptions)
         </button>
       </nav>
 
@@ -204,6 +207,21 @@
 
             <div id="compareResultContainer" class="compare-results">
               <div class="empty-state">2つの履歴を選択して「差分を比較」をクリックしてください。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ビュー 7: 許容設定 (Exceptions) - IMP-10 -->
+      <section id="exceptionsView" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">診断項目の許容・除外設定 (Finding Exceptions)</h2>
+            <span class="card-desc">運用要件に基づくリスク受容や誤検知として除外登録された指摘項目を管理します</span>
+          </div>
+          <div class="card-body">
+            <div id="exceptionsTableContainer">
+              <div class="empty-state">登録されている許容・除外設定はありません。</div>
             </div>
           </div>
         </div>

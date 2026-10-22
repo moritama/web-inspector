@@ -122,3 +122,28 @@ export function generateFindingId(identity: FindingIdentity): string {
 
   return `find_${hash}${reverseHash}`;
 }
+
+/**
+ * SecurityCheckResult から安定したFinding IDを生成するヘルパー (Rev.2.1 IMP-07 / IMP-10)
+ */
+export function generateFindingIdFromCheck(
+  checkId: string,
+  urlStr: string,
+  targetKey = ''
+): string {
+  let origin = '';
+  try {
+    const u = new URL(urlStr);
+    origin = `${u.protocol}//${u.hostname}`;
+  } catch {
+    origin = urlStr;
+  }
+
+  return generateFindingId({
+    ruleId: checkId,
+    origin,
+    resourceKey: normalizeUrlForIdentity(urlStr),
+    targetKey: targetKey || checkId,
+    scopeKey: 'security-check',
+  });
+}

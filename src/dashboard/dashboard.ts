@@ -5,9 +5,10 @@
 
 import { downloadCsvFile } from '../export/csv';
 import { downloadJsonFile } from '../export/json';
-import { compareReports } from '../storage/history';
+import { compareReportsEnhanced } from '../storage/diff';
 import {
   DetectedTechnology,
+  FindingException,
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
@@ -32,6 +33,7 @@ const fullTechsContainerEl = document.getElementById('fullTechsContainer') as HT
 const fullSecurityContainerEl = document.getElementById('fullSecurityContainer') as HTMLElement;
 const cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
 const historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
+const exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
 
 const compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
 const compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
@@ -55,10 +57,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version;
-    if (ver) {
-      badgeEl.textContent = `v${ver}`;
-    }
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.2';
+    badgeEl.textContent = `v${ver}`;
   }
 }
 
@@ -84,6 +84,9 @@ function setupNav(): void {
       const targetId = btn.getAttribute('data-view');
       if (targetId) {
         document.getElementById(targetId)?.classList.add('active');
+        if (targetId === 'exceptionsView') {
+          loadExceptionsData();
+        }
       }
     });
   });
@@ -395,19 +398,36 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
 function renderFullSecurity(checks: SecurityCheckResult[]): void {
   fullSecurityContainerEl.innerHTML = checks
     .map(
-      (c) => `
+      (c) => {
+        const isAccepted =
+          c.exceptionStatus === 'accepted' ||
+          c.exceptionStatus === 'false-positive' ||
+          c.exceptionStatus === 'muted';
+        const exceptionBadge = isAccepted
+          ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:6px;">許容済</span>'
+          : '';
+
+        return `
     <div class="accordion-item">
       <div class="accordion-header">
         <div style="display:flex;align-items:center;gap:12px;">
           <span style="font-weight:700;font-size:14px;">${escapeHtml(c.name)}</span>
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(c.checkId)}</span>
         </div>
-        <span class="badge ${c.status === 'pass' ? 'sev-pass' : c.severity === 'high' ? 'sev-high' : 'sev-medium'}">${c.status === 'pass' ? 'PASS' : c.severity.toUpperCase()}</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${exceptionBadge}
+          <span class="badge ${c.status === 'pass' ? 'sev-pass' : c.severity === 'high' ? 'sev-high' : 'sev-medium'}">${c.status === 'pass' ? 'PASS' : c.severity.toUpperCase()}</span>
+        </div>
       </div>
       <div class="accordion-body">
         <div><strong>観測値:</strong> <code>${escapeHtml(c.observed)}</code></div>
         <div><strong>セキュリティ上の影響:</strong> ${escapeHtml(c.description)}</div>
         <div style="color:var(--accent-color);"><strong>推奨対応:</strong> ${escapeHtml(c.recommendation)}</div>
+        ${
+          c.exceptionReason
+            ? `<div style="background:rgba(59,130,246,0.1);padding:6px 10px;border-radius:4px;margin-top:6px;font-size:12px;color:var(--accent-color);"><strong>許容理由:</strong> ${escapeHtml(c.exceptionReason)}</div>`
+            : ''
+        }
         ${
           c.referenceUrls.length > 0
             ? `
@@ -421,7 +441,8 @@ function renderFullSecurity(checks: SecurityCheckResult[]): void {
         }
       </div>
     </div>
-  `
+  `;
+      }
     )
     .join('');
 }
@@ -520,31 +541,132 @@ function handleCompare(): void {
 
   if (!repA || !repB) return;
 
-  const diff = compareReports(repA, repB);
+  const diff = compareReportsEnhanced(repA, repB);
+
+  // 原因集計バッジの生成 (Rev.2.1 IMP-09)
+  const causeBadges = Object.entries(diff.summary.causes)
+    .filter(([_, count]) => count > 0)
+    .map(([cause, count]) => {
+      let label = cause;
+      if (cause === 'site-change') label = 'Site Change (サイト側変更)';
+      else if (cause === 'advisory-update') label = 'Advisory Update (脆弱性DB更新)';
+      else if (cause === 'inspection-difference') label = 'Inspection Diff (調査権限差)';
+      else if (cause === 'rule-update') label = 'Rule Update (診断ルール更新)';
+      else if (cause === 'unknown') label = 'Unknown (複数/不明)';
+      return `<span class="badge badge-medium" style="margin-right:6px;display:inline-block;margin-top:4px;">${escapeHtml(label)}: ${count}件</span>`;
+    })
+    .join('');
 
   compareResultContainer.innerHTML = `
     <div class="diff-box">
-      <div class="diff-title">技術スタック & バージョンの差分</div>
-      <div>新規検出された技術: <span class="diff-added">${diff.addedTechnologies.length > 0 ? diff.addedTechnologies.join(', ') : 'なし'}</span></div>
-      <div>未検出となった技術: <span class="diff-removed">${diff.removedTechnologies.length > 0 ? diff.removedTechnologies.join(', ') : 'なし'}</span></div>
-      ${
-        diff.versionChanges.length > 0
-          ? `
-        <div style="margin-top:6px;">バージョン変化:</div>
-        <ul>
-          ${diff.versionChanges.map((v) => `<li>${v.technology}: ${v.before || '不明'} &rarr; <strong>${v.after || '不明'}</strong></li>`).join('')}
-        </ul>
-      `
-          : '<div>バージョン変化: なし</div>'
-      }
+      <div class="diff-title">差分分析サマリー (Rev.2.1 IMP-09)</div>
+      <div style="margin-bottom:8px;">
+        検出された変化: <strong>${diff.diffItems.length} 件</strong>
+        (新規: ${diff.summary.addedCount}, 消失: ${diff.summary.removedCount}, 変更: ${diff.summary.changedCount}, 解消: ${diff.summary.resolvedCount}, 新規警告: ${diff.summary.regressedCount})
+      </div>
+      <div>推定要因: ${causeBadges || '<span style="color:var(--text-muted);">差分なし</span>'}</div>
     </div>
 
     <div class="diff-box">
-      <div class="diff-title">セキュリティ課題の差分</div>
-      <div>新たに検出された課題: <span class="diff-removed">${diff.newSecurityIssues.length > 0 ? diff.newSecurityIssues.join(', ') : 'なし'}</span></div>
-      <div>解消された課題: <span class="diff-added">${diff.resolvedSecurityIssues.length > 0 ? diff.resolvedSecurityIssues.join(', ') : 'なし'}</span></div>
+      <div class="diff-title">詳細な変化と原因分析</div>
+      ${
+        diff.diffItems.length === 0
+          ? '<div style="color:var(--text-muted);padding:8px 0;">2つの調査結果に変化はありませんでした。</div>'
+          : `
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>種別</th>
+                <th>対象</th>
+                <th>推定原因</th>
+                <th>Before &rarr; After</th>
+                <th>解説</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${diff.diffItems
+                .map((item) => {
+                  let badgeClass = 'badge-medium';
+                  if (item.diffType === 'Resolved' || item.diffType === 'Added') badgeClass = 'badge-high';
+                  if (item.diffType === 'Regressed') badgeClass = 'badge-eol';
+
+                  return `
+                    <tr>
+                      <td><span class="badge ${badgeClass}">${item.diffType}</span></td>
+                      <td><strong>${escapeHtml(item.target)}</strong></td>
+                      <td><span class="badge" style="background:var(--bg-hover);">${escapeHtml(item.diffCause)}</span></td>
+                      <td>${escapeHtml(item.before || '-')} &rarr; <strong>${escapeHtml(item.after || '-')}</strong></td>
+                      <td style="font-size:12px;color:var(--text-sub);">${escapeHtml(item.causeExplanation)}</td>
+                    </tr>
+                  `;
+                })
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      `
+      }
     </div>
   `;
+}
+
+async function loadExceptionsData(): Promise<void> {
+  if (!exceptionsTableContainerEl) return;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'GET_FINDING_EXCEPTIONS' });
+    const exceptions: FindingException[] = res?.exceptions || [];
+    if (exceptions.length === 0) {
+      exceptionsTableContainerEl.innerHTML = '<div class="empty-state">登録されている許容・除外設定はありません。</div>';
+      return;
+    }
+
+    exceptionsTableContainerEl.innerHTML = `
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>状態</th>
+              <th>対象安定ID (FindingId)</th>
+              <th>対象URL</th>
+              <th>許容理由</th>
+              <th>登録日</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${exceptions
+              .map(
+                (ex) => `
+              <tr>
+                <td><span class="badge ${ex.status === 'accepted' ? 'badge-high' : 'badge-medium'}">${ex.status === 'accepted' ? 'リスク許容' : ex.status === 'false-positive' ? '誤検知' : '通知抑制'}</span></td>
+                <td><code>${escapeHtml(ex.findingId)}</code></td>
+                <td>${escapeHtml(ex.targetUrl || '全体適用')}</td>
+                <td>${escapeHtml(ex.reason)}</td>
+                <td>${ex.createdAt ? new Date(ex.createdAt).toLocaleString('ja-JP') : '-'}</td>
+                <td><button class="btn btn-secondary revoke-ex-btn" data-id="${escapeHtml(ex.id)}" style="font-size:11px;padding:3px 8px;">解除</button></td>
+              </tr>
+            `
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    document.querySelectorAll('.revoke-ex-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+        if (id && confirm('この許容設定を解除しますか？')) {
+          await chrome.runtime.sendMessage({ type: 'DELETE_FINDING_EXCEPTION', id });
+          await loadExceptionsData();
+          await loadDashboardData();
+        }
+      });
+    });
+  } catch (err) {
+    exceptionsTableContainerEl.innerHTML = `<div class="empty-state" style="color:var(--danger-color);">許容設定の取得に失敗しました: ${err}</div>`;
+  }
 }
 
 function escapeHtml(str: string): string {

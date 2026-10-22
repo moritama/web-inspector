@@ -16,6 +16,13 @@ import {
   saveReportToHistory,
   clearAllHistory,
 } from '../storage/history';
+import {
+  getAllFindingExceptions,
+  saveFindingException,
+  deleteFindingException,
+  matchFindingException,
+} from '../storage/exceptions';
+import { generateFindingIdFromCheck } from '../shared/identity';
 import { analyzeCSPPolicies, parseCSPPolicy } from '../security/csp-parser';
 import { assessInspectionCoverage } from '../shared/coverage';
 import {
@@ -27,7 +34,7 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 
-const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.2.0';
+const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.3.2';
 
 // タブIDごとのレスポンスヘッダーキャッシュ
 const headersCache = new Map<number, { url: string; headers: Record<string, string[]> }>();
@@ -320,10 +327,28 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
 
   const allSecurityChecks = [...librarySecurityChecks, ...baseSecurityChecks];
 
-  // 7. 統計集計
-  const requiresAttentionCount = allSecurityChecks.filter(
-    (c) => c.status === 'warning' || c.status === 'fail'
-  ).length;
+  // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10)
+  const exceptions = await getAllFindingExceptions();
+  for (const c of allSecurityChecks) {
+    c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
+    const exMatch = matchFindingException(c.findingId, url, exceptions);
+    c.exceptionStatus = exMatch.status;
+    if (exMatch.exception) {
+      c.exceptionReason = exMatch.exception.reason;
+      c.exceptionId = exMatch.exception.id;
+    }
+  }
+
+  // 7. 統計集計 (許容・除外設定された項目は要確認カウントから除外)
+  const requiresAttentionCount = allSecurityChecks.filter((c) => {
+    const isIssue = c.status === 'warning' || c.status === 'fail';
+    if (!isIssue) return false;
+    const isAccepted =
+      c.exceptionStatus === 'accepted' ||
+      c.exceptionStatus === 'false-positive' ||
+      c.exceptionStatus === 'muted';
+    return !isAccepted;
+  }).length;
 
   const securityFindings = {
     high: allSecurityChecks.filter((c) => c.severity === 'high').length,
@@ -429,6 +454,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === 'CLEAR_HISTORY') {
     clearAllHistory()
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // --- Rev.2.1 IMP-10: 許容・除外設定メッセージハンドラ ---
+  if (message.type === 'GET_FINDING_EXCEPTIONS') {
+    getAllFindingExceptions()
+      .then((exceptions) => sendResponse({ success: true, exceptions }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.type === 'SAVE_FINDING_EXCEPTION') {
+    saveFindingException(message.exception)
+      .then(() => sendResponse({ success: true }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.type === 'DELETE_FINDING_EXCEPTION') {
+    deleteFindingException(message.id)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;

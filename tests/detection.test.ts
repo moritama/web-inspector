@@ -20,6 +20,7 @@ describe('DetectionEngine', () => {
     htmlSnippets: [],
     mixedContent: [],
     cookiesFromDocument: [],
+    cssAssets: [],
   };
 
   it('X-Powered-By ヘッダーから PHP 8.2 を正確に検出できること', () => {

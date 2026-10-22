@@ -14,7 +14,7 @@
         <div class="logo-icon">🔍</div>
         <div class="brand-text">
           <h1 class="brand-title">Web Inspector</h1>
-          <span class="brand-version">v1.0.0</span>
+          <span class="brand-version">v1.1.0</span>
         </div>
       </div>
       <div class="header-actions">
@@ -34,7 +34,7 @@
       </button>
     </section>
 
-    <!-- サマリー統計カード -->
+    <!-- サマリー統計カード (Version 1.1) -->
     <section class="summary-cards">
       <div class="card stat-card">
         <span class="stat-value" id="techCount">0</span>
@@ -44,9 +44,9 @@
         <span class="stat-value" id="attentionCount">0</span>
         <span class="stat-label">要確認</span>
       </div>
-      <div class="card stat-card">
-        <span class="stat-value" id="checkCount">0</span>
-        <span class="stat-label">診断項目</span>
+      <div class="card stat-card eol-stat">
+        <span class="stat-value" id="eolCount">0</span>
+        <span class="stat-label">EOL / CVE</span>
       </div>
     </section>
 
@@ -59,7 +59,7 @@
 
     <!-- タブコンテンツエリア -->
     <main class="content-area">
-      <!-- 1. 使用技術タブ -->
+      <!-- 1. 使用技術タブ (EOL / CVE バッジ付き) -->
       <div id="techsTab" class="tab-pane active">
         <div id="techsList" class="items-list">
           <div class="empty-state">技術情報を取得しています...</div>
@@ -75,7 +75,7 @@
 
       <!-- 3. Cookie診断タブ -->
       <div id="cookiesTab" class="tab-pane">
-        <div class="privacy-notice">※値は保存・表示されません（属性のみ診断）</div>
+        <div class="privacy-notice">※値は保存・表示されません（属性のみ安全に診断）</div>
         <div id="cookiesList" class="items-list">
           <div class="empty-state">Cookie情報を取得中...</div>
         </div>
@@ -88,10 +88,10 @@
         <button id="exportJsonBtn" class="footer-btn">JSON保存</button>
         <button id="exportCsvBtn" class="footer-btn">CSV保存</button>
       </div>
-      <button id="fullReportBtn" class="footer-btn primary">全画面レポート</button>
+      <button id="fullReportBtn" class="footer-btn primary">全画面ダッシュボード</button>
     </footer>
 
-    <!-- 詳細モーダルダイアログ -->
+    <!-- 詳細モーダルダイアログ (Version 1.1) -->
     <div id="detailModal" class="modal-overlay hidden">
       <div class="modal-dialog">
         <div class="modal-header">

@@ -1,6 +1,6 @@
 /**
  * Web Technology & Security Inspector
- * 詳細ダッシュボードコントローラー (src/dashboard/dashboard.ts)
+ * 詳細ダッシュボードコントローラー (src/dashboard/dashboard.ts) - Version 1.1.0
  */
 
 import { downloadCsvFile } from '../export/csv';
@@ -8,12 +8,10 @@ import { downloadJsonFile } from '../export/json';
 import { compareReports } from '../storage/history';
 import {
   DetectedTechnology,
-  HistoryEntrySummary,
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
 
-// 状態
 let currentReport: InspectionReport | null = null;
 let allReportsList: InspectionReport[] = [];
 
@@ -22,12 +20,14 @@ const currentHostnameEl = document.getElementById('currentHostname') as HTMLElem
 const inspectedAtTimeEl = document.getElementById('inspectedAtTime') as HTMLElement;
 const dashTotalTechsEl = document.getElementById('dashTotalTechs') as HTMLElement;
 const dashAttentionCountEl = document.getElementById('dashAttentionCount') as HTMLElement;
+const dashEolCountEl = document.getElementById('dashEolCount') as HTMLElement;
+const dashVulnCountEl = document.getElementById('dashVulnCount') as HTMLElement;
 const dashHttpsStatusEl = document.getElementById('dashHttpsStatus') as HTMLElement;
 const dashMixedStatusEl = document.getElementById('dashMixedStatus') as HTMLElement;
-const dashCookieCountEl = document.getElementById('dashCookieCount') as HTMLElement;
 
-const overviewTechsListEl = document.getElementById('overviewTechsList') as HTMLElement;
+const overviewLibrarySecListEl = document.getElementById('overviewLibrarySecList') as HTMLElement;
 const overviewSecurityListEl = document.getElementById('overviewSecurityList') as HTMLElement;
+const librarySecurityTableContainerEl = document.getElementById('librarySecurityTableContainer') as HTMLElement;
 const fullTechsContainerEl = document.getElementById('fullTechsContainer') as HTMLElement;
 const fullSecurityContainerEl = document.getElementById('fullSecurityContainer') as HTMLElement;
 const cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
@@ -44,9 +44,6 @@ const exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElemen
 const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
 const clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
 
-/**
- * 初期化
- */
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   setupNav();
@@ -103,18 +100,13 @@ function setupActions(): void {
   executeCompareBtn.addEventListener('click', handleCompare);
 }
 
-/**
- * ダッシュボードデータの読み込み
- */
 async function loadDashboardData(): Promise<void> {
   try {
-    // 全履歴レポートの取得
     const response = await chrome.runtime.sendMessage({ type: 'GET_ALL_REPORTS' });
     if (response && response.success && response.reports.length > 0) {
       allReportsList = response.reports as InspectionReport[];
-      currentReport = allReportsList[0]; // 最新のレポートを表示
+      currentReport = allReportsList[0];
     } else {
-      // 履歴がない場合、現在アクティブなタブをスキャン
       const scanRes = await chrome.runtime.sendMessage({ type: 'INSPECT_CURRENT_TAB' });
       if (scanRes && scanRes.success) {
         currentReport = scanRes.report as InspectionReport;
@@ -132,53 +124,70 @@ async function loadDashboardData(): Promise<void> {
   }
 }
 
-/**
- * ダッシュボード各コンポーネントの描画
- */
 function renderDashboard(report: InspectionReport): void {
   currentHostnameEl.textContent = report.hostname;
   inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
 
-  // 統計カード
+  // サマリーカード
   dashTotalTechsEl.textContent = String(report.technologies.length);
   dashAttentionCountEl.textContent = String(report.summary.requiresAttentionCount);
+
+  const eolCount = report.summary.librarySecurity?.eolCount ?? 0;
+  const vulnCount = report.summary.librarySecurity?.vulnerableLibraryCount ?? 0;
+  dashEolCountEl.textContent = String(eolCount);
+  dashVulnCountEl.textContent = `既知脆弱性: ${vulnCount}件 / 不一致: ${report.summary.librarySecurity?.mismatchCount ?? 0}件`;
+
   dashHttpsStatusEl.textContent = report.summary.isHttps ? 'HTTPS (暗号化)' : 'HTTP (非暗号化)';
   dashMixedStatusEl.textContent = `混在コンテンツ: ${report.summary.mixedContentCount}件`;
-  dashCookieCountEl.textContent = String(report.cookies.length);
 
-  // 1. 概要サマリーリスト
-  renderOverviewTechs(report.technologies);
+  // 1. 概要ビュー
+  renderOverviewLibrarySec(report.technologies);
   renderOverviewSecurity(report.securityChecks);
 
-  // 2. 詳細技術アコーディオン
+  // 2. ライブラリセキュリティビュー (Version 1.1 ADD-06)
+  renderLibrarySecurityView(report.technologies);
+
+  // 3. 検出技術 & エビデンス
   renderFullTechnologies(report.technologies);
 
-  // 3. 詳細セキュリティ診断アコーディオン
+  // 4. HTTPセキュリティ診断
   renderFullSecurity(report.securityChecks);
 
-  // 4. Cookieテーブル
+  // 5. Cookieテーブル
   renderCookiesTable(report.cookies);
 }
 
-function renderOverviewTechs(techs: DetectedTechnology[]): void {
-  if (techs.length === 0) {
-    overviewTechsListEl.innerHTML = '<div class="empty-state">技術シグナル未検出</div>';
+function renderOverviewLibrarySec(techs: DetectedTechnology[]): void {
+  const alerted = techs.filter(
+    (t) =>
+      t.supportStatus === 'EOL' ||
+      (t.advisories && t.advisories.length > 0) ||
+      t.versionIntegrity?.status === 'mismatch'
+  );
+
+  if (alerted.length === 0) {
+    overviewLibrarySecListEl.innerHTML = '<div style="color:var(--success-color);padding:12px 0;">ライブラリのサポート終了や既知脆弱性は検出されませんでした。</div>';
     return;
   }
 
-  overviewTechsListEl.innerHTML = techs
-    .slice(0, 5)
-    .map(
-      (t) => `
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);">
-      <div>
-        <strong>${escapeHtml(t.technology)}</strong>
-        <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${t.version ? `v${escapeHtml(t.version)}` : ''}</span>
-      </div>
-      <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
-    </div>
-  `
-    )
+  overviewLibrarySecListEl.innerHTML = alerted
+    .map((t) => {
+      let issues: string[] = [];
+      if (t.supportStatus === 'EOL') issues.push(`EOL (${t.eolDate || 'サポート終了'})`);
+      if (t.advisories && t.advisories.length > 0) issues.push(`CVE ${t.advisories.length}件`);
+      if (t.versionIntegrity?.status === 'mismatch') issues.push('CSS/JS不一致');
+
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-color);">
+          <div>
+            <strong>${escapeHtml(t.technology)}</strong>
+            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${t.version ? `v${escapeHtml(t.version)}` : ''}</span>
+            <div style="font-size:11px;color:var(--text-sub);">${escapeHtml(issues.join(' / '))}</div>
+          </div>
+          <span class="badge ${t.supportStatus === 'EOL' ? 'badge-eol' : 'badge-cve'}">要確認</span>
+        </div>
+      `;
+    })
     .join('');
 }
 
@@ -205,6 +214,82 @@ function renderOverviewSecurity(checks: SecurityCheckResult[]): void {
     .join('');
 }
 
+/**
+ * ライブラリセキュリティビューの描画 (Version 1.1 ADD-06)
+ */
+function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
+  if (techs.length === 0) {
+    librarySecurityTableContainerEl.innerHTML = '<div class="empty-state">技術情報がありません</div>';
+    return;
+  }
+
+  const rows = techs
+    .map((t) => {
+      const eolBadge =
+        t.supportStatus === 'EOL'
+          ? '<span class="badge badge-eol">EOL</span>'
+          : t.supportStatus === 'Maintenance'
+          ? '<span class="badge badge-medium">保守</span>'
+          : t.supportStatus === 'Supported'
+          ? '<span class="badge badge-high">Supported</span>'
+          : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
+
+      const cveBadge =
+        t.advisories && t.advisories.length > 0
+          ? `<span class="badge badge-cve">該当 ${t.advisories.length}件 (CVSS ${t.maxCvss || '6.1'})</span>`
+          : '<span class="badge sev-pass">該当なし</span>';
+
+      const integrityBadge = t.versionIntegrity
+        ? t.versionIntegrity.status === 'match'
+          ? '<span class="badge badge-high">一致</span>'
+          : t.versionIntegrity.status === 'mismatch'
+          ? '<span class="badge badge-medium">不一致</span>'
+          : '<span style="color:var(--text-muted);font-size:11px;">判定不能</span>'
+        : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+
+      const recommendation =
+        t.advisories && t.advisories.length > 0
+          ? `脆弱性修正版（v${t.advisories[0].fixedVersion || '最新'}以上）への更新推奨`
+          : t.supportStatus === 'EOL'
+          ? 'EOLのため最新LTS系列への移行推奨'
+          : '現状維持';
+
+      return `
+        <tr>
+          <td><strong>${escapeHtml(t.technology)}</strong></td>
+          <td>${t.version ? `v${escapeHtml(t.version)}` : '<span style="color:var(--text-muted);">不明</span>'}</td>
+          <td>${escapeHtml(t.versionSource || '-')}</td>
+          <td>${integrityBadge}</td>
+          <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${t.eolDate})</span>` : ''}</td>
+          <td>${cveBadge}</td>
+          <td style="font-size:12px;color:var(--accent-color);">${escapeHtml(recommendation)}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  librarySecurityTableContainerEl.innerHTML = `
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>技術・ライブラリ名</th>
+            <th>代表バージョン</th>
+            <th>取得元</th>
+            <th>CSS/JS整合性</th>
+            <th>サポート状態 (EOL)</th>
+            <th>既知脆弱性 (CVE)</th>
+            <th>推奨対応</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderFullTechnologies(techs: DetectedTechnology[]): void {
   if (techs.length === 0) {
     fullTechsContainerEl.innerHTML = '<div class="empty-state">明確な固有技術シグナルは検出されませんでした</div>';
@@ -221,11 +306,50 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
           ${t.version ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>` : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'}
           <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.category)}</span>
         </div>
-        <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence} (${t.confidenceLevel.toUpperCase()})</span>
+        <div style="display:flex;gap:6px;">
+          ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
+          ${t.advisories && t.advisories.length > 0 ? `<span class="badge badge-cve">CVE ${t.advisories.length}件</span>` : ''}
+          <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
+        </div>
       </div>
       <div class="accordion-body">
         <div>${escapeHtml(t.description || '')}</div>
         ${t.website ? `<div>公式サイト: <a href="${t.website}" target="_blank" style="color:var(--accent-color);">${t.website}</a></div>` : ''}
+        
+        ${
+          t.versionIntegrity
+            ? `
+          <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>CSS / JS バージョン整合性:</strong>
+            <div>JavaScript: ${escapeHtml(t.versionIntegrity.jsVersion || '未検出')} / CSS: ${escapeHtml(t.versionIntegrity.cssVersion || '未検出')}</div>
+            <div style="color:${t.versionIntegrity.status === 'match' ? 'var(--success-color)' : 'var(--warning-color)'};">${escapeHtml(t.versionIntegrity.detail)}</div>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          t.advisories && t.advisories.length > 0
+            ? `
+          <div style="margin-top:8px;">
+            <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA):</strong>
+            <ul style="padding-left:18px;margin-top:4px;">
+              ${t.advisories
+                .map(
+                  (adv) => `
+                <li style="margin-bottom:6px;">
+                  <strong>${escapeHtml(adv.id)}</strong> (${adv.title}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
+                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}
+                </li>
+              `
+                )
+                .join('')}
+            </ul>
+          </div>
+        `
+            : ''
+        }
+
         <div style="font-weight:700;margin-top:8px;">判定根拠 (Evidence):</div>
         <ul style="padding-left:18px;">
           ${t.evidence
@@ -319,7 +443,7 @@ function renderHistoryList(reports: InspectionReport[]): void {
         <strong>${escapeHtml(r.hostname)}</strong>
         <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${new Date(r.inspectedAt).toLocaleString('ja-JP')}</span>
         <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
-          技術: ${r.technologies.length}件 / 要確認: ${r.summary.requiresAttentionCount}件 / ${r.summary.isHttps ? 'HTTPS' : 'HTTP'}
+          技術: ${r.technologies.length}件 / 要確認: ${r.summary.requiresAttentionCount}件 / EOL: ${r.summary.librarySecurity?.eolCount ?? 0}件 / ${r.summary.isHttps ? 'HTTPS' : 'HTTP'}
         </div>
       </div>
       <div style="display:flex;gap:6px;">
@@ -332,13 +456,11 @@ function renderHistoryList(reports: InspectionReport[]): void {
     .join('');
 }
 
-// グローバル公開用関数
 (window as any).viewReport = (id: string) => {
   const target = allReportsList.find((r) => r.id === id);
   if (target) {
     currentReport = target;
     renderDashboard(target);
-    // 概要ビューへ切り替え
     document.querySelector('.nav-item[data-view="overviewView"]')?.dispatchEvent(new Event('click'));
   }
 };
@@ -381,7 +503,7 @@ function handleCompare(): void {
 
   compareResultContainer.innerHTML = `
     <div class="diff-box">
-      <div class="diff-title">技術スタックの差分</div>
+      <div class="diff-title">技術スタック & バージョンの差分</div>
       <div>新規検出された技術: <span class="diff-added">${diff.addedTechnologies.length > 0 ? diff.addedTechnologies.join(', ') : 'なし'}</span></div>
       <div>未検出となった技術: <span class="diff-removed">${diff.removedTechnologies.length > 0 ? diff.removedTechnologies.join(', ') : 'なし'}</span></div>
       ${

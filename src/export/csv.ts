@@ -1,63 +1,115 @@
 /**
  * Web Technology & Security Inspector
- * CSVエクスポート (src/export/csv.ts)
- * Excelで文字化けしないUTF-8 BOM付きCSVを生成します
+ * 拡張CSVエクスポート (src/export/csv.ts) - Version 1.1.0
+ * Excel文字化け防止 UTF-8 BOM付き、数式インジェクション対策、Version 1.1 新規フィールド対応
  */
 
 import { InspectionReport } from '../shared/types';
 
 /**
- * CSVセルのエスケープ処理（カンマ、改行、ダブルクォート対応）
+ * CSVセルのエスケープ処理
+ * - ダブルクォートの二重化
+ * - カンマ・改行対応
+ * - 数式インジェクション対策 (先頭が =, +, -, @, \t の場合にプレフィックス付与)
  */
 function escapeCsv(cell: string | number | boolean | null | undefined): string {
   if (cell === null || cell === undefined) return '""';
-  const str = String(cell).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  let str = String(cell).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // 数式インジェクション（CSV Injection）対策
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+
   return `"${str.replace(/"/g, '""')}"`;
 }
 
 /**
- * 調査レポートからExcel対応UTF-8 BOM付きCSVを生成する
+ * 調査レポートからExcel対応UTF-8 BOM付きCSVを生成する (Version 1.1)
  */
 export function exportReportToCsv(report: InspectionReport): string {
   const rows: string[] = [];
-
-  // UTF-8 BOM
   const BOM = '\uFEFF';
 
-  // 1. ヘッダーサマリー
-  rows.push(['Web Technology & Security Inspector 調査レポート'].map(escapeCsv).join(','));
+  // 1. レポートヘッダーサマリー
+  rows.push(['Web Technology & Security Inspector 調査レポート (Version 1.1)'].map(escapeCsv).join(','));
   rows.push(['調査日時', report.inspectedAt].map(escapeCsv).join(','));
   rows.push(['調査対象URL', report.url].map(escapeCsv).join(','));
   rows.push(['ホスト名', report.hostname].map(escapeCsv).join(','));
   rows.push(['ツールバージョン', report.extensionVersion].map(escapeCsv).join(','));
   rows.push(['ルールバージョン', report.rulesVersion].map(escapeCsv).join(','));
+  rows.push(['脆弱性DBバージョン', report.advisoryDatabaseVersion || '2026.10'].map(escapeCsv).join(','));
   rows.push(['HTTPS利用', report.summary.isHttps ? 'はい' : 'いいえ (HTTP)'].map(escapeCsv).join(','));
-  rows.push(['混在コンテンツ件数', report.summary.mixedContentCount].map(escapeCsv).join(','));
   rows.push(['要確認項目数', report.summary.requiresAttentionCount].map(escapeCsv).join(','));
+  rows.push(['EOL該当数', report.summary.librarySecurity?.eolCount ?? 0].map(escapeCsv).join(','));
+  rows.push(['脆弱性該当数', report.summary.librarySecurity?.vulnerableLibraryCount ?? 0].map(escapeCsv).join(','));
   rows.push([]);
 
-  // 2. 検出技術一覧
-  rows.push(['--- 検出されたWeb技術 ---'].map(escapeCsv).join(','));
+  // 2. 検出技術・ライブラリセキュリティ一覧 (ADD-08)
+  rows.push(['--- 検出技術 & ライブラリセキュリティ (Version 1.1) ---'].map(escapeCsv).join(','));
   rows.push(
-    ['技術名', 'カテゴリ', 'バージョン', '確信度スコア', '確信度レベル', '判定根拠の概要', '公式サイト'].map(escapeCsv).join(',')
+    [
+      '技術名',
+      'カテゴリ',
+      '代表バージョン',
+      'バージョン検出元',
+      '確信度スコア',
+      'CSS側バージョン',
+      'JS側バージョン',
+      'バージョン整合性',
+      'サポート状態 (EOL)',
+      'EOL日付',
+      '脆弱性照合状態',
+      '該当CVE/GHSA識別子',
+      '最大CVSS',
+      '判定根拠の概要',
+      '推奨対応',
+    ].map(escapeCsv).join(',')
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     for (const tech of report.technologies) {
       const evidenceSummary = tech.evidence
         .map((e) => `[${e.type}] ${e.name}: ${e.value}`)
         .join('; ');
+
+      const advisoryIds = tech.advisories && tech.advisories.length > 0
+        ? tech.advisories.map((a) => a.id).join('; ')
+        : 'なし';
+
+      const mismatchStatusText = tech.versionIntegrity
+        ? tech.versionIntegrity.status === 'match'
+          ? '一致'
+          : tech.versionIntegrity.status === 'mismatch'
+          ? '要確認 (不一致)'
+          : '判定不能'
+        : '-';
+
+      const recommendation = tech.advisories && tech.advisories.length > 0
+        ? `脆弱性あり: ${tech.advisories[0].fixedVersion ? `v${tech.advisories[0].fixedVersion}以上へ更新` : '更新検討'}`
+        : tech.supportStatus === 'EOL'
+        ? 'EOLのため移行・更新推奨'
+        : '現状維持';
+
       rows.push(
         [
           tech.technology,
           tech.category,
           tech.version || 'バージョン不明',
+          tech.versionSource || 'pattern',
           tech.confidence,
-          tech.confidenceLevel,
+          tech.cssVersion || '-',
+          tech.jsVersion || '-',
+          mismatchStatusText,
+          tech.supportStatus || 'Unknown',
+          tech.eolDate || '-',
+          tech.advisoryMatchStatus || 'No Data',
+          advisoryIds,
+          tech.maxCvss ?? '-',
           evidenceSummary,
-          tech.website || '',
+          recommendation,
         ].map(escapeCsv).join(',')
       );
     }
@@ -65,7 +117,7 @@ export function exportReportToCsv(report: InspectionReport): string {
 
   rows.push([]);
 
-  // 3. セキュリティ診断結果
+  // 3. HTTP・セキュリティ診断結果
   rows.push(['--- セキュリティ設定診断結果 ---'].map(escapeCsv).join(','));
   rows.push(
     ['項目ID', 'カテゴリ', '診断項目名', 'ステータス', '重大度', '観測された設定', '現状・問題点の説明', '推奨対応・改善策', '参考資料URL'].map(escapeCsv).join(',')
@@ -89,9 +141,9 @@ export function exportReportToCsv(report: InspectionReport): string {
 
   rows.push([]);
 
-  // 4. Cookie属性一覧 (※値は除外)
+  // 4. Cookie属性一覧
   if (report.cookies && report.cookies.length > 0) {
-    rows.push(['--- 観測されたCookie属性 (値は除外) ---'].map(escapeCsv).join(','));
+    rows.push(['--- 観測されたCookie属性 (値は非保持) ---'].map(escapeCsv).join(','));
     rows.push(
       ['Cookie名', 'ドメイン', 'パス', 'Secure', 'HttpOnly', 'SameSite', '種別', '検出された課題'].map(escapeCsv).join(',')
     );

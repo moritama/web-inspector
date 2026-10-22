@@ -20,6 +20,7 @@ describe('Export Functions', () => {
       totalTechnologies: 1,
       requiresAttentionCount: 1,
       securityFindings: { high: 0, medium: 1, low: 0, info: 0, unknown: 0 },
+      librarySecurity: { eolCount: 0, vulnerableLibraryCount: 0, mismatchCount: 0 },
       isHttps: true,
       mixedContentCount: 0,
     },

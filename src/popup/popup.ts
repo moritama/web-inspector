@@ -1,6 +1,6 @@
 /**
  * Web Technology & Security Inspector
- * ポップアップ画面コントローラー (src/popup/popup.ts)
+ * ポップアップ画面コントローラー (src/popup/popup.ts) - Version 1.1.0
  */
 
 import { downloadCsvFile } from '../export/csv';
@@ -12,7 +12,6 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 
-// 現在表示中のレポート
 let currentReport: InspectionReport | null = null;
 
 // DOM要素参照
@@ -20,7 +19,7 @@ const siteHostnameEl = document.getElementById('siteHostname') as HTMLElement;
 const statusIndicatorEl = document.getElementById('statusIndicator') as HTMLElement;
 const techCountEl = document.getElementById('techCount') as HTMLElement;
 const attentionCountEl = document.getElementById('attentionCount') as HTMLElement;
-const checkCountEl = document.getElementById('checkCount') as HTMLElement;
+const eolCountEl = document.getElementById('eolCount') as HTMLElement;
 const tabTechCountEl = document.getElementById('tabTechCount') as HTMLElement;
 const tabSecCountEl = document.getElementById('tabSecCount') as HTMLElement;
 const tabCookieCountEl = document.getElementById('tabCookieCount') as HTMLElement;
@@ -41,18 +40,12 @@ const modalTitle = document.getElementById('modalTitle') as HTMLElement;
 const modalBody = document.getElementById('modalBody') as HTMLElement;
 const closeModalBtn = document.getElementById('closeModalBtn') as HTMLButtonElement;
 
-/**
- * 初期化処理
- */
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   setupEventListeners();
   runScan();
 });
 
-/**
- * テーマの復元と切り替え設定
- */
 function initTheme(): void {
   const savedTheme = localStorage.getItem('web_inspector_theme') || 'dark';
   document.body.className = savedTheme === 'light' ? 'theme-light' : 'theme-dark';
@@ -65,23 +58,12 @@ function toggleTheme(): void {
   localStorage.setItem('web_inspector_theme', isDark ? 'light' : 'dark');
 }
 
-/**
- * イベントリスナーの登録
- */
 function setupEventListeners(): void {
-  // テーマ切り替え
   themeToggleBtn.addEventListener('click', toggleTheme);
-
-  // 再調査
-  rescanBtn.addEventListener('click', () => {
-    runScan();
-  });
-
-  // ダッシュボードを開く
+  rescanBtn.addEventListener('click', () => runScan());
   openDashboardBtn.addEventListener('click', openDashboard);
   fullReportBtn.addEventListener('click', openDashboard);
 
-  // エクスポート
   exportJsonBtn.addEventListener('click', () => {
     if (currentReport) downloadJsonFile(currentReport);
   });
@@ -89,7 +71,6 @@ function setupEventListeners(): void {
     if (currentReport) downloadCsvFile(currentReport);
   });
 
-  // タブ切り替え
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
@@ -103,7 +84,6 @@ function setupEventListeners(): void {
     });
   });
 
-  // モーダル閉じる
   closeModalBtn.addEventListener('click', () => {
     detailModal.classList.add('hidden');
   });
@@ -115,17 +95,11 @@ function setupEventListeners(): void {
   });
 }
 
-/**
- * ダッシュボード（詳細画面）を新しいタブで開く
- */
 function openDashboard(): void {
   const dashboardUrl = chrome.runtime.getURL('dashboard.html');
   chrome.tabs.create({ url: dashboardUrl });
 }
 
-/**
- * 調査を実行
- */
 async function runScan(): Promise<void> {
   statusIndicatorEl.className = 'status-indicator';
   siteHostnameEl.textContent = '調査中...';
@@ -150,35 +124,36 @@ async function runScan(): Promise<void> {
   }
 }
 
-/**
- * 調査結果をUIに反映
- */
 function renderReport(report: InspectionReport): void {
   statusIndicatorEl.className = 'status-indicator ready';
   siteHostnameEl.textContent = report.hostname;
 
-  // サマリー数値の更新
+  // サマリー数値
   techCountEl.textContent = String(report.technologies.length);
   attentionCountEl.textContent = String(report.summary.requiresAttentionCount);
-  checkCountEl.textContent = String(report.securityChecks.length);
+
+  // EOL / CVE 合計数
+  const totalEolAndCve =
+    (report.summary.librarySecurity?.eolCount ?? 0) +
+    (report.summary.librarySecurity?.vulnerableLibraryCount ?? 0);
+  if (eolCountEl) {
+    eolCountEl.textContent = String(totalEolAndCve);
+  }
 
   tabTechCountEl.textContent = String(report.technologies.length);
   tabSecCountEl.textContent = String(report.securityChecks.length);
   tabCookieCountEl.textContent = String(report.cookies.length);
 
-  // 1. 使用技術リスト
+  // 1. 使用技術一覧
   renderTechnologies(report.technologies);
 
-  // 2. セキュリティ診断リスト
+  // 2. セキュリティ診断一覧
   renderSecurityChecks(report.securityChecks);
 
-  // 3. Cookie診断リスト
+  // 3. Cookie診断一覧
   renderCookies(report.cookies);
 }
 
-/**
- * 使用技術の描画
- */
 function renderTechnologies(techs: DetectedTechnology[]): void {
   if (techs.length === 0) {
     techsListEl.innerHTML = '<div class="empty-state">明確な固有技術シグナルは検出されませんでした</div>';
@@ -193,18 +168,47 @@ function renderTechnologies(techs: DetectedTechnology[]): void {
     const confClass = t.confidenceLevel === 'high' ? 'badge-high' : t.confidenceLevel === 'medium' ? 'badge-medium' : 'badge-low';
     const confLabel = t.confidenceLevel === 'high' ? '高' : t.confidenceLevel === 'medium' ? '中' : '低';
 
+    // EOLバッジ
+    let eolBadgeHtml = '';
+    if (t.supportStatus === 'EOL') {
+      eolBadgeHtml = '<span class="badge badge-eol">EOL</span>';
+    } else if (t.supportStatus === 'Maintenance') {
+      eolBadgeHtml = '<span class="badge badge-medium">保守</span>';
+    }
+
+    // CVEバッジ
+    let cveBadgeHtml = '';
+    if (t.advisories && t.advisories.length > 0) {
+      cveBadgeHtml = `<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
+    }
+
+    // 不一致バッジ
+    let mismatchBadgeHtml = '';
+    if (t.versionIntegrity?.status === 'mismatch') {
+      mismatchBadgeHtml = '<span class="badge badge-mismatch">不一致</span>';
+    }
+
+    // バージョン表示
+    let verLabel = t.version ? `v${escapeHtml(t.version)}` : 'バージョン不明';
+    if (t.versionSource === 'runtime') {
+      verLabel += ' (実行時)';
+    }
+
     row.innerHTML = `
       <div class="item-main">
         <div class="tech-icon-badge">${t.technology.slice(0, 2).toUpperCase()}</div>
         <div class="item-texts">
           <span class="item-name">${escapeHtml(t.technology)}</span>
           <div class="item-meta">
-            ${t.version ? `<span class="item-version-badge">v${escapeHtml(t.version)}</span>` : '<span class="item-version-badge">バージョン不明</span>'}
+            <span class="item-version-badge">${escapeHtml(verLabel)}</span>
             <span>${escapeHtml(formatCategory(t.category))}</span>
           </div>
         </div>
       </div>
       <div class="item-side">
+        ${mismatchBadgeHtml}
+        ${eolBadgeHtml}
+        ${cveBadgeHtml}
         <span class="badge ${confClass}">${confLabel} · ${t.confidence}</span>
       </div>
     `;
@@ -214,9 +218,6 @@ function renderTechnologies(techs: DetectedTechnology[]): void {
   });
 }
 
-/**
- * セキュリティ診断結果の描画
- */
 function renderSecurityChecks(checks: SecurityCheckResult[]): void {
   if (checks.length === 0) {
     securityListEl.innerHTML = '<div class="empty-state">診断項目がありません</div>';
@@ -248,7 +249,7 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
       <div class="item-main">
         <div class="item-texts">
           <span class="item-name">${escapeHtml(c.name)}</span>
-          <span class="item-meta">${escapeHtml(c.observed.substring(0, 40))}</span>
+          <span class="item-meta">${escapeHtml(c.observed.substring(0, 42))}</span>
         </div>
       </div>
       <div class="item-side">
@@ -261,9 +262,6 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
   });
 }
 
-/**
- * Cookie診断リストの描画
- */
 function renderCookies(cookies: InspectedCookieInfo[]): void {
   if (cookies.length === 0) {
     cookiesListEl.innerHTML = '<div class="empty-state">観測されたCookieはありません</div>';
@@ -301,18 +299,82 @@ function renderCookies(cookies: InspectedCookieInfo[]): void {
 }
 
 /**
- * 技術詳細モーダルの表示
+ * 技術詳細モーダル (Version 1.1)
  */
 function showTechModal(tech: DetectedTechnology): void {
-  modalTitle.textContent = `${tech.technology} 検出詳細`;
+  modalTitle.textContent = `${tech.technology} 検出 & セキュリティ詳細`;
+
+  // バージョン整合性ブロック
+  let integrityHtml = '';
+  if (tech.versionIntegrity) {
+    const int = tech.versionIntegrity;
+    const statusColor = int.status === 'match' ? 'var(--success-color)' : int.status === 'mismatch' ? 'var(--warning-color)' : 'var(--text-muted)';
+    integrityHtml = `
+      <div>
+        <div class="detail-section-title">CSS / JavaScript バージョン整合性</div>
+        <div>JavaScript: <strong>${escapeHtml(int.jsVersion || '未検出')}</strong> / CSS: <strong>${escapeHtml(int.cssVersion || '未検出')}</strong></div>
+        <div style="color:${statusColor};font-weight:600;margin-top:2px;">判定: ${int.status === 'match' ? '一致 (OK)' : int.status === 'mismatch' ? '要確認 (バージョン不一致)' : '判定不能'}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(int.detail)}</div>
+      </div>
+    `;
+  }
+
+  // EOLサポート状況ブロック
+  let eolHtml = '';
+  if (tech.eolInfo) {
+    const eol = tech.eolInfo;
+    const statusColor = eol.status === 'EOL' ? 'var(--danger-color)' : eol.status === 'Maintenance' ? 'var(--warning-color)' : 'var(--success-color)';
+    eolHtml = `
+      <div>
+        <div class="detail-section-title">サポート状況 (EOL)</div>
+        <div>ステータス: <strong style="color:${statusColor};">${eol.status}</strong> ${eol.eolDate ? `(EOL日: ${eol.eolDate})` : ''}</div>
+        <div style="font-size:11px;color:var(--accent-color);">${escapeHtml(eol.recommendation)}</div>
+        ${eol.sourceUrl ? `<div>出典: <a href="${eol.sourceUrl}" target="_blank" class="ref-link">${eol.sourceUrl}</a></div>` : ''}
+      </div>
+    `;
+  }
+
+  // 既知脆弱性 (CVE) ブロック
+  let cveHtml = '';
+  if (tech.advisories && tech.advisories.length > 0) {
+    cveHtml = `
+      <div>
+        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件)</div>
+        ${tech.advisories
+          .map(
+            (adv) => `
+          <div class="advisory-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong>${escapeHtml(adv.id)}</strong>
+              ${adv.cvssScore ? `<span class="badge sev-high">CVSS ${adv.cvssScore}</span>` : ''}
+            </div>
+            <div style="font-weight:600;margin-top:2px;">${escapeHtml(adv.title)}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(adv.summary)}</div>
+            <div style="font-size:11px;margin-top:4px;">
+              <span>影響範囲: <code>${escapeHtml(adv.affectedRange)}</code></span>
+              ${adv.fixedVersion ? `<span style="margin-left:8px;color:var(--success-color);">修正版: <strong>v${escapeHtml(adv.fixedVersion)}</strong></span>` : ''}
+            </div>
+            ${adv.referenceUrls.length > 0 ? `<div style="margin-top:4px;"><a href="${adv.referenceUrls[0]}" target="_blank" class="ref-link">詳細情報 (NVD / GitHub)</a></div>` : ''}
+          </div>
+        `
+          )
+          .join('')}
+      </div>
+    `;
+  }
+
   modalBody.innerHTML = `
     <div>
-      <div class="detail-section-title">判定情報</div>
-      <div>確信度スコア: <strong>${tech.confidence}</strong> (${tech.confidenceLevel === 'high' ? '高' : tech.confidenceLevel === 'medium' ? '中' : '低'})</div>
-      <div>検出バージョン: <strong>${tech.version || '不明（明示的なシグナルなし）'}</strong></div>
+      <div class="detail-section-title">基本情報</div>
+      <div>確信度スコア: <strong>${tech.confidence}</strong> (${tech.confidenceLevel.toUpperCase()})</div>
+      <div>代表バージョン: <strong>${tech.version || '不明'}</strong> ${tech.versionSource ? `[取得元: ${escapeHtml(tech.versionSource)}]` : ''}</div>
       <div>カテゴリ: ${escapeHtml(formatCategory(tech.category))}</div>
       ${tech.website ? `<div>公式サイト: <a href="${tech.website}" target="_blank" class="ref-link">${tech.website}</a></div>` : ''}
     </div>
+
+    ${integrityHtml}
+    ${eolHtml}
+    ${cveHtml}
 
     <div>
       <div class="detail-section-title">判定根拠 (エビデンス)</div>
@@ -329,12 +391,10 @@ function showTechModal(tech: DetectedTechnology): void {
         .join('')}
     </div>
   `;
+
   detailModal.classList.remove('hidden');
 }
 
-/**
- * セキュリティ診断詳細モーダルの表示
- */
 function showSecurityModal(check: SecurityCheckResult): void {
   modalTitle.textContent = check.name;
   modalBody.innerHTML = `
@@ -369,14 +429,11 @@ function showSecurityModal(check: SecurityCheckResult): void {
   detailModal.classList.remove('hidden');
 }
 
-/**
- * Cookie詳細モーダルの表示
- */
 function showCookieModal(cookie: InspectedCookieInfo): void {
   modalTitle.textContent = `Cookie: ${cookie.name}`;
   modalBody.innerHTML = `
     <div>
-      <div class="detail-section-title">属性詳細 (※値は取得・保存しません)</div>
+      <div class="detail-section-title">属性詳細 (※値は除外)</div>
       <div>ドメイン: <strong>${escapeHtml(cookie.domain)}</strong></div>
       <div>パス: <strong>${escapeHtml(cookie.path)}</strong></div>
       <div>Secure: <strong>${cookie.secure ? '有効' : '無効'}</strong></div>

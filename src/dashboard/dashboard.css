@@ -1,6 +1,6 @@
 /**
  * Web Technology & Security Inspector
- * ダッシュボードスタイル (src/dashboard/dashboard.css)
+ * ダッシュボードスタイル (src/dashboard/dashboard.css) - Version 1.1.0
  */
 
 :root {
@@ -75,7 +75,7 @@ body {
 
 /* サイドバー */
 .sidebar {
-  width: 260px;
+  width: 280px;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -292,6 +292,11 @@ body {
   background: rgba(239, 68, 68, 0.05);
 }
 
+.stat-box.eol-stat {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+
 .stat-number {
   font-size: 28px;
   font-weight: 800;
@@ -300,6 +305,10 @@ body {
 
 .stat-box.attention .stat-number {
   color: var(--danger-color);
+}
+
+.stat-box.eol-stat .stat-number {
+  color: var(--warning-color);
 }
 
 .stat-title {
@@ -440,9 +449,14 @@ body {
   color: var(--info-color);
 }
 
-.sev-high {
+.badge-eol, .sev-high {
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger-color);
+}
+
+.badge-cve {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning-color);
 }
 
 /* 履歴比較 Diff */

@@ -14,7 +14,7 @@
         <div class="brand-logo">🔍</div>
         <div>
           <h1 class="brand-name">Web Inspector</h1>
-          <span class="brand-sub">Security & Tech Dashboard</span>
+          <span class="brand-sub">Security & Tech Dashboard v1.1</span>
         </div>
       </div>
 
@@ -22,11 +22,14 @@
         <button class="nav-item active" data-view="overviewView">
           <span class="nav-icon">📊</span> 概要サマリー
         </button>
+        <button class="nav-item" data-view="librarySecView">
+          <span class="nav-icon">🛡️</span> ライブラリセキュリティ (EOL/CVE)
+        </button>
         <button class="nav-item" data-view="techsView">
-          <span class="nav-icon">🧩</span> 検出技術一覧
+          <span class="nav-icon">🧩</span> 検出技術 & エビデンス
         </button>
         <button class="nav-item" data-view="securityView">
-          <span class="nav-icon">🛡️</span> セキュリティ診断
+          <span class="nav-icon">🔒</span> HTTPセキュリティ設定
         </button>
         <button class="nav-item" data-view="cookiesView">
           <span class="nav-icon">🍪</span> Cookie属性検査
@@ -64,42 +67,40 @@
       <!-- ビュー 1: 概要サマリー -->
       <section id="overviewView" class="view-panel active">
         <div class="dashboard-grid">
-          <!-- 統計カード -->
           <div class="stat-box">
             <div class="stat-number" id="dashTotalTechs">0</div>
             <div class="stat-title">検出された技術</div>
-            <div class="stat-sub">Webサーバー、言語、CMS等</div>
+            <div class="stat-sub">Webサーバー、言語、ライブラリ等</div>
           </div>
           <div class="stat-box attention">
             <div class="stat-number" id="dashAttentionCount">0</div>
             <div class="stat-title">要確認セキュリティ項目</div>
             <div class="stat-sub">Warning / Fail</div>
           </div>
+          <div class="stat-box eol-stat">
+            <div class="stat-number" id="dashEolCount">0</div>
+            <div class="stat-title">EOL該当技術</div>
+            <div class="stat-sub" id="dashVulnCount">既知脆弱性: 0件</div>
+          </div>
           <div class="stat-box">
             <div class="stat-number" id="dashHttpsStatus">HTTPS</div>
             <div class="stat-title">通信プロトコル</div>
             <div class="stat-sub" id="dashMixedStatus">混在コンテンツ: 0件</div>
           </div>
-          <div class="stat-box">
-            <div class="stat-number" id="dashCookieCount">0</div>
-            <div class="stat-title">観測Cookie数</div>
-            <div class="stat-sub">※値は非保持</div>
-          </div>
         </div>
 
-        <!-- 2カラム詳細ブロック -->
         <div class="two-col-layout">
-          <!-- 主要技術カード -->
+          <!-- ライブラリセキュリティ注意喚起 -->
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">主要な検出技術</h2>
+              <h2 class="card-title">ライブラリセキュリティ状況 (EOL / 脆弱性)</h2>
             </div>
             <div class="card-body">
-              <div id="overviewTechsList" class="compact-list"></div>
+              <div id="overviewLibrarySecList" class="compact-list"></div>
             </div>
           </div>
 
-          <!-- セキュリティ指摘サマリー -->
+          <!-- HTTPセキュリティ設定指摘 -->
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">重点セキュリティ指摘</h2>
@@ -111,12 +112,25 @@
         </div>
       </section>
 
-      <!-- ビュー 2: 検出技術一覧 -->
+      <!-- ビュー 2: ライブラリセキュリティ (Version 1.1 ADD-06) -->
+      <section id="librarySecView" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">JavaScript / CSS ライブラリセキュリティ</h2>
+            <span class="card-desc">実行時情報およびアセットから検出したバージョン、CSS/JS整合性、サポート状況（EOL）、既知脆弱性（CVE）を評価します</span>
+          </div>
+          <div class="card-body">
+            <div id="librarySecurityTableContainer"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ビュー 3: 検出技術 & エビデンス -->
       <section id="techsView" class="view-panel">
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">検出されたすべてのWeb技術</h2>
-            <span class="card-desc">判定根拠（エビデンス）と確信度スコアを追跡できます</span>
+            <h2 class="card-title">検出されたすべてのWeb技術 & 判定根拠</h2>
+            <span class="card-desc">JavaScript実行時・CSSアセット・HTTPヘッダー・meta・DOMマーカー等の生エビデンスを追跡できます</span>
           </div>
           <div class="card-body">
             <div id="fullTechsContainer" class="details-accordion-list"></div>
@@ -124,12 +138,12 @@
         </div>
       </section>
 
-      <!-- ビュー 3: セキュリティ診断一覧 -->
+      <!-- ビュー 4: HTTPセキュリティ設定診断 -->
       <section id="securityView" class="view-panel">
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">セキュリティヘッダー & 設定診断</h2>
-            <span class="card-desc">外部から観測できるヘッダーおよび設定の安全性評価です</span>
+            <h2 class="card-title">HTTPセキュリティヘッダー & 設定診断</h2>
+            <span class="card-desc">HSTS, CSP, X-Frame-Options, Cookie, 情報露出などの診断結果です</span>
           </div>
           <div class="card-body">
             <div id="fullSecurityContainer" class="details-accordion-list"></div>
@@ -137,12 +151,12 @@
         </div>
       </section>
 
-      <!-- ビュー 4: Cookie検査 -->
+      <!-- ビュー 5: Cookie検査 -->
       <section id="cookiesView" class="view-panel">
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">Cookie属性セキュリティ検査</h2>
-            <span class="card-desc">CookieのSecure, HttpOnly, SameSite, プレフィックス整合性を検証します（プライバシー保護のため値は取得・保存しません）</span>
+            <span class="card-desc">Secure, HttpOnly, SameSite, プレフィックス整合性を検証します（プライバシー保護のため値は除外）</span>
           </div>
           <div class="card-body">
             <div class="table-responsive">
@@ -166,7 +180,7 @@
         </div>
       </section>
 
-      <!-- ビュー 5: 調査履歴 -->
+      <!-- ビュー 6: 調査履歴 -->
       <section id="historyView" class="view-panel">
         <div class="card">
           <div class="card-header flex-between">
@@ -182,12 +196,12 @@
         </div>
       </section>
 
-      <!-- ビュー 6: 履歴比較 (Diff) -->
+      <!-- ビュー 7: 履歴比較 (Diff) -->
       <section id="compareView" class="view-panel">
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">2つの調査結果の差分比較 (Diff)</h2>
-            <span class="card-desc">サイトの構成変更やセキュリティ設定のビフォーアフターを比較します</span>
+            <span class="card-desc">サイトの構成変更、バージョン変化、EOL状況、セキュリティ設定の変化を比較します</span>
           </div>
           <div class="card-body">
             <div class="compare-selectors">

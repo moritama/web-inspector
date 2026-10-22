@@ -1,6 +1,6 @@
 {
   "name": "web-inspector",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
   "type": "module",
   "scripts": {

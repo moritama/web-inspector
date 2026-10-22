@@ -1,13 +1,13 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
 
-Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定と外部から確認できるセキュリティ設定の受動的診断を行うブラウザ拡張機能（Manifest V3）です。
+Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定、外部から確認できるセキュリティ設定の診断、**JavaScript/CSSライブラリのバージョン検出、CSS・JS整合性確認、EOL（サポート終了）照合、既知脆弱性（CVE/GHSA）照合**を行うブラウザ拡張機能（Manifest V3）です。
 
-Wappalyzerのような技術検出機能に加え、セキュリティ調査に不可欠な**「検出根拠（エビデンス）」「設定の問題点」「具体的な改善方法」**まで、ブラウザ内で完結して確認できます。
+Wappalyzerのような技術検出機能に加え、保守・セキュリティ管理に不可欠な**「検出根拠（エビデンス）」「CSS/JS整合性」「サポート状況（EOL）」「既知脆弱性（CVE）」「具体的な改善方法」**まで、ブラウザ内で完結して確認できます。
 
 ---
 

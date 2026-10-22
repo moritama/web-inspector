@@ -246,6 +246,27 @@ export interface CookieAnalysisResult {
 }
 
 /**
+ * Chrome API SameSiteStatus の内部正規化表現 (Rev.2.1 IMP-04)
+ */
+export type NormalizedSameSite =
+  | 'none'
+  | 'lax'
+  | 'strict'
+  | 'unspecified'
+  | 'unknown';
+
+/**
+ * Cookie分類のあいまい性と確信度 (Rev.2.1 IMP-04)
+ */
+export interface CookieClassification {
+  category: CookieCategory;
+  confidence: 'high' | 'medium' | 'low' | 'unknown';
+  matchedRules: string[];
+  ambiguous: boolean;
+  overridden: boolean;
+}
+
+/**
  * Cookie診断用属性情報 (※値は除外)
  */
 export interface InspectedCookieInfo {
@@ -255,12 +276,103 @@ export interface InspectedCookieInfo {
   secure: boolean;
   httpOnly: boolean;
   sameSite: 'no_restriction' | 'lax' | 'strict' | 'unspecified';
+  normalizedSameSite?: NormalizedSameSite;
   session: boolean;
+  hostOnly?: boolean;
+  partitioned?: boolean;
+  partitionKey?: string | null;
   expirationDate?: number;
   hostPrefixValid?: boolean;
   securePrefixValid?: boolean;
+  prefixType?: '__Secure-' | '__Host-' | '__Http-' | '__Host-Http-' | null;
   category?: CookieCategory;
+  classification?: CookieClassification;
   issues: string[];
+}
+
+/**
+ * 安定ID生成用識別子 (Rev.2.1 IMP-07)
+ */
+export interface FindingIdentity {
+  ruleId: string;
+  origin: string;
+  resourceKey: string;
+  targetKey: string;
+  scopeKey?: string;
+}
+
+/**
+ * CSP取得元種別 (Rev.2.1 IMP-05)
+ */
+export type CSPSource = 'response-header' | 'meta';
+
+/**
+ * 独立したCSPポリシー情報 (Rev.2.1 IMP-05)
+ */
+export interface CSPPolicy {
+  id: string;
+  source: CSPSource;
+  mode: 'enforce' | 'report-only';
+  directives: Record<string, string[]>;
+  rawValue: string;
+  warnings: string[];
+  observedAt: string;
+}
+
+/**
+ * CSP診断指摘事項 (Rev.2.1 IMP-05)
+ */
+export interface CSPFinding {
+  id: string;
+  policyId: string;
+  directive: string;
+  effectiveDirective: string;
+  severity: SecuritySeverity;
+  confidence: ConfidenceLevel;
+  description: string;
+  recommendation: string;
+  evidence: DetectionEvidence[];
+}
+
+/**
+ * 調査状態種別 (Rev.2.1 IMP-08)
+ */
+export type InspectionStatus =
+  | 'complete'
+  | 'partial'
+  | 'unavailable'
+  | 'not-applicable';
+
+/**
+ * 調査範囲・完全性 (Rev.2.1 IMP-08)
+ */
+export interface InspectionCoverage {
+  dom: InspectionStatus;
+  headers: InspectionStatus;
+  cookies: InspectionStatus;
+  iframes: InspectionStatus;
+  network: InspectionStatus;
+  overallStatus: InspectionStatus;
+  details?: {
+    missingPermissions?: string[];
+    unobservedPreScan?: boolean;
+    pageNavigatedDuringScan?: boolean;
+    domItemCount?: number;
+    headerCount?: number;
+    cookieCount?: number;
+  };
+}
+
+/**
+ * 検出エビデンス詳細 (Rev.2.1 IMP-08)
+ */
+export interface DetectionEvidence {
+  id: string;
+  type: string;
+  source: string;
+  observedValue: string;
+  confidence: ConfidenceLevel;
+  observedAt: string;
 }
 
 /**
@@ -301,6 +413,8 @@ export interface DomSignals {
   // Version 1.1 追加
   cssAssets: InspectedCssAsset[];
   runtimeVersions?: Record<string, string | null>; // window.jQuery, window.bootstrap等
+  // Rev.2.1 追加
+  metaCsp?: string[];
 }
 
 /**
@@ -314,7 +428,7 @@ export interface NetworkSignals {
 }
 
 /**
- * 総合調査レポート (Version 1.1)
+ * 総合調査レポート (Version 1.2 / Rev.2.1)
  */
 export interface InspectionReport {
   id: string;
@@ -324,6 +438,7 @@ export interface InspectionReport {
   extensionVersion: string;
   rulesVersion: string;
   advisoryDatabaseVersion?: string;
+  coverage?: InspectionCoverage;
   summary: {
     totalTechnologies: number;
     requiresAttentionCount: number;
@@ -345,6 +460,7 @@ export interface InspectionReport {
   technologies: DetectedTechnology[];
   securityChecks: SecurityCheckResult[];
   cookies: InspectedCookieInfo[];
+  cspPolicies?: CSPPolicy[];
   mixedContent: MixedContentItem[];
 }
 

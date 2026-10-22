@@ -254,6 +254,22 @@ export function extractDomSignals(): DomSignals {
   // 8. CSSアセット解析 (Version 1.1 ADD-02)
   const cssAssets = inspectCssAssets();
 
+  // 9. meta CSP の収集 (Rev.2.1 IMP-05)
+  const metaCsp: string[] = [];
+  try {
+    const metaCspElements = document.querySelectorAll<HTMLMetaElement>(
+      'meta[http-equiv="Content-Security-Policy" i], meta[http-equiv="Content-Security-Policy-Report-Only" i]'
+    );
+    metaCspElements.forEach((el) => {
+      const content = el.getAttribute('content');
+      if (content && content.trim()) {
+        metaCsp.push(content.trim());
+      }
+    });
+  } catch {
+    // meta取得例外防止
+  }
+
   return {
     url: window.location.href,
     title: document.title || '',
@@ -265,6 +281,7 @@ export function extractDomSignals(): DomSignals {
     mixedContent,
     cookiesFromDocument,
     cssAssets,
+    metaCsp,
   };
 }
 

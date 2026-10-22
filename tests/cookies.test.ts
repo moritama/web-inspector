@@ -1,12 +1,19 @@
 /**
  * Web Technology & Security Inspector
- * Cookie属性・用途別判定単体テスト (tests/cookies.test.ts)
+ * Cookie属性・用途別判定単体テスト (tests/cookies.test.ts) - IMP-01 & IMP-04 (Rev.2.1)
  */
 
 import { describe, expect, it } from 'vitest';
-import { checkCookies, classifyCookie, evaluateCookie } from '../src/security/cookies';
+import {
+  checkCookies,
+  classifyCookie,
+  classifyCookieAdvanced,
+  evaluateCookie,
+  normalizeSameSite,
+} from '../src/security/cookies';
+import { InspectedCookieInfo } from '../src/shared/types';
 
-describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
+describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
   it('Cookie名に基づいて正しいカテゴリに分類されること', () => {
     // 認証・セッション系
     expect(classifyCookie('PHPSESSID')).toBe('authentication');
@@ -35,6 +42,144 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
     expect(classifyCookie('custom_data')).toBe('general');
   });
 
+  // --- Rev.2.1 IMP-04: C11 & C12 SameSite正規化 ---
+  it('C11: SameSite=no_restriction が none に正規化されること', () => {
+    expect(normalizeSameSite('no_restriction')).toBe('none');
+    expect(normalizeSameSite('lax')).toBe('lax');
+    expect(normalizeSameSite('strict')).toBe('strict');
+  });
+
+  it('C12: SameSite=unspecified が unspecified として扱われること', () => {
+    expect(normalizeSameSite('unspecified')).toBe('unspecified');
+    expect(normalizeSameSite(undefined)).toBe('unknown');
+  });
+
+  // --- Rev.2.1 IMP-04: C13, C14, C15 Cookieプレフィックス ---
+  it('C13: __Host- CookieでDomain指定（hostOnly=false）がある場合、不備と判定されること', () => {
+    const cookie: any = {
+      name: '__Host-id',
+      domain: '.example.com',
+      hostOnly: false,
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+    };
+    const issue = evaluateCookie(cookie, true);
+    expect(issue).not.toBeNull();
+    expect(issue?.missingAttributes).toContain('Prefix');
+  });
+
+  it('C14: __Host- CookieでPath=/以外の場合、不備と判定されること', () => {
+    const cookie: any = {
+      name: '__Host-id',
+      domain: 'example.com',
+      hostOnly: true,
+      path: '/app',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+    };
+    const issue = evaluateCookie(cookie, true);
+    expect(issue).not.toBeNull();
+    expect(issue?.missingAttributes).toContain('Prefix');
+  });
+
+  it('C15: __Secure- CookieでSecureなしの場合、不備と判定されること', () => {
+    const cookie: any = {
+      name: '__Secure-id',
+      domain: 'example.com',
+      hostOnly: true,
+      path: '/',
+      secure: false, // 不備
+      httpOnly: true,
+      sameSite: 'lax',
+    };
+    const issue = evaluateCookie(cookie, true);
+    expect(issue).not.toBeNull();
+    expect(issue?.missingAttributes).toContain('Prefix');
+    expect(issue?.missingAttributes).toContain('Secure');
+  });
+
+  // --- Rev.2.1 IMP-04: C16 Partitioned Cookie (CHIPS) ---
+  it('C16: Partitioned Cookieを識別し、Secure属性がない場合に不備として検出すること', () => {
+    const partitionedCookie: any = {
+      name: 'part_cookie',
+      domain: 'example.com',
+      path: '/',
+      partitionKey: 'https://top-site.example',
+      partitioned: true,
+      secure: false, // CHIPS仕様違反 (Partitioned CookieはSecure必須)
+      httpOnly: false,
+      sameSite: 'none',
+    };
+
+    const issue = evaluateCookie(partitionedCookie, true);
+    expect(issue).not.toBeNull();
+    expect(issue?.missingAttributes).toContain('Secure');
+    expect(issue?.description).toContain('Partitioned');
+  });
+
+  // --- Rev.2.1 IMP-04: C18 あいまいな分類 (ambiguous) ---
+  it('C18: Cookie用途があいまい（複数パターンや境界ケース）な場合、ambiguous=true となること', () => {
+    const classification = classifyCookieAdvanced('auth_theme_csrf');
+    expect(classification.ambiguous).toBe(true);
+    expect(classification.matchedRules.length).toBeGreaterThan(1);
+  });
+
+  // --- Rev.2.1 IMP-04: C19 Cookie値の完全除外（機密情報非保持） ---
+  it('C19: Cookie値（Value）を含む入力であっても、診断結果や説明文に値が含まれないこと', () => {
+    const secretValue = 'SECRET_PASSWORD_OR_SESSION_DATA_XYZ123';
+    const cookie: any = {
+      name: 'PHPSESSID',
+      value: secretValue,
+      domain: 'example.com',
+      hostOnly: true,
+      path: '/',
+      secure: false,
+      httpOnly: false,
+      sameSite: 'lax',
+    };
+
+    const issue = evaluateCookie(cookie, true);
+    expect(issue).not.toBeNull();
+    // 説明文や推奨文に秘密値が含まれていないこと
+    expect(JSON.stringify(issue)).not.toContain(secretValue);
+
+    const { checks, inspectedCookies } = checkCookies([cookie], 'https://example.com', true);
+    expect(JSON.stringify(checks)).not.toContain(secretValue);
+    expect(JSON.stringify(inspectedCookies)).not.toContain(secretValue);
+  });
+
+  // --- Rev.2.1 IMP-04: C20 同名CookieでPath違い ---
+  it('C20: 同名CookieでPathが異なる場合、独立した識別子として評価されること', () => {
+    const cookies: any[] = [
+      {
+        name: 'token',
+        domain: 'example.com',
+        hostOnly: true,
+        path: '/api',
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax',
+      },
+      {
+        name: 'token',
+        domain: 'example.com',
+        hostOnly: true,
+        path: '/web',
+        secure: false,
+        httpOnly: false,
+        sameSite: 'lax',
+      },
+    ];
+
+    const { inspectedCookies } = checkCookies(cookies, 'https://example.com', true);
+    expect(inspectedCookies.length).toBe(2);
+    expect(inspectedCookies[0].path).toBe('/api');
+    expect(inspectedCookies[1].path).toBe('/web');
+  });
+
   it('認証系CookieでHttpOnly/Secureが欠落している場合、Highリスクと判定されること', () => {
     const authCookie: chrome.cookies.Cookie = {
       name: 'PHPSESSID',
@@ -42,8 +187,8 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
       domain: 'example.com',
       hostOnly: true,
       path: '/',
-      secure: false, // 欠落
-      httpOnly: false, // 欠落
+      secure: false,
+      httpOnly: false,
       sameSite: 'lax',
       session: true,
       storeId: '0',
@@ -64,15 +209,14 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
       domain: 'example.com',
       hostOnly: true,
       path: '/',
-      secure: true, // Secureは設定済み
-      httpOnly: false, // フロントエンドJSがヘッダー付与するために意図的にfalse
+      secure: true,
+      httpOnly: false,
       sameSite: 'lax',
       session: true,
       storeId: '0',
     };
 
     const issue = evaluateCookie(csrfCookie);
-    // CSRFトークンはSecureとSameSiteがあればHttpOnly欠落による警告は発生しないか、Infoレベル
     if (issue) {
       expect(issue.category).toBe('csrf');
       expect(['low', 'info']).toContain(issue.severity);
@@ -80,26 +224,6 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
     } else {
       expect(issue).toBeNull();
     }
-  });
-
-  it('__Host- プレフィックスの各条件不備（Path, Secure, hostOnly）が正確に検出されること', () => {
-    const brokenHostCookie: chrome.cookies.Cookie = {
-      name: '__Host-session',
-      value: 'secret',
-      domain: '.example.com',
-      hostOnly: false, // 不備 (trueでなければならない)
-      path: '/app', // 不備 (/ でなければならない)
-      secure: false, // 不備 (trueでなければならない)
-      httpOnly: true,
-      sameSite: 'lax',
-      session: true,
-      storeId: '0',
-    };
-
-    const issue = evaluateCookie(brokenHostCookie);
-    expect(issue).not.toBeNull();
-    expect(issue?.missingAttributes).toContain('Prefix');
-    expect(issue?.missingAttributes).toContain('Secure');
   });
 
   it('checkCookies関数がサマリーと適切なチェック結果を返却すること', () => {
@@ -123,7 +247,7 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
         hostOnly: true,
         path: '/',
         secure: true,
-        httpOnly: false, // UI設定なのでHttpOnly不要
+        httpOnly: false,
         sameSite: 'lax',
         session: false,
         storeId: '0',
@@ -131,7 +255,6 @@ describe('Cookie用途別判定・分類テスト (IMP-01)', () => {
     ];
 
     const { checks } = checkCookies(mockCookies as any, 'https://example.com', true);
-    // 適切なCookie設定のためパスまたは低重大度
     const highWarnings = checks.filter((r) => r.severity === 'high' || r.severity === 'critical');
     expect(highWarnings.length).toBe(0);
   });

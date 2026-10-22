@@ -16,7 +16,10 @@ import {
   saveReportToHistory,
   clearAllHistory,
 } from '../storage/history';
+import { analyzeCSPPolicies, parseCSPPolicy } from '../security/csp-parser';
+import { assessInspectionCoverage } from '../shared/coverage';
 import {
+  CSPPolicy,
   DomSignals,
   InspectedCookieInfo,
   InspectionReport,
@@ -71,7 +74,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
   try {
     const rawCookies = await chrome.cookies.getAll({ url });
-    return rawCookies.map((c) => ({
+    return rawCookies.map((c: any) => ({
       name: c.name,
       domain: c.domain,
       path: c.path,
@@ -79,6 +82,9 @@ async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> 
       httpOnly: c.httpOnly,
       sameSite: c.sameSite as 'no_restriction' | 'lax' | 'strict' | 'unspecified',
       session: c.session,
+      hostOnly: c.hostOnly,
+      partitioned: Boolean(c.partitionKey),
+      partitionKey: c.partitionKey?.topLevelSite || (typeof c.partitionKey === 'string' ? c.partitionKey : null),
       expirationDate: c.expirationDate,
       issues: [],
     }));
@@ -221,6 +227,32 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     network: networkSignals,
   });
 
+  // 5.1 複数CSPポリシーの独立保持と詳細評価 (Rev.2.1 IMP-05)
+  const cspPolicies: CSPPolicy[] = [];
+  const rawCspHeader = responseHeaders['content-security-policy']?.[0];
+  const rawCspReportOnly = responseHeaders['content-security-policy-report-only']?.[0];
+
+  if (rawCspHeader) {
+    cspPolicies.push(parseCSPPolicy(rawCspHeader, 'response-header', 'enforce'));
+  }
+  if (rawCspReportOnly) {
+    cspPolicies.push(parseCSPPolicy(rawCspReportOnly, 'response-header', 'report-only'));
+  }
+  if (domSignals.metaCsp && domSignals.metaCsp.length > 0) {
+    for (const metaVal of domSignals.metaCsp) {
+      cspPolicies.push(parseCSPPolicy(metaVal, 'meta', 'enforce'));
+    }
+  }
+
+  if (cspPolicies.length > 0) {
+    const hasXfo = Boolean(responseHeaders['x-frame-options']);
+    const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo);
+    // 既存のCSP項目 (SEC-CSP-*) を詳細解析結果に置き換え
+    const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
+    baseSecurityChecks.length = 0;
+    baseSecurityChecks.push(...nonCspChecks, ...advancedCspChecks);
+  }
+
   // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致)
   const librarySecurityChecks: SecurityCheckResult[] = [];
   let eolCount = 0;
@@ -303,6 +335,18 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
 
   const isHttps = url.toLowerCase().startsWith('https://');
 
+  // 8. 調査完全性評価 (Rev.2.1 IMP-08)
+  const coverage = assessInspectionCoverage({
+    hasDom: Boolean(domSignals.title || domSignals.metaTags.length > 0 || domSignals.scriptUrls.length > 0),
+    hasHeaders: Object.keys(responseHeaders).length > 0,
+    hasCookiesPermission: true,
+    cookieCount: cookies.length,
+    hasWebRequestPermission: Boolean(chrome.webRequest),
+    unobservedPreScan: Object.keys(responseHeaders).length === 0,
+    domItemCount: domSignals.metaTags.length + domSignals.scriptUrls.length,
+    headerCount: Object.keys(responseHeaders).length,
+  });
+
   const report: InspectionReport = {
     id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
     url,
@@ -311,6 +355,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     extensionVersion: EXTENSION_VERSION,
     rulesVersion: RULES_VERSION,
     advisoryDatabaseVersion: CVE_DATABASE_VERSION,
+    coverage,
     summary: {
       totalTechnologies: technologies.length,
       requiresAttentionCount,
@@ -326,6 +371,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     technologies,
     securityChecks: allSecurityChecks,
     cookies: evaluatedCookies,
+    cspPolicies,
     mixedContent: domSignals.mixedContent,
   };
 

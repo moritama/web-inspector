@@ -564,6 +564,47 @@ export interface NetworkSignals {
 }
 
 /**
+ * 通信先ドメインの所属種別 (Rev.2.1 IMP-11 / 10.2)
+ */
+export type DomainPartyType = 'first-party' | 'third-party' | 'local';
+
+/**
+ * 外部サービスの推定カテゴリ (Rev.2.1 IMP-11 / 10.5)
+ */
+export type ExternalServiceCategory =
+  | 'cdn'           // コンテンツ配信・静的アセット (cdnjs, unpkg, jsdelivr等)
+  | 'analytics'     // アクセス解析・トラッキング (GA, GTM, Clarity, Hotjar等)
+  | 'advertising'   // 広告・マーケティング配信 (DoubleClick, Ads等)
+  | 'fonts'         // Webフォント (Google Fonts, Adobe Typekit等)
+  | 'social'        // SNSウィジェット・埋め込み (X/Twitter, Facebook等)
+  | 'api'           // 外部API・バックエンドサービス
+  | 'other';        // その他
+
+/**
+ * 接続先ドメイン情報 (Rev.2.1 IMP-11)
+ */
+export interface ExternalConnectionItem {
+  hostname: string;
+  registrableDomain: string; // eTLD+1
+  publicSuffix: string;
+  partyType: DomainPartyType;
+  category: ExternalServiceCategory;
+  resourceCount: number;
+  sampleUrls: string[];
+}
+
+/**
+ * 外部通信先・サードパーティ総合分析 (Rev.2.1 IMP-11)
+ */
+export interface ExternalConnectionsAnalysis {
+  totalConnections: number;
+  firstPartyCount: number;
+  thirdPartyCount: number;
+  categoryBreakdown: Record<ExternalServiceCategory, number>;
+  connections: ExternalConnectionItem[];
+}
+
+/**
  * 総合調査レポート (Version 1.2 / Rev.2.1)
  */
 export interface InspectionReport {
@@ -598,6 +639,8 @@ export interface InspectionReport {
   cookies: InspectedCookieInfo[];
   cspPolicies?: CSPPolicy[];
   mixedContent: MixedContentItem[];
+  /** 外部通信先・サードパーティ分析結果 (Rev.2.1 IMP-11) */
+  externalConnections?: ExternalConnectionsAnalysis;
 }
 
 /**

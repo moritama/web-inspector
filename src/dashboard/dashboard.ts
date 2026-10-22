@@ -5,9 +5,12 @@
 
 import { downloadCsvFile } from '../export/csv';
 import { downloadJsonFile } from '../export/json';
+import { downloadMarkdownReport } from '../export/markdown';
 import { compareReportsEnhanced } from '../storage/diff';
 import {
   DetectedTechnology,
+  ExternalConnectionsAnalysis,
+  ExternalServiceCategory,
   FindingException,
   InspectionReport,
   SecurityCheckResult,
@@ -39,8 +42,10 @@ const compareSelectA = document.getElementById('compareSelectA') as HTMLSelectEl
 const compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
 const executeCompareBtn = document.getElementById('executeCompareBtn') as HTMLButtonElement;
 const compareResultContainer = document.getElementById('compareResultContainer') as HTMLElement;
+const domainsContainerEl = document.getElementById('domainsContainer') as HTMLElement;
 
 const themeToggleBtn = document.getElementById('themeToggleBtn') as HTMLButtonElement;
+const exportMdBtn = document.getElementById('exportMdBtn') as HTMLButtonElement;
 const exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
 const exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElement;
 const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
@@ -57,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.2';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.3';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -86,6 +91,8 @@ function setupNav(): void {
         document.getElementById(targetId)?.classList.add('active');
         if (targetId === 'exceptionsView') {
           loadExceptionsData();
+        } else if (targetId === 'domainsView') {
+          renderExternalConnectionsView(currentReport?.externalConnections);
         }
       }
     });
@@ -95,6 +102,12 @@ function setupNav(): void {
 function setupActions(): void {
   themeToggleBtn.addEventListener('click', toggleTheme);
   refreshBtn.addEventListener('click', loadDashboardData);
+
+  if (exportMdBtn) {
+    exportMdBtn.addEventListener('click', () => {
+      if (currentReport) downloadMarkdownReport(currentReport);
+    });
+  }
 
   exportJsonBtn.addEventListener('click', () => {
     if (currentReport) downloadJsonFile(currentReport);
@@ -169,6 +182,9 @@ function renderDashboard(report: InspectionReport): void {
 
   // 5. Cookieテーブル
   renderCookiesTable(report.cookies);
+
+  // 6. 外部通信先分析 (Rev.2.1 IMP-11)
+  renderExternalConnectionsView(report.externalConnections);
 }
 
 function renderOverviewLibrarySec(techs: DetectedTechnology[]): void {
@@ -667,6 +683,92 @@ async function loadExceptionsData(): Promise<void> {
   } catch (err) {
     exceptionsTableContainerEl.innerHTML = `<div class="empty-state" style="color:var(--danger-color);">許容設定の取得に失敗しました: ${err}</div>`;
   }
+}
+
+/**
+ * 外部通信先・サードパーティドメイン分析ビューの描画 (Rev.2.1 IMP-11)
+ */
+function renderExternalConnectionsView(analysis?: ExternalConnectionsAnalysis): void {
+  if (!domainsContainerEl) return;
+  if (!analysis || !analysis.connections || analysis.connections.length === 0) {
+    domainsContainerEl.innerHTML = '<div class="empty-state">外部通信先情報はまだ解析されていません。</div>';
+    return;
+  }
+
+  const catLabels: Record<ExternalServiceCategory, string> = {
+    cdn: 'CDN・静的配信',
+    analytics: 'アクセス解析',
+    advertising: '広告・マーケティング',
+    fonts: 'Webフォント',
+    social: 'SNSウィジェット',
+    api: '外部API',
+    other: 'その他',
+  };
+
+  const categoryChips = (Object.entries(analysis.categoryBreakdown) as [ExternalServiceCategory, number][])
+    .filter(([_, count]) => count > 0)
+    .map(([cat, count]) => `<span class="badge badge-medium" style="margin-right:6px;display:inline-block;margin-top:4px;">${escapeHtml(catLabels[cat] || cat)}: ${count}件</span>`)
+    .join('');
+
+  domainsContainerEl.innerHTML = `
+    <div class="diff-box">
+      <div class="diff-title">通信先ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
+      <div style="margin-bottom:8px;">
+        検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
+        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
+      </div>
+      <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
+    </div>
+
+    <div class="diff-box">
+      <div class="diff-title">通信先ホスト一覧</div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ホスト名</th>
+              <th>eTLD+1 (組織ドメイン)</th>
+              <th>分類</th>
+              <th>用途カテゴリ</th>
+              <th>リソース数</th>
+              <th>サンプルURL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${analysis.connections
+              .map((item) => {
+                let badgeClass = 'badge-medium';
+                let partyLabel = 'Third-Party';
+                if (item.partyType === 'first-party') {
+                  badgeClass = 'badge-high';
+                  partyLabel = 'First-Party (自社)';
+                } else if (item.partyType === 'local') {
+                  badgeClass = 'badge-low';
+                  partyLabel = 'Local (内部)';
+                } else {
+                  badgeClass = 'badge-medium';
+                  partyLabel = 'Third-Party (外部)';
+                }
+
+                const sampleUrl = item.sampleUrls.length > 0 ? item.sampleUrls[0] : '';
+
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(item.hostname)}</strong></td>
+                    <td><code>${escapeHtml(item.registrableDomain || '-')}</code></td>
+                    <td><span class="badge ${badgeClass}">${partyLabel}</span></td>
+                    <td><span class="badge" style="background:var(--bg-hover);">${escapeHtml(catLabels[item.category] || item.category)}</span></td>
+                    <td>${item.resourceCount}</td>
+                    <td style="font-size:11px;color:var(--text-sub);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(sampleUrl)}">${escapeHtml(sampleUrl || '-')}</td>
+                  </tr>
+                `;
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function escapeHtml(str: string): string {

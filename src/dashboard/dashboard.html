@@ -13,7 +13,7 @@
       <div class="sidebar-brand">
         <div class="brand-logo">🔍</div>
         <div>
-          <h1 class="brand-name">Web Inspector <span class="brand-version-badge" id="dashboardVersion">v1.3.2</span></h1>
+          <h1 class="brand-name">Web Inspector <span class="brand-version-badge" id="dashboardVersion">v1.3.3</span></h1>
           <span class="brand-sub">Security & Tech Dashboard</span>
         </div>
       </div>
@@ -37,6 +37,9 @@
         <button class="nav-item" data-view="compareView">
           <span class="nav-icon">⚖️</span> 履歴比較 (Diff)
         </button>
+        <button class="nav-item" data-view="domainsView">
+          <span class="nav-icon">🌐</span> 外部通信先分析
+        </button>
         <button class="nav-item" data-view="exceptionsView">
           <span class="nav-icon">🛡️</span> 許容設定 (Exceptions)
         </button>
@@ -58,6 +61,7 @@
           <span class="inspect-time" id="inspectedAtTime">-</span>
         </div>
         <div class="topbar-actions">
+          <button id="exportMdBtn" class="btn btn-secondary">📝 Markdown出力</button>
           <button id="exportJsonBtn" class="btn btn-secondary">JSONエクスポート</button>
           <button id="exportCsvBtn" class="btn btn-secondary">CSVエクスポート (UTF-8 BOM)</button>
           <button id="refreshBtn" class="btn btn-primary">↻ 最新データ再読み込み</button>
@@ -212,7 +216,22 @@
         </div>
       </section>
 
-      <!-- ビュー 7: 許容設定 (Exceptions) - IMP-10 -->
+      <!-- ビュー 7: 外部通信先分析 (Domains) - IMP-11 -->
+      <section id="domainsView" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">外部通信先・サードパーティドメイン分析 (eTLD+1 / PSL)</h2>
+            <span class="card-desc">Public Suffix List (PSL) に基づき、自社ドメイン (First-Party) と外部サービス通信先 (Third-Party) を分類・可視化します</span>
+          </div>
+          <div class="card-body">
+            <div id="domainsContainer">
+              <div class="empty-state">外部通信先情報はまだ解析されていません。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ビュー 8: 許容設定 (Exceptions) - IMP-10 -->
       <section id="exceptionsView" class="view-panel">
         <div class="card">
           <div class="card-header">

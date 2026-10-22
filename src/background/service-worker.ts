@@ -24,6 +24,7 @@ import {
 } from '../storage/exceptions';
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { analyzeCSPPolicies, parseCSPPolicy } from '../security/csp-parser';
+import { analyzeExternalConnections } from '../security/domain-analyzer';
 import { assessInspectionCoverage } from '../shared/coverage';
 import {
   CSPPolicy,
@@ -34,7 +35,7 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 
-const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.3.2';
+const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.3.3';
 
 // タブIDごとのレスポンスヘッダーキャッシュ
 const headersCache = new Map<number, { url: string; headers: Record<string, string[]> }>();
@@ -372,6 +373,15 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     headerCount: Object.keys(responseHeaders).length,
   });
 
+  // 8.1 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11)
+  const resourceUrls = [
+    ...domSignals.scriptUrls,
+    ...domSignals.linkUrls.map((l) => l.href),
+    ...domSignals.mixedContent.map((m) => m.url),
+    ...domSignals.cssAssets.map((c) => c.href),
+  ];
+  const externalConnections = analyzeExternalConnections(url, resourceUrls);
+
   const report: InspectionReport = {
     id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
     url,
@@ -398,6 +408,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     cookies: evaluatedCookies,
     cspPolicies,
     mixedContent: domSignals.mixedContent,
+    externalConnections,
   };
 
   // 8. 履歴保存

@@ -42,9 +42,20 @@ const closeModalBtn = document.getElementById('closeModalBtn') as HTMLButtonElem
 
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
+  setupVersionBadge();
   setupEventListeners();
   runScan();
 });
+
+function setupVersionBadge(): void {
+  const versionEl = document.getElementById('brandVersion');
+  if (versionEl) {
+    const ver = chrome.runtime?.getManifest?.()?.version;
+    if (ver) {
+      versionEl.textContent = `v${ver}`;
+    }
+  }
+}
 
 function initTheme(): void {
   const savedTheme = localStorage.getItem('web_inspector_theme') || 'dark';

@@ -46,10 +46,21 @@ const clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButton
 
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  setupVersionBadge();
   setupNav();
   setupActions();
   await loadDashboardData();
 });
+
+function setupVersionBadge(): void {
+  const badgeEl = document.getElementById('dashboardVersion');
+  if (badgeEl) {
+    const ver = chrome.runtime?.getManifest?.()?.version;
+    if (ver) {
+      badgeEl.textContent = `v${ver}`;
+    }
+  }
+}
 
 function initTheme(): void {
   const saved = localStorage.getItem('web_inspector_theme') || 'dark';

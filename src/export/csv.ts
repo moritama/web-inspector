@@ -32,11 +32,11 @@ export function exportReportToCsv(report: InspectionReport): string {
   const BOM = '\uFEFF';
 
   // 1. レポートヘッダーサマリー
-  rows.push(['Web Technology & Security Inspector 調査レポート (Version 1.1)'].map(escapeCsv).join(','));
+  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.2.0'})`].map(escapeCsv).join(','));
   rows.push(['調査日時', report.inspectedAt].map(escapeCsv).join(','));
   rows.push(['調査対象URL', report.url].map(escapeCsv).join(','));
   rows.push(['ホスト名', report.hostname].map(escapeCsv).join(','));
-  rows.push(['ツールバージョン', report.extensionVersion].map(escapeCsv).join(','));
+  rows.push(['ツールバージョン', report.extensionVersion || '1.2.0'].map(escapeCsv).join(','));
   rows.push(['ルールバージョン', report.rulesVersion].map(escapeCsv).join(','));
   rows.push(['脆弱性DBバージョン', report.advisoryDatabaseVersion || '2026.10'].map(escapeCsv).join(','));
   rows.push(['HTTPS利用', report.summary.isHttps ? 'はい' : 'いいえ (HTTP)'].map(escapeCsv).join(','));
@@ -46,7 +46,7 @@ export function exportReportToCsv(report: InspectionReport): string {
   rows.push([]);
 
   // 2. 検出技術・ライブラリセキュリティ一覧 (ADD-08)
-  rows.push(['--- 検出技術 & ライブラリセキュリティ (Version 1.1) ---'].map(escapeCsv).join(','));
+  rows.push(['--- 検出技術 & ライブラリセキュリティ ---'].map(escapeCsv).join(','));
   rows.push(
     [
       '技術名',

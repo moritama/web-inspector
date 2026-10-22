@@ -24,7 +24,7 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 
-const EXTENSION_VERSION = '1.1.0';
+const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.2.0';
 
 // タブIDごとのレスポンスヘッダーキャッシュ
 const headersCache = new Map<number, { url: string; headers: Record<string, string[]> }>();

@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.3.3-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.3.4-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)

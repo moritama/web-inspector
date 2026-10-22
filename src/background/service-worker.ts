@@ -4,7 +4,7 @@
  * HTTPレスポンスヘッダー傍受、Cookie取得、MAIN World実行時バージョン取得、診断の統括
  */
 
-import { CVE_DATABASE_VERSION } from '../security/cve/cve-engine';
+import { getAdvisoryDbMetadata } from '../detection/advisory';
 import { RULES_VERSION } from '../detection/rules';
 import { DetectionEngine } from '../detection/engine';
 import { SecurityEngine } from '../security/engine';
@@ -35,7 +35,7 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 
-const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.3.3';
+const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.3.4';
 
 // タブIDごとのレスポンスヘッダーキャッシュ
 const headersCache = new Map<number, { url: string; headers: Record<string, string[]> }>();
@@ -382,6 +382,14 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
   ];
   const externalConnections = analyzeExternalConnections(url, resourceUrls);
 
+  const advMeta = getAdvisoryDbMetadata();
+  let advDbVersion = advMeta.dataVersion || '2026.10';
+  if (/^\d{8}$/.test(advDbVersion)) {
+    advDbVersion = `${advDbVersion.slice(0, 4)}-${advDbVersion.slice(4, 6)}-${advDbVersion.slice(6, 8)}`;
+  } else if (advMeta.generatedAt) {
+    advDbVersion = advMeta.generatedAt.slice(0, 10);
+  }
+
   const report: InspectionReport = {
     id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
     url,
@@ -389,7 +397,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     inspectedAt: new Date().toISOString(),
     extensionVersion: EXTENSION_VERSION,
     rulesVersion: RULES_VERSION,
-    advisoryDatabaseVersion: CVE_DATABASE_VERSION,
+    advisoryDatabaseVersion: advDbVersion,
     coverage,
     summary: {
       totalTechnologies: technologies.length,

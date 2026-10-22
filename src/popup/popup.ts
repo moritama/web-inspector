@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.3';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.4';
     versionEl.textContent = `v${ver}`;
   }
 }
@@ -161,6 +161,13 @@ function renderReport(report: InspectionReport): void {
 
   // 3. Cookie診断一覧
   renderCookies(report.cookies);
+
+  // 4. 脆弱性DB更新日表示
+  const advisoryDbBarEl = document.getElementById('advisoryDbBar');
+  if (advisoryDbBarEl) {
+    const dbVer = report.advisoryDatabaseVersion || '2026-10-23';
+    advisoryDbBarEl.textContent = `🛡️ 脆弱性DB更新日: ${dbVer}`;
+  }
 }
 
 function renderTechnologies(techs: DetectedTechnology[]): void {

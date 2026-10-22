@@ -623,3 +623,14 @@ body {
 .ref-link:hover {
   text-decoration: underline;
 }
+
+/* 脆弱性DB情報バー */
+.advisory-db-bar {
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  padding: 4px 12px 8px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  letter-spacing: 0.02em;
+}

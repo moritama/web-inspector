@@ -22,6 +22,7 @@ let allReportsList: InspectionReport[] = [];
 // DOM要素参照
 const currentHostnameEl = document.getElementById('currentHostname') as HTMLElement;
 const inspectedAtTimeEl = document.getElementById('inspectedAtTime') as HTMLElement;
+const dashAdvisoryDbDateEl = document.getElementById('dashAdvisoryDbDate') as HTMLElement;
 const dashTotalTechsEl = document.getElementById('dashTotalTechs') as HTMLElement;
 const dashAttentionCountEl = document.getElementById('dashAttentionCount') as HTMLElement;
 const dashEolCountEl = document.getElementById('dashEolCount') as HTMLElement;
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.3';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.3.4';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -154,6 +155,9 @@ async function loadDashboardData(): Promise<void> {
 function renderDashboard(report: InspectionReport): void {
   currentHostnameEl.textContent = report.hostname;
   inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+  if (dashAdvisoryDbDateEl) {
+    dashAdvisoryDbDateEl.textContent = `🛡️ 脆弱性DB: ${report.advisoryDatabaseVersion || '2026-10-23'}`;
+  }
 
   // サマリーカード
   dashTotalTechsEl.textContent = String(report.technologies.length);

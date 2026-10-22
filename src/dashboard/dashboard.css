@@ -222,6 +222,19 @@ body {
   color: var(--text-muted);
 }
 
+.db-date-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning-color);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .topbar-actions {
   display: flex;
   gap: 8px;

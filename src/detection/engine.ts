@@ -170,7 +170,7 @@ export class DetectionEngine {
                     name: signal.target,
                     value: val,
                     source: input.url,
-                    detail: `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
+                    detail: signal.detail || `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
                     weight: signal.weight,
                   });
 
@@ -203,7 +203,7 @@ export class DetectionEngine {
                   name,
                   value: name,
                   source: input.url,
-                  detail: `Cookie「${name}」の存在を検出`,
+                  detail: signal.detail || `Cookie「${name}」の存在を検出`,
                   weight: signal.weight,
                 });
               }
@@ -219,7 +219,7 @@ export class DetectionEngine {
                 name: 'URLパス',
                 value: pathAndQuery,
                 source: input.url,
-                detail: `URLパスに固有のシグネチャ「${signal.pattern}」を検出`,
+                detail: signal.detail || `URLパスに固有のシグネチャ「${signal.pattern}」を検出`,
                 weight: signal.weight,
               });
             }
@@ -237,7 +237,7 @@ export class DetectionEngine {
                       name: `meta[${targetName}]`,
                       value: meta.content,
                       source: input.url,
-                      detail: `metaタグ「${targetName}」にシグネチャを検出`,
+                      detail: signal.detail || `metaタグ「${targetName}」にシグネチャを検出`,
                       weight: signal.weight,
                     });
 
@@ -279,7 +279,7 @@ export class DetectionEngine {
                     name: 'script[src]',
                     value: scriptVersion ? `${this.truncateUrl(scriptSrc)} (v${scriptVersion})` : this.truncateUrl(scriptSrc),
                     source: scriptSrc,
-                    detail: `読み込まれたスクリプトURLにシグネチャを検出`,
+                    detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
                     weight: signal.weight,
                   });
                 }
@@ -297,7 +297,7 @@ export class DetectionEngine {
                     name: `link[rel="${link.rel}"]`,
                     value: this.truncateUrl(link.href),
                     source: link.href,
-                    detail: `読み込まれたアセットURLにシグネチャを検出`,
+                    detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
                     weight: signal.weight,
                   });
                 }
@@ -315,7 +315,7 @@ export class DetectionEngine {
                     name: 'DOMマーカー',
                     value: marker,
                     source: input.url,
-                    detail: `DOM構造に特有の属性または要素を検出`,
+                    detail: signal.detail || `DOM構造に特有の属性または要素を検出`,
                     weight: signal.weight,
                   });
 
@@ -341,7 +341,7 @@ export class DetectionEngine {
                     name: 'CSSクラスパターン',
                     value: snippet.substring(0, 100),
                     source: input.url,
-                    detail: `HTMLクラスにCSSフレームワークの特徴を検出`,
+                    detail: signal.detail || `HTMLクラスにCSSフレームワークの特徴を検出`,
                     weight: signal.weight,
                   });
                 }
@@ -401,7 +401,113 @@ export class DetectionEngine {
       }
     }
 
+    // --- 連動検知フェーズ (Implication Resolver) ---
+    this.resolveImplications(results);
+
     return results.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  /**
+   * 確信度50%以上の技術から連動技術（含意関係）を解決する
+   */
+  private resolveImplications(results: DetectedTechnology[]): void {
+    // 最大2パス実行して連鎖的な連動も解決
+    for (let pass = 0; pass < 2; pass++) {
+      let addedOrUpdated = false;
+
+      // 確信度50%（Medium以上）の技術のみをトリガーとする
+      const eligibleTriggers = results.filter((r) => r.confidence >= 50);
+
+      for (const trigger of eligibleTriggers) {
+        const triggerRule = this.rules.find(
+          (rule) =>
+            rule.name.toLowerCase() === trigger.technology.toLowerCase() ||
+            rule.id.toLowerCase() === trigger.technology.toLowerCase()
+        );
+        if (!triggerRule || !triggerRule.implies || triggerRule.implies.length === 0) {
+          continue;
+        }
+
+        for (const impliedId of triggerRule.implies) {
+          const impliedRule = this.rules.find(
+            (rule) => rule.id.toLowerCase() === impliedId.toLowerCase()
+          );
+          if (!impliedRule) continue;
+
+          // 自己参照はスキップ
+          if (impliedRule.name.toLowerCase() === trigger.technology.toLowerCase()) continue;
+
+          const existingIndex = results.findIndex(
+            (r) => r.technology.toLowerCase() === impliedRule.name.toLowerCase()
+          );
+
+          const impliedEvidence: Evidence = {
+            type: 'pattern',
+            name: '連動検出 (Implication)',
+            value: trigger.technology,
+            source: trigger.technology,
+            detail: `${trigger.technology}（確信度${trigger.confidence}%）の検出に基づく連動判定`,
+            confidence: trigger.confidenceLevel === 'high' ? 'high' : 'medium',
+            weight: trigger.confidence >= 80 ? 80 : 60,
+          };
+
+          if (existingIndex >= 0) {
+            // 既に存在する場合：連動エビデンスが未追加なら追加して確信度を再計算
+            const existing = results[existingIndex];
+            const alreadyHasThisImplication = existing.evidence.some(
+              (e) => e.name === '連動検出 (Implication)' && e.source === trigger.technology
+            );
+            if (!alreadyHasThisImplication) {
+              existing.evidence.push(impliedEvidence);
+              const recalculated = calculateConfidence(existing.evidence);
+              existing.confidence = Math.max(existing.confidence, recalculated.confidence);
+              existing.confidenceLevel = recalculated.level;
+              addedOrUpdated = true;
+            }
+          } else {
+            // 存在しない場合：新規追加
+            const { confidence, level } = calculateConfidence([impliedEvidence]);
+            const offlineResult = matchOfflineAdvisories(impliedRule.name, null);
+            const eolInfo =
+              offlineResult.eolInfo.status !== 'Unknown'
+                ? offlineResult.eolInfo
+                : checkEolStatus(impliedRule.name, null);
+            const cveResult =
+              offlineResult.matchStatus !== 'No Data'
+                ? offlineResult
+                : checkCveAdvisories(impliedRule.name, null);
+
+            results.push({
+              technology: impliedRule.name,
+              category: impliedRule.category,
+              detected: true,
+              version: null,
+              versionSource: 'implication',
+              confidence,
+              confidenceLevel: level,
+              evidence: [impliedEvidence],
+              supportStatus: eolInfo.status,
+              eolDate: eolInfo.eolDate,
+              eolInfo,
+              advisoryMatchStatus: cveResult.matchStatus,
+              offlineMatchStatus: offlineResult.offlineMatchStatus,
+              isStale: offlineResult.isStale,
+              dbFreshness: offlineResult.dbFreshness,
+              advisories: cveResult.advisories,
+              maxCvss: cveResult.maxCvss,
+              advisoryDataUpdatedAt: cveResult.updatedAt,
+              description: impliedRule.description,
+              website: impliedRule.website,
+            });
+            addedOrUpdated = true;
+          }
+        }
+      }
+
+      if (!addedOrUpdated) {
+        break;
+      }
+    }
   }
 
   /**

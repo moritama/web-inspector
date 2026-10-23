@@ -1,13 +1,13 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
 
-Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定、外部から確認できるセキュリティ設定の診断、**JavaScript/CSSライブラリのバージョン検出、CSS・JS整合性確認、EOL（サポート終了）照合、既知脆弱性（CVE/GHSA）照合、CSPディレクティブ構文解析、Cookie用途別リスク判定**を行うブラウザ拡張機能（Manifest V3）です。
+Google Chrome および Microsoft Edge に対応した、Webサイトの使用技術の特定、外部から確認できるセキュリティ設定の診断、**JavaScript/CSSライブラリのバージョン検出、CSS・JS整合性確認、EOL（サポート終了）照合、既知脆弱性（CVE/GHSA）照合、CSPディレクティブ構文解析、Cookie用途別リスク判定、フレームワーク連動検知（Implication Engine）**を行うブラウザ拡張機能（Manifest V3）です。
 
-Wappalyzerのような技術検出機能に加え、保守・セキュリティ管理に不可欠な**「検出根拠（エビデンス）」「CSS/JS整合性」「サポート状況（EOL）」「既知脆弱性（CVE）」「CSP構文解析・フォールバック評価」「Cookie用途別重み付け（誤検知削減）」「完全オフライン突合」**まで、ブラウザ内で完結して確認できます。
+Wappalyzerのような技術検出機能に加え、保守・セキュリティ管理に不可欠な**「検出根拠（エビデンス）」「CSS/JS整合性」「サポート状況（EOL）」「既知脆弱性（CVE）」「CSP構文解析・フォールバック評価」「Cookie用途別重み付け（誤検知削減）」「完全オフライン突合」「連動検知（Implication）」**まで、ブラウザ内で完結して確認できます。
 
 ---
 
@@ -16,7 +16,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - [Web Technology \& Security Inspector](#web-technology--security-inspector)
   - [目次](#目次)
   - [主な特徴・原則](#主な特徴原則)
-  - [機能一覧 (v1.4.0)](#機能一覧-v140)
+  - [機能一覧 (v1.5.0)](#機能一覧-v150)
   - [対応技術スタック & 診断カバレッジ (Coverage)](#対応技術スタック--診断カバレッジ-coverage)
   - [システムアーキテクチャ](#システムアーキテクチャ)
     - [診断・通信シーケンス](#診断通信シーケンス)
@@ -34,20 +34,21 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - **受動的な調査を基本とする**: 閲覧中のページとそのHTTP通信のみを解析し、ログイン試行や脆弱性攻撃（SQLインジェクション、XSS攻撃等）は一切行いません。
 - **完全オフライン・外部送信ゼロ**: 検出されたライブラリや閲覧先URLを外部API（OSV APIやNVD API）へ送信せず、ビルド時に生成された圧縮スナップショットDB（`advisory-db.json`）によりローカルで高速照合します。
 - **ノイズ（誤検知）削減**: Cookie用途別判定（認証、CSRF、解析タグ、UI設定）により、JavaScript連携が前提のCookieで不要なHttpOnly警告を出さない実効的なスコアリングを実現します。
-- **判定根拠の完全追跡**: 「なぜその技術・問題と判定したか」（HTTPレスポンスヘッダー名・値、metaタグ、DOMマーカー、URLパス等）を必ず記録・表示します。
+- **判定根拠の完全追跡**: 「なぜその技術・問題と判定したか」（HTTPレスポンスヘッダー名・値、metaタグ、DOMマーカー、URLパス、フレームワーク連動等）を必ず記録・表示します。
 - **未検出と未使用の明確な区別**: 外部から確証が得られない場合は安易に「未使用」「安全」と断定せず、「不明」または未検出として扱います。
 
 ---
 
-## 機能一覧 (v1.4.0)
+## 機能一覧 (v1.5.0)
 
 | 機能ID | 項目 | 概要 |
 |---|---|---|
 | **F01** | Webサーバー検出 | Apache, Nginx, Microsoft-IIS, LiteSpeed, Caddy 等の検出とバージョン特定 |
-| **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel 等の検出 |
+| **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel, Node.js 等の検出。`XSRF-TOKEN` による複数フレームワーク（Laravel, Spring Boot, Express）推定対応 |
 | **F03** | CMS検出 | WordPress, Drupal, Joomla, Shopify, Wix 等の検出とバージョン特定 |
 | **F04** | JavaScriptフレームワーク検出 | React, Next.js, Vue.js, Nuxt, Angular, Svelte 等の検出 |
 | **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS, Lodash 等の検出 |
+| **IMP-13** | **連動検知エンジン (Implication)** | **ヘッダー隠蔽対策**。確信度50%以上の技術からサーバー言語・実行環境・基盤ライブラリを連動推定（Next.js/Nuxt $\rightarrow$ Node.js/React/Vue, WordPress/Laravel/Drupal $\rightarrow$ PHP） |
 | **IMP-03/06** | オフライン既知脆弱性・EOL照合 | ビルド時静的DB（`advisory-db.json`）による完全ローカルCVE/GHSA/EOL突合（外部送信ゼロ）。脆弱性DB更新日（`YYYY-MM-DD`）をUIおよびレポートに常時明示 |
 | **F06** | CDN / WAF推定 | Cloudflare, Amazon CloudFront, Fastly, Akamai 等の検出 |
 | **IMP-02** | CSPディレクティブ構文解析 | CSP文字列をパースし、`script-src` $\rightarrow$ `default-src` フォールバックや危険キーワード（`'unsafe-inline'`, `'unsafe-eval'`, `*`, `data:`, `object-src`）を詳細評価 |
@@ -74,24 +75,24 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 | | **Nginx** | ✅ | ✅ | ✅ | Serverヘッダー / エビデンス照合 |
 | | Microsoft-IIS | ✅ | - | - | Serverヘッダー |
 | | LiteSpeed / Caddy | ✅ | - | - | Serverヘッダー |
-| **言語・ランタイム** | **PHP** | ✅ | ✅ | ✅ | X-Powered-By / Cookie (PHPSESSID) |
-| | **Node.js** | ✅ | ✅ | ✅ | X-Powered-By / Server / connect.sid |
+| **言語・ランタイム** | **PHP** | ✅ | ✅ | ✅ | X-Powered-By / Cookie (PHPSESSID) / 連動検知 (WordPress, Laravel, Drupal等) |
+| | **Node.js** | ✅ | ✅ | ✅ | X-Powered-By / Server / connect.sid / 連動検知 (Next.js, Nuxt) |
 | | Python (Django) | ✅ | - | - | 固有ヘッダー / Cookie (csrftoken) |
 | | Ruby on Rails | ✅ | - | - | X-Powered-By / metaタグ |
 | | ASP.NET | ✅ | - | - | X-AspNet-Version / Cookie |
-| | Java (Tomcat等) | ✅ | - | - | X-Powered-By / Cookie (JSESSIONID) |
-| **フレームワーク / CMS** | **WordPress** | ✅ | ✅ | ✅ | meta(generator) / wp-contentパス等 |
-| | **Laravel** | ✅ | ✅ | ✅ | Cookie (laravel_session) / X-Powered-By |
-| | Drupal | ✅ | - | - | X-Generator / metaタグ |
-| | Joomla | ✅ | - | - | meta(generator) |
+| | Java (Tomcat等) | ✅ | - | - | X-Powered-By / Cookie (JSESSIONID, XSRF-TOKEN) |
+| **フレームワーク / CMS** | **WordPress** | ✅ | ✅ | ✅ | meta(generator) / wp-contentパス等 (PHPへ連動) |
+| | **Laravel** | ✅ | ✅ | ✅ | Cookie (laravel_session) / X-Powered-By (PHPへ連動) |
+| | Drupal | ✅ | - | - | X-Generator / metaタグ (PHPへ連動) |
+| | Joomla | ✅ | - | - | meta(generator) (PHPへ連動) |
 | | Shopify / Wix | ✅ | - | - | 静的アセットURL / DOM構造 |
 | **フロントエンド** | **jQuery** | ✅ | ✅ | ✅ | script.src / グローバル(window.jQuery) |
 | | **Bootstrap** | ✅ | ✅ | ✅ | script / link(CSS) / CSS-JS整合性 |
-| | **React** | ✅ | ✅ | ✅ | DOM属性 / script / 実行時シンボル |
-| | **Vue.js** | ✅ | ✅ | ✅ | DOM(__vue__) / script |
+| | **React** | ✅ | ✅ | ✅ | DOM属性 / script / 実行時シンボル / 連動検知 (Next.js) |
+| | **Vue.js** | ✅ | ✅ | ✅ | DOM(__vue__) / script / 連動検知 (Nuxt) |
 | | **Angular** | ✅ | ✅ | ✅ | DOM(ng-version) / script |
 | | **Lodash** | ✅ | ✅ | ✅ | script.src / グローバル(window._) |
-| | Next.js / Nuxt | ✅ | - | - | `__NEXT_DATA__` / `__NUXT__` |
+| | Next.js / Nuxt | ✅ | - | - | `__NEXT_DATA__` / `__NUXT__` (Node.js, React/Vueへ連動) |
 | | Svelte | ✅ | - | - | クラス名 / DOMマーカー |
 | | Tailwind CSS | ✅ | - | - | 固有ユーティリティCSSクラス |
 | **CDN / WAF** | Cloudflare | ✅ | - | - | CF-Ray, Server, cf-cache-status |

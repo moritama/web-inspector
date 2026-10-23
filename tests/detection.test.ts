@@ -139,6 +139,142 @@ describe('DetectionEngine', () => {
     expect(node?.confidenceLevel).toBe('high');
   });
 
+  it('XSRF-TOKEN Cookie単体ではJava, Laravel, Node.jsの3候補がLowで検出され、いずれかの可能性ありと表記されること（連動検知は発動しない）', () => {
+    const network: NetworkSignals = {
+      url: 'https://example.com/',
+      responseHeaders: {},
+      cookies: [{ name: 'XSRF-TOKEN', value: 'token-abc' }],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom: emptyDom,
+      network,
+    });
+
+    const laravel = results.find((r) => r.technology === 'Laravel');
+    const java = results.find((r) => r.technology === 'Java');
+    const node = results.find((r) => r.technology === 'Node.js');
+    const php = results.find((r) => r.technology === 'PHP');
+
+    // 3技術すべてが候補として検出されること
+    expect(laravel).toBeDefined();
+    expect(java).toBeDefined();
+    expect(node).toBeDefined();
+
+    // 確信度はすべて35% (low) であること
+    expect(laravel?.confidence).toBe(35);
+    expect(laravel?.confidenceLevel).toBe('low');
+    expect(java?.confidence).toBe(35);
+    expect(java?.confidenceLevel).toBe('low');
+    expect(node?.confidence).toBe(35);
+    expect(node?.confidenceLevel).toBe('low');
+
+    // エビデンスに「いずれかの可能性あり」が明記されていること
+    expect(laravel?.evidence[0]?.detail).toContain('いずれかの可能性あり');
+    expect(java?.evidence[0]?.detail).toContain('いずれかの可能性あり');
+    expect(node?.evidence[0]?.detail).toContain('いずれかの可能性あり');
+
+    // 確信度50%未満のため、連動検知（PHP）は発動しないこと
+    expect(php).toBeUndefined();
+  });
+
+  it('Next.js 検出時に Node.js と React が連動検出（Implication）されること', () => {
+    const dom: DomSignals = {
+      ...emptyDom,
+      domMarkers: ['script#__NEXT_DATA__'],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom,
+    });
+
+    const nextjs = results.find((r) => r.technology === 'Next.js');
+    expect(nextjs).toBeDefined();
+    expect(nextjs?.confidence).toBeGreaterThanOrEqual(80);
+
+    // 連動検知された Node.js
+    const node = results.find((r) => r.technology === 'Node.js');
+    expect(node).toBeDefined();
+    expect(node?.versionSource).toBe('implication');
+    expect(node?.confidenceLevel).toBe('high');
+    expect(node?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'Next.js')).toBe(true);
+
+    // 連動検知された React
+    const react = results.find((r) => r.technology === 'React');
+    expect(react).toBeDefined();
+    expect(react?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'Next.js')).toBe(true);
+  });
+
+  it('WordPress 検出時に PHP ヘッダーが無くても PHP が連動検出されること', () => {
+    const dom: DomSignals = {
+      ...emptyDom,
+      metaTags: [{ name: 'generator', content: 'WordPress 6.4.2' }],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom,
+    });
+
+    const wp = results.find((r) => r.technology === 'WordPress');
+    expect(wp).toBeDefined();
+
+    const php = results.find((r) => r.technology === 'PHP');
+    expect(php).toBeDefined();
+    expect(php?.versionSource).toBe('implication');
+    expect(php?.confidenceLevel).toBe('high');
+    expect(php?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'WordPress')).toBe(true);
+  });
+
+  it('laravel_session Cookie（確信度85%）検出時に Laravel と連動して PHP が検出されること', () => {
+    const network: NetworkSignals = {
+      url: 'https://example.com/',
+      responseHeaders: {},
+      cookies: [{ name: 'laravel_session', value: 'session-secret' }],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom: emptyDom,
+      network,
+    });
+
+    const laravel = results.find((r) => r.technology === 'Laravel');
+    expect(laravel).toBeDefined();
+    expect(laravel?.confidence).toBe(85);
+
+    const php = results.find((r) => r.technology === 'PHP');
+    expect(php).toBeDefined();
+    expect(php?.versionSource).toBe('implication');
+    expect(php?.confidenceLevel).toBe('high');
+    expect(php?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'Laravel')).toBe(true);
+  });
+
+  it('Nuxt 検出時に Node.js と Vue.js が連動検出されること', () => {
+    const dom: DomSignals = {
+      ...emptyDom,
+      scriptUrls: ['https://example.com/_nuxt/entry.mjs'],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom,
+    });
+
+    const nuxt = results.find((r) => r.technology === 'Nuxt');
+    expect(nuxt).toBeDefined();
+
+    const node = results.find((r) => r.technology === 'Node.js');
+    expect(node).toBeDefined();
+    expect(node?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'Nuxt')).toBe(true);
+
+    const vue = results.find((r) => r.technology === 'Vue.js');
+    expect(vue).toBeDefined();
+    expect(vue?.evidence.some((e) => e.name === '連動検出 (Implication)' && e.source === 'Nuxt')).toBe(true);
+  });
+
   it('シグナルが一切ない場合、推測で技術を断定せず未検出となること', () => {
     const results = engine.detect({
       url: 'https://example.com/',

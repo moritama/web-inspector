@@ -19,6 +19,8 @@ export interface RuleSignal {
   pattern?: string;
   versionRegex?: string;
   weight: number;
+  /** エビデンス表示用の詳細説明（未指定時は自動生成） */
+  detail?: string;
 }
 
 /**
@@ -31,6 +33,8 @@ export interface TechnologyRule {
   website?: string;
   description?: string;
   signals: RuleSignal[];
+  /** この技術が一定確信度以上で検出された場合に連動検出（含意）する技術ID一覧 */
+  implies?: string[];
 }
 
 /**

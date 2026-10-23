@@ -32,6 +32,7 @@
     "category": "js-framework",
     "website": "https://nextjs.org/",
     "description": "Vercelが開発するフルスタックReactフレームワーク",
+    "implies": ["nodejs", "react"],
     "signals": [
       {
         "type": "dom",
@@ -92,6 +93,7 @@
     "category": "js-framework",
     "website": "https://nuxt.com/",
     "description": "直感的で高機能なVueフルスタックフレームワーク",
+    "implies": ["nodejs", "vue"],
     "signals": [
       {
         "type": "dom",

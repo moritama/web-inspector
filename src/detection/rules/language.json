@@ -95,6 +95,13 @@
         "weight": 60
       },
       {
+        "type": "cookie",
+        "target": "XSRF-TOKEN",
+        "pattern": "^XSRF-TOKEN$",
+        "weight": 35,
+        "detail": "Cookie「XSRF-TOKEN」を検出（Spring Boot/Security, Laravel, Express等のSPA構成で広く利用されるため、いずれかの可能性あり）"
+      },
+      {
         "type": "url",
         "target": "path",
         "pattern": "\\.(?:jsp|jspx|do|action)(?:$|\\?)",
@@ -156,6 +163,7 @@
     "category": "programming-language",
     "website": "https://laravel.com/",
     "description": "洗練された文法と高機能を特徴とするPHP Webフレームワーク",
+    "implies": ["php"],
     "signals": [
       {
         "type": "header",
@@ -174,7 +182,8 @@
         "type": "cookie",
         "target": "XSRF-TOKEN",
         "pattern": "^XSRF-TOKEN$",
-        "weight": 35
+        "weight": 35,
+        "detail": "Cookie「XSRF-TOKEN」を検出（Laravel, Spring, Express等のSPA構成で広く利用されるため、いずれかの可能性あり）"
       }
     ]
   },
@@ -204,6 +213,13 @@
         "target": "connect.sid",
         "pattern": "^connect\\.sid$",
         "weight": 80
+      },
+      {
+        "type": "cookie",
+        "target": "XSRF-TOKEN",
+        "pattern": "^XSRF-TOKEN$",
+        "weight": 35,
+        "detail": "Cookie「XSRF-TOKEN」を検出（Express/Fastify等のCSRF保護、Spring, Laravel等のSPA構成で広く利用されるため、いずれかの可能性あり）"
       }
     ]
   }

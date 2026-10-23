@@ -158,16 +158,52 @@
     "description": "洗練された文法と高機能を特徴とするPHP Webフレームワーク",
     "signals": [
       {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Laravel(?:/([0-9.]+))?",
+        "versionRegex": "Laravel/([0-9.]+)",
+        "weight": 95
+      },
+      {
         "type": "cookie",
         "target": "laravel_session",
         "pattern": "laravel_session",
-        "weight": 75
+        "weight": 85
       },
       {
         "type": "cookie",
         "target": "XSRF-TOKEN",
         "pattern": "^XSRF-TOKEN$",
-        "weight": 30
+        "weight": 35
+      }
+    ]
+  },
+  {
+    "id": "nodejs",
+    "name": "Node.js",
+    "category": "programming-language",
+    "website": "https://nodejs.org/",
+    "description": "ChromeのV8エンジン上で動作するサーバーサイドJavaScript実行環境",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "(?:Node\\.js|Express)(?:/([0-9.]+))?",
+        "versionRegex": "Node\\.js/([0-9.]+)",
+        "weight": 90
+      },
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Node\\.js(?:/([0-9.]+))?",
+        "versionRegex": "Node\\.js/([0-9.]+)",
+        "weight": 90
+      },
+      {
+        "type": "cookie",
+        "target": "connect.sid",
+        "pattern": "^connect\\.sid$",
+        "weight": 80
       }
     ]
   }

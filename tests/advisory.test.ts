@@ -141,4 +141,21 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(meta.coverage.technologies.length).toBeGreaterThanOrEqual(5);
     expect(['success', 'partial']).toContain(meta.syncStatus);
   });
+
+  it('古いLaravel 8.0.0 に対してEOLおよびCVE-2021-3129が検出されること', () => {
+    const result = matchOfflineAdvisories('Laravel', '8.0.0');
+
+    expect(result.technology).toBe('Laravel');
+    expect(result.offlineMatchStatus).toBe('Matched');
+    expect(result.eolInfo.status).toBe('EOL');
+    expect(result.advisories.some((a) => a.id === 'CVE-2021-3129')).toBe(true);
+  });
+
+  it('サポート終了済みの古いNode.js 16.14.0 に対してEOLが検出されること', () => {
+    const result = matchOfflineAdvisories('Node.js', '16.14.0');
+
+    expect(result.technology).toBe('Node.js');
+    expect(result.offlineMatchStatus).toBe('Matched');
+    expect(result.eolInfo.status).toBe('EOL');
+  });
 });

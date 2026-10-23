@@ -91,6 +91,54 @@ describe('DetectionEngine', () => {
     expect(react).toBeDefined();
   });
 
+  it('Cookieおよびヘッダーから Laravel を検出できること', () => {
+    const network: NetworkSignals = {
+      url: 'https://example.com/',
+      responseHeaders: {
+        'x-powered-by': ['Laravel/10.15.0'],
+      },
+      cookies: [
+        { name: 'laravel_session', value: 'dummy' },
+        { name: 'XSRF-TOKEN', value: 'dummy' },
+      ],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom: emptyDom,
+      network,
+    });
+
+    const laravel = results.find((r) => r.technology === 'Laravel');
+    expect(laravel).toBeDefined();
+    expect(laravel?.detected).toBe(true);
+    expect(laravel?.version).toBe('10.15.0');
+    expect(laravel?.confidenceLevel).toBe('high');
+  });
+
+  it('X-Powered-By または connect.sid Cookie から Node.js を検出できること', () => {
+    const network: NetworkSignals = {
+      url: 'https://example.com/',
+      responseHeaders: {
+        'x-powered-by': ['Express'],
+        server: ['Node.js/20.10.0'],
+      },
+      cookies: [{ name: 'connect.sid', value: 's%3A123' }],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom: emptyDom,
+      network,
+    });
+
+    const node = results.find((r) => r.technology === 'Node.js');
+    expect(node).toBeDefined();
+    expect(node?.detected).toBe(true);
+    expect(node?.version).toBe('20.10.0');
+    expect(node?.confidenceLevel).toBe('high');
+  });
+
   it('シグナルが一切ない場合、推測で技術を断定せず未検出となること', () => {
     const results = engine.detect({
       url: 'https://example.com/',

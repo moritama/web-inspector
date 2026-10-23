@@ -271,6 +271,66 @@ const BASE_LIBRARIES = {
       { cycle: '2.2', eolDate: '2017-12-31', status: 'EOL' },
       { cycle: '2.4', eolDate: null, status: 'Supported' }
     ]
+  },
+  laravel: {
+    aliases: ['laravel', 'laravel-framework'],
+    versions: [
+      {
+        range: '< 8.4.3',
+        cve: 'CVE-2021-3129',
+        severity: 'critical',
+        title: 'Ignition RCE vulnerability in Laravel',
+        fixedVersion: '8.4.3'
+      },
+      {
+        range: '< 5.6.30',
+        cve: 'CVE-2018-15133',
+        severity: 'high',
+        title: 'Deserialization of untrusted data in Laravel Application Key',
+        fixedVersion: '5.6.30'
+      }
+    ],
+    eol: [
+      { cycle: '6.x', eolDate: '2022-09-06', status: 'EOL' },
+      { cycle: '7.x', eolDate: '2021-03-03', status: 'EOL' },
+      { cycle: '8.x', eolDate: '2023-01-24', status: 'EOL' },
+      { cycle: '9.x', eolDate: '2024-02-06', status: 'EOL' },
+      { cycle: '10.x', eolDate: '2025-02-04', status: 'Maintenance' },
+      { cycle: '11.x', eolDate: '2026-03-12', status: 'Supported' }
+    ]
+  },
+  nodejs: {
+    aliases: ['node', 'nodejs', 'node.js'],
+    versions: [
+      {
+        range: '< 18.19.0',
+        cve: 'CVE-2023-39332',
+        severity: 'high',
+        title: 'Node.js HTTP request smuggling vulnerability',
+        fixedVersion: '18.19.0'
+      },
+      {
+        range: '< 18.14.1',
+        cve: 'CVE-2023-23918',
+        severity: 'medium',
+        title: 'Node.js Permissions-Policy bypass',
+        fixedVersion: '18.14.1'
+      },
+      {
+        range: '< 18.10.0',
+        cve: 'CVE-2022-35255',
+        severity: 'medium',
+        title: 'Node.js HTTP request smuggling through whitespace in header field',
+        fixedVersion: '18.10.0'
+      }
+    ],
+    eol: [
+      { cycle: '14.x', eolDate: '2023-04-30', status: 'EOL' },
+      { cycle: '16.x', eolDate: '2023-09-11', status: 'EOL' },
+      { cycle: '18.x', eolDate: '2025-04-30', status: 'Maintenance' },
+      { cycle: '20.x', eolDate: '2026-04-30', status: 'Supported' },
+      { cycle: '22.x', eolDate: '2027-04-30', status: 'Supported' }
+    ]
   }
 };
 

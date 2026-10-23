@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.3.4-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
@@ -75,11 +75,13 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 | | Microsoft-IIS | ✅ | - | - | Serverヘッダー |
 | | LiteSpeed / Caddy | ✅ | - | - | Serverヘッダー |
 | **言語・ランタイム** | **PHP** | ✅ | ✅ | ✅ | X-Powered-By / Cookie (PHPSESSID) |
+| | **Node.js** | ✅ | ✅ | ✅ | X-Powered-By / Server / connect.sid |
 | | Python (Django) | ✅ | - | - | 固有ヘッダー / Cookie (csrftoken) |
 | | Ruby on Rails | ✅ | - | - | X-Powered-By / metaタグ |
 | | ASP.NET | ✅ | - | - | X-AspNet-Version / Cookie |
 | | Java (Tomcat等) | ✅ | - | - | X-Powered-By / Cookie (JSESSIONID) |
-| **CMS** | **WordPress** | ✅ | ✅ | ✅ | meta(generator) / wp-contentパス等 |
+| **フレームワーク / CMS** | **WordPress** | ✅ | ✅ | ✅ | meta(generator) / wp-contentパス等 |
+| | **Laravel** | ✅ | ✅ | ✅ | Cookie (laravel_session) / X-Powered-By |
 | | Drupal | ✅ | - | - | X-Generator / metaタグ |
 | | Joomla | ✅ | - | - | meta(generator) |
 | | Shopify / Wix | ✅ | - | - | 静的アセットURL / DOM構造 |

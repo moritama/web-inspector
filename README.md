@@ -16,7 +16,8 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - [Web Technology \& Security Inspector](#web-technology--security-inspector)
   - [目次](#目次)
   - [主な特徴・原則](#主な特徴原則)
-  - [機能一覧 (v1.2.0)](#機能一覧-v120)
+  - [機能一覧 (v1.3.4)](#機能一覧-v134)
+  - [対応技術スタック & 診断カバレッジ (Coverage)](#対応技術スタック--診断カバレッジ-coverage)
   - [システムアーキテクチャ](#システムアーキテクチャ)
     - [診断・通信シーケンス](#診断通信シーケンス)
   - [インストール方法 (Chrome / Edge)](#インストール方法-chrome--edge)
@@ -38,7 +39,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ---
 
-## 機能一覧 (v1.2.0)
+## 機能一覧 (v1.3.4)
 
 | 機能ID | 項目 | 概要 |
 |---|---|---|
@@ -46,19 +47,54 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 | **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel 等の検出 |
 | **F03** | CMS検出 | WordPress, Drupal, Joomla, Shopify, Wix 等の検出とバージョン特定 |
 | **F04** | JavaScriptフレームワーク検出 | React, Next.js, Vue.js, Nuxt, Angular, Svelte 等の検出 |
-| **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS 等の検出 |
-| **IMP-03** | オフライン既知脆弱性・EOL照合 (F05改善) | ビルド時静的DBによる完全ローカルCVE/GHSA/EOL突合（外部送信ゼロ） |
+| **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS, Lodash 等の検出 |
+| **IMP-03/06** | オフライン既知脆弱性・EOL照合 | ビルド時静的DB（`advisory-db.json`）による完全ローカルCVE/GHSA/EOL突合（外部送信ゼロ）。脆弱性DB更新日（`YYYY-MM-DD`）をUIおよびレポートに常時明示 |
 | **F06** | CDN / WAF推定 | Cloudflare, Amazon CloudFront, Fastly, Akamai 等の検出 |
-| **IMP-02** | CSPディレクティブ構文解析 (F07改善) | CSP文字列をパースし、`script-src` $\rightarrow$ `default-src` フォールバックや危険キーワード（`'unsafe-inline'`, `'unsafe-eval'`, `*`, `data:`, `object-src`）を詳細評価 |
+| **IMP-02** | CSPディレクティブ構文解析 | CSP文字列をパースし、`script-src` $\rightarrow$ `default-src` フォールバックや危険キーワード（`'unsafe-inline'`, `'unsafe-eval'`, `*`, `data:`, `object-src`）を詳細評価 |
 | **F07** | HTTPセキュリティヘッダー診断 | HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CORS, Server/X-Powered-By情報露出 |
-| **IMP-01** | Cookie属性用途別判定 (F08改善) | 認証・CSRF・解析・UI設定に応じた動的重大度判定。誤検知（ノイズ）を大幅削減 |
-| **F08** | Cookie属性診断 | Secure, HttpOnly, SameSite, `__Host-`/`__Secure-` プレフィックス整合性（値は非保持） |
+| **IMP-01** | Cookie属性用途別判定 | 認証・CSRF・解析・UI設定に応じた動的重大度判定。誤検知（ノイズ）を大幅削減 |
+| **F08** | Cookie属性診断 | Secure, HttpOnly, SameSite, `__Host-`/`__Secure-` プレフィックス整合性、CHIPS (Partitioned) 対応（値は非保持） |
 | **F09** | HTTPS・混在コンテンツ診断 | 平文HTTP警告、アクティブ/パッシブ混在コンテンツ（Mixed Content）の検出 |
 | **F10** | 検出根拠・確信度表示 | エビデンス種別・値・取得元、確信度スコア（高: 80〜100, 中: 50〜79, 低: 1〜49） |
-| **F11** | JSON・CSVエクスポート | 診断根拠を含む整形JSONおよびExcel対応UTF-8 BOM付きCSVの出力 |
-| **F12** | 調査履歴 & 差分比較 (Diff) | 過去の調査レポート保存（最大50件）、一覧検索、2つのレポートの差分比較（ビフォーアフター） |
+| **F11 / IMP-12** | 多様なレポート出力 | 整形JSON、Excel対応UTF-8 BOM付きCSV、および仕様書Rev.2.1準拠の**15セクション包括的Markdownレポート**の出力 |
+| **F12 / IMP-09** | 調査履歴 & 差分比較 (Diff) | 過去の調査レポート保存（最大50件）、一覧検索、2つのレポートの差分比較および**推定原因分析（サイト側変更、脆弱性DB更新、調査権限差等）** |
+| **IMP-10** | 診断項目の許容・除外設定 | 運用要件に基づくリスク受容や誤検知を安定ID（FindingId）に基づいて登録・除外管理（通知抑制） |
+| **IMP-11** | 外部通信先・サードパーティ分析 | Public Suffix List (PSL) に基づく登録可能ドメイン（eTLD+1）特定と、First-Party / Third-Party / Local 分類および用途推定（CDN, Analytics, Ads, Fonts, API等） |
 
 ---
+
+## 対応技術スタック & 診断カバレッジ (Coverage)
+
+本拡張機能が検出・診断に対応している主要技術一覧です。  
+※「EOL判定」「既知脆弱性(CVE)照合」が有効な技術は、外部送信を行わず拡張機能内蔵のオフライン脆弱性データベース（`advisory-db.json`）と完全ローカルで精密照合されます。
+
+| 分類 | 対象技術名 | バージョン特定 | EOL判定 | 既知脆弱性 (CVE) | 主な検出手法 |
+|---|---|:---:|:---:|:---:|---|
+| **Webサーバー** | **Apache HTTP Server** | ✅ | ✅ | ✅ | Serverヘッダー / エビデンス照合 |
+| | **Nginx** | ✅ | ✅ | ✅ | Serverヘッダー / エビデンス照合 |
+| | Microsoft-IIS | ✅ | - | - | Serverヘッダー |
+| | LiteSpeed / Caddy | ✅ | - | - | Serverヘッダー |
+| **言語・ランタイム** | **PHP** | ✅ | ✅ | ✅ | X-Powered-By / Cookie (PHPSESSID) |
+| | Python (Django) | ✅ | - | - | 固有ヘッダー / Cookie (csrftoken) |
+| | Ruby on Rails | ✅ | - | - | X-Powered-By / metaタグ |
+| | ASP.NET | ✅ | - | - | X-AspNet-Version / Cookie |
+| | Java (Tomcat等) | ✅ | - | - | X-Powered-By / Cookie (JSESSIONID) |
+| **CMS** | **WordPress** | ✅ | ✅ | ✅ | meta(generator) / wp-contentパス等 |
+| | Drupal | ✅ | - | - | X-Generator / metaタグ |
+| | Joomla | ✅ | - | - | meta(generator) |
+| | Shopify / Wix | ✅ | - | - | 静的アセットURL / DOM構造 |
+| **フロントエンド** | **jQuery** | ✅ | ✅ | ✅ | script.src / グローバル(window.jQuery) |
+| | **Bootstrap** | ✅ | ✅ | ✅ | script / link(CSS) / CSS-JS整合性 |
+| | **React** | ✅ | ✅ | ✅ | DOM属性 / script / 実行時シンボル |
+| | **Vue.js** | ✅ | ✅ | ✅ | DOM(__vue__) / script |
+| | **Angular** | ✅ | ✅ | ✅ | DOM(ng-version) / script |
+| | **Lodash** | ✅ | ✅ | ✅ | script.src / グローバル(window._) |
+| | Next.js / Nuxt | ✅ | - | - | `__NEXT_DATA__` / `__NUXT__` |
+| | Svelte | ✅ | - | - | クラス名 / DOMマーカー |
+| | Tailwind CSS | ✅ | - | - | 固有ユーティリティCSSクラス |
+| **CDN / WAF** | Cloudflare | ✅ | - | - | CF-Ray, Server, cf-cache-status |
+| | Amazon CloudFront | ✅ | - | - | X-Amz-Cf-Id, Via |
+| | Fastly / Akamai | ✅ | - | - | X-Served-By, Server |
 
 ## システムアーキテクチャ
 

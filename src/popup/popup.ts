@@ -205,19 +205,26 @@ function renderTechnologies(techs: DetectedTechnology[]): void {
     }
 
     // バージョン表示
-    let verLabel = t.version ? `v${escapeHtml(t.version)}` : 'バージョン不明';
+    let verLabel = t.isCandidateGroup
+      ? 'いずれかの可能性あり'
+      : t.version
+      ? `v${escapeHtml(t.version)}`
+      : 'バージョン不明';
     if (t.versionSource === 'runtime') {
       verLabel += ' (実行時)';
     }
 
+    const iconText = t.isCandidateGroup ? '？' : t.technology.slice(0, 2).toUpperCase();
+    const categoryText = t.isCandidateGroup ? '言語・FW候補' : formatCategory(t.category);
+
     row.innerHTML = `
       <div class="item-main">
-        <div class="tech-icon-badge">${t.technology.slice(0, 2).toUpperCase()}</div>
+        <div class="tech-icon-badge">${iconText}</div>
         <div class="item-texts">
           <span class="item-name">${escapeHtml(t.technology)}</span>
           <div class="item-meta">
             <span class="item-version-badge">${escapeHtml(verLabel)}</span>
-            <span>${escapeHtml(formatCategory(t.category))}</span>
+            <span>${escapeHtml(categoryText)}</span>
           </div>
         </div>
       </div>
@@ -406,18 +413,33 @@ function showTechModal(tech: DetectedTechnology): void {
     `;
   }
 
+  const candidateHtml = tech.isCandidateGroup && tech.candidateTechnologies
+    ? `
+      <div style="margin-bottom:12px;padding:10px;background:var(--bg-surface);border:1px solid var(--border-color);border-radius:6px;">
+        <div style="font-weight:600;font-size:12px;color:var(--text-sub);margin-bottom:6px;">推定候補フレームワーク:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${tech.candidateTechnologies.map(c => `<span class="badge" style="background:var(--bg-hover);color:var(--text-main);font-size:12px;padding:3px 8px;">${escapeHtml(c)}</span>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+          ${escapeHtml(tech.description || '')}
+        </div>
+      </div>
+    `
+    : '';
+
   modalBody.innerHTML = `
+    ${candidateHtml}
     <div>
       <div class="detail-section-title">基本情報</div>
       <div>確信度スコア: <strong>${tech.confidence}</strong> (${tech.confidenceLevel.toUpperCase()})</div>
-      <div>代表バージョン: <strong>${tech.version || '不明'}</strong> ${tech.versionSource ? `[取得元: ${escapeHtml(tech.versionSource)}]` : ''}</div>
-      <div>カテゴリ: ${escapeHtml(formatCategory(tech.category))}</div>
+      <div>代表バージョン: <strong>${tech.isCandidateGroup ? 'いずれかの可能性あり' : (tech.version || '不明')}</strong> ${tech.versionSource ? `[取得元: ${escapeHtml(tech.versionSource)}]` : ''}</div>
+      <div>カテゴリ: ${escapeHtml(tech.isCandidateGroup ? '言語・フレームワーク候補' : formatCategory(tech.category))}</div>
       ${tech.website ? `<div>公式サイト: <a href="${tech.website}" target="_blank" class="ref-link">${tech.website}</a></div>` : ''}
     </div>
 
-    ${integrityHtml}
-    ${eolHtml}
-    ${cveHtml}
+    ${tech.isCandidateGroup ? '' : integrityHtml}
+    ${tech.isCandidateGroup ? '' : eolHtml}
+    ${tech.isCandidateGroup ? '' : cveHtml}
 
     <div>
       <div class="detail-section-title">判定根拠 (エビデンス)</div>

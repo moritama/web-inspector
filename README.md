@@ -44,7 +44,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 | 機能ID | 項目 | 概要 |
 |---|---|---|
 | **F01** | Webサーバー検出 | Apache, Nginx, Microsoft-IIS, LiteSpeed, Caddy 等の検出とバージョン特定 |
-| **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel, Node.js 等の検出。`XSRF-TOKEN` による複数フレームワーク（Laravel, Spring Boot, Express）推定対応 |
+| **F02** | サーバーサイド言語・FW検出 | PHP, ASP.NET, Java, Python (Django), Ruby on Rails, Laravel, Node.js 等の検出。`XSRF-TOKEN` 等の汎用Cookieは『Java / Laravel / Node.js (候補)』としてスマートに1行集約表示（固有シグナル検出時は自動解消） |
 | **F03** | CMS検出 | WordPress, Drupal, Joomla, Shopify, Wix 等の検出とバージョン特定 |
 | **F04** | JavaScriptフレームワーク検出 | React, Next.js, Vue.js, Nuxt, Angular, Svelte 等の検出 |
 | **F05** | JS / CSSライブラリ検出 | jQuery, Bootstrap, Tailwind CSS, Lodash 等の検出 |

@@ -404,7 +404,97 @@ export class DetectionEngine {
     // --- 連動検知フェーズ (Implication Resolver) ---
     this.resolveImplications(results);
 
+    // --- 複数候補の集約・抑制フェーズ (Candidate Consolidation & Suppression) ---
+    this.consolidateCandidates(results, input);
+
     return results.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  /**
+   * XSRF-TOKEN等による汎用Cookieの複数候補を集約または抑制する
+   */
+  private consolidateCandidates(results: DetectedTechnology[], input: DetectionInput): void {
+    const candidateTechNames = ['Java', 'Laravel', 'Node.js'];
+
+    // 候補技術のうち、結果に含まれているものを抽出
+    const matchedCandidates = results.filter((r) =>
+      candidateTechNames.includes(r.technology)
+    );
+
+    if (matchedCandidates.length === 0) return;
+
+    // 「XSRF-TOKEN のみの検出（確信度35%かつエビデンスがXSRF-TOKENのみ）」かどうかを判定するヘルパー
+    const isOnlyXsrfToken = (tech: DetectedTechnology): boolean => {
+      return (
+        tech.confidence <= 35 &&
+        tech.evidence.length === 1 &&
+        tech.evidence[0].name === 'XSRF-TOKEN'
+      );
+    };
+
+    // 本命シグナル（確信度 > 35% または XSRF-TOKEN以外のシグナルがある）を持つ技術があるか？
+    const hasDefinitiveSignal = matchedCandidates.some((r) => !isOnlyXsrfToken(r));
+
+    if (hasDefinitiveSignal) {
+      // 本命の技術が存在する場合（例: laravel_session で Laravel が検出された場合など）
+      // XSRF-TOKEN のみでヒットした他言語は本命技術のCookie発行とみなして抑制（削除）する
+      for (let i = results.length - 1; i >= 0; i--) {
+        const item = results[i];
+        if (candidateTechNames.includes(item.technology) && isOnlyXsrfToken(item)) {
+          results.splice(i, 1);
+        }
+      }
+    } else {
+      // どの候補も XSRF-TOKEN のみの場合
+      const xsrfOnlyItems = matchedCandidates.filter(isOnlyXsrfToken);
+
+      // 2件以上が XSRF-TOKEN のみで競合している場合、1行に集約
+      if (xsrfOnlyItems.length >= 2) {
+        // 個別の候補を results から削除
+        for (let i = results.length - 1; i >= 0; i--) {
+          const item = results[i];
+          if (candidateTechNames.includes(item.technology) && isOnlyXsrfToken(item)) {
+            results.splice(i, 1);
+          }
+        }
+
+        // 1つの統合された候補技術オブジェクトを追加
+        results.push({
+          technology: 'Java / Laravel / Node.js (候補)',
+          category: 'programming-language',
+          detected: true,
+          version: null,
+          versionSource: 'candidate',
+          confidence: 35,
+          confidenceLevel: 'low',
+          isCandidateGroup: true,
+          candidateTechnologies: ['Java (Spring Boot)', 'Laravel (PHP)', 'Node.js (Express)'],
+          evidence: [
+            {
+              type: 'cookie-name',
+              name: 'XSRF-TOKEN',
+              value: 'XSRF-TOKEN',
+              source: input.url,
+              detail:
+                'Cookie「XSRF-TOKEN」を検出（Spring Security, Laravel, Express等のSPA構成で広く使われるため、いずれかが稼働している可能性あり）',
+              confidence: 'low',
+              weight: 35,
+            },
+          ],
+          supportStatus: 'Unknown',
+          eolInfo: {
+            status: 'Unknown',
+            eolDate: null,
+            source: '推定候補',
+            recommendation: '稼働しているバックエンド環境の特定を推奨',
+          },
+          advisoryMatchStatus: 'No Data',
+          offlineMatchStatus: 'Not Covered',
+          description:
+            'SPAと連携するバックエンドフレームワーク（Spring Boot, Laravel, Express等）で広く採用されているCSRF保護Cookie。いずれかのフレームワークが稼働している可能性があります。',
+        });
+      }
+    }
   }
 
   /**

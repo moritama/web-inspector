@@ -290,7 +290,9 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
         : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
 
       let recommendation = '現状維持';
-      if (t.advisories && t.advisories.length > 0) {
+      if (t.isCandidateGroup) {
+        recommendation = '稼働しているバックエンド環境の特定を推奨';
+      } else if (t.advisories && t.advisories.length > 0) {
         recommendation = `脆弱性修正版（v${t.advisories[0].fixedVersion || '最新'}以上）への更新推奨`;
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
@@ -298,11 +300,17 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
         recommendation = 'パッケージ固有版のため個別セキュリティ情報の確認を推奨';
       }
 
+      const verDisplay = t.isCandidateGroup
+        ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
+        : t.version
+        ? `v${escapeHtml(t.version)}`
+        : '<span style="color:var(--text-muted);">不明</span>';
+
       return `
         <tr>
           <td><strong>${escapeHtml(t.technology)}</strong></td>
-          <td>${t.version ? `v${escapeHtml(t.version)}` : '<span style="color:var(--text-muted);">不明</span>'}</td>
-          <td>${escapeHtml(t.versionSource || '-')}</td>
+          <td>${verDisplay}</td>
+          <td>${escapeHtml(t.isCandidateGroup ? '推定候補' : (t.versionSource || '-'))}</td>
           <td>${integrityBadge}</td>
           <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${t.eolDate})</span>` : ''}</td>
           <td>${cveBadge}</td>
@@ -347,8 +355,14 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
       <div class="accordion-header">
         <div style="display:flex;align-items:center;gap:12px;">
           <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}</span>
-          ${t.version ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>` : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'}
-          <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.category)}</span>
+          ${
+            t.isCandidateGroup
+              ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
+              : t.version
+              ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>`
+              : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'
+          }
+          <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.isCandidateGroup ? '言語・FW候補' : t.category)}</span>
         </div>
         <div style="display:flex;gap:6px;">
           ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
@@ -357,6 +371,18 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
         </div>
       </div>
       <div class="accordion-body">
+        ${
+          t.isCandidateGroup && t.candidateTechnologies
+            ? `
+          <div style="margin-bottom:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>推定候補フレームワーク:</strong>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              ${t.candidateTechnologies.map((c) => `<span class="badge" style="background:var(--bg-hover);">${escapeHtml(c)}</span>`).join('')}
+            </div>
+          </div>
+        `
+            : ''
+        }
         <div>${escapeHtml(t.description || '')}</div>
         ${t.website ? `<div>公式サイト: <a href="${t.website}" target="_blank" style="color:var(--accent-color);">${t.website}</a></div>` : ''}
         

@@ -219,6 +219,11 @@ export interface DetectedTechnology {
   website?: string;
   /** アイコン識別子 */
   icon?: string;
+
+  /** 複数技術の推定候補グループであるフラグ (例: XSRF-TOKEN による複数バックエンド候補) */
+  isCandidateGroup?: boolean;
+  /** 候補に含まれる個別技術名リスト */
+  candidateTechnologies?: string[];
 }
 
 /**

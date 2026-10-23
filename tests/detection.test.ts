@@ -139,7 +139,7 @@ describe('DetectionEngine', () => {
     expect(node?.confidenceLevel).toBe('high');
   });
 
-  it('XSRF-TOKEN Cookie単体ではJava, Laravel, Node.jsの3候補がLowで検出され、いずれかの可能性ありと表記されること（連動検知は発動しない）', () => {
+  it('XSRF-TOKEN Cookie単体では、個別の3行ではなく1行の候補グループ「Java / Laravel / Node.js (候補)」として集約検出されること', () => {
     const network: NetworkSignals = {
       url: 'https://example.com/',
       responseHeaders: {},
@@ -152,31 +152,67 @@ describe('DetectionEngine', () => {
       network,
     });
 
+    const candidate = results.find((r) => r.technology === 'Java / Laravel / Node.js (候補)');
     const laravel = results.find((r) => r.technology === 'Laravel');
     const java = results.find((r) => r.technology === 'Java');
     const node = results.find((r) => r.technology === 'Node.js');
     const php = results.find((r) => r.technology === 'PHP');
 
-    // 3技術すべてが候補として検出されること
-    expect(laravel).toBeDefined();
-    expect(java).toBeDefined();
-    expect(node).toBeDefined();
+    // 1行の候補グループとして集約検出されること
+    expect(candidate).toBeDefined();
+    expect(candidate?.isCandidateGroup).toBe(true);
+    expect(candidate?.confidence).toBe(35);
+    expect(candidate?.confidenceLevel).toBe('low');
+    expect(candidate?.candidateTechnologies).toEqual([
+      'Java (Spring Boot)',
+      'Laravel (PHP)',
+      'Node.js (Express)',
+    ]);
+    expect(candidate?.evidence[0]?.detail).toContain('いずれかが稼働している可能性');
 
-    // 確信度はすべて35% (low) であること
-    expect(laravel?.confidence).toBe(35);
-    expect(laravel?.confidenceLevel).toBe('low');
-    expect(java?.confidence).toBe(35);
-    expect(java?.confidenceLevel).toBe('low');
-    expect(node?.confidence).toBe(35);
-    expect(node?.confidenceLevel).toBe('low');
-
-    // エビデンスに「いずれかの可能性あり」が明記されていること
-    expect(laravel?.evidence[0]?.detail).toContain('いずれかの可能性あり');
-    expect(java?.evidence[0]?.detail).toContain('いずれかの可能性あり');
-    expect(node?.evidence[0]?.detail).toContain('いずれかの可能性あり');
+    // 個別の3行はリストに出ないこと
+    expect(laravel).toBeUndefined();
+    expect(java).toBeUndefined();
+    expect(node).toBeUndefined();
 
     // 確信度50%未満のため、連動検知（PHP）は発動しないこと
     expect(php).toBeUndefined();
+  });
+
+  it('laravel_session（85%）が存在する場合、Laravelが確定し、XSRF-TOKEN由来のJavaやNode.js候補は抑制（非表示）されること', () => {
+    const network: NetworkSignals = {
+      url: 'https://example.com/',
+      responseHeaders: {},
+      cookies: [
+        { name: 'laravel_session', value: 'session-secret' },
+        { name: 'XSRF-TOKEN', value: 'token-abc' },
+      ],
+    };
+
+    const results = engine.detect({
+      url: 'https://example.com/',
+      dom: emptyDom,
+      network,
+    });
+
+    const laravel = results.find((r) => r.technology === 'Laravel');
+    const php = results.find((r) => r.technology === 'PHP');
+    const java = results.find((r) => r.technology === 'Java');
+    const node = results.find((r) => r.technology === 'Node.js');
+    const candidate = results.find((r) => r.technology === 'Java / Laravel / Node.js (候補)');
+
+    // Laravelが確定検出（85%）されること
+    expect(laravel).toBeDefined();
+    expect(laravel?.confidence).toBe(85);
+
+    // 連動検知によりPHPも確定（80%）されること
+    expect(php).toBeDefined();
+    expect(php?.confidenceLevel).toBe('high');
+
+    // XSRF-TOKEN由来の他言語や候補グループは綺麗に抑制されること
+    expect(java).toBeUndefined();
+    expect(node).toBeUndefined();
+    expect(candidate).toBeUndefined();
   });
 
   it('Next.js 検出時に Node.js と React が連動検出（Implication）されること', () => {

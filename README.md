@@ -269,8 +269,10 @@ npm run package
 ```
 
 > [!TIP]
-> **バージョンアップ手順 & 脆弱性DB更新の詳細ガイド:**  
-> バージョン変更時のチェックリストや脆弱性DBの自動反映の仕組みについては、[保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/MAINTENANCE_GUIDE.md) をご参照ください。
+> **ドキュメント・運用ガイド:**  
+> - **技術判定基準**: [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DETECTION_SPECIFICATION.md) （主要50技術の観測シグナル・正規表現・Implication連動マトリクス）
+> - **開発計画・設計書**: [全体統括開発計画書 (`docs/DEVELOPMENT_PLAN.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DEVELOPMENT_PLAN.md) （アーキテクチャ・Phase 1〜6フェーズ別詳細計画）
+> - **運用手順**: [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/MAINTENANCE_GUIDE.md) （バージョンアップ手順・脆弱性DB更新手順・チェックリスト）
 
 ---
 
@@ -302,10 +304,12 @@ siteChecker/
 │   │   ├── confidence.ts    # 確信度計算ロジック (0〜100, 高/中/低)
 │   │   └── rules/           # JSON検出ルール
 │   │       ├── server.json   # Webサーバー
-│   │       ├── language.json # 開発言語・フレームワーク
-│   │       ├── cms.json      # CMS
-│   │       ├── frontend.json # フロントエンド (React, Vue, Tailwind等)
-│   │       └── cdn-waf.json  # CDN / WAF
+│   │       ├── language.json # 開発言語 (PHP, Python, Java, Node.js等)
+│   │       ├── backend.json  # バックエンドFW (Spring, Express, FastAPI等)
+│   │       ├── cms.json      # CMS (WordPress, Drupal等)
+│   │       ├── frontend.json # フロントエンド (React, Vue, Tailwind, Astro等)
+│   │       ├── services.json # クラウド・外部サービス (Vercel, GA, Sentry等)
+│   │       └── cdn-waf.json  # CDN / WAF (Cloudflare, CloudFront等)
 │   ├── security/            # セキュリティ診断エンジン
 │   │   ├── engine.ts        # 統合セキュリティエンジン
 │   │   ├── headers.ts       # HTTPヘッダー診断 (HSTS, CSP, XFO, CORS等)

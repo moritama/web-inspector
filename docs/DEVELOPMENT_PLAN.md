@@ -39,6 +39,7 @@ timeline
 | **Phase 6** | v1.6.0 | **Implication Engine 高度化 & 可視化・レポート連携** | IMP-17 〜 IMP-19 | [詳細計画書 (Phase 6)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_6_IMPLICATION_ENGINE.md) |
 
 ### 関連運用ドキュメント
+- [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DETECTION_SPECIFICATION.md) - 全50技術の判定シグナル、正規表現、Implication推論マトリクス、バージョン抽出基準
 - [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/MAINTENANCE_GUIDE.md) - バージョンアップ手順、脆弱性DB更新手順、チェックリスト
 - [Chrome Web Store 申請ガイド (`docs/CHROME_WEB_STORE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/CHROME_WEB_STORE_GUIDE.md) - 配布ZIPのストア提出手順と権限の正当化説明
 

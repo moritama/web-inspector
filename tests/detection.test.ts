@@ -319,4 +319,352 @@ describe('DetectionEngine', () => {
 
     expect(results.length).toBe(0);
   });
+
+  // --- IMP-14: バックエンドフレームワーク検出テスト ---
+  describe('IMP-14: バックエンドフレームワーク検出', () => {
+    it('Spring Boot を X-Application-Context ヘッダーから検出し、Java が連動検出されること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {
+          'x-application-context': ['application:8080'],
+        },
+        cookies: [],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const springBoot = results.find((r) => r.technology === 'Spring Boot');
+      expect(springBoot).toBeDefined();
+      expect(springBoot?.detectionMethod).toBe('direct');
+      expect(springBoot?.runtimeStatus).toBe('confirmed');
+
+      const java = results.find((r) => r.technology === 'Java');
+      expect(java).toBeDefined();
+      expect(java?.detectionMethod).toBe('inferred');
+      expect(java?.implicationType).toBe('runtime-dependency');
+      expect(java?.inferredFrom).toBe('Spring Boot');
+    });
+
+    it('ASP.NET Core を .AspNetCore.Antiforgery Cookie から検出し、ASP.NET が連動検出されること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {},
+        cookies: [{ name: '.AspNetCore.Antiforgery.xxx', value: 'token' }],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const aspnetCore = results.find((r) => r.technology === 'ASP.NET Core');
+      expect(aspnetCore).toBeDefined();
+      expect(aspnetCore?.detectionMethod).toBe('direct');
+
+      const aspnet = results.find((r) => r.technology === 'ASP.NET');
+      expect(aspnet).toBeDefined();
+      expect(aspnet?.detectionMethod).toBe('inferred');
+    });
+
+    it('Express を X-Powered-By ヘッダーから検出し、Node.js が連動検出されること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {
+          'x-powered-by': ['Express'],
+        },
+        cookies: [],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const express = results.find((r) => r.technology === 'Express');
+      expect(express).toBeDefined();
+
+      const node = results.find((r) => r.technology === 'Node.js');
+      expect(node).toBeDefined();
+      expect(node?.detectionMethod).toBe('inferred');
+      expect(node?.implicationType).toBe('runtime-dependency');
+    });
+
+    it('FastAPI を Swagger UI ドキュメントから検出し、Python が連動検出されること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        title: 'FastAPI - Swagger UI',
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const fastapi = results.find((r) => r.technology === 'FastAPI');
+      expect(fastapi).toBeDefined();
+
+      const python = results.find((r) => r.technology === 'Python');
+      expect(python).toBeDefined();
+      expect(python?.detectionMethod).toBe('inferred');
+    });
+
+    it('CakePHP を cakephp Cookie から検出し、PHP が連動検出されること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {},
+        cookies: [{ name: 'cakephp', value: 'session123' }],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const cake = results.find((r) => r.technology === 'CakePHP');
+      expect(cake).toBeDefined();
+
+      const php = results.find((r) => r.technology === 'PHP');
+      expect(php).toBeDefined();
+      expect(php?.detectionMethod).toBe('inferred');
+    });
+  });
+
+  // --- IMP-15: フロントエンド・UIライブラリ検出テスト ---
+  describe('IMP-15: フロントエンド・UIライブラリ検出', () => {
+    it('Alpine.js を DOMマーカーから検出できること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        domMarkers: ['[x-data]', 'x-data'],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const alpine = results.find((r) => r.technology === 'Alpine.js');
+      expect(alpine).toBeDefined();
+      expect(alpine?.category).toBe('js-framework');
+      expect(alpine?.detectionMethod).toBe('direct');
+    });
+
+    it('htmx を DOMマーカーから検出できること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        domMarkers: ['[hx-get]', 'hx-get'],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const htmx = results.find((r) => r.technology === 'htmx');
+      expect(htmx).toBeDefined();
+      expect(htmx?.category).toBe('js-framework');
+    });
+
+    it('DataTables, Chart.js, Axios をスクリプトURLから検出できること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        scriptUrls: [
+          'https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js',
+          'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+          'https://unpkg.com/axios@1.6.2/dist/axios.min.js',
+        ],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      expect(results.some((r) => r.technology === 'DataTables')).toBe(true);
+      expect(results.some((r) => r.technology === 'Chart.js')).toBe(true);
+      expect(results.some((r) => r.technology === 'Axios')).toBe(true);
+    });
+
+    it('Astro を DOMマーカーおよびmeta generatorから検出できること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        metaTags: [{ name: 'generator', content: 'Astro v4.0.0' }],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const astro = results.find((r) => r.technology === 'Astro');
+      expect(astro).toBeDefined();
+      expect(astro?.version).toBe('4.0.0');
+    });
+
+    it('SvelteKit を DOMマーカーから検出し、Svelte が連動検出されること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        domMarkers: ['div#svelte', '__sveltekit'],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const sveltekit = results.find((r) => r.technology === 'SvelteKit');
+      expect(sveltekit).toBeDefined();
+
+      const svelte = results.find((r) => r.technology === 'Svelte');
+      expect(svelte).toBeDefined();
+      expect(svelte?.detectionMethod).toBe('inferred');
+    });
+  });
+
+  // --- IMP-16: ホスティング・外部サービス検出テスト ---
+  describe('IMP-16: ホスティング・外部サービス検出', () => {
+    it('Vercel を Server ヘッダーおよび X-Vercel-Id から検出し、hosting-cloud カテゴリとなること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {
+          server: ['Vercel'],
+          'x-vercel-id': ['iad1::iad1::iad1'],
+        },
+        cookies: [],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const vercel = results.find((r) => r.technology === 'Vercel');
+      expect(vercel).toBeDefined();
+      expect(vercel?.category).toBe('hosting-cloud');
+      expect(vercel?.detectionMethod).toBe('direct');
+    });
+
+    it('Netlify を X-Nf-Request-Id ヘッダーから検出できること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {
+          'x-nf-request-id': ['01J8ABC...'],
+        },
+        cookies: [],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const netlify = results.find((r) => r.technology === 'Netlify');
+      expect(netlify).toBeDefined();
+      expect(netlify?.category).toBe('hosting-cloud');
+    });
+
+    it('Azure App Service を ARRAffinity Cookie から検出できること', () => {
+      const network: NetworkSignals = {
+        url: 'https://example.com/',
+        responseHeaders: {},
+        cookies: [{ name: 'ARRAffinity', value: 'affinity123' }],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network,
+      });
+
+      const azure = results.find((r) => r.technology === 'Azure App Service');
+      expect(azure).toBeDefined();
+      expect(azure?.category).toBe('hosting-cloud');
+    });
+
+    it('Google Analytics / GTM をスクリプトURLから検出し、analytics-tracking カテゴリとなること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        scriptUrls: [
+          'https://www.googletagmanager.com/gtm.js?id=GTM-XXXX',
+          'https://www.google-analytics.com/analytics.js',
+        ],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const gtm = results.find((r) => r.technology === 'Google Tag Manager');
+      expect(gtm).toBeDefined();
+      expect(gtm?.category).toBe('analytics-tracking');
+
+      const ga = results.find((r) => r.technology === 'Google Analytics');
+      expect(ga).toBeDefined();
+      expect(ga?.category).toBe('analytics-tracking');
+    });
+
+    it('Sentry および reCAPTCHA を security-service カテゴリとして検出できること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        scriptUrls: [
+          'https://browser.sentry-cdn.com/7.x/bundle.min.js',
+          'https://www.google.com/recaptcha/api.js',
+        ],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const sentry = results.find((r) => r.technology === 'Sentry');
+      expect(sentry).toBeDefined();
+      expect(sentry?.category).toBe('security-service');
+
+      const recaptcha = results.find((r) => r.technology === 'reCAPTCHA');
+      expect(recaptcha).toBeDefined();
+      expect(recaptcha?.category).toBe('security-service');
+    });
+  });
+
+  // --- IMP-17: Implication Engine 高度化テスト ---
+  describe('IMP-17: Implication Engine 高度化', () => {
+    it('Next.js 検出時、React は framework-dependency (not-applicable)、Node.js は possible-runtime (unknown) と判定されること', () => {
+      const dom: DomSignals = {
+        ...emptyDom,
+        domMarkers: ['script#__NEXT_DATA__'],
+      };
+
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom,
+      });
+
+      const nextjs = results.find((r) => r.technology === 'Next.js');
+      expect(nextjs?.detectionMethod).toBe('direct');
+      expect(nextjs?.runtimeStatus).toBe('confirmed');
+
+      const react = results.find((r) => r.technology === 'React');
+      expect(react?.detectionMethod).toBe('inferred');
+      expect(react?.implicationType).toBe('framework-dependency');
+      expect(react?.runtimeStatus).toBe('not-applicable');
+      expect(react?.inferredFrom).toBe('Next.js');
+
+      const node = results.find((r) => r.technology === 'Node.js');
+      expect(node?.detectionMethod).toBe('inferred');
+      expect(node?.implicationType).toBe('possible-runtime');
+      expect(node?.runtimeStatus).toBe('unknown');
+      expect(node?.inferredFrom).toBe('Next.js');
+    });
+  });
 });
+

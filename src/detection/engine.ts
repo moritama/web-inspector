@@ -307,6 +307,21 @@ export class DetectionEngine {
           }
 
           case 'dom': {
+            // ページタイトルの検査 (例: FastAPI Swagger UI)
+            if (signal.target === 'title' && input.dom?.title) {
+              if (this.matchPattern(input.dom.title, signal.pattern)) {
+                evidences.push({
+                  type: 'html',
+                  name: 'ページタイトル',
+                  value: input.dom.title,
+                  source: input.url,
+                  detail: signal.detail || `ページタイトルから特徴を検出`,
+                  weight: signal.weight,
+                });
+              }
+            }
+
+            // 特徴的DOMマーカーの検査
             if (input.dom?.domMarkers) {
               for (const marker of input.dom.domMarkers) {
                 if (this.matchPattern(marker, signal.pattern)) {
@@ -326,6 +341,22 @@ export class DetectionEngine {
                       versionSource = 'html';
                     }
                   }
+                }
+              }
+            }
+
+            // HTMLスニペット/bodyコンテンツの検査
+            if (input.dom?.htmlSnippets && signal.target !== 'title') {
+              for (const snippet of input.dom.htmlSnippets) {
+                if (this.matchPattern(snippet, signal.pattern)) {
+                  evidences.push({
+                    type: 'html',
+                    name: 'HTMLコンテンツ',
+                    value: snippet.substring(0, 50),
+                    source: input.url,
+                    detail: signal.detail || `HTMLコンテンツから特徴を検出`,
+                    weight: signal.weight,
+                  });
                 }
               }
             }
@@ -397,6 +428,8 @@ export class DetectionEngine {
           advisoryDataUpdatedAt: cveResult.updatedAt,
           description: rule.description,
           website: rule.website,
+          detectionMethod: 'direct',
+          runtimeStatus: 'confirmed',
         });
       }
     }
@@ -469,6 +502,8 @@ export class DetectionEngine {
           confidenceLevel: 'low',
           isCandidateGroup: true,
           candidateTechnologies: ['Java (Spring Boot)', 'Laravel (PHP)', 'Node.js (Express)'],
+          detectionMethod: 'associated',
+          runtimeStatus: 'possible',
           evidence: [
             {
               type: 'cookie-name',
@@ -498,9 +533,12 @@ export class DetectionEngine {
   }
 
   /**
-   * 確信度50%以上の技術から連動技術（含意関係）を解決する
+   * 確信度50%以上の技術から連動技術（含意関係）を解決する (Rev.1.2 IMP-17)
    */
   private resolveImplications(results: DetectedTechnology[]): void {
+    // 循環防止のための訪問履歴 (triggerId -> impliedId)
+    const visitedEdges = new Set<string>();
+
     // 最大2パス実行して連鎖的な連動も解決
     for (let pass = 0; pass < 2; pass++) {
       let addedOrUpdated = false;
@@ -518,40 +556,82 @@ export class DetectionEngine {
           continue;
         }
 
-        for (const impliedId of triggerRule.implies) {
+        for (const rawImp of triggerRule.implies) {
+          // 文字列またはオブジェクト形式を正規化
+          const impDef = typeof rawImp === 'string'
+            ? {
+                id: rawImp,
+                relation: 'runtime-dependency' as const,
+                runtimeStatus: 'unknown' as const,
+                confidenceFactor: 0.9,
+              }
+            : {
+                id: rawImp.id,
+                relation: rawImp.relation || 'runtime-dependency',
+                runtimeStatus: rawImp.runtimeStatus || 'unknown',
+                confidenceFactor: rawImp.confidenceFactor ?? 0.9,
+              };
+
+          const edgeKey = `${triggerRule.id}->${impDef.id}`;
+          if (visitedEdges.has(edgeKey)) {
+            continue;
+          }
+          visitedEdges.add(edgeKey);
+
           const impliedRule = this.rules.find(
-            (rule) => rule.id.toLowerCase() === impliedId.toLowerCase()
+            (rule) => rule.id.toLowerCase() === impDef.id.toLowerCase()
           );
           if (!impliedRule) continue;
 
           // 自己参照はスキップ
           if (impliedRule.name.toLowerCase() === trigger.technology.toLowerCase()) continue;
 
-          const existingIndex = results.findIndex(
-            (r) => r.technology.toLowerCase() === impliedRule.name.toLowerCase()
-          );
+          // 関係性に応じた表示ラベル
+          let relationLabel = '連動判定';
+          if (impDef.relation === 'framework-dependency') {
+            relationLabel = 'フレームワーク基盤依存';
+          } else if (impDef.relation === 'possible-runtime') {
+            relationLabel = '実行環境候補（静的配信等の可能性あり）';
+          } else if (impDef.relation === 'runtime-dependency') {
+            relationLabel = '実行時依存';
+          }
+
+          // 連動先確信度（トリガーが80%以上の場合は80% High、それ以外は係数適用）
+          const impliedWeight = trigger.confidence >= 80
+            ? 80
+            : Math.min(79, Math.max(50, Math.round(trigger.confidence * impDef.confidenceFactor)));
 
           const impliedEvidence: Evidence = {
             type: 'pattern',
             name: '連動検出 (Implication)',
             value: trigger.technology,
             source: trigger.technology,
-            detail: `${trigger.technology}（確信度${trigger.confidence}%）の検出に基づく連動判定`,
-            confidence: trigger.confidenceLevel === 'high' ? 'high' : 'medium',
-            weight: trigger.confidence >= 80 ? 80 : 60,
+            detail: `${trigger.technology}（確信度${trigger.confidence}%）の検出に基づく連動判定 [${relationLabel}]`,
+            confidence: impliedWeight >= 80 ? 'high' : 'medium',
+            weight: impliedWeight,
           };
+
+          const existingIndex = results.findIndex(
+            (r) => r.technology.toLowerCase() === impliedRule.name.toLowerCase()
+          );
 
           if (existingIndex >= 0) {
             // 既に存在する場合：連動エビデンスが未追加なら追加して確信度を再計算
             const existing = results[existingIndex];
             const alreadyHasThisImplication = existing.evidence.some(
-              (e) => e.name === '連動検出 (Implication)' && e.source === trigger.technology
+              (e) => e.source === trigger.technology && e.type === 'pattern'
             );
             if (!alreadyHasThisImplication) {
               existing.evidence.push(impliedEvidence);
               const recalculated = calculateConfidence(existing.evidence);
               existing.confidence = Math.max(existing.confidence, recalculated.confidence);
               existing.confidenceLevel = recalculated.level;
+              if (existing.detectionMethod !== 'direct') {
+                existing.detectionMethod = 'inferred';
+              }
+              if (existing.runtimeStatus !== 'confirmed') {
+                existing.runtimeStatus = impDef.runtimeStatus;
+              }
               addedOrUpdated = true;
             }
           } else {
@@ -588,6 +668,11 @@ export class DetectionEngine {
               advisoryDataUpdatedAt: cveResult.updatedAt,
               description: impliedRule.description,
               website: impliedRule.website,
+              detectionMethod: 'inferred',
+              implicationType: impDef.relation,
+              inferredFrom: trigger.technology,
+              runtimeStatus: impDef.runtimeStatus,
+              inferencePath: [trigger.technology, impliedRule.name],
             });
             addedOrUpdated = true;
           }

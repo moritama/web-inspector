@@ -118,13 +118,19 @@ ${cov?.unobservedSignals && cov.unobservedSignals.length > 0 ? `\n> [!NOTE]\n> *
   // 4. 検出技術スタック
   sections.push(`## 4. 検出技術スタック
 
-| 技術名 | カテゴリ | バージョン | 取得元 | 確信度 | 整合性 |
-|---|---|:---:|:---:|:---:|:---:|
+> [!NOTE]
+> **受動的調査の原則と推定関係:** 固有シグナルから直接検出された技術と、依存関係から連動検知された技術を明確に区分しています。外部からの受動観測ではサーバー内部の実行状態を直接観測できない技術は「稼働未確認」として記録しています。
+
+| 技術名 | カテゴリ | バージョン | 検出方式 | 連動元 / 種別 | ランタイム状態 | 確信度 | 整合性 |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
 ${report.technologies.length > 0 ? report.technologies.map((t) => {
-  const ver = t.version ? `v${t.version}` : '不明';
+  const ver = t.isCandidateGroup ? 'いずれかの可能性' : t.version ? `v${t.version}` : '不明';
+  const method = t.isCandidateGroup || t.detectionMethod === 'associated' ? '候補・関連' : t.detectionMethod === 'inferred' ? '連動検知' : '直接検出';
+  const relation = t.inferredFrom ? `${t.inferredFrom} (${t.implicationType || '連動'})` : '-';
+  const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
-  return `| **${escapeMarkdown(t.technology)}** | ${escapeMarkdown(t.category)} | \`${escapeMarkdown(ver)}\` | ${escapeMarkdown(t.versionSource || '-')} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
-}).join('\n') : '| なし | - | - | - | - | - |'}
+  return `| **${escapeMarkdown(t.technology)}** | ${escapeMarkdown(t.category)} | \`${escapeMarkdown(ver)}\` | ${method} | ${escapeMarkdown(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
+}).join('\n') : '| なし | - | - | - | - | - | - | - |'}
 `);
 
   // 5. セキュリティ診断結果

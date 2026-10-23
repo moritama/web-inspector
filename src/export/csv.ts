@@ -54,6 +54,10 @@ export function exportReportToCsv(report: InspectionReport): string {
       '代表バージョン',
       'バージョン検出元',
       '確信度スコア',
+      '検出方式',
+      '連動種別',
+      '推論元',
+      'ランタイム状態',
       'CSS側バージョン',
       'JS側バージョン',
       'バージョン整合性',
@@ -68,7 +72,7 @@ export function exportReportToCsv(report: InspectionReport): string {
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     for (const tech of report.technologies) {
       const evidenceSummary = tech.evidence
@@ -93,6 +97,23 @@ export function exportReportToCsv(report: InspectionReport): string {
         ? 'EOLのため移行・更新推奨'
         : '現状維持';
 
+      const detectionMethodText = tech.isCandidateGroup || tech.detectionMethod === 'associated'
+        ? '候補・関連'
+        : tech.detectionMethod === 'inferred'
+        ? '連動検知'
+        : '直接検出';
+      const implicationTypeText = tech.implicationType || '-';
+      const inferredFromText = tech.inferredFrom || '-';
+      const runtimeStatusText = tech.runtimeStatus === 'confirmed'
+        ? '稼働確認済'
+        : tech.runtimeStatus === 'possible'
+        ? '稼働可能性あり'
+        : tech.runtimeStatus === 'unknown'
+        ? '稼働未確認'
+        : tech.runtimeStatus === 'not-applicable'
+        ? '該当なし'
+        : '-';
+
       rows.push(
         [
           tech.technology,
@@ -100,6 +121,10 @@ export function exportReportToCsv(report: InspectionReport): string {
           tech.version || 'バージョン不明',
           tech.versionSource || 'pattern',
           tech.confidence,
+          detectionMethodText,
+          implicationTypeText,
+          inferredFromText,
+          runtimeStatusText,
           tech.cssVersion || '-',
           tech.jsVersion || '-',
           mismatchStatusText,

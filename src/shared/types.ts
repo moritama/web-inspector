@@ -8,11 +8,51 @@
  */
 export type TechnologyCategory =
   | 'web-server'             // Webサーバー
-  | 'programming-language'    // サーバーサイドプログラミング言語
+  | 'programming-language'    // サーバーサイドプログラミング言語 / フレームワーク
   | 'cms'                     // コンテンツ管理システム (CMS)
   | 'js-framework'            // JavaScriptフレームワーク
   | 'js-css-library'          // JavaScript / CSSライブラリ
-  | 'cdn-waf';                // CDN / WAF / リバースプロキシ
+  | 'cdn-waf'                 // CDN / WAF / リバースプロキシ
+  | 'hosting-cloud'           // ホスティング / クラウド基盤 (Vercel, Netlify, AWS ALB等)
+  | 'analytics-tracking'      // アクセス解析・タグ管理 (GA, GTM, Clarity等)
+  | 'security-service';       // セキュリティ・監視サービス (Sentry, reCAPTCHA等)
+
+/**
+ * 連動・推論関係の種別 (Rev.1.2 IMP-17)
+ * - runtime-dependency: 実行時依存（例: Laravel → PHP, Express → Node.js）
+ * - framework-dependency: フレームワーク基盤依存（例: Next.js → React, Nuxt → Vue）
+ * - possible-runtime: 実行環境の候補（例: Next.js → Node.js [静的配信の可能性あり]）
+ * - technology-association: 関連技術（例: 特定ホスティングとの親和性）
+ */
+export type ImplicationType =
+  | 'runtime-dependency'
+  | 'framework-dependency'
+  | 'possible-runtime'
+  | 'technology-association';
+
+/**
+ * 検出方式の区分 (Rev.1.2 IMP-18)
+ * - direct: 直接検出（固有の観測情報あり）
+ * - inferred: 連動検知（技術的依存関係から推定）
+ * - associated: 関連技術（使用を裏付ける直接証拠なし）
+ */
+export type DetectionMethod =
+  | 'direct'
+  | 'inferred'
+  | 'associated';
+
+/**
+ * ランタイム実行状態 (Rev.1.2 IMP-17)
+ * - confirmed: 稼働確認済み（直接シグナルや必須実行環境）
+ * - possible: 稼働可能性あり（静的配信等の代替構成があり得る）
+ * - unknown: 稼働状態未確認（外部から実行状態を観測できない）
+ * - not-applicable: 該当なし（フロントエンドライブラリ等、サーバーランタイムを持たない）
+ */
+export type RuntimeStatus =
+  | 'confirmed'
+  | 'possible'
+  | 'unknown'
+  | 'not-applicable';
 
 /**
  * 確信度レベル (仕様書第5項)
@@ -224,6 +264,18 @@ export interface DetectedTechnology {
   isCandidateGroup?: boolean;
   /** 候補に含まれる個別技術名リスト */
   candidateTechnologies?: string[];
+
+  // --- Version 1.6 追加項目 (IMP-17 / IMP-18 / IMP-19) ---
+  /** 検出方式区分 ('direct': 直接検出, 'inferred': 連動検知, 'associated': 関連技術) */
+  detectionMethod?: DetectionMethod;
+  /** 連動・推論関係の種別 */
+  implicationType?: ImplicationType;
+  /** 推論元の技術名 */
+  inferredFrom?: string;
+  /** ランタイム実行状態 ('confirmed', 'possible', 'unknown', 'not-applicable') */
+  runtimeStatus?: RuntimeStatus;
+  /** 推論経路 */
+  inferencePath?: string[];
 }
 
 /**

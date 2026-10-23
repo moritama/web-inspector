@@ -17,12 +17,6 @@
         "target": "src",
         "pattern": "/react(?:\\.production\\.min|\\.development)?\\.js|react-dom",
         "weight": 85
-      },
-      {
-        "type": "dom",
-        "target": "script#__NEXT_DATA__",
-        "pattern": "__NEXT_DATA__",
-        "weight": 70
       }
     ]
   },
@@ -32,7 +26,18 @@
     "category": "js-framework",
     "website": "https://nextjs.org/",
     "description": "Vercelが開発するフルスタックReactフレームワーク",
-    "implies": ["nodejs", "react"],
+    "implies": [
+      {
+        "id": "react",
+        "relation": "framework-dependency",
+        "runtimeStatus": "not-applicable"
+      },
+      {
+        "id": "nodejs",
+        "relation": "possible-runtime",
+        "runtimeStatus": "unknown"
+      }
+    ],
     "signals": [
       {
         "type": "dom",
@@ -93,7 +98,18 @@
     "category": "js-framework",
     "website": "https://nuxt.com/",
     "description": "直感的で高機能なVueフルスタックフレームワーク",
-    "implies": ["nodejs", "vue"],
+    "implies": [
+      {
+        "id": "vue",
+        "relation": "framework-dependency",
+        "runtimeStatus": "not-applicable"
+      },
+      {
+        "id": "nodejs",
+        "relation": "possible-runtime",
+        "runtimeStatus": "unknown"
+      }
+    ],
     "signals": [
       {
         "type": "dom",
@@ -231,6 +247,281 @@
         "target": "src",
         "pattern": "tailwindcss|cdn\\.tailwindcss\\.com",
         "weight": 90
+      }
+    ]
+  },
+  {
+    "id": "alpine",
+    "name": "Alpine.js",
+    "category": "js-framework",
+    "website": "https://alpinejs.dev/",
+    "description": "VueやReactのリアクティブかつ宣言的な性質を低いコストで提供する軽量JavaScriptフレームワーク",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[x-data], [x-init], [x-bind]",
+        "pattern": "x-data|x-init|x-bind",
+        "weight": 90,
+        "detail": "DOM属性（x-data / x-init 等）からAlpine.jsを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "alpine(?:\\.min)?\\.js|cdn\\.jsdelivr\\.net/npm/alpinejs",
+        "weight": 85,
+        "detail": "スクリプトURLからAlpine.jsを検出"
+      }
+    ]
+  },
+  {
+    "id": "htmx",
+    "name": "htmx",
+    "category": "js-framework",
+    "website": "https://htmx.org/",
+    "description": "HTML属性を利用してAJAXやCSS遷移、WebSocketへアクセスできる高機能UIライブラリ",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[hx-get], [hx-post], [hx-target], [hx-swap]",
+        "pattern": "hx-get|hx-post|hx-target|hx-swap|hx-trigger",
+        "weight": 90,
+        "detail": "DOM属性（hx-get / hx-post 等）からhtmxを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "htmx(?:\\.org)?(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからhtmxを検出"
+      }
+    ]
+  },
+  {
+    "id": "datatables",
+    "name": "DataTables",
+    "category": "js-css-library",
+    "website": "https://datatables.net/",
+    "description": "HTMLテーブルに検索、ページネーション、ソート機能を追加するjQuery/バニラJSプラグイン",
+    "signals": [
+      {
+        "type": "dom",
+        "target": "table.dataTable, .dataTables_wrapper",
+        "pattern": "dataTable|dataTables_wrapper",
+        "weight": 85,
+        "detail": "DOMクラス（table.dataTable / dataTables_wrapper）からDataTablesを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:jquery\\.)?dataTables(?:\\.min)?\\.js",
+        "weight": 90,
+        "detail": "スクリプトURLからDataTablesを検出"
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "(?:jquery\\.)?dataTables.*\\.css",
+        "weight": 80,
+        "detail": "CSS URLからDataTablesスタイルシートを検出"
+      }
+    ]
+  },
+  {
+    "id": "chartjs",
+    "name": "Chart.js",
+    "category": "js-css-library",
+    "website": "https://www.chartjs.org/",
+    "description": "HTML5 Canvasを活用したシンプルかつ柔軟なJavaScriptチャート描画ライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "chart(?:\\.umd)?(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからChart.jsを検出"
+      }
+    ]
+  },
+  {
+    "id": "axios",
+    "name": "Axios",
+    "category": "js-css-library",
+    "website": "https://axios-http.com/",
+    "description": "ブラウザおよびNode.js向けのPromiseベースのHTTPクライアントライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "axios(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからAxiosを検出"
+      }
+    ]
+  },
+  {
+    "id": "d3",
+    "name": "D3.js",
+    "category": "js-css-library",
+    "website": "https://d3js.org/",
+    "description": "データに基づいてドキュメントを操作するための強力なJavaScriptデータ可視化ライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "d3(?:\\.v[0-9]+)?(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからD3.jsを検出"
+      }
+    ]
+  },
+  {
+    "id": "tinymce",
+    "name": "TinyMCE",
+    "category": "js-css-library",
+    "website": "https://www.tiny.cloud/",
+    "description": "信頼性の高いリッチテキスト編集を提供するWYSIWYG HTMLエディタコンポーネント",
+    "signals": [
+      {
+        "type": "dom",
+        "target": ".tox-tinymce, .mce-tinymce",
+        "pattern": "tox-tinymce|mce-tinymce",
+        "weight": 90,
+        "detail": "DOMクラス（.tox-tinymce）からTinyMCEエディタを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "tinymce(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからTinyMCEを検出"
+      }
+    ]
+  },
+  {
+    "id": "ckeditor",
+    "name": "CKEditor",
+    "category": "js-css-library",
+    "website": "https://ckeditor.com/",
+    "description": "コラボレーションやマークダウンに対応した最新のモダンリッチテキストエディタ",
+    "signals": [
+      {
+        "type": "dom",
+        "target": ".ck-editor, .cke",
+        "pattern": "ck-editor|cke_",
+        "weight": 90,
+        "detail": "DOMクラス（.ck-editor）からCKEditorを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "ckeditor(?:\\.min)?\\.js",
+        "weight": 85,
+        "detail": "スクリプトURLからCKEditorを検出"
+      }
+    ]
+  },
+  {
+    "id": "fontawesome",
+    "name": "Font Awesome",
+    "category": "js-css-library",
+    "website": "https://fontawesome.com/",
+    "description": "Webで最も広く使われているベクターアイコンおよびソーシャルロゴツールキット",
+    "signals": [
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "font-awesome|fontawesome|all(?:\\.min)?\\.css",
+        "weight": 85,
+        "detail": "アセットURLからFont Awesomeスタイルシートを検出"
+      },
+      {
+        "type": "dom",
+        "target": "i[class*='fa-'], [class*='fas '], [class*='fab ']",
+        "pattern": "fa-|fas |fab ",
+        "weight": 70,
+        "detail": "アイコンクラスパターンからFont Awesomeを検出"
+      }
+    ]
+  },
+  {
+    "id": "material-ui",
+    "name": "Material UI",
+    "category": "js-css-library",
+    "website": "https://mui.com/",
+    "description": "Googleのマテリアルデザイン仕様を実装したReact UIコンポーネントライブラリ",
+    "implies": [
+      {
+        "id": "react",
+        "relation": "framework-dependency",
+        "runtimeStatus": "not-applicable"
+      }
+    ],
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[class*='MuiButton-'], [class*='MuiBox-'], [class*='MuiTypography-']",
+        "pattern": "Mui[A-Z][a-zA-Z]+-",
+        "weight": 85,
+        "detail": "DOMクラス（Mui*-）からMaterial UIコンポーネントを検出"
+      }
+    ]
+  },
+  {
+    "id": "astro",
+    "name": "Astro",
+    "category": "js-framework",
+    "website": "https://astro.build/",
+    "description": "コンテンツ主導の高速な静的・動的Webサイトを構築する最新Webフレームワーク",
+    "implies": [
+      {
+        "id": "nodejs",
+        "relation": "possible-runtime",
+        "runtimeStatus": "unknown"
+      }
+    ],
+    "signals": [
+      {
+        "type": "dom",
+        "target": "[data-astro-cid-], astro-island",
+        "pattern": "data-astro-cid-|astro-island",
+        "weight": 95,
+        "detail": "DOMマーカー（data-astro-cid- / astro-island）からAstroを検出"
+      },
+      {
+        "type": "meta",
+        "target": "generator",
+        "pattern": "Astro(?:\\s+v?([0-9.]+))?",
+        "versionRegex": "Astro(?:\\s+v?([0-9.]+))",
+        "weight": 95,
+        "detail": "metaタグ generator から Astro を検出"
+      }
+    ]
+  },
+  {
+    "id": "sveltekit",
+    "name": "SvelteKit",
+    "category": "js-framework",
+    "website": "https://kit.svelte.dev/",
+    "description": "Svelte上に構築されたフルスタックWebアプリケーションフレームワーク",
+    "implies": [
+      {
+        "id": "svelte",
+        "relation": "framework-dependency",
+        "runtimeStatus": "not-applicable"
+      },
+      {
+        "id": "nodejs",
+        "relation": "possible-runtime",
+        "runtimeStatus": "unknown"
+      }
+    ],
+    "signals": [
+      {
+        "type": "dom",
+        "target": "script[data-sveltekit-], div#svelte, link[rel='modulepreload'][href*='_app/immutable/']",
+        "pattern": "data-sveltekit|__sveltekit|_app/immutable|div#svelte",
+        "weight": 95,
+        "detail": "DOMマーカーおよびアセットパスからSvelteKitを検出"
       }
     ]
   }

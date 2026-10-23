@@ -1,0 +1,300 @@
+[
+  {
+    "id": "spring-boot",
+    "name": "Spring Boot",
+    "category": "programming-language",
+    "website": "https://spring.io/projects/spring-boot",
+    "description": "Java/Kotlin向けのスタンドアロンで本番品質のアプリケーションを迅速に構築するフレームワーク",
+    "implies": [
+      {
+        "id": "java",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-application-context",
+        "pattern": ".*",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Application-Context」からSpring Bootを検出"
+      },
+      {
+        "type": "dom",
+        "target": "body",
+        "pattern": "Whitelabel Error Page",
+        "weight": 90,
+        "detail": "Spring Boot固有のWhitelabelエラーページを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "spring-boot",
+        "weight": 80,
+        "detail": "スクリプトURLにspring-bootのシグネチャを検出"
+      }
+    ]
+  },
+  {
+    "id": "aspnet-core",
+    "name": "ASP.NET Core",
+    "category": "programming-language",
+    "website": "https://learn.microsoft.com/aspnet/core",
+    "description": "クロスプラットフォーム対応のオープンソースで高性能な.NET Webフレームワーク",
+    "implies": [
+      {
+        "id": "aspnet",
+        "relation": "framework-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "cookie",
+        "target": ".AspNetCore.Antiforgery.",
+        "pattern": "^\\.AspNetCore\\.Antiforgery\\.",
+        "weight": 90,
+        "detail": "Cookie「.AspNetCore.Antiforgery.*」からASP.NET Coreを検出"
+      },
+      {
+        "type": "cookie",
+        "target": ".AspNetCore.Session",
+        "pattern": "^\\.AspNetCore\\.Session$",
+        "weight": 90,
+        "detail": "Cookie「.AspNetCore.Session」からASP.NET Coreを検出"
+      },
+      {
+        "type": "cookie",
+        "target": ".AspNetCore.Cookies",
+        "pattern": "^\\.AspNetCore\\.Cookies$",
+        "weight": 90,
+        "detail": "Cookie「.AspNetCore.Cookies」からASP.NET Coreを検出"
+      },
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Kestrel",
+        "weight": 90,
+        "detail": "ServerヘッダーからASP.NET Core Kestrelサーバーを検出"
+      }
+    ]
+  },
+  {
+    "id": "express",
+    "name": "Express",
+    "category": "programming-language",
+    "website": "https://expressjs.com/",
+    "description": "Node.js向けの高速でフレキシブルかつ最小限のWebアプリケーションフレームワーク",
+    "implies": [
+      {
+        "id": "nodejs",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Express",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Powered-By: Express」からExpress.jsを検出"
+      }
+    ]
+  },
+  {
+    "id": "fastapi",
+    "name": "FastAPI",
+    "category": "programming-language",
+    "website": "https://fastapi.tiangolo.com/",
+    "description": "Pythonの型ヒントに基づくモダンで高速（高パフォーマンス）なWebフレームワーク",
+    "implies": [
+      {
+        "id": "python",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "dom",
+        "target": "title",
+        "pattern": "FastAPI - Swagger UI|FastAPI - ReDoc",
+        "weight": 95,
+        "detail": "FastAPI固有のSwagger UI / ReDocドキュメントを検出"
+      },
+      {
+        "type": "header",
+        "target": "x-fastapi",
+        "pattern": ".*",
+        "weight": 90,
+        "detail": "HTTPレスポンスヘッダー「X-FastAPI」を検出"
+      }
+    ]
+  },
+  {
+    "id": "symfony",
+    "name": "Symfony",
+    "category": "programming-language",
+    "website": "https://symfony.com/",
+    "description": "Web開発を加速させるPHPコンポーネントおよびフルスタックWebフレームワーク",
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "symfony",
+        "pattern": "^symfony$",
+        "weight": 85,
+        "detail": "Cookie「symfony」の存在からSymfonyフレームワークを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "sf_redirect",
+        "pattern": "^sf_redirect$",
+        "weight": 85,
+        "detail": "Cookie「sf_redirect」の存在からSymfonyフレームワークを検出"
+      },
+      {
+        "type": "header",
+        "target": "x-debug-token",
+        "pattern": ".*",
+        "weight": 80,
+        "detail": "Symfonyデバッグトークンヘッダーを検出"
+      }
+    ]
+  },
+  {
+    "id": "flask",
+    "name": "Flask",
+    "category": "programming-language",
+    "website": "https://flask.palletsprojects.com/",
+    "description": "Pythonで構築された軽量で柔軟なマイクロWebフレームワーク",
+    "implies": [
+      {
+        "id": "python",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Werkzeug(?:/([0-9.]+))?",
+        "versionRegex": "Werkzeug/([0-9.]+)",
+        "weight": 80,
+        "detail": "ServerヘッダーからFlask基盤のWerkzeugを検出"
+      }
+    ]
+  },
+  {
+    "id": "nestjs",
+    "name": "NestJS",
+    "category": "programming-language",
+    "website": "https://nestjs.com/",
+    "description": "効率的で信頼性の高いスケーラブルなNode.jsサーバーサイドアプリケーションを構築するためのプログレッシブフレームワーク",
+    "implies": [
+      {
+        "id": "nodejs",
+        "relation": "possible-runtime",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Nest(?:/([0-9.]+))?",
+        "versionRegex": "Nest/([0-9.]+)",
+        "weight": 90,
+        "detail": "HTTPヘッダー「X-Powered-By: Nest」からNestJSを検出"
+      }
+    ]
+  },
+  {
+    "id": "fastify",
+    "name": "Fastify",
+    "category": "programming-language",
+    "website": "https://fastify.dev/",
+    "description": "オーバーヘッドが極めて低く速度を最優先したNode.js Webフレームワーク",
+    "implies": [
+      {
+        "id": "nodejs",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-fastify-",
+        "pattern": ".*",
+        "weight": 90,
+        "detail": "Fastify固有のHTTPレスポンスヘッダーを検出"
+      }
+    ]
+  },
+  {
+    "id": "cakephp",
+    "name": "CakePHP",
+    "category": "programming-language",
+    "website": "https://cakephp.org/",
+    "description": "規約重視（CoC）で迅速な開発を可能にする現代的なPHPフレームワーク",
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "CAKEPHP",
+        "pattern": "^CAKEPHP$",
+        "weight": 85,
+        "detail": "Cookie「CAKEPHP」の存在からCakePHPを検出"
+      }
+    ]
+  },
+  {
+    "id": "spring-security",
+    "name": "Spring Security",
+    "category": "programming-language",
+    "website": "https://spring.io/projects/spring-security",
+    "description": "Javaアプリケーション向けの包括的で高度にカスタマイズ可能な認証・アクセス制御フレームワーク",
+    "implies": [
+      {
+        "id": "java",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
+      }
+    ],
+    "signals": [
+      {
+        "type": "dom",
+        "target": "input[name='_csrf']",
+        "pattern": "_csrf",
+        "weight": 60,
+        "detail": "Spring Security標準のCSRFトークンフォーム要素を検出"
+      }
+    ]
+  }
+]

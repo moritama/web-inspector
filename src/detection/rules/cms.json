@@ -5,7 +5,14 @@
     "category": "cms",
     "website": "https://wordpress.org/",
     "description": "世界で最も広く利用されているオープンソースCMS",
-    "implies": ["php"],
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "meta",
@@ -40,7 +47,14 @@
     "category": "cms",
     "website": "https://www.drupal.org/",
     "description": "拡張性とセキュリティに定評のあるエンタープライズ向けオープンソースCMS",
-    "implies": ["php"],
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "meta",
@@ -76,7 +90,14 @@
     "category": "cms",
     "website": "https://www.joomla.org/",
     "description": "多言語対応と柔軟性を備えた定評あるオープンソースCMS",
-    "implies": ["php"],
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "meta",

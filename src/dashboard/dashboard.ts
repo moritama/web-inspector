@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.5.0';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.0';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -350,11 +350,33 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
 
   fullTechsContainerEl.innerHTML = techs
     .map(
-      (t) => `
+      (t) => {
+        // 検出方式バッジ
+        let methodBadgeHtml = '';
+        if (t.isCandidateGroup || t.detectionMethod === 'associated') {
+          methodBadgeHtml = '<span class="badge badge-associated">候補</span>';
+        } else if (t.detectionMethod === 'inferred') {
+          const srcText = t.inferredFrom ? ` · ${escapeHtml(t.inferredFrom)}` : '';
+          methodBadgeHtml = `<span class="badge badge-inferred">連動${srcText}</span>`;
+        } else {
+          methodBadgeHtml = '<span class="badge badge-direct">直接</span>';
+        }
+
+        // ランタイム状態バッジ
+        let runtimeBadgeHtml = '';
+        if (t.runtimeStatus === 'unknown') {
+          runtimeBadgeHtml = '<span class="badge badge-runtime-unknown">稼働未確認</span>';
+        } else if (t.runtimeStatus === 'possible') {
+          runtimeBadgeHtml = '<span class="badge badge-runtime-possible">稼働可能性</span>';
+        }
+
+        return `
     <div class="accordion-item">
       <div class="accordion-header">
         <div style="display:flex;align-items:center;gap:12px;">
           <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}</span>
+          ${methodBadgeHtml}
+          ${runtimeBadgeHtml}
           ${
             t.isCandidateGroup
               ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
@@ -362,7 +384,7 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
               ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>`
               : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'
           }
-          <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.isCandidateGroup ? '言語・FW候補' : t.category)}</span>
+          <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.isCandidateGroup ? '言語・FW候補' : formatCategory(t.category))}</span>
         </div>
         <div style="display:flex;gap:6px;">
           ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
@@ -371,6 +393,17 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
         </div>
       </div>
       <div class="accordion-body">
+        <div style="margin-bottom:8px;padding:8px 12px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+          <div style="font-size:12px;margin-bottom:4px;">
+            <strong>検出方式:</strong> ${formatDetectionMethod(t.detectionMethod, t.isCandidateGroup)}
+            ${t.inferredFrom ? ` / <strong>推論元:</strong> ${escapeHtml(t.inferredFrom)} (${formatImplicationType(t.implicationType)})` : ''}
+          </div>
+          ${t.inferencePath && t.inferencePath.length > 1 ? `<div style="font-size:12px;margin-bottom:4px;"><strong>推論経路:</strong> <code>${escapeHtml(t.inferencePath.join(' → '))}</code></div>` : ''}
+          <div style="font-size:12px;">
+            <strong>ランタイム状態:</strong> ${formatRuntimeStatus(t.runtimeStatus)}
+            ${t.runtimeStatus === 'unknown' ? '<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">(※サーバー内部の稼働状態を観測できないため断定を保留)</span>' : ''}
+          </div>
+        </div>
         ${
           t.isCandidateGroup && t.candidateTechnologies
             ? `
@@ -436,7 +469,8 @@ function renderFullTechnologies(techs: DetectedTechnology[]): void {
         </ul>
       </div>
     </div>
-  `
+  `;
+      }
     )
     .join('');
 }
@@ -799,6 +833,61 @@ function renderExternalConnectionsView(analysis?: ExternalConnectionsAnalysis): 
       </div>
     </div>
   `;
+}
+
+function formatCategory(cat: string): string {
+  const map: Record<string, string> = {
+    'web-server': 'Webサーバー',
+    'programming-language': '開発言語・フレームワーク',
+    'cms': 'CMS',
+    'js-framework': 'JSフレームワーク',
+    'js-css-library': 'JS / CSSライブラリ',
+    'cdn-waf': 'CDN / WAF',
+    'hosting-cloud': 'ホスティング / クラウド基盤',
+    'analytics-tracking': 'アクセス解析 / タグ管理',
+    'security-service': 'セキュリティ / 監視サービス',
+  };
+  return map[cat] || cat;
+}
+
+function formatDetectionMethod(method?: string, isCandidateGroup?: boolean): string {
+  if (isCandidateGroup || method === 'associated') {
+    return '実行環境候補・関連技術';
+  }
+  if (method === 'inferred') {
+    return '連動検知 (推論)';
+  }
+  return '直接検出';
+}
+
+function formatImplicationType(type?: string): string {
+  switch (type) {
+    case 'framework-dependency':
+      return 'フレームワーク基盤依存';
+    case 'possible-runtime':
+      return '実行環境の候補（静的配信等の代替構成あり）';
+    case 'runtime-dependency':
+      return '実行時依存';
+    case 'technology-association':
+      return '関連技術';
+    default:
+      return type || '連動';
+  }
+}
+
+function formatRuntimeStatus(status?: string): string {
+  switch (status) {
+    case 'confirmed':
+      return '稼働確認済';
+    case 'possible':
+      return '稼働可能性あり';
+    case 'unknown':
+      return '稼働状態未確認';
+    case 'not-applicable':
+      return '該当なし (クライアント技術)';
+    default:
+      return '未確認';
+  }
 }
 
 function escapeHtml(str: string): string {

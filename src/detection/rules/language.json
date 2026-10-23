@@ -116,11 +116,50 @@
     ]
   },
   {
+    "id": "python",
+    "name": "Python",
+    "category": "programming-language",
+    "website": "https://www.python.org/",
+    "description": "データ分析やAI、Web開発で幅広く使用されている汎用プログラミング言語",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Python(?:/([0-9.]+))?",
+        "versionRegex": "Python/([0-9.]+)",
+        "weight": 85
+      }
+    ]
+  },
+  {
+    "id": "ruby",
+    "name": "Ruby",
+    "category": "programming-language",
+    "website": "https://www.ruby-lang.org/",
+    "description": "シンプルさと生産性を重視したオープンソースの動的プログラミング言語",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-powered-by",
+        "pattern": "Phusion Passenger.*Ruby",
+        "weight": 85
+      }
+    ]
+  },
+  {
     "id": "python-django",
     "name": "Django",
     "category": "programming-language",
     "website": "https://www.djangoproject.com/",
     "description": "迅速な開発とクリーンな設計を促進するPythonの高機能Webフレームワーク",
+    "implies": [
+      {
+        "id": "python",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "cookie",
@@ -142,6 +181,14 @@
     "category": "programming-language",
     "website": "https://rubyonrails.org/",
     "description": "設定より規約（CoC）を重視するRuby製Webフレームワーク",
+    "implies": [
+      {
+        "id": "ruby",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "dom",
@@ -163,7 +210,14 @@
     "category": "programming-language",
     "website": "https://laravel.com/",
     "description": "洗練された文法と高機能を特徴とするPHP Webフレームワーク",
-    "implies": ["php"],
+    "implies": [
+      {
+        "id": "php",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
     "signals": [
       {
         "type": "header",
@@ -197,7 +251,7 @@
       {
         "type": "header",
         "target": "x-powered-by",
-        "pattern": "(?:Node\\.js|Express)(?:/([0-9.]+))?",
+        "pattern": "Node\\.js(?:/([0-9.]+))?",
         "versionRegex": "Node\\.js/([0-9.]+)",
         "weight": 90
       },

@@ -485,6 +485,37 @@ body {
   color: var(--warning-color);
 }
 
+/* 検出方式・ランタイム状態バッジ (IMP-18) */
+.badge-direct {
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--info-color);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.badge-inferred {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.badge-associated {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.badge-runtime-unknown {
+  background: rgba(234, 179, 8, 0.12);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
+.badge-runtime-possible {
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
 /* 履歴比較 Diff */
 .compare-selectors {
   display: flex;

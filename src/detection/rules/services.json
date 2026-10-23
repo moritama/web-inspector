@@ -1,0 +1,271 @@
+[
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "category": "hosting-cloud",
+    "website": "https://vercel.com/",
+    "description": "モダンWebフロントエンド向けの高速グローバルクラウドプラットフォーム",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "^Vercel$",
+        "weight": 95,
+        "detail": "ServerヘッダーからVercelホスティングを検出"
+      },
+      {
+        "type": "header",
+        "target": "x-vercel-id",
+        "pattern": ".*",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Vercel-Id」からVercelエッジ基盤を検出"
+      },
+      {
+        "type": "header",
+        "target": "x-vercel-cache",
+        "pattern": ".*",
+        "weight": 90,
+        "detail": "Vercelキャッシュヘッダーを検出"
+      }
+    ]
+  },
+  {
+    "id": "netlify",
+    "name": "Netlify",
+    "category": "hosting-cloud",
+    "website": "https://www.netlify.com/",
+    "description": "Jamstackおよびサーバーレスアーキテクチャのための統合Webホスティング環境",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "^Netlify$",
+        "weight": 95,
+        "detail": "ServerヘッダーからNetlifyホスティングを検出"
+      },
+      {
+        "type": "header",
+        "target": "x-nf-request-id",
+        "pattern": ".*",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Nf-Request-Id」からNetlifyエッジを検出"
+      }
+    ]
+  },
+  {
+    "id": "firebase-hosting",
+    "name": "Firebase Hosting",
+    "category": "hosting-cloud",
+    "website": "https://firebase.google.com/docs/hosting",
+    "description": "Googleが提供する高速で安全な静的・動的Webコンテンツ配信インフラ",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-firebase-hosting",
+        "pattern": ".*",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Firebase-Hosting」からFirebaseを検出"
+      }
+    ]
+  },
+  {
+    "id": "azure-app-service",
+    "name": "Azure App Service",
+    "category": "hosting-cloud",
+    "website": "https://azure.microsoft.com/services/app-service/",
+    "description": "Microsoft AzureのフルマネージドWebホスティングPaaS",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "ARRAffinity",
+        "pattern": "^ARRAffinity$",
+        "weight": 90,
+        "detail": "Cookie「ARRAffinity」からAzure App Serviceルーティングを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "ARRAffinitySameSite",
+        "pattern": "^ARRAffinitySameSite$",
+        "weight": 90,
+        "detail": "Cookie「ARRAffinitySameSite」からAzure App Serviceを検出"
+      }
+    ]
+  },
+  {
+    "id": "aws-alb",
+    "name": "AWS Application Load Balancer",
+    "category": "hosting-cloud",
+    "website": "https://aws.amazon.com/elasticloadbalancing/application-load-balancer/",
+    "description": "AWSの高度なリクエストルーティングを提供するレイヤー7負荷分散サービス",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "AWSELB",
+        "pattern": "^AWSELB$",
+        "weight": 90,
+        "detail": "Cookie「AWSELB」からAWS Application Load Balancerを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "AWSELBCORS",
+        "pattern": "^AWSELBCORS$",
+        "weight": 90,
+        "detail": "Cookie「AWSELBCORS」からAWS ALBスティッキーセッションを検出"
+      }
+    ]
+  },
+  {
+    "id": "aws-api-gateway",
+    "name": "AWS API Gateway",
+    "category": "hosting-cloud",
+    "website": "https://aws.amazon.com/api-gateway/",
+    "description": "開発者がAPIの公開・保守・監視・保護を簡単に行えるAWSフルマネージドサービス",
+    "signals": [
+      {
+        "type": "header",
+        "target": "x-amzn-requestid",
+        "pattern": ".*",
+        "weight": 85,
+        "detail": "HTTPヘッダー「X-Amzn-RequestId」からAWS基盤を検出"
+      },
+      {
+        "type": "header",
+        "target": "x-amz-apigw-id",
+        "pattern": ".*",
+        "weight": 95,
+        "detail": "HTTPヘッダー「X-Amz-Apigw-Id」からAWS API Gatewayを検出"
+      }
+    ]
+  },
+  {
+    "id": "google-analytics",
+    "name": "Google Analytics",
+    "category": "analytics-tracking",
+    "website": "https://analytics.google.com/",
+    "description": "Webサイトのトラフィックとユーザー行動を分析するGoogleのアクセス解析サービス",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "google-analytics\\.com/(?:analytics|ga)\\.js|googletagmanager\\.com/gtag/js",
+        "weight": 90,
+        "detail": "読み込まれたスクリプトからGoogle Analyticsを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "_ga",
+        "pattern": "^_ga$",
+        "weight": 85,
+        "detail": "Cookie「_ga」の存在からGoogle Analyticsを検出"
+      }
+    ]
+  },
+  {
+    "id": "google-tag-manager",
+    "name": "Google Tag Manager",
+    "category": "analytics-tracking",
+    "website": "https://tagmanager.google.com/",
+    "description": "Webサイト上の各種マーケティングタグを集中管理するGoogleのタグマネジメントシステム",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "googletagmanager\\.com/gtm\\.js",
+        "weight": 95,
+        "detail": "読み込まれたスクリプトからGoogle Tag Managerを検出"
+      },
+      {
+        "type": "dom",
+        "target": "iframe",
+        "pattern": "googletagmanager\\.com/ns\\.html",
+        "weight": 95,
+        "detail": "GTMフォールバック用iframeからGoogle Tag Managerを検出"
+      }
+    ]
+  },
+  {
+    "id": "microsoft-clarity",
+    "name": "Microsoft Clarity",
+    "category": "analytics-tracking",
+    "website": "https://clarity.microsoft.com/",
+    "description": "ヒートマップやセッションリプレイを提供するMicrosoftの無料行動分析ツール",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "clarity\\.ms/tag/",
+        "weight": 95,
+        "detail": "読み込まれたスクリプトからMicrosoft Clarityを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "_clck",
+        "pattern": "^_clck$",
+        "weight": 85,
+        "detail": "Cookie「_clck」の存在からMicrosoft Clarityを検出"
+      }
+    ]
+  },
+  {
+    "id": "sentry",
+    "name": "Sentry",
+    "category": "security-service",
+    "website": "https://sentry.io/",
+    "description": "アプリケーションのバグやクラッシュをリアルタイムに検知・追跡するエラー監視プラットフォーム",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "browser\\.sentry-cdn\\.com|js\\.sentry-cdn\\.com",
+        "weight": 95,
+        "detail": "読み込まれたスクリプトからSentryエラートラッキングを検出"
+      }
+    ]
+  },
+  {
+    "id": "recaptcha",
+    "name": "reCAPTCHA",
+    "category": "security-service",
+    "website": "https://www.google.com/recaptcha/",
+    "description": "ボットによる不正アクセスやスパムを防止するGoogleのCAPTCHA認証サービス",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "google\\.com/recaptcha/api\\.js|recaptcha/enterprise\\.js",
+        "weight": 95,
+        "detail": "読み込まれたスクリプトからGoogle reCAPTCHAを検出"
+      },
+      {
+        "type": "dom",
+        "target": ".g-recaptcha",
+        "pattern": "g-recaptcha",
+        "weight": 90,
+        "detail": "DOMクラス「g-recaptcha」からreCAPTCHA要素を検出"
+      }
+    ]
+  },
+  {
+    "id": "hcaptcha",
+    "name": "hCaptcha",
+    "category": "security-service",
+    "website": "https://www.hcaptcha.com/",
+    "description": "プライバシーを重視したボット対策・CAPTCHAセキュリティサービス",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "hcaptcha\\.com/1/api\\.js|js\\.hcaptcha\\.com",
+        "weight": 95,
+        "detail": "読み込まれたスクリプトからhCaptchaを検出"
+      },
+      {
+        "type": "dom",
+        "target": ".h-captcha",
+        "pattern": "h-captcha",
+        "weight": 90,
+        "detail": "DOMクラス「h-captcha」からhCaptcha要素を検出"
+      }
+    ]
+  }
+]

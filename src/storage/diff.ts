@@ -10,7 +10,6 @@
 import {
   DetailedDiffItem,
   DiffCause,
-  DiffType,
   EnhancedReportComparison,
   InspectionReport,
 } from '../shared/types';
@@ -223,11 +222,11 @@ export function compareReportsEnhanced(
  * 2つのレポート間で調査完全性（Coverage）や収集状態に有意な差があるか判定
  */
 function isCoverageDifferent(reportA: InspectionReport, reportB: InspectionReport): boolean {
-  if (reportA.coverage?.completeness !== reportB.coverage?.completeness) {
+  if (reportA.coverage?.overallStatus !== reportB.coverage?.overallStatus) {
     return true;
   }
   // DOM取得の有無の違い
-  if (reportA.coverage?.sources?.dom !== reportB.coverage?.sources?.dom) {
+  if (reportA.coverage?.dom !== reportB.coverage?.dom) {
     return true;
   }
   return false;

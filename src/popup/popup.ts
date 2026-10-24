@@ -350,7 +350,7 @@ function renderCookies(cookies: InspectedCookieInfo[]): void {
           <div class="item-meta">
             <span>${c.secure ? '🔒 Secure' : '⚠️ 不保護'}</span>
             <span>${c.httpOnly ? '🛡️ HttpOnly' : 'スクリプト可'}</span>
-            <span>SameSite: ${escapeHtml(c.sameSite)}</span>
+            <span>SameSite: ${escapeHtml(c.sameSite || '-')}</span>
           </div>
         </div>
       </div>
@@ -626,11 +626,11 @@ function showCookieModal(cookie: InspectedCookieInfo): void {
   modalBody.innerHTML = `
     <div>
       <div class="detail-section-title">属性詳細 (※値は除外)</div>
-      <div>ドメイン: <strong>${escapeHtml(cookie.domain)}</strong></div>
-      <div>パス: <strong>${escapeHtml(cookie.path)}</strong></div>
+      <div>ドメイン: <strong>${escapeHtml(cookie.domain || '-')}</strong></div>
+      <div>パス: <strong>${escapeHtml(cookie.path || '-')}</strong></div>
       <div>Secure: <strong>${cookie.secure ? '有効' : '無効'}</strong></div>
       <div>HttpOnly: <strong>${cookie.httpOnly ? '有効' : '無効'}</strong></div>
-      <div>SameSite: <strong>${escapeHtml(cookie.sameSite)}</strong></div>
+      <div>SameSite: <strong>${escapeHtml(cookie.sameSite || '-')}</strong></div>
       <div>有効期間: <strong>${cookie.session ? 'セッションCookie' : '永続Cookie'}</strong></div>
     </div>
 

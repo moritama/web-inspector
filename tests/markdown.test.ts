@@ -24,11 +24,12 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
     rulesVersion: '1.3.3',
     advisoryDatabaseVersion: '2026-10-22',
     coverage: {
-      headersAvailable: true,
-      cookiesAvailable: true,
-      devtoolsAvailable: false,
-      inspectedResourcesCount: 15,
-      limitations: ['DevTools未接続のためHTTPボディ未取得'],
+      dom: 'complete',
+      headers: 'complete',
+      cookies: 'complete',
+      iframes: 'not-applicable',
+      network: 'complete',
+      overallStatus: 'complete',
     },
     summary: {
       totalTechnologies: 3,
@@ -41,7 +42,7 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
     technologies: [
       {
         technology: 'jQuery',
-        category: 'javascript-library',
+        category: 'js-css-library',
         detected: true,
         version: '1.12.4',
         supportStatus: 'EOL',
@@ -51,16 +52,17 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
         advisories: [
           {
             id: 'CVE-2015-9251',
-            package: 'jquery',
             title: 'jQuery XSS vulnerability',
-            severity: 'medium',
-            patchedVersions: '>=3.0.0',
-            sourceUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2015-9251',
+            severity: 'MEDIUM',
+            affectedRange: '< 3.0.0',
+            fixedVersion: '3.0.0',
+            summary: 'jQuery before 3.0.0 is vulnerable to Cross-site Scripting (XSS).',
+            referenceUrls: ['https://nvd.nist.gov/vuln/detail/CVE-2015-9251'],
           },
         ],
         evidence: [
           {
-            type: 'script-tag',
+            type: 'script-url',
             name: 'script.src',
             value: 'https://cdn.example.co.jp/jquery-1.12.4.min.js',
             source: 'https://cdn.example.co.jp/jquery-1.12.4.min.js',
@@ -70,10 +72,10 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
       },
       {
         technology: 'Bootstrap',
-        category: 'ui-framework',
+        category: 'js-css-library',
         detected: true,
         version: '5.3.0',
-        supportStatus: 'supported',
+        supportStatus: 'Supported',
         confidence: 85,
         confidenceLevel: 'high',
         evidence: [],
@@ -101,12 +103,8 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
         path: '/',
         secure: true,
         httpOnly: true,
-        sameSite: 'Lax',
-        assessment: {
-          category: 'session',
-          securityScore: 100,
-          findings: [],
-        },
+        sameSite: 'lax',
+        issues: [],
       },
     ],
     externalConnections: {

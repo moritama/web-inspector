@@ -464,13 +464,14 @@ export interface CookieClassification {
  */
 export interface InspectedCookieInfo {
   name: string;
-  domain: string;
-  path: string;
-  secure: boolean;
-  httpOnly: boolean;
-  sameSite: 'no_restriction' | 'lax' | 'strict' | 'unspecified';
+  value?: string;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: 'no_restriction' | 'lax' | 'strict' | 'unspecified';
   normalizedSameSite?: NormalizedSameSite;
-  session: boolean;
+  session?: boolean;
   hostOnly?: boolean;
   partitioned?: boolean;
   partitionKey?: string | null;
@@ -480,7 +481,7 @@ export interface InspectedCookieInfo {
   prefixType?: '__Secure-' | '__Host-' | '__Http-' | '__Host-Http-' | null;
   category?: CookieCategory;
   classification?: CookieClassification;
-  issues: string[];
+  issues?: string[];
 }
 
 /**

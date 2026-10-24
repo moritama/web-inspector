@@ -43,7 +43,7 @@ export function exportReportToCsv(report: InspectionReport): string {
   rows.push(['要確認項目数', report.summary.requiresAttentionCount].map(escapeCsv).join(','));
   rows.push(['EOL該当数', report.summary.librarySecurity?.eolCount ?? 0].map(escapeCsv).join(','));
   rows.push(['脆弱性該当数', report.summary.librarySecurity?.vulnerableLibraryCount ?? 0].map(escapeCsv).join(','));
-  rows.push([]);
+  rows.push('');
 
   // 2. 検出技術・ライブラリセキュリティ一覧 (ADD-08)
   rows.push(['--- 検出技術 & ライブラリセキュリティ ---'].map(escapeCsv).join(','));
@@ -140,7 +140,7 @@ export function exportReportToCsv(report: InspectionReport): string {
     }
   }
 
-  rows.push([]);
+  rows.push('');
 
   // 3. HTTP・セキュリティ診断結果
   rows.push(['--- セキュリティ設定診断結果 ---'].map(escapeCsv).join(','));
@@ -164,7 +164,7 @@ export function exportReportToCsv(report: InspectionReport): string {
     );
   }
 
-  rows.push([]);
+  rows.push('');
 
   // 4. Cookie属性一覧
   if (report.cookies && report.cookies.length > 0) {
@@ -177,13 +177,13 @@ export function exportReportToCsv(report: InspectionReport): string {
       rows.push(
         [
           c.name,
-          c.domain,
-          c.path,
+          c.domain || '',
+          c.path || '',
           c.secure ? '有効' : '未設定',
           c.httpOnly ? '有効' : '未設定',
-          c.sameSite,
+          c.sameSite || '',
           c.session ? 'セッション' : '永続',
-          c.issues.join('; '),
+          (c.issues || []).join('; '),
         ].map(escapeCsv).join(',')
       );
     }

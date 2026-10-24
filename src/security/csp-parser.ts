@@ -12,7 +12,6 @@
 
 import { generateFindingId } from '../shared/identity';
 import {
-  CSPFinding,
   CSPPolicy,
   CSPSource,
   SecurityCheckResult,
@@ -471,6 +470,7 @@ export function analyzeCSPPolicies(
           'https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html',
         ],
         scope: url,
+        findingId: stableId,
       });
     }
   }

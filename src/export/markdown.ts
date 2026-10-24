@@ -94,15 +94,24 @@ export function generateMarkdownReport(
 
   // 2. 調査範囲・完全性 (IMP-08)
   const cov = report.coverage;
-  const completenessLabel = cov?.completeness === 'complete' ? '完全 (Complete)' : cov?.completeness === 'partial' ? '一部制限あり (Partial)' : '未取得 (Failed)';
+  const statusLabel =
+    cov?.overallStatus === 'complete'
+      ? '完全 (Complete)'
+      : cov?.overallStatus === 'partial'
+      ? '一部制限あり (Partial)'
+      : '未取得 (Unavailable)';
   sections.push(`## 2. 調査範囲・完全性 (Coverage)
 
-- **完全性ステータス:** **${completenessLabel}** (調査スコア: ${cov?.score ?? 100} / 100)
-- **DOM / HTML解析:** ${cov?.sources?.dom ? '✅ 取得成功' : '⚠️ 未取得'}
-- **HTTPレスポンスヘッダー:** ${cov?.sources?.responseHeaders ? '✅ 取得成功' : '⚠️ 未取得 (キャッシュ/事前スキャンなし)'}
-- **Cookie属性情報:** ${cov?.sources?.cookies ? `✅ 取得成功 (${report.cookies.length} 個観測)` : '⚠️ 権限なし/未取得'}
-- **JavaScript実行時情報 (MAIN World):** ${cov?.sources?.runtime ? '✅ 取得成功' : '⚠️ 未取得'}
-${cov?.unobservedSignals && cov.unobservedSignals.length > 0 ? `\n> [!NOTE]\n> **未観測・制限項目:** ${cov.unobservedSignals.map((s) => `\`${s}\``).join(', ')}\n` : ''}
+- **完全性ステータス:** **${statusLabel}**
+- **DOM / HTML解析:** ${cov?.dom === 'complete' ? '✅ 取得成功' : '⚠️ 一部または未取得'}
+- **HTTPレスポンスヘッダー:** ${cov?.headers === 'complete' ? '✅ 取得成功' : '⚠️ 未取得 (キャッシュ/事前スキャンなし)'}
+- **Cookie属性情報:** ${cov?.cookies === 'complete' ? `✅ 取得成功 (${report.cookies.length} 個観測)` : '⚠️ 権限なし/未取得'}
+- **ネットワーク・通信解析:** ${cov?.network === 'complete' ? '✅ 取得成功' : '⚠️ 一部制限あり'}
+${
+  cov?.details?.missingPermissions && cov.details.missingPermissions.length > 0
+    ? `\n> [!NOTE]\n> **未付与の権限:** ${cov.details.missingPermissions.map((s) => `\`${s}\``).join(', ')}\n`
+    : ''
+}
 `);
 
   // 3. 調査結果サマリー
@@ -178,7 +187,7 @@ ${report.technologies.map((t) => {
 | Cookie名 | ドメイン | パス | 用途分類 | Secure | HttpOnly | SameSite | CHIPS (Partitioned) |
 |---|---|---|:---:|:---:|:---:|:---:|:---:|
 ${report.cookies.length > 0 ? report.cookies.map((c) => {
-  return `| \`${escapeMarkdown(c.name)}\` | \`${escapeMarkdown(c.domain)}\` | \`${escapeMarkdown(c.path)}\` | ${escapeMarkdown(c.purposeCategory || 'general')} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | \`${c.sameSite}\` | ${c.partitioned ? 'Yes' : 'No'} |`;
+  return `| \`${escapeMarkdown(c.name)}\` | \`${escapeMarkdown(c.domain || '-')}\` | \`${escapeMarkdown(c.path || '-')}\` | ${escapeMarkdown(c.category || 'general')} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | \`${c.sameSite || '-'}\` | ${c.partitioned ? 'Yes' : 'No'} |`;
 }).join('\n') : '| なし | - | - | - | - | - | - | - |'}
 `);
 
@@ -187,9 +196,9 @@ ${report.cookies.length > 0 ? report.cookies.map((c) => {
 
 - **CSPポリシー保持件数:** ${report.cspPolicies?.length ?? 0} 件
 ${report.cspPolicies && report.cspPolicies.length > 0 ? report.cspPolicies.map((p, idx) => `
-#### ポリシー #${idx + 1} [取得元: ${p.source}, モード: ${p.disposition}]
+#### ポリシー #${idx + 1} [取得元: ${p.source}, モード: ${p.mode}]
 \`\`\`text
-${p.rawPolicy}
+${p.rawValue}
 \`\`\`
 `).join('\n') : '> CSPヘッダーまたはmetaタグによるCSPは設定されていません。'}
 `);

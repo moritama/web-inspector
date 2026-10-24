@@ -13,17 +13,22 @@ function createDummyReport(overrides: Partial<InspectionReport> = {}): Inspectio
     url: 'https://example.com/',
     hostname: 'example.com',
     inspectedAt: new Date().toISOString(),
+    extensionVersion: '1.6.0',
+    rulesVersion: '1.6.0',
     coverage: {
-      completeness: 'complete',
-      score: 100,
-      sources: { dom: true, responseHeaders: true, cookies: true, runtime: true },
-      unobservedSignals: [],
-      notes: [],
+      dom: 'complete',
+      headers: 'complete',
+      cookies: 'complete',
+      iframes: 'not-applicable',
+      network: 'complete',
+      overallStatus: 'complete',
     },
     summary: {
-      technologiesCount: 1,
+      totalTechnologies: 1,
       requiresAttentionCount: 0,
       isHttps: true,
+      mixedContentCount: 0,
+      librarySecurity: { eolCount: 0, vulnerableLibraryCount: 0, mismatchCount: 0 },
       securityFindings: { high: 0, medium: 0, low: 0, info: 0, unknown: 0 },
     },
     technologies: [],
@@ -127,11 +132,12 @@ describe('拡張差分比較 & 原因分析 (IMP-09)', () => {
   it('調査完全性の違いにより技術が消失した場合、原因を inspection-difference と判定すること', () => {
     const reportA = createDummyReport({
       coverage: {
-        completeness: 'complete',
-        score: 100,
-        sources: { dom: true, responseHeaders: true, cookies: true, runtime: true },
-        unobservedSignals: [],
-        notes: [],
+        dom: 'complete',
+        headers: 'complete',
+        cookies: 'complete',
+        iframes: 'not-applicable',
+        network: 'complete',
+        overallStatus: 'complete',
       },
       technologies: [
         {
@@ -148,11 +154,12 @@ describe('拡張差分比較 & 原因分析 (IMP-09)', () => {
 
     const reportB = createDummyReport({
       coverage: {
-        completeness: 'partial',
-        score: 40,
-        sources: { dom: false, responseHeaders: true, cookies: false, runtime: false },
-        unobservedSignals: ['dom'],
-        notes: [],
+        dom: 'unavailable',
+        headers: 'complete',
+        cookies: 'unavailable',
+        iframes: 'not-applicable',
+        network: 'partial',
+        overallStatus: 'partial',
       },
       technologies: [],
     });

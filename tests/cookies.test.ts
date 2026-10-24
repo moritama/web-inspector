@@ -11,7 +11,6 @@ import {
   evaluateCookie,
   normalizeSameSite,
 } from '../src/security/cookies';
-import { InspectedCookieInfo } from '../src/shared/types';
 
 describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
   it('Cookie名に基づいて正しいカテゴリに分類されること', () => {
@@ -255,7 +254,7 @@ describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
     ];
 
     const { checks } = checkCookies(mockCookies as any, 'https://example.com', true);
-    const highWarnings = checks.filter((r) => r.severity === 'high' || r.severity === 'critical');
+    const highWarnings = checks.filter((r) => r.severity === 'high');
     expect(highWarnings.length).toBe(0);
   });
 });

@@ -46,15 +46,15 @@ flowchart TD
 
 | No | ファイルパス | 役割・更新内容 | 必須区分 |
 |:---:|---|---|:---:|
-| 1 | [`public/manifest.json`](file:///Users/kopakas/Desktop/Development/siteChecker/public/manifest.json) | `"version": "X.X.X"`（Chrome Web Store認識用） | **【必須】** |
-| 2 | [`package.json`](file:///Users/kopakas/Desktop/Development/siteChecker/package.json) | `"version": "X.X.X"`（ZIP出力スクリプト用） | **【必須】** |
-| 3 | [`src/detection/rules/index.ts`](file:///Users/kopakas/Desktop/Development/siteChecker/src/detection/rules/index.ts) | `export const RULES_VERSION = 'X.X.X';`（レポート記録用） | **【必須】** |
-| 4 | [`src/background/service-worker.ts`](file:///Users/kopakas/Desktop/Development/siteChecker/src/background/service-worker.ts) | `EXTENSION_VERSION` のフォールバック文字列 | 推奨 |
-| 5 | [`src/popup/popup.ts`](file:///Users/kopakas/Desktop/Development/siteChecker/src/popup/popup.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
-| 6 | [`src/dashboard/dashboard.ts`](file:///Users/kopakas/Desktop/Development/siteChecker/src/dashboard/dashboard.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
-| 7 | [`src/popup/popup.html`](file:///Users/kopakas/Desktop/Development/siteChecker/src/popup/popup.html) / `popup.html` | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
-| 8 | [`src/dashboard/dashboard.html`](file:///Users/kopakas/Desktop/Development/siteChecker/src/dashboard/dashboard.html) / `dashboard.html` | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
-| 9 | [`README.md`](file:///Users/kopakas/Desktop/Development/siteChecker/README.md) | バッジ（`version-X.X.X-blue.svg`）および機能一覧見出し | 推奨 |
+| 1 | [`public/manifest.json`](../public/manifest.json) | `"version": "X.X.X"`（Chrome Web Store認識用） | **【必須】** |
+| 2 | [`package.json`](../package.json) | `"version": "X.X.X"`（ZIP出力スクリプト用） | **【必須】** |
+| 3 | [`src/detection/rules/index.ts`](../src/detection/rules/index.ts) | `export const RULES_VERSION = 'X.X.X';`（レポート記録用） | **【必須】** |
+| 4 | [`src/background/service-worker.ts`](../src/background/service-worker.ts) | `EXTENSION_VERSION` のフォールバック文字列 | 推奨 |
+| 5 | [`src/popup/popup.ts`](../src/popup/popup.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
+| 6 | [`src/dashboard/dashboard.ts`](../src/dashboard/dashboard.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
+| 7 | [`src/popup/popup.html`](../src/popup/popup.html) / `popup.html` | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
+| 8 | [`src/dashboard/dashboard.html`](../src/dashboard/dashboard.html) / `dashboard.html` | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
+| 9 | [`README.md`](../README.md) | バッジ（`version-X.X.X-blue.svg`）および機能一覧見出し | 推奨 |
 
 ---
 

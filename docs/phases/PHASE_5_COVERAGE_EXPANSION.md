@@ -10,7 +10,7 @@
 ## 1. フェーズ概要と目的
 
 現代のWebアーキテクチャでは、Next.jsやAstroのようなメタフレームワーク、TailwindやMaterial UI等のUIライブラリ、VercelやAWS ALB等のエッジ・クラウド基盤、そしてアクセス解析やセキュリティ監視SaaSが複雑に組み合わさって稼働しています。  
-本フェーズでは、主要なバックエンドフレームワーク10種（IMP-14）、フロントエンド・UIライブラリ12種（IMP-15）、およびホスティング・外部サービス12種（IMP-16）のルールを新規策定・拡張し、計50以上の主要技術スタックを高精度に特定できるカバレッジを実現しました。
+本フェーズでは、主要なバックエンドフレームワーク10種（IMP-14）、フロントエンド・UIライブラリ12種（IMP-15）、およびホスティング・外部サービス12種（IMP-16）のルールを新規策定・拡張し、主要技術スタック（全対応技術）を高精度に特定できるカバレッジを実現しました。
 
 ```mermaid
 graph TD
@@ -45,7 +45,7 @@ graph TD
 
 ### IMP-14: バックエンドフレームワーク検出 (10技術)
 
-新規ルール定義ファイル [`src/detection/rules/backend.json`](file:///Users/kopakas/Desktop/Development/siteChecker/src/detection/rules/backend.json) を策定。
+新規ルール定義ファイル [`src/detection/rules/backend.json`](../../src/detection/rules/backend.json) を策定。
 
 | 技術名 | カテゴリ | 主な検出シグナル | 連動推論 (`implies`) |
 |---|---|---|---|
@@ -64,7 +64,7 @@ graph TD
 
 ### IMP-15: フロントエンド・UIライブラリ検出 (12技術)
 
-既存ルール定義ファイル [`src/detection/rules/frontend.json`](file:///Users/kopakas/Desktop/Development/siteChecker/src/detection/rules/frontend.json) を拡張。
+既存ルール定義ファイル [`src/detection/rules/frontend.json`](../../src/detection/rules/frontend.json) を拡張。
 
 | 技術名 | カテゴリ | 主な検出シグナル | 連動推論 (`implies`) |
 |---|---|---|---|
@@ -85,7 +85,7 @@ graph TD
 
 ### IMP-16: ホスティング・外部サービス検出 (12技術)
 
-新規ルール定義ファイル [`src/detection/rules/services.json`](file:///Users/kopakas/Desktop/Development/siteChecker/src/detection/rules/services.json) を策定。
+新規ルール定義ファイル [`src/detection/rules/services.json`](../../src/detection/rules/services.json) を策定。
 
 | 技術名 | 新設カテゴリ | 主な検出シグナル | 特徴・セキュリティ配慮 |
 |---|---|---|---|

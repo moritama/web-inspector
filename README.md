@@ -71,7 +71,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ## 対応技術スタック & 診断カバレッジ (Coverage)
 
-本拡張機能が検出・診断に対応している主要技術一覧です（計50技術以上）。  
+本拡張機能が検出・診断に対応している主要Web技術一覧です。  
 ※「EOL判定」「既知脆弱性(CVE)照合」が有効な技術は、外部送信を行わず拡張機能内蔵のオフライン脆弱性データベース（`advisory-db.json`）と完全ローカルで精密照合されます。
 
 | 分類 | 対象技術名 | バージョン特定 | EOL判定 | 既知脆弱性 (CVE) | 主な検出手法 |
@@ -270,9 +270,9 @@ npm run package
 
 > [!TIP]
 > **ドキュメント・運用ガイド:**  
-> - **技術判定基準**: [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DETECTION_SPECIFICATION.md) （主要50技術の観測シグナル・正規表現・Implication連動マトリクス）
-> - **開発計画・設計書**: [全体統括開発計画書 (`docs/DEVELOPMENT_PLAN.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DEVELOPMENT_PLAN.md) （アーキテクチャ・Phase 1〜6フェーズ別詳細計画）
-> - **運用手順**: [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/MAINTENANCE_GUIDE.md) （バージョンアップ手順・脆弱性DB更新手順・チェックリスト）
+> - **技術判定基準**: [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](./docs/DETECTION_SPECIFICATION.md) （全対応技術の観測シグナル・正規表現・Implication連動マトリクス）
+> - **開発計画・設計書**: [全体統括開発計画書 (`docs/DEVELOPMENT_PLAN.md`)](./docs/DEVELOPMENT_PLAN.md) （アーキテクチャ・Phase 1〜6フェーズ別詳細計画）
+> - **運用手順**: [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](./docs/MAINTENANCE_GUIDE.md) （バージョンアップ手順・脆弱性DB更新手順・チェックリスト）
 
 ---
 

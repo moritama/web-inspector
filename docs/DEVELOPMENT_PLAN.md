@@ -2,7 +2,7 @@
 
 本書は、Chrome / Edge (Manifest V3) 対応ブラウザ拡張機能『Web Technology & Security Inspector』の初期開発から最新バージョン（v1.6.0）に至るまでの全体ロードマップ、システムアーキテクチャ、およびフェーズ別開発計画を体系化した統括計画書です。
 
-各フェーズの詳細な開発計画・設計仕様については、[`docs/phases/`](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/) 配下の個別ドキュメントに記載しています。
+各フェーズの詳細な開発計画・設計仕様については、[`docs/phases/`](./phases/) 配下の個別ドキュメントに記載しています。
 
 ---
 
@@ -31,17 +31,17 @@ timeline
 
 | フェーズ | 対象バージョン | テーマ | 主な機能ID | 詳細ドキュメント |
 |---|:---:|---|---|:---:|
-| **Phase 1** | v1.0.0 | **初期MVP・基盤診断エンジン開発** | F01 〜 F12 | [詳細計画書 (Phase 1)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_1_INITIAL_FOUNDATION.md) |
-| **Phase 2** | v1.1.0 | **ライブラリセキュリティ & オフラインCVE/EOL統合** | ADD-01 〜 ADD-08 | [詳細計画書 (Phase 2)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_2_LIBRARY_SECURITY.md) |
-| **Phase 3** | v1.2.0 〜 1.4.0 | **診断エンジン精密化 & ノイズ（誤検知）削減** | IMP-01 〜 IMP-08 | [詳細計画書 (Phase 3)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_3_ENGINE_REFINEMENT.md) |
-| **Phase 4** | v1.5.0 | **調査運用支援・差分分析・連動検知プロトタイプ** | IMP-09 〜 IMP-13 | [詳細計画書 (Phase 4)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_4_OPERATIONAL_SUPPORT.md) |
-| **Phase 5** | v1.6.0 | **検出カバレッジの大幅拡大（主要50技術網羅）** | IMP-14 〜 IMP-16 | [詳細計画書 (Phase 5)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_5_COVERAGE_EXPANSION.md) |
-| **Phase 6** | v1.6.0 | **Implication Engine 高度化 & 可視化・レポート連携** | IMP-17 〜 IMP-19 | [詳細計画書 (Phase 6)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/phases/PHASE_6_IMPLICATION_ENGINE.md) |
+| **Phase 1** | v1.0.0 | **初期MVP・基盤診断エンジン開発** | F01 〜 F12 | [詳細計画書 (Phase 1)](./phases/PHASE_1_INITIAL_FOUNDATION.md) |
+| **Phase 2** | v1.1.0 | **ライブラリセキュリティ & オフラインCVE/EOL統合** | ADD-01 〜 ADD-08 | [詳細計画書 (Phase 2)](./phases/PHASE_2_LIBRARY_SECURITY.md) |
+| **Phase 3** | v1.2.0 〜 1.4.0 | **診断エンジン精密化 & ノイズ（誤検知）削減** | IMP-01 〜 IMP-08 | [詳細計画書 (Phase 3)](./phases/PHASE_3_ENGINE_REFINEMENT.md) |
+| **Phase 4** | v1.5.0 | **調査運用支援・差分分析・連動検知プロトタイプ** | IMP-09 〜 IMP-13 | [詳細計画書 (Phase 4)](./phases/PHASE_4_OPERATIONAL_SUPPORT.md) |
+| **Phase 5** | v1.6.0 | **検出カバレッジの大幅拡大（主要技術網羅）** | IMP-14 〜 IMP-16 | [詳細計画書 (Phase 5)](./phases/PHASE_5_COVERAGE_EXPANSION.md) |
+| **Phase 6** | v1.6.0 | **Implication Engine 高度化 & 可視化・レポート連携** | IMP-17 〜 IMP-19 | [詳細計画書 (Phase 6)](./phases/PHASE_6_IMPLICATION_ENGINE.md) |
 
 ### 関連運用ドキュメント
-- [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/DETECTION_SPECIFICATION.md) - 全50技術の判定シグナル、正規表現、Implication推論マトリクス、バージョン抽出基準
-- [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/MAINTENANCE_GUIDE.md) - バージョンアップ手順、脆弱性DB更新手順、チェックリスト
-- [Chrome Web Store 申請ガイド (`docs/CHROME_WEB_STORE_GUIDE.md`)](file:///Users/kopakas/Desktop/Development/siteChecker/docs/CHROME_WEB_STORE_GUIDE.md) - 配布ZIPのストア提出手順と権限の正当化説明
+- [技術検出仕様・判定基準書 (`docs/DETECTION_SPECIFICATION.md`)](./DETECTION_SPECIFICATION.md) - 全対応技術の判定シグナル、正規表現、Implication推論マトリクス、バージョン抽出基準
+- [保守・リリース運用ガイド (`docs/MAINTENANCE_GUIDE.md`)](./MAINTENANCE_GUIDE.md) - バージョンアップ手順、脆弱性DB更新手順、チェックリスト
+- [Chrome Web Store 申請ガイド (`docs/CHROME_WEB_STORE_GUIDE.md`)](./CHROME_WEB_STORE_GUIDE.md) - 配布ZIPのストア提出手順と権限の正当化説明
 
 ---
 

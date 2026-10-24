@@ -152,6 +152,50 @@ export function extractDomSignals(): DomSignals {
 
   // 4. 特徴的なDOMマーカーの探査
   const domMarkers: string[] = [];
+
+  // 属性プレフィックス判定 (Vue data-v-, Astro data-astro-cid-, SvelteKit 等)
+  const checkAttrPrefix = (prefix: string): boolean => {
+    try {
+      if (typeof document.evaluate === 'function') {
+        const xpath = `//@*[starts-with(name(), '${prefix}')]`;
+        const res = document.evaluate(xpath, document, null, XPathResult.BOOLEAN_TYPE, null);
+        if (res.booleanValue) return true;
+      }
+    } catch {
+      // XPath例外防止
+    }
+    const sampleNodes = document.querySelectorAll('body, div, main, header, section, [id], #app, #root');
+    for (let i = 0; i < Math.min(sampleNodes.length, 60); i++) {
+      const attrs = sampleNodes[i].attributes;
+      for (let j = 0; j < attrs.length; j++) {
+        if (attrs[j].name.startsWith(prefix)) return true;
+      }
+    }
+    return false;
+  };
+
+  if (checkAttrPrefix('data-v-')) {
+    domMarkers.push('data-v-');
+  }
+  if (checkAttrPrefix('data-astro-cid-')) {
+    domMarkers.push('data-astro-cid-');
+  }
+  if (checkAttrPrefix('data-sveltekit-')) {
+    domMarkers.push('data-sveltekit-');
+  }
+
+  // noscript タグ内のテキスト走査 (JS有効時のGTM noscriptフォールバック要素探査)
+  try {
+    document.querySelectorAll('noscript').forEach((el) => {
+      const text = el.textContent || '';
+      if (text.includes('googletagmanager.com/ns.html')) {
+        domMarkers.push('googletagmanager.com/ns.html');
+      }
+    });
+  } catch {
+    // 例外防止
+  }
+
   const markerSelectors = [
     '#root',
     '#app',
@@ -161,13 +205,14 @@ export function extractDomSignals(): DomSignals {
     'script#__NUXT_DATA__',
     '[data-reactroot]',
     '[data-reactid]',
-    '[data-v-]',
+    '[data-v-app]',
     '[ng-version]',
     '[ng-app]',
     '[ng-controller]',
     "[class*='svelte-']",
     "input[name='csrfmiddlewaretoken']",
     "meta[name='csrf-param']",
+    'astro-island',
   ];
 
   markerSelectors.forEach((sel) => {
@@ -286,10 +331,12 @@ export function extractDomSignals(): DomSignals {
 }
 
 // Service WorkerまたはPopupからの要求に応答
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'EXTRACT_DOM_SIGNALS') {
-    const signals = extractDomSignals();
-    sendResponse(signals);
-  }
-  return true;
-});
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'EXTRACT_DOM_SIGNALS') {
+      const signals = extractDomSignals();
+      sendResponse(signals);
+    }
+    return true;
+  });
+}

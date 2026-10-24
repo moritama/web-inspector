@@ -1,0 +1,4 @@
+# Web Technology & Security Inspector - Official Release Checksums
+# Format: SHA-256  Filename  (Commit / Status)
+
+9eb7b56738c893d97c31037a55e97f3b754d8c2d4057551fed24a347093f10bf  web-inspector-v1.6.0.zip  (Commit: 64841aa, Chrome Web Store Submitted)

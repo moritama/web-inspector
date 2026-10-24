@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    name: Typecheck, LinkCheck, Test, Advisory & Guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Advisory Database
+        run: npm run advisories:validate
+
+      - name: Run Test Suite (Typecheck, Link Check, Vitest)
+        run: npm test
+
+      - name: Build Extension (Vite)
+        run: npm run build
+
+      - name: Check for forbidden paths and environment traces (CI-01 Guard)
+        run: |
+          echo "Checking for sensitive author environment paths or tools..."
+          if git grep -nI -i -e "kopak[a]s" -e "/User[s]/" -e "antigravit[y]" -e "Desktop/Developmen[t]" -- . ':!package-lock.json' ':!.github/workflows/ci.yml'; then
+            echo "::error::Sensitive author environment paths or tools detected in repository!"
+            exit 1
+          fi
+          echo "Pass: No forbidden paths detected."

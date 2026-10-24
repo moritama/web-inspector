@@ -28,9 +28,12 @@ if (!fs.existsSync(releaseDir)) {
   fs.mkdirSync(releaseDir, { recursive: true });
 }
 
-// 既存のZIPがあれば削除（同名上書きのため）
+// 既存のZIPが存在する場合は安全のためエラー終了（上書き防止ガード）
 if (fs.existsSync(zipPath)) {
-  fs.unlinkSync(zipPath);
+  console.error(`\n[package:error] 出力先ZIP "${zipName}" が既に存在します。`);
+  console.error(`既存のリリースパッケージを保護するため上書きを防止しました。`);
+  console.error(`package.json および public/manifest.json のバージョンを引き上げてから再実行してください。\n`);
+  process.exit(1);
 }
 
 // 3. ZIPコマンドで dist 内部のファイルをアーカイブ化

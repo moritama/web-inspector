@@ -24,6 +24,22 @@
       {
         "type": "script",
         "target": "src",
+        "pattern": "/wp-includes/js/wp-embed(?:\\.min)?\\.js(?:\\?ver=([0-9.]+))?",
+        "versionRegex": "[?&]ver=([0-9.]+)",
+        "weight": 90,
+        "detail": "WordPressコアスクリプト (wp-embed) からバージョンを特定"
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "/wp-includes/css/dist/block-library/style(?:\\.min)?\\.css(?:\\?ver=([0-9.]+))?",
+        "versionRegex": "[?&]ver=([0-9.]+)",
+        "weight": 90,
+        "detail": "WordPressコアスタイル (block-library) からバージョンを特定"
+      },
+      {
+        "type": "script",
+        "target": "src",
         "pattern": "/wp-includes/|/wp-content/",
         "weight": 85
       },

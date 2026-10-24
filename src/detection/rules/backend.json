@@ -45,8 +45,8 @@
     "description": "クロスプラットフォーム対応のオープンソースで高性能な.NET Webフレームワーク",
     "implies": [
       {
-        "id": "aspnet",
-        "relation": "framework-dependency",
+        "id": "dotnet",
+        "relation": "runtime-dependency",
         "runtimeStatus": "unknown",
         "confidenceFactor": 0.95
       }

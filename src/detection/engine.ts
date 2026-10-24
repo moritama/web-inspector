@@ -127,6 +127,21 @@ export class DetectionEngine {
         });
       }
 
+      if (rule.id === 'angularjs' && runtime.angularjs) {
+        jsVersion = runtime.angularjs;
+        detectedVersion = runtime.angularjs;
+        versionSource = 'runtime';
+        evidences.push({
+          type: 'runtime',
+          name: 'window.angular.version.full',
+          value: runtime.angularjs,
+          source: 'window.angular.version.full',
+          detail: `JavaScript実行環境からAngularJS ${runtime.angularjs} を直接検出`,
+          confidence: 'high',
+          weight: 100,
+        });
+      }
+
       // --- B. CSSアセット解析 (ADD-02) ---
       if (input.dom?.cssAssets) {
         for (const css of input.dom.cssAssets) {
@@ -292,10 +307,22 @@ export class DetectionEngine {
             if (input.dom?.linkUrls) {
               for (const link of input.dom.linkUrls) {
                 if (this.matchPattern(link.href, signal.pattern)) {
+                  let linkVersion: string | null = null;
+                  if (signal.versionRegex) {
+                    const v = this.extractVersion(link.href, signal.versionRegex);
+                    if (v) {
+                      linkVersion = v;
+                      if (!detectedVersion) {
+                        detectedVersion = v;
+                        versionSource = 'html';
+                      }
+                    }
+                  }
+
                   evidences.push({
                     type: 'css-url',
                     name: `link[rel="${link.rel}"]`,
-                    value: this.truncateUrl(link.href),
+                    value: linkVersion ? `${this.truncateUrl(link.href)} (v${linkVersion})` : this.truncateUrl(link.href),
                     source: link.href,
                     detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
                     weight: signal.weight,
@@ -345,8 +372,9 @@ export class DetectionEngine {
               }
             }
 
-            // HTMLスニペット/bodyコンテンツの検査
-            if (input.dom?.htmlSnippets && signal.target !== 'title') {
+            // HTMLスニペット/bodyコンテンツの検査 (属性セレクタ [attr] やフォーム要素は domMarkers でのみ評価)
+            const isAttrSelector = signal.target.includes('[') || signal.target.includes('input[') || signal.target.includes('meta[');
+            if (input.dom?.htmlSnippets && signal.target !== 'title' && !isAttrSelector) {
               for (const snippet of input.dom.htmlSnippets) {
                 if (this.matchPattern(snippet, signal.pattern)) {
                   evidences.push({
@@ -435,18 +463,49 @@ export class DetectionEngine {
     }
 
     // --- 連動検知フェーズ (Implication Resolver) ---
-    this.resolveImplications(results);
+    this.resolveImplications(results, input);
 
     // --- 複数候補の集約・抑制フェーズ (Candidate Consolidation & Suppression) ---
     this.consolidateCandidates(results, input);
 
-    return results.sort((a, b) => b.confidence - a.confidence);
+    // --- 採用しきい値フィルタ (確信度50%未満の不確定な単独検出を抑制。ただし複数候補集約は保持) ---
+    const filteredResults = results.filter(
+      (r) => r.confidence >= 50 || r.technology.includes('(候補)')
+    );
+
+    return filteredResults.sort((a, b) => b.confidence - a.confidence);
   }
 
   /**
    * XSRF-TOKEN等による汎用Cookieの複数候補を集約または抑制する
    */
   private consolidateCandidates(results: DetectedTechnology[], input: DetectionInput): void {
+    // 0. Laravel の汎用セッションCookie（*_session）の組み合わせ検査
+    // XSRF-TOKEN を伴わない単独の *_session は誤検知防止のため抑制
+    // *_session と XSRF-TOKEN の両方が揃っている場合は確信度70%として確定
+    const laravelIndex = results.findIndex((r) => r.technology === 'Laravel');
+    if (laravelIndex >= 0) {
+      const laravelItem = results[laravelIndex];
+      const hasStrictSignal = laravelItem.evidence.some(
+        (e) => e.name === 'laravel_session' || e.name === 'x-powered-by'
+      );
+      const hasGenericSession = laravelItem.evidence.some(
+        (e) => /^[a-zA-Z0-9_-]+_session$/.test(e.name) && e.name !== 'laravel_session'
+      );
+      const hasXsrfToken = laravelItem.evidence.some((e) => e.name === 'XSRF-TOKEN');
+
+      if (!hasStrictSignal && hasGenericSession) {
+        if (!hasXsrfToken) {
+          // XSRF-TOKEN を伴わない単独の汎用 *_session は不確定のため抑制
+          results.splice(laravelIndex, 1);
+        } else {
+          // 両方揃っている場合は確信度70%として確定採用
+          laravelItem.confidence = 70;
+          laravelItem.confidenceLevel = 'medium';
+        }
+      }
+    }
+
     const candidateTechNames = ['Java', 'Laravel', 'Node.js'];
 
     // 候補技術のうち、結果に含まれているものを抽出
@@ -535,7 +594,7 @@ export class DetectionEngine {
   /**
    * 確信度50%以上の技術から連動技術（含意関係）を解決する (Rev.1.2 IMP-17)
    */
-  private resolveImplications(results: DetectedTechnology[]): void {
+  private resolveImplications(results: DetectedTechnology[], input: DetectionInput): void {
     // 循環防止のための訪問履歴 (triggerId -> impliedId)
     const visitedEdges = new Set<string>();
 
@@ -577,6 +636,26 @@ export class DetectionEngine {
             continue;
           }
           visitedEdges.add(edgeKey);
+
+          // 静的配信（SSG）配慮: Next.js / Nuxt / SvelteKit からの Node.js 推論は、
+          // サーバーサイド（SSR）の明確な証拠（HTTPレスポンスヘッダー等）がある場合のみ発火する
+          if (
+            impDef.id === 'nodejs' &&
+            ['nextjs', 'nuxtjs', 'sveltekit'].includes(triggerRule.id)
+          ) {
+            const headers = input.network?.responseHeaders;
+            const hasSsrHeader =
+              headers &&
+              (Boolean(headers['x-powered-by']?.some((v) => /Next|Nuxt|Node/i.test(v))) ||
+                Boolean(headers['x-nextjs-cache']) ||
+                Boolean(headers['x-nitro-cache']) ||
+                Boolean(headers['server']?.some((v) => /^Node(?:\.js)?(?:\/|$)/i.test(v))));
+
+            if (!hasSsrHeader) {
+              // 静的エクスポート（SSG）の可能性が高いため、サーバーサイドNode.jsの連動推論は行わない
+              continue;
+            }
+          }
 
           const impliedRule = this.rules.find(
             (rule) => rule.id.toLowerCase() === impDef.id.toLowerCase()

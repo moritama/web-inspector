@@ -8,14 +8,15 @@
     "signals": [
       {
         "type": "dom",
-        "target": "[data-reactroot], [data-reactid]",
-        "pattern": "data-react",
+        "target": "[data-reactroot], [data-reactid], __reactContainer$",
+        "pattern": "data-react|__reactContainer|__reactFiber",
         "weight": 90
       },
       {
         "type": "script",
         "target": "src",
-        "pattern": "/react(?:\\.production\\.min|\\.development)?\\.js|react-dom",
+        "pattern": "(?<![\\w-])react(?:-dom)?(?:@|/v?)(\\d[\\d.]*)|/react(?:\\.production\\.min|\\.development)?\\.js|react-dom",
+        "versionRegex": "(?<![\\w-])react(?:-dom)?(?:@|/v?)(\\d[\\d.]*)",
         "weight": 85
       }
     ]
@@ -30,7 +31,7 @@
       {
         "id": "react",
         "relation": "framework-dependency",
-        "runtimeStatus": "not-applicable"
+        "runtimeStatus": "possible"
       },
       {
         "id": "nodejs",
@@ -74,14 +75,15 @@
     "signals": [
       {
         "type": "dom",
-        "target": "[data-v-]",
-        "pattern": "data-v-",
+        "target": "[data-v-], [data-v-app], __vue_app__",
+        "pattern": "data-v-|__vue_app__",
         "weight": 90
       },
       {
         "type": "script",
         "target": "src",
-        "pattern": "/vue(?:\\.runtime)?(?:\\.global)?(?:\\.min)?\\.js",
+        "pattern": "(?<![\\w-])vue(?:@|/v?)(\\d[\\d.]*)|/vue(?:\\.runtime)?(?:\\.global)?(?:\\.min)?\\.js",
+        "versionRegex": "(?<![\\w-])vue(?:@|/v?)(\\d[\\d.]*)",
         "weight": 85
       },
       {
@@ -102,7 +104,7 @@
       {
         "id": "vue",
         "relation": "framework-dependency",
-        "runtimeStatus": "not-applicable"
+        "runtimeStatus": "possible"
       },
       {
         "id": "nodejs",
@@ -143,19 +145,31 @@
         "target": "[ng-version]",
         "pattern": "ng-version=\"([0-9.]+)\"",
         "versionRegex": "ng-version=\"([0-9.]+)\"",
-        "weight": 95
-      },
+        "weight": 95,
+        "detail": "DOM属性（ng-version）からAngularを検出"
+      }
+    ]
+  },
+  {
+    "id": "angularjs",
+    "name": "AngularJS",
+    "category": "js-framework",
+    "website": "https://angularjs.org/",
+    "description": "Googleが開発した初期のJavaScript MVCフレームワーク（2021年12月31日公式EOL）",
+    "signals": [
       {
         "type": "dom",
         "target": "[ng-app], [ng-controller]",
-        "pattern": "ng-",
-        "weight": 85
+        "pattern": "\\bng-(?:app|controller|model|bind)\\b",
+        "weight": 90,
+        "detail": "DOM属性（ng-app / ng-controller）からAngularJS 1.xを検出"
       },
       {
         "type": "script",
         "target": "src",
         "pattern": "angular(?:\\.min)?\\.js",
-        "weight": 80
+        "weight": 85,
+        "detail": "スクリプトURLからAngularJSを検出"
       }
     ]
   },
@@ -453,7 +467,7 @@
       {
         "id": "react",
         "relation": "framework-dependency",
-        "runtimeStatus": "not-applicable"
+        "runtimeStatus": "possible"
       }
     ],
     "signals": [
@@ -472,13 +486,6 @@
     "category": "js-framework",
     "website": "https://astro.build/",
     "description": "コンテンツ主導の高速な静的・動的Webサイトを構築する最新Webフレームワーク",
-    "implies": [
-      {
-        "id": "nodejs",
-        "relation": "possible-runtime",
-        "runtimeStatus": "unknown"
-      }
-    ],
     "signals": [
       {
         "type": "dom",
@@ -507,7 +514,7 @@
       {
         "id": "svelte",
         "relation": "framework-dependency",
-        "runtimeStatus": "not-applicable"
+        "runtimeStatus": "possible"
       },
       {
         "id": "nodejs",

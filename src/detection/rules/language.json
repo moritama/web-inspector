@@ -229,8 +229,16 @@
       {
         "type": "cookie",
         "target": "laravel_session",
-        "pattern": "laravel_session",
-        "weight": 85
+        "pattern": "^laravel_session$",
+        "weight": 85,
+        "detail": "Cookie「laravel_session」からLaravelフレームワークを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "app_session",
+        "pattern": "^(?!_)(?!ci_)[a-zA-Z0-9_-]+_session$",
+        "weight": 35,
+        "detail": "Laravel形式のセッションCookie（*_session）の存在を検出"
       },
       {
         "type": "cookie",
@@ -274,6 +282,22 @@
         "pattern": "^XSRF-TOKEN$",
         "weight": 35,
         "detail": "Cookie「XSRF-TOKEN」を検出（Express/Fastify等のCSRF保護、Spring, Laravel等のSPA構成で広く利用されるため、いずれかの可能性あり）"
+      }
+    ]
+  },
+  {
+    "id": "dotnet",
+    "name": ".NET",
+    "category": "programming-language",
+    "website": "https://dotnet.microsoft.com/",
+    "description": "Microsoftが提供するクロスプラットフォームのオープンソース実行プラットフォーム (.NET / .NET Core)",
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Kestrel",
+        "weight": 80,
+        "detail": "Kestrel Webサーバーから.NETランタイムを検出"
       }
     ]
   }

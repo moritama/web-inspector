@@ -82,8 +82,22 @@
     ]
   },
   {
+    "technology": "AngularJS",
+    "aliases": ["angularjs", "angular.js"],
+    "policies": [
+      {
+        "versionRange": "*",
+        "status": "EOL",
+        "eolDate": "2022-01",
+        "source": "official",
+        "sourceUrl": "https://angular.io/guide/releases",
+        "recommendation": "AngularJS 1.xは2022年1月にEOL（公式サポート終了）となりました。最新のAngularへの移行を強く推奨します。"
+      }
+    ]
+  },
+  {
     "technology": "Angular",
-    "aliases": ["angular", "angularjs"],
+    "aliases": ["angular"],
     "policies": [
       {
         "versionRange": "< 2.0.0",

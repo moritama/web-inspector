@@ -100,17 +100,17 @@
     "signals": [
       {
         "type": "cookie",
-        "target": "AWSELB",
-        "pattern": "^AWSELB$",
+        "target": "AWSALB",
+        "pattern": "^(?:AWSALB|AWSELB)$",
         "weight": 90,
-        "detail": "Cookie「AWSELB」からAWS Application Load Balancerを検出"
+        "detail": "Cookie「AWSALB / AWSELB」からAWS Application Load Balancerを検出"
       },
       {
         "type": "cookie",
-        "target": "AWSELBCORS",
-        "pattern": "^AWSELBCORS$",
+        "target": "AWSALBCORS",
+        "pattern": "^(?:AWSALBCORS|AWSELBCORS)$",
         "weight": 90,
-        "detail": "Cookie「AWSELBCORS」からAWS ALBスティッキーセッションを検出"
+        "detail": "Cookie「AWSALBCORS / AWSELBCORS」からAWS ALBスティッキーセッションを検出"
       }
     ]
   },

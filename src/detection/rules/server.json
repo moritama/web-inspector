@@ -9,7 +9,7 @@
       {
         "type": "header",
         "target": "server",
-        "pattern": "Apache(?:/([0-9.]+))?",
+        "pattern": "Apache(?![-\\w])(?:/([0-9.]+))?",
         "versionRegex": "Apache/([0-9.]+)",
         "weight": 95
       }

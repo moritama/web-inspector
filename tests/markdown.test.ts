@@ -242,6 +242,9 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
     it('Markdown特殊記号をエスケープすること', () => {
       expect(escapeMarkdown('text with *asterisk* and [link]')).toBe('text with \\*asterisk\\* and \\[link\\]');
       expect(escapeMarkdown('<div>content</div>')).toBe('&lt;div&gt;content&lt;/div&gt;');
+      expect(escapeMarkdown('table|cell\nnewline')).toBe('table\\|cell newline');
+      // バックスラッシュとパイプが混在しても二重エスケープが壊れないこと
+      expect(escapeMarkdown('path\\to|file')).toBe('path\\\\to\\|file');
     });
   });
 });

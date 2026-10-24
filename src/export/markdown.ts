@@ -47,7 +47,9 @@ export function escapeMarkdown(text: string | null | undefined): string {
     .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/\|/g, '\\|')
+    .replace(/\r\n|\n|\r/g, ' ');
 }
 
 /**
@@ -302,19 +304,11 @@ export function downloadMarkdownReport(
   const dateStr = new Date(report.inspectedAt).toISOString().slice(0, 10);
   const filename = `web-inspector-report-${cleanHost}-${dateStr}.md`;
 
-  if (typeof chrome !== 'undefined' && chrome.downloads) {
-    chrome.downloads.download({
-      url,
-      filename,
-      saveAs: true,
-    });
-  } else {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

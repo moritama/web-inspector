@@ -4,12 +4,14 @@
   "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
   "type": "module",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "advisories:sync": "node scripts/sync-advisories.mjs",
     "advisories:validate": "node scripts/validate-advisories.mjs",
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
     "watch": "vite build --watch",
-    "test": "vitest run",
+    "test": "npm run typecheck && vitest run",
     "test:watch": "vitest",
+    "test:e2e": "npm run build && node scripts/test-e2e-smoke.mjs",
     "test-server": "node test-server/server.mjs",
     "spec:generate": "node scripts/generate-spec-catalog.mjs",
     "package": "npm run advisories:validate && npm run build && node scripts/package.mjs"
@@ -27,6 +29,7 @@
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.12.7",
     "happy-dom": "^21.0.4",
+    "playwright": "^1.64.1",
     "typescript": "^5.4.5",
     "vite": "^5.2.11",
     "vitest": "^1.6.0"

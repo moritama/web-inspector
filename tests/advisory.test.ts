@@ -158,4 +158,19 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(result.offlineMatchStatus).toBe('Matched');
     expect(result.eolInfo.status).toBe('EOL');
   });
+
+  it('AngularJS 1.8.3 に対して全バージョン影響のCVE-2022-25869が検出され、修正版なし(null)および移行推奨案内が出力されること', () => {
+    const result = matchOfflineAdvisories('AngularJS', '1.8.3');
+
+    expect(result.technology).toBe('AngularJS');
+    expect(result.offlineMatchStatus).toBe('Matched');
+    expect(result.eolInfo.status).toBe('EOL');
+    expect(result.eolInfo.recommendation).toContain('Angularや他のモダンフレームワークへの移行を強く推奨');
+
+    const cve = result.advisories.find((a) => a.id === 'CVE-2022-25869');
+    expect(cve).toBeDefined();
+    expect(cve?.affectedRange).toBe('<= 1.8.3');
+    expect(cve?.fixedVersion).toBeNull();
+    expect(cve?.referenceUrls).toContain('https://github.com/advisories/GHSA-prc3-vjfx-vhm9');
+  });
 });

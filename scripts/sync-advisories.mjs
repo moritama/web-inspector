@@ -122,20 +122,41 @@ const BASE_LIBRARIES = {
     ]
   },
   angular: {
-    aliases: ['angular', 'angularjs'],
+    aliases: ['angular', 'angular-core'],
+    versions: [],
+    eol: [
+      { cycle: '2.x - 14.x', eolDate: '2023-11-01', status: 'EOL' },
+      { cycle: '15.x', eolDate: '2024-05-01', status: 'EOL' },
+      { cycle: '16.x', eolDate: '2024-11-01', status: 'EOL' },
+      { cycle: '17.x', eolDate: '2025-05-01', status: 'Maintenance' },
+      { cycle: '18.x+', eolDate: null, status: 'Supported' }
+    ]
+  },
+  // 手動管理エントリ (最終取得確認日: 2026-10-24, 出典: GitHub Advisory Database GHSA-mhp6-pxh8-r675, GHSA-prc3-vjfx-vhm9 / OSV npm/angular)
+  angularjs: {
+    aliases: ['angularjs', 'angular.js'],
     versions: [
       {
         range: '< 1.8.0',
         cve: 'CVE-2020-7676',
-        severity: 'high',
-        title: 'XSS in AngularJS via universal attribute interpolation',
-        fixedVersion: '1.8.0'
+        severity: 'medium',
+        title: 'Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite',
+        summary: 'AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in <select>/<option>), allowing sanitizer bypass and XSS.',
+        fixedVersion: '1.8.0',
+        advisoryUrl: 'https://github.com/advisories/GHSA-mhp6-pxh8-r675'
+      },
+      {
+        range: '<= 1.8.3',
+        cve: 'CVE-2022-25869',
+        severity: 'medium',
+        title: 'Cross-site Scripting (XSS) in AngularJS via page cache and textarea interpolation',
+        summary: 'XSS in AngularJS due to improper page caching and <textarea> interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.',
+        fixedVersion: null,
+        advisoryUrl: 'https://github.com/advisories/GHSA-prc3-vjfx-vhm9'
       }
     ],
     eol: [
-      { cycle: '1.x (AngularJS)', eolDate: '2022-01-01', status: 'EOL' },
-      { cycle: '2.x - 14.x', eolDate: '2023-11-01', status: 'EOL' },
-      { cycle: '17.x+', eolDate: null, status: 'Supported' }
+      { cycle: '1.x', eolDate: '2022-01-01', status: 'EOL' }
     ]
   },
   lodash: {
@@ -389,10 +410,12 @@ async function main() {
     let eolList = lib.eol;
 
     try {
-      // 外部APIからの動的補完（PHP, Nginx等で可能な場合）
-      const onlineEol = await fetchOnlineEolData(key);
-      if (onlineEol && onlineEol.length > 0) {
-        eolList = onlineEol;
+      // 外部APIからの動的補完（PHP, Nginx等で可能な場合。angularjs等は静的定義を使用）
+      if (key !== 'angularjs') {
+        const onlineEol = await fetchOnlineEolData(key);
+        if (onlineEol && onlineEol.length > 0) {
+          eolList = onlineEol;
+        }
       }
     } catch (err) {
       console.warn(`[sync-advisories] ${key} のオンラインEOL取得に失敗しました (ローカルデータを使用):`, err);

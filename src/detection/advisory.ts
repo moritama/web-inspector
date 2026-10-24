@@ -27,8 +27,9 @@ interface LibraryVersionAdvisory {
   cve: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
-  fixedVersion?: string;
+  fixedVersion?: string | null;
   summary?: string;
+  advisoryUrl?: string;
 }
 
 interface LibraryEolEntry {
@@ -250,7 +251,9 @@ export function matchOfflineAdvisories(
           affectedRange: adv.range,
           fixedVersion: adv.fixedVersion || null,
           summary: adv.summary || adv.title,
-          referenceUrls: [`https://nvd.nist.gov/vuln/detail/${adv.cve}`],
+          referenceUrls: adv.advisoryUrl
+            ? [adv.advisoryUrl, `https://nvd.nist.gov/vuln/detail/${adv.cve}`]
+            : [`https://nvd.nist.gov/vuln/detail/${adv.cve}`],
         });
       }
     }
@@ -374,7 +377,11 @@ function matchEolPolicy(
 function buildEolResult(techName: string, version: string, entry: LibraryEolEntry): EolInfo {
   let recommendation = '';
   if (entry.status === 'EOL') {
-    recommendation = `${techName} ${version}（${entry.cycle}系列）はサポート終了 (EOL${entry.eolDate ? `: ${entry.eolDate}` : ''}) しています。最新版への移行を強く推奨します。`;
+    if (techName.toLowerCase().includes('angularjs')) {
+      recommendation = `AngularJS ${version}は2022年1月に公式サポート終了（EOL）となりました。後継の修正版は提供されないため、Angularや他のモダンフレームワークへの移行を強く推奨します。`;
+    } else {
+      recommendation = `${techName} ${version}（${entry.cycle}系列）はサポート終了 (EOL${entry.eolDate ? `: ${entry.eolDate}` : ''}) しています。最新版への移行を強く推奨します。`;
+    }
   } else if (entry.status === 'Maintenance') {
     recommendation = `${techName} ${version} は限定保守（セキュリティ修正のみ）フェーズです。次世代バージョンへの更新準備を推奨します。`;
   } else {

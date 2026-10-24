@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2.1",
   "version": "2026.10",
-  "dataVersion": "20261023",
-  "generatedAt": "2026-10-23T04:00:38.469Z",
+  "dataVersion": "20261024",
+  "generatedAt": "2026-10-24T03:18:46.735Z",
   "sources": [
     "endoflife.date API",
     "NVD / NIST CVE Catalog",
@@ -15,6 +15,7 @@
       "react",
       "vue",
       "angular",
+      "angularjs",
       "lodash",
       "wordpress",
       "php",
@@ -24,8 +25,8 @@
       "nodejs"
     ]
   },
-  "advisoryCount": 26,
-  "productCount": 12,
+  "advisoryCount": 27,
+  "productCount": 13,
   "syncStatus": "success",
   "libraries": {
     "jquery": {
@@ -274,17 +275,9 @@
     "angular": {
       "aliases": [
         "angular",
-        "angularjs"
+        "angular-core"
       ],
-      "versions": [
-        {
-          "range": "< 1.8.0",
-          "cve": "CVE-2020-7676",
-          "severity": "high",
-          "title": "XSS in AngularJS via universal attribute interpolation",
-          "fixedVersion": "1.8.0"
-        }
-      ],
+      "versions": [],
       "eol": [
         {
           "cycle": "22",
@@ -354,6 +347,39 @@
         {
           "cycle": "9",
           "eolDate": "2021-08-06",
+          "status": "EOL"
+        }
+      ]
+    },
+    "angularjs": {
+      "aliases": [
+        "angularjs",
+        "angular.js"
+      ],
+      "versions": [
+        {
+          "range": "< 1.8.0",
+          "cve": "CVE-2020-7676",
+          "severity": "medium",
+          "title": "Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite",
+          "summary": "AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in <select>/<option>), allowing sanitizer bypass and XSS.",
+          "fixedVersion": "1.8.0",
+          "advisoryUrl": "https://github.com/advisories/GHSA-mhp6-pxh8-r675"
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2022-25869",
+          "severity": "medium",
+          "title": "Cross-site Scripting (XSS) in AngularJS via page cache and textarea interpolation",
+          "summary": "XSS in AngularJS due to improper page caching and <textarea> interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.",
+          "fixedVersion": null,
+          "advisoryUrl": "https://github.com/advisories/GHSA-prc3-vjfx-vhm9"
+        }
+      ],
+      "eol": [
+        {
+          "cycle": "1.x",
+          "eolDate": "2022-01-01",
           "status": "EOL"
         }
       ]

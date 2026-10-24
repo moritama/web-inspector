@@ -29,52 +29,194 @@ import { assessInspectionCoverage } from '../shared/coverage';
 import {
   CSPPolicy,
   DomSignals,
+  FindingException,
   InspectedCookieInfo,
   InspectionReport,
   NetworkSignals,
   SecurityCheckResult,
 } from '../shared/types';
 
-const EXTENSION_VERSION = chrome.runtime?.getManifest?.()?.version || '1.6.0';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.0';
 
-// タブIDごとのレスポンスヘッダーキャッシュ
-const headersCache = new Map<number, { url: string; headers: Record<string, string[]> }>();
+// タブIDごとのレスポンスヘッダーキャッシュ (インメモリ + chrome.storage.session によるSWスリープ永続化)
+// 容量上限対策: 最大保持タブ数
+const MAX_HEADER_CACHE_TABS = 100;
+const headersCache = new Map<number, { url: string; headers: Record<string, string[]>; updatedAt: number }>();
 
-// 1. webRequest API によるHTTPレスポンスヘッダーの収集
-try {
-  if (chrome.webRequest && chrome.webRequest.onHeadersReceived) {
-    chrome.webRequest.onHeadersReceived.addListener(
-      (details) => {
-        if (details.tabId > 0 && details.type === 'main_frame') {
-          const headerMap: Record<string, string[]> = {};
-          if (details.responseHeaders) {
-            for (const h of details.responseHeaders) {
-              const name = h.name.toLowerCase();
-              if (!headerMap[name]) {
-                headerMap[name] = [];
-              }
-              if (h.value) {
-                headerMap[name].push(h.value);
+// Service Worker起動時のセッションストレージ復元Promise（初期化競合防止）
+let restoreHeadersPromise: Promise<void> | null = null;
+
+async function ensureHeadersRestored(): Promise<void> {
+  if (!restoreHeadersPromise) {
+    restoreHeadersPromise = (async () => {
+      try {
+        if (chrome.storage?.session) {
+          const allData = await chrome.storage.session.get(null);
+          const restoredTabIds: number[] = [];
+
+          for (const [key, value] of Object.entries(allData)) {
+            if (key.startsWith('tab_headers_')) {
+              const tabId = parseInt(key.replace('tab_headers_', ''), 10);
+              if (!isNaN(tabId) && value && (value as any).headers) {
+                headersCache.set(tabId, {
+                  url: (value as any).url,
+                  headers: (value as any).headers,
+                  updatedAt: (value as any).updatedAt || Date.now(),
+                });
+                restoredTabIds.push(tabId);
               }
             }
           }
-          headersCache.set(details.tabId, {
-            url: details.url,
-            headers: headerMap,
-          });
+
+          // 生存タブの確認と孤立セッションデータの掃除
+          if (chrome.tabs?.query && restoredTabIds.length > 0) {
+            try {
+              const activeTabs = await chrome.tabs.query({});
+              const activeTabIdSet = new Set(activeTabs.map((t) => t.id).filter(Boolean));
+              const staleKeys: string[] = [];
+
+              for (const tabId of restoredTabIds) {
+                if (!activeTabIdSet.has(tabId)) {
+                  headersCache.delete(tabId);
+                  staleKeys.push(`tab_headers_${tabId}`);
+                }
+              }
+
+              if (staleKeys.length > 0) {
+                await chrome.storage.session.remove(staleKeys);
+              }
+            } catch {
+              // tabs.query 権限/タイミング例外の安全なフォールバック
+            }
+          }
         }
-      },
-      { urls: ['<all_urls>'] },
-      ['responseHeaders', 'extraHeaders']
-    );
+      } catch (e) {
+        console.warn('Failed to restore headers from session storage:', e);
+      }
+    })();
+  }
+  return restoreHeadersPromise;
+}
+
+// SWロード時に即座に復元を開始
+if (typeof chrome !== 'undefined') {
+  ensureHeadersRestored().catch(() => {});
+}
+
+async function saveHeadersCache(tabId: number, data: { url: string; headers: Record<string, string[]> }): Promise<void> {
+  const entry = {
+    ...data,
+    updatedAt: Date.now(),
+  };
+
+  // 既に存在する場合は再登録（Map末尾に移動してLRU順序を維持）
+  headersCache.delete(tabId);
+  headersCache.set(tabId, entry);
+
+  // 容量上限（LRU）の適用
+  if (headersCache.size > MAX_HEADER_CACHE_TABS) {
+    const oldestTabId = headersCache.keys().next().value;
+    if (oldestTabId !== undefined) {
+      headersCache.delete(oldestTabId);
+      if (chrome.storage?.session) {
+        chrome.storage.session.remove(`tab_headers_${oldestTabId}`).catch(() => {});
+      }
+    }
+  }
+
+  try {
+    if (chrome.storage?.session) {
+      await chrome.storage.session.set({ [`tab_headers_${tabId}`]: entry });
+    }
+  } catch {
+    // セッションストレージ例外防止
+  }
+}
+
+async function getCachedHeaders(tabId: number): Promise<{ url: string; headers: Record<string, string[]> } | undefined> {
+  // 初期化復元を待機
+  await ensureHeadersRestored();
+
+  if (headersCache.has(tabId)) {
+    return headersCache.get(tabId);
+  }
+  try {
+    if (chrome.storage?.session) {
+      const key = `tab_headers_${tabId}`;
+      const res = await chrome.storage.session.get(key);
+      if (res && res[key]) {
+        headersCache.set(tabId, res[key]);
+        return res[key];
+      }
+    }
+  } catch {
+    // セッションストレージ例外防止
+  }
+  return undefined;
+}
+
+// 1. webRequest API によるHTTPレスポンスヘッダーの収集とナビゲーション時クリーンアップ
+try {
+  if (typeof chrome !== 'undefined' && chrome.webRequest) {
+    // ナビゲーション開始時に前ページの古いヘッダーをリセット
+    if (chrome.webRequest.onBeforeRequest) {
+      chrome.webRequest.onBeforeRequest.addListener(
+        (details) => {
+          if (details.tabId > 0 && details.type === 'main_frame') {
+            headersCache.delete(details.tabId);
+            if (chrome.storage?.session) {
+              chrome.storage.session.remove(`tab_headers_${details.tabId}`).catch(() => {});
+            }
+          }
+        },
+        { urls: ['<all_urls>'] }
+      );
+    }
+
+    // レスポンスヘッダー受信時の保存
+    if (chrome.webRequest.onHeadersReceived) {
+      chrome.webRequest.onHeadersReceived.addListener(
+        (details) => {
+          if (details.tabId > 0 && details.type === 'main_frame') {
+            const headerMap: Record<string, string[]> = {};
+            if (details.responseHeaders) {
+              for (const h of details.responseHeaders) {
+                const name = h.name.toLowerCase();
+                if (!headerMap[name]) {
+                  headerMap[name] = [];
+                }
+                if (h.value) {
+                  headerMap[name].push(h.value);
+                }
+              }
+            }
+            saveHeadersCache(details.tabId, {
+              url: details.url,
+              headers: headerMap,
+            });
+          }
+        },
+        { urls: ['<all_urls>'] },
+        ['responseHeaders', 'extraHeaders']
+      );
+    }
   }
 } catch (e) {
   console.warn('webRequest registration warning:', e);
 }
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-  headersCache.delete(tabId);
-});
+if (typeof chrome !== 'undefined' && chrome.tabs?.onRemoved) {
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    headersCache.delete(tabId);
+    try {
+      if (chrome.storage?.session) {
+        chrome.storage.session.remove(`tab_headers_${tabId}`).catch(() => {});
+      }
+    } catch {
+      // 例外防止
+    }
+  });
+}
 
 /**
  * Cookie属性の取得 (値は除外)
@@ -139,55 +281,109 @@ async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> 
 }
 
 /**
- * MAIN World（ページの実行コンテキスト）からJavaScriptライブラリの実行時バージョンを安全に取得する (ADD-01)
+ * MAIN World（ページの実行コンテキスト）からJavaScriptライブラリの実行時バージョンおよびフレームワーク内部プロパティを安全に取得する (ADD-01)
  */
-async function fetchRuntimeVersions(tabId: number): Promise<Record<string, string | null>> {
+async function fetchRuntimeVersions(tabId: number): Promise<{
+  versions: Record<string, string | null>;
+  frameworkMarkers: string[];
+}> {
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
       func: () => {
         const w = window as any;
-        return {
+        const versions: Record<string, string | null> = {
           jquery: w.jQuery?.fn?.jquery ?? null,
           bootstrap4: w.jQuery?.fn?.modal?.Constructor?.VERSION ?? null,
           bootstrap5: w.bootstrap?.Modal?.VERSION ?? null,
           vue: w.Vue?.version ?? null,
           lodash: w._?.VERSION ?? null,
           moment: w.moment?.version ?? null,
+          angularjs: w.angular?.version?.full ?? null,
         };
+
+        const frameworkMarkers: string[] = [];
+
+        // React 18/19: ルート要素の __reactContainer$ または __reactFiber$ を探査
+        try {
+          const candidateNodes = [
+            document.getElementById('root'),
+            document.getElementById('app'),
+            document.getElementById('__next'),
+            document.body,
+            ...Array.from(document.querySelectorAll('div[id], main, #root > *, body > *')),
+          ];
+          for (const node of candidateNodes) {
+            if (!node) continue;
+            const keys = Object.keys(node);
+            if (keys.some((k) => k.startsWith('__reactContainer$') || k.startsWith('__reactFiber$'))) {
+              frameworkMarkers.push('__reactContainer$');
+              break;
+            }
+          }
+        } catch {
+          // 例外防止
+        }
+
+        // Vue 3: ルート要素の __vue_app__ を探査
+        try {
+          const candidateNodes = [
+            document.getElementById('app'),
+            document.getElementById('root'),
+            document.getElementById('__nuxt'),
+            document.body,
+            ...Array.from(document.querySelectorAll('div[id], main, [data-v-app]')),
+          ];
+          for (const node of candidateNodes) {
+            if (!node) continue;
+            if ((node as any).__vue_app__) {
+              frameworkMarkers.push('__vue_app__');
+              break;
+            }
+          }
+        } catch {
+          // 例外防止
+        }
+
+        return { versions, frameworkMarkers };
       },
     });
 
     if (results && results[0]?.result) {
-      return results[0].result as Record<string, string | null>;
+      return results[0].result as {
+        versions: Record<string, string | null>;
+        frameworkMarkers: string[];
+      };
     }
   } catch (e) {
     console.warn('Runtime version extraction skipped (chrome:// or restricted page):', e);
   }
 
-  return {};
+  return { versions: {}, frameworkMarkers: [] };
 }
 
 /**
- * 総合調査を実行するメインコントローラー (Version 1.1)
+ * 調査処理の依存関係インターフェース (テスト容易性とモック注入用)
  */
-async function runInspection(tabId?: number): Promise<InspectionReport> {
-  let targetTab: chrome.tabs.Tab | undefined;
+export interface InspectionDependencies {
+  tab: { id: number; url: string };
+  fetchDomSignals: (tabId: number, url: string) => Promise<DomSignals>;
+  fetchRuntimeVersions: (tabId: number) => Promise<{ versions: Record<string, string | null>; frameworkMarkers: string[] }>;
+  getCachedHeaders: (tabId: number) => Promise<{ url: string; headers: Record<string, string[]> } | undefined>;
+  getInspectedCookies: (url: string) => Promise<InspectedCookieInfo[]>;
+  getAllFindingExceptions: () => Promise<FindingException[]>;
+  saveReport?: (report: InspectionReport) => Promise<void>;
+  updateBadge?: (count: number, isWarning: boolean, tabId: number) => void;
+  hasWebRequestPermission?: boolean;
+}
 
-  if (tabId) {
-    targetTab = await chrome.tabs.get(tabId);
-  } else {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    targetTab = tabs[0];
-  }
-
-  if (!targetTab || !targetTab.url || !targetTab.id) {
-    throw new Error('調査対象のアクティブなタブが見つかりませんでした。');
-  }
-
-  const url = targetTab.url;
-  const currentTabId = targetTab.id;
+/**
+ * 調査処理のコアロジック (外部chrome.*依存を注入可能)
+ */
+export async function executeInspection(deps: InspectionDependencies): Promise<InspectionReport> {
+  const url = deps.tab.url;
+  const currentTabId = deps.tab.id;
 
   if (url.startsWith('chrome://') || url.startsWith('edge://') || url.startsWith('about:')) {
     throw new Error('ブラウザの内部管理ページは調査対象外です。一般のWebページで実行してください。');
@@ -201,16 +397,19 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
   }
 
   // 1. DOM・CSS情報の取得
-  const domSignals = await fetchDomSignals(currentTabId, url);
+  const domSignals = await deps.fetchDomSignals(currentTabId, url);
 
-  // 2. JavaScript実行時バージョンの取得 (MAIN World)
-  const runtimeVersions = await fetchRuntimeVersions(currentTabId);
-  domSignals.runtimeVersions = runtimeVersions;
+  // 2. JavaScript実行時バージョンおよび内部フレームワークマーカーの取得 (MAIN World)
+  const runtimeInfo = await deps.fetchRuntimeVersions(currentTabId);
+  domSignals.runtimeVersions = runtimeInfo.versions;
+  if (runtimeInfo.frameworkMarkers.length > 0) {
+    domSignals.domMarkers = [...(domSignals.domMarkers || []), ...runtimeInfo.frameworkMarkers];
+  }
 
   // 3. HTTPヘッダー・Cookieの取得
-  const cachedData = headersCache.get(currentTabId);
+  const cachedData = await deps.getCachedHeaders(currentTabId);
   const responseHeaders = cachedData?.headers || {};
-  const cookies = await getInspectedCookies(url);
+  const cookies = await deps.getInspectedCookies(url);
 
   const networkSignals: NetworkSignals = {
     url,
@@ -224,7 +423,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     url,
     dom: domSignals,
     network: networkSignals,
-    runtimeVersions,
+    runtimeVersions: runtimeInfo.versions,
   });
 
   // 5. セキュリティ診断エンジンの実行
@@ -292,17 +491,26 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
       const maxScore = tech.maxCvss ?? 6.1;
       const severity = maxScore >= 7.0 ? 'high' : 'medium';
 
+      const hasUnpatchedAdvisory = tech.advisories.some((a) => !a.fixedVersion);
+      const isEol = tech.supportStatus === 'EOL';
+
+      let cveRecommendation = '';
+      if (hasUnpatchedAdvisory || isEol) {
+        const altTech = tech.technology.toLowerCase() === 'angularjs' ? 'Angularなど' : 'サポート対象の後継技術';
+        cveRecommendation = `公式の修正版はありません。${altTech}への移行、またはサニタイズ/CSPなどの緩和策の適用を検討してください。`;
+      } else {
+        cveRecommendation = `修正済みバージョン（${topAdvisory.fixedVersion} 以上）への速やかなアップデートを推奨します。`;
+      }
+
       librarySecurityChecks.push({
         checkId: `SEC-CVE-${tech.technology.toUpperCase()}`,
         category: 'library-security',
         name: `${tech.technology} 既知脆弱性 (${tech.advisories.map((a) => a.id).join(', ')})`,
         status: 'fail',
         severity,
-        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (最大CVSS: ${maxScore})`,
+        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (重大度: ${severity.toUpperCase()})`,
         description: topAdvisory.summary,
-        recommendation: topAdvisory.fixedVersion
-          ? `修正済みバージョン（${topAdvisory.fixedVersion} 以上）への速やかなアップデートを推奨します。`
-          : '修正済みバージョンへの更新または緩和策の適用を検討してください。',
+        recommendation: cveRecommendation,
         referenceUrls: topAdvisory.referenceUrls,
         scope: url,
       });
@@ -329,7 +537,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
   const allSecurityChecks = [...librarySecurityChecks, ...baseSecurityChecks];
 
   // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10)
-  const exceptions = await getAllFindingExceptions();
+  const exceptions = await deps.getAllFindingExceptions();
   for (const c of allSecurityChecks) {
     c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
     const exMatch = matchFindingException(c.findingId, url, exceptions);
@@ -367,7 +575,7 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
     hasHeaders: Object.keys(responseHeaders).length > 0,
     hasCookiesPermission: true,
     cookieCount: cookies.length,
-    hasWebRequestPermission: Boolean(chrome.webRequest),
+    hasWebRequestPermission: deps.hasWebRequestPermission ?? true,
     unobservedPreScan: Object.keys(responseHeaders).length === 0,
     domItemCount: domSignals.metaTags.length + domSignals.scriptUrls.length,
     headerCount: Object.keys(responseHeaders).length,
@@ -420,22 +628,68 @@ async function runInspection(tabId?: number): Promise<InspectionReport> {
   };
 
   // 8. 履歴保存
-  await saveReportToHistory(report);
+  if (deps.saveReport) {
+    await deps.saveReport(report);
+  }
 
   // 9. バッジ更新
-  if (requiresAttentionCount > 0) {
-    chrome.action.setBadgeText({ text: String(requiresAttentionCount), tabId: currentTabId });
-    chrome.action.setBadgeBackgroundColor({ color: '#E53E3E', tabId: currentTabId });
-  } else {
-    chrome.action.setBadgeText({ text: String(technologies.length), tabId: currentTabId });
-    chrome.action.setBadgeBackgroundColor({ color: '#3182CE', tabId: currentTabId });
+  if (deps.updateBadge) {
+    deps.updateBadge(
+      requiresAttentionCount > 0 ? requiresAttentionCount : technologies.length,
+      requiresAttentionCount > 0,
+      currentTabId
+    );
   }
 
   return report;
 }
 
+/**
+ * 総合調査を実行するメインコントローラー (Version 1.1)
+ */
+async function runInspection(tabId?: number): Promise<InspectionReport> {
+  let targetTab: chrome.tabs.Tab | undefined;
+
+  if (tabId) {
+    targetTab = await chrome.tabs.get(tabId);
+  } else {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    targetTab = tabs[0];
+  }
+
+  if (!targetTab || !targetTab.url || !targetTab.id) {
+    throw new Error('調査対象のアクティブなタブが見つかりませんでした。');
+  }
+
+  return executeInspection({
+    tab: { id: targetTab.id, url: targetTab.url },
+    fetchDomSignals,
+    fetchRuntimeVersions,
+    getCachedHeaders,
+    getInspectedCookies,
+    getAllFindingExceptions,
+    saveReport: saveReportToHistory,
+    updateBadge: (count, isWarning, currentTabId) => {
+      if (typeof chrome !== 'undefined' && chrome.action) {
+        chrome.action.setBadgeText({ text: String(count), tabId: currentTabId });
+        chrome.action.setBadgeBackgroundColor({
+          color: isWarning ? '#E53E3E' : '#3182CE',
+          tabId: currentTabId,
+        });
+      }
+    },
+    hasWebRequestPermission: typeof chrome !== 'undefined' && Boolean(chrome.webRequest),
+  });
+}
+
+// E2Eテストおよび内部検証用グローバル公開
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).runInspection = runInspection;
+}
+
 // メッセージリスナー
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'INSPECT_CURRENT_TAB') {
     runInspection(message.tabId)
       .then((report) => sendResponse({ success: true, report }))
@@ -502,3 +756,4 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return true;
 });
+}

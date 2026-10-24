@@ -154,7 +154,7 @@ function renderReport(report: InspectionReport): void {
   tabCookieCountEl.textContent = String(report.cookies.length);
 
   // 1. 使用技術一覧
-  renderTechnologies(report.technologies);
+  renderTechnologies(report.technologies, report.coverage);
 
   // 2. セキュリティ診断一覧
   renderSecurityChecks(report.securityChecks);
@@ -170,13 +170,24 @@ function renderReport(report: InspectionReport): void {
   }
 }
 
-function renderTechnologies(techs: DetectedTechnology[]): void {
-  if (techs.length === 0) {
-    techsListEl.innerHTML = '<div class="empty-state">明確な固有技術シグナルは検出されませんでした</div>';
-    return;
+function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
+  techsListEl.innerHTML = '';
+
+  if (coverage && coverage.networkHeadersObserved === false) {
+    const banner = document.createElement('div');
+    banner.className = 'notice-banner';
+    banner.style.cssText = 'background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--warning-color); line-height: 1.4;';
+    banner.innerHTML = '⚠️ <strong>HTTPヘッダー未取得</strong>: 拡張機能起動前またはスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、ページを再読み込み（リロード）して再調査してください。';
+    techsListEl.appendChild(banner);
   }
 
-  techsListEl.innerHTML = '';
+  if (techs.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = '明確な固有技術シグナルは検出されませんでした';
+    techsListEl.appendChild(empty);
+    return;
+  }
   techs.forEach((t) => {
     const row = document.createElement('div');
     row.className = 'item-row';

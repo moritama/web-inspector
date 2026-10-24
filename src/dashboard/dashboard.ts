@@ -179,7 +179,7 @@ function renderDashboard(report: InspectionReport): void {
   renderLibrarySecurityView(report.technologies);
 
   // 3. 検出技術 & エビデンス
-  renderFullTechnologies(report.technologies);
+  renderFullTechnologies(report.technologies, report.coverage);
 
   // 4. HTTPセキュリティ診断
   renderFullSecurity(report.securityChecks);
@@ -342,13 +342,19 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
   `;
 }
 
-function renderFullTechnologies(techs: DetectedTechnology[]): void {
+function renderFullTechnologies(techs: DetectedTechnology[], coverage?: any): void {
+  const noticeHtml = (coverage && coverage.networkHeadersObserved === false)
+    ? `<div style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: var(--warning-color); line-height: 1.5;">
+         ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、対象ページを再読み込み（リロード）して再調査してください。
+       </div>`
+    : '';
+
   if (techs.length === 0) {
-    fullTechsContainerEl.innerHTML = '<div class="empty-state">明確な固有技術シグナルは検出されませんでした</div>';
+    fullTechsContainerEl.innerHTML = noticeHtml + '<div class="empty-state">明確な固有技術シグナルは検出されませんでした</div>';
     return;
   }
 
-  fullTechsContainerEl.innerHTML = techs
+  fullTechsContainerEl.innerHTML = noticeHtml + techs
     .map(
       (t) => {
         // 検出方式バッジ

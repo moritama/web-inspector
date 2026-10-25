@@ -135,11 +135,11 @@ const BASE_LIBRARIES = {
     aliases: ['react', 'reactjs'],
     versions: [
       {
-        range: '< 16.0.0',
+        range: '>= 16.0.0, < 16.0.1 || >= 16.1.0, < 16.1.2 || >= 16.2.0, < 16.2.1 || >= 16.3.0, < 16.3.3 || >= 16.4.0, < 16.4.2',
         cve: 'CVE-2018-6341',
         cvssScore: 6.1,
         title: 'Potential XSS when generating attributes in React SSR',
-        fixedVersion: '16.0.0',
+        fixedVersion: '16.0.1 / 16.1.2 / 16.2.1 / 16.3.3 / 16.4.2',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2018-6341',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE
@@ -269,11 +269,11 @@ const BASE_LIBRARIES = {
     aliases: ['php'],
     versions: [
       {
-        range: '>= 8.1.0, < 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8',
+        range: '< 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8',
         cve: 'CVE-2024-4577',
         cvssScore: 9.8,
         title: 'PHP CGI Argument Injection vulnerability leading to RCE',
-        summary: '該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合)。Best-fit mapping bypass allows arbitrary command-line arguments.',
+        summary: '該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合。EOLの8.0以前は公式パッチ未提供)。Best-fit mapping bypass allows arbitrary command-line arguments.',
         fixedVersion: '8.1.29 / 8.2.20 / 8.3.8',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2024-4577',
         verifiedAt: VERIFIED_DATE,
@@ -321,12 +321,12 @@ const BASE_LIBRARIES = {
         notes: 'CISA KEV 登録 (2023-10-10)'
       },
       {
-        range: '< 1.21.0',
+        range: '>= 0.6.18, < 1.20.1',
         cve: 'CVE-2021-23017',
         cvssScore: 7.7,
         title: '1-byte memory overwrite in resolver',
         summary: '1-byte memory overwrite in DNS resolver when processing malformed responses.',
-        fixedVersion: '1.21.0',
+        fixedVersion: '1.20.1 / 1.21.0',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-23017',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE
@@ -400,12 +400,12 @@ const BASE_LIBRARIES = {
         notes: 'CISA KEV 登録 (2023-09-18)'
       },
       {
-        range: '< 5.6.30',
+        range: '< 5.5.41 || >= 5.6.0, < 5.6.30',
         cve: 'CVE-2018-15133',
         cvssScore: 8.1,
         title: 'Deserialization of untrusted data in Laravel Application Key',
         summary: 'RCE via deserialization of untrusted data if APP_KEY is leaked.',
-        fixedVersion: '5.6.30',
+        fixedVersion: '5.5.41 / 5.6.30',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2018-15133',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE,

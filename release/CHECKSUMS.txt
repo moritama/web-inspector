@@ -11,5 +11,5 @@ f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-
 64e3f30b1d687fbf50bc01cb937e6b63dcf1ed4c3415d1ff78ea3fc0dcd73845  web-inspector-v1.4.0.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 09ea46e)
 6e7c89386307881b3d7937a87e1bbd37e75b76bf72aef2a6dee99993e25d7884  web-inspector-v1.5.0.zip  ストア未提出 (※複数コミットでzip更新履歴あり, コミット済zipと配布zipが一致しない可能性あり)
 9eb7b56738c893d97c31037a55e97f3b754d8c2d4057551fed24a347093f10bf  web-inspector-v1.6.0.zip  ストア未提出 (リポジトリ内の成果物, Commit: 64841aa)
-41b534a77d425f1dab5325bfaee1f2b34298eb1841389e16a2e122c3362268e1  web-inspector-v1.6.1.zip  ストア未提出 (リポジトリ内の作業成果物, Commit: 43f4a6c)
-259cb9d8c2c91ffc18cc6c3e2e539a6b8c4512f4c7587e29caa5fb5d12d4a93d  web-inspector-v1.6.1.zip  ★ ストア提出準備完了 (PHP複数ブランチ・脆弱性DB・権限是正版, Tag: v1.6.1)
+41b534a77d425f1dab5325bfaee1f2b34298eb1841389e16a2e122c3362268e1  web-inspector-v1.6.1.zip  ストア未提出 (※タグ時点のzipとコミット内のzipで内容が異なる, Commit: 43f4a6c)
+441f71cd33f89082acbd322cdff4ce727bf9bf704b672933370bc69afecf2c59  web-inspector-v1.6.2.zip  ★ ストア提出準備完了 (NVD CPE完全照合・複数ブランチ対応・権限理由是正版, Tag: v1.6.2)

@@ -1040,6 +1040,41 @@ describe('DetectionEngine', () => {
       expect(vue).toBeDefined();
       expect(vue?.runtimeStatus).toBe('confirmed');
     });
+
+    it('/laravel-positive の Cookie (laravel_session + XSRF-TOKEN) から Laravel と PHP が検出され Node.js は閾値未満で除外されること', () => {
+      const results = engine.detect({
+        url: 'http://localhost:3000/laravel-positive',
+        dom: emptyDom,
+        network: {
+          url: 'http://localhost:3000/laravel-positive',
+          responseHeaders: {},
+          cookies: [
+            { name: 'XSRF-TOKEN', value: 'sample_laravel_csrf_token_value' },
+            { name: 'laravel_session', value: 'sample_laravel_session_encrypted_value' },
+          ],
+        },
+      });
+
+      // Laravel (85%) が直接検出されていること
+      const laravel = results.find((r) => r.technology === 'Laravel');
+      expect(laravel).toBeDefined();
+      expect(laravel?.confidence).toBe(85);
+      expect(laravel?.detectionMethod).toBe('direct');
+
+      // PHP (80%) が連動推論されていること
+      const php = results.find((r) => r.technology === 'PHP');
+      expect(php).toBeDefined();
+      expect(php?.confidence).toBe(80);
+      expect(php?.detectionMethod).toBe('inferred');
+
+      // Node.js は XSRF-TOKEN 単独 (35点) のため閾値50%未満となり検出されないこと (否定検証)
+      const nodejs = results.find((r) => r.technology === 'Node.js');
+      expect(nodejs).toBeUndefined();
+
+      // Java も同様に XSRF-TOKEN 単独 (35点) のため検出されないこと
+      const java = results.find((r) => r.technology === 'Java');
+      expect(java).toBeUndefined();
+    });
   });
 });
 

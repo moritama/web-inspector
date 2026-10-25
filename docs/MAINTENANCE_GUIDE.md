@@ -186,7 +186,7 @@ npm run package
 |---|---|---|---|---|---|---|
 | **CVE-2023-39332** | Node.js | `>= 20.0.0, < 20.8.1` | `>= 20.0.0, < 20.8.0` | ベンダー公式優先 | Node.js公式セキュリティリリース(2023-10-13)において20.8.1でパッチ提供。NVD CPEは`< 20.8.0`で登録されているが、20.8.0も脆弱であるためベンダー公式パッチバージョンを優先採用。 | [Node.js Security Release](https://nodejs.org/en/blog/vulnerability/october-2023-security-release) |
 | **CVE-2024-4577** | PHP | `< 8.1.29 \|\| ...` | `>= 8.1.0, < 8.1.29 \|\| ...` | 安全側包括 (EOL連動) | EOLのPHP 8.0以前は公式パッチ未提供だが、Windows上のPHP-CGI環境では本脆弱性に該当する。DBでは安全側に倒して`< 8.1.29`として検知対象に含めEOL判定と併せて更新を促す。NVD CPEはパッチ提供ブランチである`>= 8.1.0`から定義。 | [PHP Security Advisory](https://www.php.net/archive/2024.php#2024-06-06-1) |
-| **CVE-2021-3129** | Laravel | `< 8.4.3` | `< 2.5.2` (Ignition) | 連動パッケージ置換 | NVD CVE-2021-3129 の configurations において、`cpe:2.3:a:facade:ignition < 2.5.2` (vulnerable: true) と `cpe:2.3:a:laravel:laravel < 8.4.2` (vulnerable: false) が連動ノードとして定義。Laravel 8.4.3 で ignition 2.5.2 以降に依存引き上げが行われたため、本体バージョン `< 8.4.3` としてマッピング。 | [NVD CVE-2021-3129](https://nvd.nist.gov/vuln/detail/CVE-2021-3129) |
+| **CVE-2021-3129** | Laravel | `< 8.4.3` | `< 2.5.2` (Ignition) | 連動パッケージ置換 | NVD CVE-2021-3129 の configurations において、`cpe:2.3:a:facade:ignition < 2.5.2` (vulnerable: true) と `cpe:2.3:a:laravel:laravel < 8.4.2` (vulnerable: false) が連動ノードとして定義。Laravel 8.4.3 で ignition 2.5.2 以降に依存引き上げが行われたため、本体バージョン `< 8.4.3` としてマッピング。<br/>**※【既知の制約】**: 本脆弱性はデバッグページライブラリ `facade/ignition` の脆弱性であり、`< 8.4.3` はアプリ雛形 (`laravel/laravel`) の番号体系です。Web Inspector が外部から受動検出するのはフレームワークや Cookie であり、外部からバージョンが特定されないため実環境ではほぼ発火しません。次期版でエントリの是非を見直し、Ignition デバッグページの直接検出等への移行を検討します。 | [NVD CVE-2021-3129](https://nvd.nist.gov/vuln/detail/CVE-2021-3129) |
 | **CVE-2022-25869** | AngularJS | `<= 1.8.3` | `(CPE未定義)` | GHSA 主導エントリ | NVDにCVSSスコア(6.1)は登録されているがCPE該当範囲情報が未定義のため、一次情報としてGitHub Advisory Database (GHSA-prc3-vjfx-vhm9: `<= 1.8.3`) を採用。EOLのため公式パッチなし (fixedVersion: null)。 | [GHSA-prc3-vjfx-vhm9](https://github.com/advisories/GHSA-prc3-vjfx-vhm9) |
 
 ---
@@ -199,14 +199,15 @@ v1.6.4 への改訂に伴う NVD CPE 機械的突合により、公開中バー�
    - 1.3.3 では `CVE-2020-13426` が「ReDoS in vue template compiler (< 2.6.10)」として登録されていましたが、NVD の一次情報では WordPress のサードパーティプラグイン「Multi-Scheduler」の CSRF 脆弱性であることが判明しました。Vue.js 本体とは無関係のため除外しました（Vue 2 系は全件 EOL として保護）。
 2. **WordPress CVE-2023-32243 の誤登録 (除外)**:
    - WordPress 本体ではなくサードパーティプラグイン「Essential Addons for Elementor」の脆弱性であったため除外。
-3. **Node.js CVE-2022-35255 の誤登録 (除外)**:
-   - HTTP Request Smuggling に関する不正確な記述であったため除外。
-4. **React CVE-2018-6341 の範囲過不足 (是正)**:
+3. **React CVE-2018-6341 の範囲過不足 (是正)**:
    - 1.3.3 の `< 16.0.0` から、NVD CPE 通りの 16 系 SSR 5 ブランチ (`>= 16.0.0, < 16.0.1 || ...`) に是正。
-5. **nginx CVE-2021-23017 の範囲過剰 (是正)**:
+4. **nginx CVE-2021-23017 の範囲過剰 (是正)**:
    - `< 1.21.0` から、修正版 1.20.1 を除外した `>= 0.6.18, < 1.20.1` に是正。
-6. **Laravel CVE-2018-15133 の 1 系統化 (是正)**:
-   - `< 5.6.30` から、5.5 系のパッチ版を考慮した `< 5.5.41 || >= 5.6.0, < 5.6.30` に是正。
+5. **PHP CVE-2022-31628 の種別・重大度・範囲誤記 (是正)**:
+   - 「Pharデシリアライズ・High(7.5)」から、NVD一次情報通りの「DoS(gzip展開無限ループ)・Medium(5.5)」および複数ブランチ網羅に是正。
+6. **Lodash CVE-2021-23337 のタイトル混同 (是正)**:
+   - 「プロトタイプ汚染」から「コマンドインジェクション (_.template)」に是正。
+*(※なお、Node.js CVE-2022-35255 や Laravel CVE-2021-3129、AngularJS CVE-2022-25869 は 1.3.3 には存在せず、v1.4.0 以降の機能拡張で新設されたエントリです)*
 
 ---
 

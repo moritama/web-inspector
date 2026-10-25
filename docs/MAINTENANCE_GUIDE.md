@@ -230,12 +230,39 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
    - **事象**: コミット `6f72f60` においてレスポンスヘッダーキャッシュの機密情報保護（許可リスト化）を導入した際、`src/detection/engine.ts` でサーバーサイドレンダリング（SSR）判定のために直接参照されていたヘッダー（`x-nextjs-cache`, `x-nitro-cache`）が許可リストから一時的に脱落し、Next.js / Nuxt / SvelteKit からの Node.js 連動推論が発火しなくなっていた。
    - **発見と修正**: 提出前追加確認 (A1) におけるコード内ヘッダー参照文字列の網羅走査により特定。コミット `dd1fd8a` にて `SSR_INFERENCE_HEADER_NAMES` を定義し、Service Worker の `ALLOWED_RESPONSE_HEADERS` に正式追加・統合した。
    - **影響範囲**: ストア未提出の開発ブランチ作業（コミット `6f72f60`）における内部的な退行であり、公開版（v1.6.4 以前）および利用者への実影響は皆無。
-   - **再発防止策**: 単体テスト（`tests/service-worker.test.ts` 内で許可リスト経由での Node.js 推論をアサートし、変異テストで除外時の FAIL を実証）および実機 E2E テスト（`/next-ssr-positive`, `/next-static-negative`）を導入し、CI 上で継続監視。
+   - **テスト強化の経緯**:
+     - 当初作成された単体テスト（A1）は、モックオブジェクト内で直接 `headers: { 'x-nextjs-cache': ['HIT'] }` を設定していたため、変異テスト（`SSR_INFERENCE_HEADER_NAMES` をコメントアウト）を実行した際の初回結果は**緑（PASS）**となってしまい、退行を検知できない脆弱なテストとなっていました。
+     - そこで、テスト内で生ヘッダーを必ず `filterAndSanitizeHeaders` に通してからキャッシュモックへ渡すよう改修し、変異時に確実に**赤（FAIL）**となることを実証しました。
+     - さらに、回帰防止として以下のテスト群を整備しました：
+       - 単体テスト: A1 テスト（キャッシュ経由の Node.js 連動推論）
+       - 単体テスト: 3-3 許可リスト期待値テスト（包含ヘッダーおよび除外機密ヘッダーの網羅性アサート）
+       - 実機 E2E テスト: `/next-ssr-positive`（SSR 指標経由の Node.js 推論確認）
+       - 実機 E2E テスト: `/next-static-negative`（Next.js 本体直接検出あり、かつ SSR 指標なし環境で Node.js が除外されることの確認）
+   - **許可リストを変更・追加する際の手順**:
+     1. rules (`src/detection/rules/*.json`) に `type: "header"` の `target` を追加した場合、`tests/service-worker.test.ts` の許可リスト期待値テスト（3-3）に期待ヘッダー名を更新・追記する。
+     2. SSR 推論などルール外のエンジンロジックで直接参照するヘッダーを追加した場合、`src/detection/rules/index.ts` の `SSR_INFERENCE_HEADER_NAMES` に追加する。
+     3. 一時的に該当ヘッダーを除外する変異テストを実行し、テストが赤（FAIL）になることを確認する。
+
+---
+
+### 2.8 既知の制限と将来の課題 (v1.7.0 以降の検討項目)
+
+1. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の挙動**:
+   - `src/detection/rules/backend.json:245` に定義されている `"target": "x-fastify-"` は、エンジン側（`src/detection/engine.ts:180`）が完全一致（Exact Key Lookup）でヘッダーマップを参照しているため、接頭辞ルールとして意図通りに発火していません（`x-fastify-` という完全一致キーのみを参照）。
+   - 他に「-」で終わるヘッダーターゲットが存在しないことは走査確認済みです（`git grep -nE '"target": *"[^"]*-"' -- src/detection/rules/` の出力は本件 1 件のみ）。
+   - これは以前からの既存仕様であり v1.6.5 の退行ではないため、エンジンの接頭辞マッチング対応は v1.7.0 以降の課題とします。
+2. **`data:` URL スキームのサニタイズ**:
+   - `data:text/html,...` 等の URL はクエリとフラグメントが除去されますが、データ本体が保持 URL に残りうる仕様となっています。スキームのみ（`data:`）へ丸める改善は v1.7.0 にて検討します。
+3. **パス部分に埋め込まれた機密情報**:
+   - 保持する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は除去されません。
 
 ---
 
 
 ## 3. Chrome Web Store 申請・リリースフロー
+
+> **リリース記録 (v1.6.5)**:
+> `release/web-inspector-v1.6.5.zip` はタグ `v1.6.5`（コミット `c825dc9`）から作成されました。以後の main ブランチのコミット（`2231b12`, `1a2974c` 等）における差分は `tests/`, `docs/`, `test-server/` のみであり、公開用 zip の内容には一切影響しません。
 
 1. **パッケージの確認**:
    - `release/web-inspector-vX.X.X.zip` のサイズ（約70〜100KB）および中身を確認します。

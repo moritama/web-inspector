@@ -19,15 +19,17 @@ The Extension performs all technology detection and security evaluations **local
 ## 2. Handling of Cookies and Sensitive Data (Cookieおよび機密情報の取り扱い)
 
 - **Cookie Values are NEVER read or stored**: The Extension only inspects the security **attributes** of Cookies (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`). Cookie values/contents are completely ignored and stripped immediately.
-- **Handling of Response Headers & Set-Cookie**:
+- **Handling of Response Headers & URLs**:
   - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
-  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` and `Authorization` are completely stripped and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage, and stored URLs exclude query strings and fragments.
-- **No Credentials / Authorization**: HTTP `Authorization` headers, passwords, and authentication tokens are never captured or saved.
+  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. Stored URLs exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+- **No Passwords or Form Inputs**: Passwords and form inputs are never captured. HTTP `Authorization` headers are request headers and are outside the scope of response header observation.
 - **No Page Content Scraping**: The full HTML text and user input forms are not saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.
 
 Cookieの**値（Value）そのものは一切取得・保存・ログ出力しません**。検査対象はSecure属性やHttpOnly属性などの設定フラグのみです。
-- **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
-- **v1.6.5以降**: `Set-Cookie` や `Authorization` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持し、保持するURLからもクエリパラメータおよびフラグメントを除外します。
+- **レスポンスヘッダーおよびURLの取り扱い**:
+  - **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
+  - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持します。保持するURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
+- **パスワードおよび入力フォームの完全非取得**: パスワードやフォーム入力値を取得することは一切ありません。なお、HTTP `Authorization` ヘッダーはリクエストヘッダーであり、本拡張機能のレスポンスヘッダー観測の対象外です。
 
 ---
 

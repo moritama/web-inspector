@@ -108,20 +108,42 @@ The extension serves a single purpose: to inspect and display the web technologi
 
 ### 2. 権限の正当化 (Permission Justifications)
 
+> **重要**: 以下の文面が Chrome ウェブストア申請時（権限理由入力欄）の**正本**です。
+
+#### 英語 (English - CWS Input)
 | 要求される権限 | 入力する理由説明 (Justification) |
 |---|---|
+| **cookies** | Used to passively evaluate Cookie names and security attributes (Secure, HttpOnly, SameSite) via the Cookies API. Cookie values are not used, stored, or transmitted. The temporary header cache (browser session only) excludes credential-bearing headers such as Set-Cookie, and Set-Cookie headers are not received. |
 | **webRequest** | Required to passively observe HTTP response headers (such as Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, and Server) for security diagnosis without modifying requests. Only headers needed for technology detection and security checks are kept (a fixed allowlist). Stored URLs exclude query strings and fragments. |
-| **cookies** | Required to passively evaluate Cookie names and security attributes (Secure, HttpOnly, SameSite) via the Cookies API. Cookie values are not used, stored, or transmitted. The temporary header cache (browser session only) excludes credential-bearing headers such as Set-Cookie. Set-Cookie headers are not received without extraHeaders. |
 | **activeTab** / **scripting** | Required to inject a lightweight content script to extract DOM signatures (meta tags, script URLs, CSS utility classes, and mixed content resources) of the active tab upon user request. |
 | **storage** | Required to store user inspection history locally on the device (using chrome.storage.local) so that users can review past reports and compare diffs. |
 | **Host Permissions (`<all_urls>`)** | Required to allow technology detection and header inspection on any public website visited and requested by the user. |
 
-### 3. データ使用状況 (Data Usage)
+#### 日本語 (参考・日本語コンソール用)
+| 要求される権限 | 入力する理由説明 (日本語) |
+|---|---|
+| **cookies** | 調査対象ドメインの Cookie の名前と、Secure、HttpOnly、SameSite などの属性を、Cookie API から受動的に診断します。Cookie の値(Value)は使用せず、保存も外部送信もしません。レスポンスヘッダーの一時保持(ブラウザのセッション限り)にも、Set-Cookie など認証情報を含みうるヘッダーは含めず、Set-Cookie ヘッダーは受信しません。 |
+| **webRequest** | 外部から確認できるHTTPレスポンスヘッダー（HSTS, CSP, X-Frame-Options, Server等）を受動的に診断するために必要です（通信の改変は行いません）。保持するのは、技術検出とセキュリティ診断に必要なヘッダーだけです(固定の許可リスト)。保存する URL は、クエリとフラグメントを除いたものです。 |
+| **activeTab** / **scripting** | ユーザーの操作時にアクティブなタブへ軽量なスクリプトを注入し、DOM特徴（metaタグ、スクリプトURL、CSSクラス、混在コンテンツ）を受動的に抽出するために必要です。 |
+| **storage** | ユーザー自身の調査履歴を端末内（`chrome.storage.local`）にローカル保存し、過去の診断レポートの振り返りや差分比較を行えるようにするために必要です。 |
+| **Host Permissions (`<all_urls>`)** | ユーザーが訪問し調査を要求した任意の公開Webサイトで使用技術の特定とヘッダー診断を実行できるようにするために必要です。 |
+
+### 3. バージョン別更新内容 (What's New in This Version)
+
+#### 【v1.6.5 更新内容 (ストア入力用)】
+```text
+【v1.6.5 更新内容】
+・レスポンスヘッダーの一時保持を、技術検出とセキュリティ診断に必要なヘッダーだけに限定しました(Set-Cookie など認証情報を含みうるヘッダーは保持しません)。
+・一時保持する URL から、クエリとフラグメントを除きました。
+・ヘッダーを取得できたかどうかの判定を、保持したヘッダーの数に依存しないよう改善しました。
+```
+
+### 4. データ使用状況 (Data Usage)
 - 「データを収集していますか？」の質問に対して：
   - **「いいえ、ユーザーデータを収集または使用していません (No, I do not collect or use user data)」** を選択します。
   - すべての処理はローカルで実行され、外部通信は行われません。
 
-### 4. プライバシーポリシーのURL
+### 5. プライバシーポリシーのURL
 ```text
 https://github.com/moritama/web-inspector/blob/main/PRIVACY_POLICY.md
 ```

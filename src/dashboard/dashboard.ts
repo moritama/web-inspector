@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.3';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.4';
     badgeEl.textContent = `v${ver}`;
   }
 }

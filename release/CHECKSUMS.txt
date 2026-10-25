@@ -13,5 +13,7 @@ f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-
 9eb7b56738c893d97c31037a55e97f3b754d8c2d4057551fed24a347093f10bf  web-inspector-v1.6.0.zip  ストア未提出 (リポジトリ内の成果物, Commit: 64841aa)
 41b534a77d425f1dab5325bfaee1f2b34298eb1841389e16a2e122c3362268e1  web-inspector-v1.6.1.zip  ストア未提出 (※タグ時点のzipとコミット内のzipで内容が異なる, Commit: 43f4a6c)
 441f71cd33f89082acbd322cdff4ce727bf9bf704b672933370bc69afecf2c59  web-inspector-v1.6.2.zip  ストア未提出 (NVD CPE完全照合・複数ブランチ対応版, Tag: v1.6.2, Commit: 5142fa9)
-03131217c60eba03fd7d3c8f4ba19b706a51ef7830b746e5bd961adb4660b2bd  web-inspector-v1.6.3.zip  ★ ストア提出確定版 (NVD CPE機械的完全検証・複数ブランチ推奨版解決・凍結版, Tag: v1.6.3)
+03131217c60eba03fd7d3c8f4ba19b706a51ef7830b746e5bd961adb4660b2bd  web-inspector-v1.6.3.zip  ストア未提出 (NVD CPE完全検証・複数ブランチ推奨版対応版, Tag: v1.6.3, Commit: cb9f695)
+4bd1e2fe5b683104f9adfe2fddaaaf2a446d8780ade4efd7c1d372547fcc799f  web-inspector-v1.6.4.zip  ★ ストア提出確定版 (WordPress22ブランチ・nginx条件精緻化・NVDスナップショット完全再現・凍結版, Tag: v1.6.4)
+
 

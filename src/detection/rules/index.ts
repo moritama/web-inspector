@@ -62,4 +62,4 @@ export const ALL_TECHNOLOGY_RULES: TechnologyRule[] = [
   ...(cdnWafRules as unknown as TechnologyRule[]),
 ];
 
-export const RULES_VERSION = '1.6.3';
+export const RULES_VERSION = '1.6.4';

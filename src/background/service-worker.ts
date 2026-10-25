@@ -37,7 +37,7 @@ import {
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.3';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.4';
 
 // タブIDごとのレスポンスヘッダーキャッシュ (インメモリ + chrome.storage.session によるSWスリープ永続化)
 // 容量上限対策: 最大保持タブ数

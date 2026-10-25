@@ -237,7 +237,7 @@ const BASE_LIBRARIES = {
     aliases: ['wordpress'],
     versions: [
       {
-        range: '< 5.8.3',
+        range: '>= 3.7, < 3.7.37 || >= 3.8, < 3.8.37 || >= 3.9, < 3.9.35 || >= 4.0, < 4.0.34 || >= 4.1, < 4.1.34 || >= 4.2, < 4.2.31 || >= 4.3, < 4.3.27 || >= 4.4, < 4.4.26 || >= 4.5, < 4.5.25 || >= 4.6, < 4.6.22 || >= 4.7, < 4.7.22 || >= 4.8, < 4.8.18 || >= 4.9, < 4.9.19 || >= 5.0, < 5.0.15 || >= 5.1, < 5.1.12 || >= 5.2, < 5.2.14 || >= 5.3, < 5.3.11 || >= 5.4, < 5.4.9 || >= 5.5, < 5.5.8 || >= 5.6, < 5.6.7 || >= 5.7, < 5.7.5 || >= 5.8, < 5.8.3',
         cve: 'CVE-2022-21661',
         cvssScore: 7.5,
         title: 'SQL Injection in WP_Query',
@@ -299,16 +299,16 @@ const BASE_LIBRARIES = {
     aliases: ['nginx'],
     versions: [
       {
-        range: '< 1.25.3',
+        range: '>= 1.9.5, < 1.25.3',
         cve: 'CVE-2023-44487',
         cvssScore: 7.5,
         title: 'HTTP/2 Rapid Reset Denial of Service Vulnerability',
-        summary: 'Stream reset abuse in HTTP/2 allows distributed denial-of-service (DDoS).',
+        summary: '該当の可能性あり (条件: HTTP/2が有効で、keepalive_requests や http2_max_concurrent_streams を既定より大幅に大きく設定している場合)。HTTP/2 Stream Cancellation (Rapid Reset) によるDoS。',
         fixedVersion: '1.25.3',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2023-44487',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE,
-        notes: 'CISA KEV 登録 (2023-10-10)'
+        notes: 'CISA KEV 登録 (2023-10-10) / 公式: https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products/'
       },
       {
         range: '>= 0.6.18, < 1.20.1',

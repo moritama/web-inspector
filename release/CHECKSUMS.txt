@@ -1,4 +1,13 @@
 # Web Technology & Security Inspector - Official Release Checksums
-# Format: SHA-256  Filename  (Commit / Status)
+# Format: SHA-256  Filename  Status / Notes
 
-9eb7b56738c893d97c31037a55e97f3b754d8c2d4057551fed24a347093f10bf  web-inspector-v1.6.0.zip  (Commit: 64841aa, Chrome Web Store Submitted)
+cfdab7900c9d245768f8eabb2666a081d4165fca2aec2b371d89893d9eb350f4  web-inspector-v1.0.0.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 909eafa)
+df4955fcd394fbb8ef8f74e14cc33f0907a02dbaf5366de9aec67b7d94781e5d  web-inspector-v1.1.0.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 51af30b)
+df21a12239f69589f47bed5263e39e01250488d94e16a6935a1ecb34a741321a  web-inspector-v1.2.0.zip  ストア未提出 (※複数コミットでzip更新履歴あり, コミット済zipと配布zipが一致しない可能性あり)
+75e5458775499feca6f95c5b387ce02adbf1071f4403fc18a6c4df8310b19b9a  web-inspector-v1.3.1.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 9e3c0d4)
+81255175e32fdb3be8d26df2290e794c15dd015cb9382da2fddde994a8216efc  web-inspector-v1.3.2.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 9a75355)
+f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-v1.3.3.zip  ★ Chrome Web Store 公開中 (2026-10 承認済み, Tag: v1.3.3-published, Commit: 1444aca)
+582edc3b0001e1183af499ff1acf8e8352a7b19b79c92f767abdc2eb67f2cfa2  web-inspector-v1.3.4.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 74109bf)
+64e3f30b1d687fbf50bc01cb937e6b63dcf1ed4c3415d1ff78ea3fc0dcd73845  web-inspector-v1.4.0.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 09ea46e)
+6e7c89386307881b3d7937a87e1bbd37e75b76bf72aef2a6dee99993e25d7884  web-inspector-v1.5.0.zip  ストア未提出 (※複数コミットでzip更新履歴あり, コミット済zipと配布zipが一致しない可能性あり)
+9eb7b56738c893d97c31037a55e97f3b754d8c2d4057551fed24a347093f10bf  web-inspector-v1.6.0.zip  ストア未提出 (リポジトリ内の成果物, Commit: 64841aa)

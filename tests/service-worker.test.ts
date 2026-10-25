@@ -177,6 +177,7 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(sanitizeUrlForCache('file:///tmp/x?token=1#frag')).toBe('file:///tmp/x');
     expect(sanitizeUrlForCache('about:blank?token=1')).toBe('about:blank');
     expect(sanitizeUrlForCache('data:text/html,x?token=1')).toBe('data:text/html,x');
+    expect(sanitizeUrlForCache('data:text/html,<h1>test</h1>?token=1')).toBe('data:text/html,<h1>test</h1>');
     expect(sanitizeUrlForCache('bad-url-string?token=1#frag')).toBe('bad-url-string');
 
     // userinfo (ユーザー名・パスワード) 付きURLの検証 (origin + pathname により自動ストリップ)

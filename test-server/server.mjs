@@ -96,6 +96,12 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
+  if (pathname === '/after-token') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>after token</title><h1>after token</h1>');
+    return;
+  }
+
   // 3-1: /next-ssr-positive (X-Powered-By: Next.js と x-nextjs-cache: HIT -> Node.js が推論される)
   if (pathname === '/next-ssr-positive') {
     res.statusCode = 200;

@@ -110,11 +110,10 @@ The extension serves a single purpose: to inspect and display the web technologi
 
 | 要求される権限 | 入力する理由説明 (Justification) |
 |---|---|
-| **webRequest** | Required to passively observe HTTP response headers (such as Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, and Server) for security diagnosis without modifying requests. |
-| **cookies** | Required to evaluate security flags (Secure, HttpOnly, SameSite) of cookies for the current domain. Note that cookie values are stripped and never read or stored. |
+| **webRequest** | Required to passively observe HTTP response headers (such as Strict-Transport-Security, Content-Security-Policy, X-Frame-Options, and Server) for security diagnosis without modifying requests. Only headers needed for technology detection and security checks are kept (a fixed allowlist). Stored URLs exclude query strings and fragments. |
+| **cookies** | Required to passively evaluate Cookie names and security attributes (Secure, HttpOnly, SameSite) via the Cookies API. Cookie values are not used, stored, or transmitted. The temporary header cache (browser session only) excludes credential-bearing headers such as Set-Cookie. Set-Cookie headers are not received without extraHeaders. |
 | **activeTab** / **scripting** | Required to inject a lightweight content script to extract DOM signatures (meta tags, script URLs, CSS utility classes, and mixed content resources) of the active tab upon user request. |
 | **storage** | Required to store user inspection history locally on the device (using chrome.storage.local) so that users can review past reports and compare diffs. |
-| **downloads** | Required to allow users to export the inspection report as JSON or CSV files to their local disk upon explicit user action. |
 | **Host Permissions (`<all_urls>`)** | Required to allow technology detection and header inspection on any public website visited and requested by the user. |
 
 ### 3. データ使用状況 (Data Usage)

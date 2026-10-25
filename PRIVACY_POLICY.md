@@ -19,10 +19,15 @@ The Extension performs all technology detection and security evaluations **local
 ## 2. Handling of Cookies and Sensitive Data (Cookieおよび機密情報の取り扱い)
 
 - **Cookie Values are NEVER read or stored**: The Extension only inspects the security **attributes** of Cookies (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`). Cookie values/contents are completely ignored and stripped immediately.
+- **Handling of Response Headers & Set-Cookie**:
+  - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
+  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` and `Authorization` are completely stripped and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage, and stored URLs exclude query strings and fragments.
 - **No Credentials / Authorization**: HTTP `Authorization` headers, passwords, and authentication tokens are never captured or saved.
 - **No Page Content Scraping**: The full HTML text and user input forms are not saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.
 
-Cookieの**値（Value）そのものは一切取得・保存・ログ出力しません**。検査対象はSecure属性やHttpOnly属性などの設定フラグのみです。認証トークンやページ本文の保存も行いません。
+Cookieの**値（Value）そのものは一切取得・保存・ログ出力しません**。検査対象はSecure属性やHttpOnly属性などの設定フラグのみです。
+- **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
+- **v1.6.5以降**: `Set-Cookie` や `Authorization` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持し、保持するURLからもクエリパラメータおよびフラグメントを除外します。
 
 ---
 
@@ -44,7 +49,6 @@ Cookieの**値（Value）そのものは一切取得・保存・ログ出力し�
 | `cookies` | To evaluate Cookie security flags (Secure, HttpOnly, SameSite). Values are not read.<br>Cookieのセキュリティ属性を検査します（値は取得しません）。 |
 | `activeTab` / `scripting` | To analyze DOM signatures (meta tags, script URLs, mixed content) of the active tab upon user request.<br>ユーザーの操作時にアクティブなタブのDOM特徴や混在コンテンツを受動的に分析します。 |
 | `storage` | To store inspection history locally on your device.<br>調査履歴を端末内にローカル保存します。 |
-| `downloads` | To allow users to export reports as JSON or CSV files to their local disk.<br>調査結果をJSONやCSVとして端末にダウンロード保存します。 |
 | `<all_urls>` | To allow inspecting web technologies on any public website visited by the user.<br>ユーザーが閲覧・調査するWebサイトで診断を実行できるようにします。 |
 
 ---

@@ -96,6 +96,14 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ Apache 2.4.58 (ヘッダー直接) & PHP 8.2.14 を正常検出`);
 
+    // A2: クエリつき・フラグメントつきURLでの検出 (/apache-positive?x=1#frag)
+    const apacheQueryReport = await inspectUrl('http://localhost:3000/apache-positive?x=1#frag');
+    const apacheQueryTech = apacheQueryReport.technologies.find((t) => t.technology === 'Apache');
+    if (!apacheQueryTech || apacheQueryTech.version !== '2.4.58') {
+      throw new Error(`/apache-positive?x=1#frag: クエリ・フラグメント付きURLで Apache 2.4.58 が未検出です (実際: ${JSON.stringify(apacheQueryTech)})`);
+    }
+    console.log(`  ✓ Apache 2.4.58 (クエリつきURL /apache-positive?x=1#frag) を正常検出`);
+
     const laravelReport = await inspectUrl('http://localhost:3000/laravel-positive');
     const laravelTech = laravelReport.technologies.find((t) => t.technology === 'Laravel');
     if (!laravelTech || laravelTech.confidence < 80) {
@@ -283,41 +291,66 @@ async function runSmokeTest() {
     }
 
     // -------------------------------------------------------------
-    // 検証 7: レスポンスヘッダーキャッシュ機密情報保護 (Set-Cookie / 認証情報 / URLクエリ遮断)
+    // 検証 7: レスポンスヘッダーキャッシュ機密情報保護 (Canary個別テスト: A4対応)
     // -------------------------------------------------------------
-    console.log('[e2e-smoke] [7/7] レスポンスヘッダーキャッシュ機密情報保護 (Canaryテスト) を検証中...');
+    console.log('[e2e-smoke] [7/7] レスポンスヘッダーキャッシュ機密情報保護 (Canary個別テスト) を検証中...');
 
-    // 1. /cookie-canary へのアクセス
+    const canaryEndpoints = [
+      { url: 'http://localhost:3000/cookie-canary', label: '/cookie-canary (200 + Set-Cookie)' },
+      { url: 'http://localhost:3000/login-redirect', label: '/login-redirect (302 + Set-Cookie + Location)' },
+      { url: 'http://localhost:3000/login-200', label: '/login-200 (200 + Set-Cookie ログイン応答)' },
+      { url: 'http://localhost:3000/token-redirect', label: '/token-redirect (302 + Location: ?token=CANARY_TOKEN)' },
+    ];
+
+    const canaryErrors = [];
+
+    for (const ep of canaryEndpoints) {
+      await page.goto(ep.url, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(500);
+
+      const sessionDump = await serviceWorker.evaluate(async () => {
+        if (!chrome.storage?.session) return {};
+        return await chrome.storage.session.get(null);
+      });
+
+      const sessionStr = JSON.stringify(sessionDump);
+      const matches = sessionStr.match(/CANARY_[A-Za-z0-9_]+/g);
+      if (matches && matches.length > 0) {
+        const uniqueTokens = [...new Set(matches)].join(', ');
+        canaryErrors.push(`${ep.label}: CANARY_ が漏洩・保存されました (${uniqueTokens})`);
+        console.log(`  × ${ep.label}: RED - CANARY_ 漏洩検出: ${uniqueTokens}`);
+      } else {
+        console.log(`  ✓ ${ep.label}: GREEN - sessionストレージに CANARY_ 漏洩なし`);
+      }
+    }
+
+    // A7: (任意) extraHeaders なしの webRequest リスナーで Set-Cookie 受信有無を実測検証
+    console.log('[e2e-smoke] [A7実測] extraHeaders なしの webRequest リスナーで Set-Cookie 受信有無を検証中...');
+    await serviceWorker.evaluate(() => {
+      globalThis.__seenHeaders = [];
+      chrome.webRequest.onHeadersReceived.addListener(
+        (d) => {
+          if (d.type === 'main_frame' && d.url.includes('/cookie-canary')) {
+            globalThis.__seenHeaders.push((d.responseHeaders || []).map((h) => h.name.toLowerCase()));
+          }
+        },
+        { urls: ['<all_urls>'] },
+        ['responseHeaders']
+      );
+    });
     await page.goto('http://localhost:3000/cookie-canary', { waitUntil: 'networkidle' });
     await page.waitForTimeout(500);
-
-    // 2. /login-redirect (302 + Set-Cookie) へのアクセス
-    await page.goto('http://localhost:3000/login-redirect', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(500);
-
-    // 3. /login-200 (200 + Set-Cookie) へのアクセス
-    await page.goto('http://localhost:3000/login-200', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(500);
-
-    // 4. /token-redirect (302 + Location: ...token=CANARY_TOKEN) へのアクセス
-    await page.goto('http://localhost:3000/token-redirect', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(500);
-
-    // chrome.storage.session 内の全データを取得してスキャン
-    const sessionDump = await serviceWorker.evaluate(async () => {
-      if (!chrome.storage?.session) return {};
-      return await chrome.storage.session.get(null);
-    });
-
-    const sessionStr = JSON.stringify(sessionDump);
-    const canaryMatches = sessionStr.match(/CANARY_[A-Za-z0-9_]+/g);
-
-    if (canaryMatches && canaryMatches.length > 0) {
-      throw new Error(
-        `chrome.storage.session に機密情報 (CANARY_) が漏洩・保存されています: ${[...new Set(canaryMatches)].join(', ')}`
-      );
+    const seenHeaders = await serviceWorker.evaluate(() => globalThis.__seenHeaders || []);
+    const hasSetCookieReceived = seenHeaders.some((hList) => hList.includes('set-cookie'));
+    if (!hasSetCookieReceived) {
+      console.log('  ✓ [A7実測結果] extraHeaders なしの webRequest.onHeadersReceived には Set-Cookie ヘッダーが一切届きません（Chrome側で完全遮断）。');
+    } else {
+      console.log('  ⚠️ [A7実測結果] extraHeaders なしでも Set-Cookie ヘッダーが届きます（許可リストによるフィルタリングが必須）。');
     }
-    console.log(`  ✓ sessionストレージに CANARY_ 機密情報が保存されていないことを確認`);
+
+    if (canaryErrors.length > 0) {
+      throw new Error(`Canary機密情報保護テスト失敗:\n  ${canaryErrors.join('\n  ')}`);
+    }
 
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {

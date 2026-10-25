@@ -171,6 +171,23 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(sanitizeUrlForCache('https://example.com/login?token=SECRET_CANARY#section')).toBe('https://example.com/login');
     expect(sanitizeUrlForCache('http://localhost:3000/api/v1/user?id=123&auth=abc')).toBe('http://localhost:3000/api/v1/user');
     expect(sanitizeUrlForCache('https://sub.domain.jp:8080/path/to/page?q=test#frag')).toBe('https://sub.domain.jp:8080/path/to/page');
+
+    // A3: 特殊プロトコル(file:, about:, data:, 不正文字列)の安全性テスト
+    const fileSanitized = sanitizeUrlForCache('file:///tmp/x?token=1');
+    expect(fileSanitized).toBe('file:///tmp/x');
+    expect(fileSanitized).not.toContain('null');
+
+    const aboutSanitized = sanitizeUrlForCache('about:blank?token=1');
+    expect(aboutSanitized).toBe('about:blank');
+    expect(aboutSanitized).not.toContain('null');
+
+    const dataSanitized = sanitizeUrlForCache('data:text/html,<h1>test</h1>?token=1');
+    expect(dataSanitized).toBe('data:text/html,<h1>test</h1>');
+    expect(dataSanitized).not.toContain('null');
+
+    const invalidSanitized = sanitizeUrlForCache('bad-url-string?token=1#frag');
+    expect(invalidSanitized).toBe('bad-url-string');
+    expect(invalidSanitized).not.toContain('null');
   });
 
   it('sessionストレージからの復元時にも許可リストとURLサニタイズが再適用されること', async () => {
@@ -193,6 +210,58 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(restored.headers['set-cookie']).toBeUndefined();
     expect(restored.headers['authorization']).toBeUndefined();
     expect(restored.observed).toBe(true);
+  });
+
+  it('A6: observedフィールドを持たない古いキャッシュエントリ(v1.6.4以前)の復元時にも安全にobserved:trueが付与されサニタイズされること', async () => {
+    const { sanitizeRestoredHeaderEntry } = await import('../src/background/service-worker');
+
+    // 1.6.4 以前の形式（observed フィールド未定義、クエリ付きURL、未サニタイズヘッダー）
+    const legacyEntry = {
+      url: 'https://example.com/dashboard?legacy_auth=SECRET_TOKEN#tab1',
+      headers: {
+        'server': ['nginx/1.24.0'],
+        'set-cookie': ['old_cookie=SECRET_COOKIE'],
+        'x-powered-by': ['Express'],
+      },
+      updatedAt: 1600000000000,
+    };
+
+    const restored = sanitizeRestoredHeaderEntry(legacyEntry);
+    expect(restored.url).toBe('https://example.com/dashboard');
+    expect(restored.headers['server']).toEqual(['nginx/1.24.0']);
+    expect(restored.headers['x-powered-by']).toEqual(['Express']);
+    expect(restored.headers['set-cookie']).toBeUndefined();
+    expect(restored.observed).toBe(true);
+  });
+
+  it('A1: Service Workerのキャッシュ経由で x-nextjs-cache を含むレスポンスから Node.js が正しく推論されること', async () => {
+    // x-nextjs-cache が許可リストに含まれ、キャッシュ経由で届くことで Node.js が連動推論される
+    const deps = createMockDeps({
+      tab: { id: 102, url: 'https://example.com/' },
+      fetchDomSignals: vi.fn().mockResolvedValue(
+        createMockDomSignals({
+          scriptUrls: ['https://example.com/_next/static/chunks/main.js'],
+        })
+      ),
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://example.com/',
+        headers: {
+          'x-nextjs-cache': ['HIT'],
+        },
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    
+    // Next.js が直接検出されていること
+    const nextTech = report.technologies.find((t) => t.technology === 'Next.js');
+    expect(nextTech).toBeDefined();
+
+    // x-nextjs-cache ヘッダーの存在により、サーバーサイド稼働とみなされ Node.js が連動推論されること
+    const nodeTech = report.technologies.find((t) => t.technology === 'Node.js');
+    expect(nodeTech).toBeDefined();
+    expect(nodeTech?.detectionMethod).toBe('inferred');
   });
 
   it('ヘッダー観測判定がキャッシュヘッダー数に依存せず、許可ヘッダー0個でも観測済み(complete)と判定されること', async () => {

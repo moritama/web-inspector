@@ -62,4 +62,12 @@ export const ALL_TECHNOLOGY_RULES: TechnologyRule[] = [
   ...(cdnWafRules as unknown as TechnologyRule[]),
 ];
 
+/**
+ * ルールJSON外で検出エンジンが連動推論（SSR等）のために直接参照するレスポンスヘッダー名一覧（小文字）
+ */
+export const SSR_INFERENCE_HEADER_NAMES: readonly string[] = [
+  'x-nextjs-cache',
+  'x-nitro-cache',
+];
+
 export const RULES_VERSION = '1.6.4';

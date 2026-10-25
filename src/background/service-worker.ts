@@ -5,7 +5,7 @@
  */
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
-import { ALL_TECHNOLOGY_RULES, RULES_VERSION } from '../detection/rules';
+import { ALL_TECHNOLOGY_RULES, RULES_VERSION, SSR_INFERENCE_HEADER_NAMES } from '../detection/rules';
 import { SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
 import { SecurityEngine } from '../security/engine';
@@ -52,10 +52,11 @@ export interface HeaderCacheEntry {
 
 /**
  * 許可されたレスポンスヘッダー名（小文字）のホワイトリストセット
- * 検出ルール (type: 'header') の target および セキュリティ診断の対象ヘッダーから動的に生成
+ * 検出ルール (type: 'header') の target、セキュリティ診断、および検出エンジン直接参照ヘッダーから動的に生成
  */
 export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
   ...SECURITY_HEADER_NAMES.map((h) => h.toLowerCase()),
+  ...SSR_INFERENCE_HEADER_NAMES.map((h) => h.toLowerCase()),
   ...ALL_TECHNOLOGY_RULES.flatMap((rule) =>
     rule.signals
       .filter((s) => s.type === 'header' && s.target)
@@ -65,11 +66,23 @@ export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
 
 /**
  * キャッシュ保存用にURLをサニタイズ（クエリおよびフラグメントを除去し origin + pathname のみにする）
+ * file:, about:, data:, blob: 等で origin が "null" になる場合や不正なURL文字列でも安全に処理
  */
 export function sanitizeUrlForCache(rawUrl: string): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
   try {
     const parsed = new URL(rawUrl);
-    return `${parsed.origin}${parsed.pathname}`;
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+    // file:, about:, data:, blob: 等はクエリとハッシュを除去した href または rawUrl の先頭部を返す
+    parsed.search = '';
+    parsed.hash = '';
+    const clean = parsed.href;
+    if (clean.startsWith('null')) {
+      return rawUrl.split(/[?#]/)[0] || '';
+    }
+    return clean;
   } catch {
     return rawUrl.split(/[?#]/)[0] || rawUrl;
   }

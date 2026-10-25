@@ -9,7 +9,7 @@ Last updated: October 22, 2026
 ## 1. No Data Collection or Transmission (データ非収集・外部送信ゼロ)
 
 The Extension performs all technology detection and security evaluations **locally on your device**. 
-- We do **not** collect, store, transmit, or sell any personal data, browsing history, IP addresses, or analytical data.
+- We do **not** collect, transmit, or sell any personal data, browsing history, IP addresses, or analytical data. Data you generate (e.g., inspection history) stays on your device. See Sections 2 and 3.
 - The Extension makes **no external network connections** to third-party tracking, analytics, or remote servers. All operations happen strictly within the browser environment.
 
 本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を収集・外部送信・販売することは一切ありません。外部の解析サーバー等への通信も一切行いません。
@@ -21,7 +21,7 @@ The Extension performs all technology detection and security evaluations **local
 - **Cookie Values are NEVER read or stored**: The Extension only inspects the security **attributes** of Cookies (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`). Cookie values/contents are completely ignored and stripped immediately.
 - **Handling of Response Headers & URLs**:
   - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
-  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. (temporary header cache) Stored URLs exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. Stored URLs in the temporary header cache exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
 - **Inspection history and exports**: The URL of each page you inspect is stored in your local inspection history and included in reports you export (query strings are included). History stays on your device and can be deleted at any time.
 - **No Passwords or Form Inputs**: Passwords and form inputs are never captured. HTTP `Authorization` headers are request headers and are outside the scope of response header observation.
 - **No Page Content Scraping**: The full HTML text and user input forms are not saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.

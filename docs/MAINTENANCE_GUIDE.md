@@ -255,6 +255,10 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
    - `data:text/html,...` 等の URL はクエリとフラグメントが除去されますが、データ本体が保持 URL に残りうる仕様となっています。スキームのみ（`data:`）へ丸める改善は v1.7.0 にて検討します。
 3. **パス部分に埋め込まれた機密情報**:
    - 保持する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は除去されません。
+4. **弱い直接証拠と連動推論の合算時の detectionMethod 判定**:
+   - 弱い直接証拠（例: `XSRF-TOKEN` 35点）が連動推論と合算されて採用閾値（50%）を超えた場合、`detectionMethod` が `direct` になります（`src/detection/engine.ts:707-710`）。E2E は、この影響を避けるため `/next-ssr-positive` の前に `/clear-cookies` を挟んでいます。
+5. **調査履歴・エクスポートにおけるクエリ文字列の保持**:
+   - 調査履歴（`chrome.storage.local`）および JSON・CSV エクスポートには、URL のクエリ文字列がそのまま含まれます（Markdown のみ、特定キーをマスク）。見直しは R06 として 1.6.6 以降に検討します。
 
 ---
 

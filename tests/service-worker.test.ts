@@ -172,22 +172,16 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(sanitizeUrlForCache('http://localhost:3000/api/v1/user?id=123&auth=abc')).toBe('http://localhost:3000/api/v1/user');
     expect(sanitizeUrlForCache('https://sub.domain.jp:8080/path/to/page?q=test#frag')).toBe('https://sub.domain.jp:8080/path/to/page');
 
-    // A3: 特殊プロトコル(file:, about:, data:, 不正文字列)の安全性テスト
-    const fileSanitized = sanitizeUrlForCache('file:///tmp/x?token=1');
-    expect(fileSanitized).toBe('file:///tmp/x');
-    expect(fileSanitized).not.toContain('null');
+    // 4-3 & 6: 指定5入力の完全検証
+    expect(sanitizeUrlForCache('http://example.com:8080/path?a=1#b')).toBe('http://example.com:8080/path');
+    expect(sanitizeUrlForCache('file:///tmp/x?token=1#frag')).toBe('file:///tmp/x');
+    expect(sanitizeUrlForCache('about:blank?token=1')).toBe('about:blank');
+    expect(sanitizeUrlForCache('data:text/html,x?token=1')).toBe('data:text/html,x');
+    expect(sanitizeUrlForCache('bad-url-string?token=1#frag')).toBe('bad-url-string');
 
-    const aboutSanitized = sanitizeUrlForCache('about:blank?token=1');
-    expect(aboutSanitized).toBe('about:blank');
-    expect(aboutSanitized).not.toContain('null');
-
-    const dataSanitized = sanitizeUrlForCache('data:text/html,<h1>test</h1>?token=1');
-    expect(dataSanitized).toBe('data:text/html,<h1>test</h1>');
-    expect(dataSanitized).not.toContain('null');
-
-    const invalidSanitized = sanitizeUrlForCache('bad-url-string?token=1#frag');
-    expect(invalidSanitized).toBe('bad-url-string');
-    expect(invalidSanitized).not.toContain('null');
+    // userinfo (ユーザー名・パスワード) 付きURLの検証 (origin + pathname により自動ストリップ)
+    expect(sanitizeUrlForCache('https://user:secretpass@example.com:8443/secure/path?token=CANARY#section'))
+      .toBe('https://example.com:8443/secure/path');
   });
 
   it('sessionストレージからの復元時にも許可リストとURLサニタイズが再適用されること', async () => {

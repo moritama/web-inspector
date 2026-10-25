@@ -125,13 +125,17 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ Next.js SSR (ヘッダー x-nextjs-cache 経由) で Node.js が正常に連動推論されました`);
 
-    // 3-1 実機E2E: /next-static-negative (SSR指標なし -> Node.js推論なし)
+    // 3-1 実機E2E: /next-static-negative (Next.js検出あり + SSR指標なし -> Node.js推論なし)
     const nextStaticReport = await inspectUrl('http://localhost:3000/next-static-negative');
+    const staticNextTech = nextStaticReport.technologies.find((t) => t.technology === 'Next.js');
+    if (!staticNextTech) {
+      throw new Error(`/next-static-negative: Next.js 本体が未検出です (実際: ${JSON.stringify(nextStaticReport.technologies)})`);
+    }
     const staticNodeTech = nextStaticReport.technologies.find((t) => t.technology === 'Node.js');
     if (staticNodeTech) {
       throw new Error(`/next-static-negative: SSR指標がないにもかかわらず Node.js が誤推論されました (実際: ${JSON.stringify(staticNodeTech)})`);
     }
-    console.log(`  ✓ Next.js 静的配信 (SSR指標なし) で Node.js が正しく除外されていることを確認`);
+    console.log(`  ✓ Next.js 静的配信 (Next.js検出あり・SSR指標なし) で Node.js が正しく除外されていることを確認`);
 
     // -------------------------------------------------------------
     // 検証 3: 否定コントロール & エッジケース (/edge-cases, /rails-session, /negative-angular)

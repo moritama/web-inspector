@@ -226,8 +226,8 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 
 ### 2.7 既知の退行と修正の記録 (v1.6.5 開発時)
 
-1. **SSR連動推論ヘッダーの許可リスト漏れと是正 (コミット `dd1fd8a`)**:
-   - **事象**: コミット `6f72f60` においてレスポンスヘッダーキャッシュの機密情報保護（許可リスト化）を導入した際、`src/detection/engine.ts` でサーバーサイドレンダリング（SSR）判定のために直接参照されていたヘッダー（`x-nextjs-cache`, `x-nitro-cache`）が許可リストから一時的に漏れ、Next.js / Nuxt / SvelteKit からの Node.js 連動推論が発火しなくなっていた。
+1. **SSR連動推論ヘッダーの許可リストからの脱落と是正 (コミット `dd1fd8a`)**:
+   - **事象**: コミット `6f72f60` においてレスポンスヘッダーキャッシュの機密情報保護（許可リスト化）を導入した際、`src/detection/engine.ts` でサーバーサイドレンダリング（SSR）判定のために直接参照されていたヘッダー（`x-nextjs-cache`, `x-nitro-cache`）が許可リストから一時的に脱落し、Next.js / Nuxt / SvelteKit からの Node.js 連動推論が発火しなくなっていた。
    - **発見と修正**: 提出前追加確認 (A1) におけるコード内ヘッダー参照文字列の網羅走査により特定。コミット `dd1fd8a` にて `SSR_INFERENCE_HEADER_NAMES` を定義し、Service Worker の `ALLOWED_RESPONSE_HEADERS` に正式追加・統合した。
    - **影響範囲**: ストア未提出の開発ブランチ作業（コミット `6f72f60`）における内部的な退行であり、公開版（v1.6.4 以前）および利用者への実影響は皆無。
    - **再発防止策**: 単体テスト（`tests/service-worker.test.ts` 内で許可リスト経由での Node.js 推論をアサートし、変異テストで除外時の FAIL を実証）および実機 E2E テスト（`/next-ssr-positive`, `/next-static-negative`）を導入し、CI 上で継続監視。

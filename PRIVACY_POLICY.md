@@ -12,7 +12,7 @@ The Extension performs all technology detection and security evaluations **local
 - We do **not** collect, store, transmit, or sell any personal data, browsing history, IP addresses, or analytical data.
 - The Extension makes **no external network connections** to third-party tracking, analytics, or remote servers. All operations happen strictly within the browser environment.
 
-本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を収集・保存・外部送信・販売することは一切ありません。外部の解析サーバー等への通信も一切行いません。
+本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を収集・外部送信・販売することは一切ありません。外部の解析サーバー等への通信も一切行いません。
 
 ---
 
@@ -21,14 +21,17 @@ The Extension performs all technology detection and security evaluations **local
 - **Cookie Values are NEVER read or stored**: The Extension only inspects the security **attributes** of Cookies (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`). Cookie values/contents are completely ignored and stripped immediately.
 - **Handling of Response Headers & URLs**:
   - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
-  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. Stored URLs exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. (temporary header cache) Stored URLs exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+- **Inspection history and exports**: The URL of each page you inspect is stored in your local inspection history and included in reports you export (query strings are included). History stays on your device and can be deleted at any time.
 - **No Passwords or Form Inputs**: Passwords and form inputs are never captured. HTTP `Authorization` headers are request headers and are outside the scope of response header observation.
 - **No Page Content Scraping**: The full HTML text and user input forms are not saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.
 
 Cookieの**値（Value）そのものは一切取得・保存・ログ出力しません**。検査対象はSecure属性やHttpOnly属性などの設定フラグのみです。
 - **レスポンスヘッダーおよびURLの取り扱い**:
   - **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
-  - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持します。保持するURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
+  - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持します。ヘッダーの一時保持に使うURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
+- **ページ本文の非保存**: ページのHTML全文やユーザーの入力フォームは保存しません。技術的な特徴(metaタグ、スクリプトURL、CSSクラス名など)のみをメモリ上で評価します。
+- **調査履歴とエクスポート**: 調査したページのURLは、端末内の調査履歴に保存され、エクスポートしたレポートにも含まれます(クエリ文字列は含まれます)。履歴は端末内にのみ保存され、いつでも削除できます。
 - **パスワードおよび入力フォームの完全非取得**: パスワードやフォーム入力値を取得することは一切ありません。なお、HTTP `Authorization` ヘッダーはリクエストヘッダーであり、本拡張機能のレスポンスヘッダー観測の対象外です。
 
 ---

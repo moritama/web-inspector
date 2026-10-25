@@ -262,7 +262,7 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 ## 3. Chrome Web Store 申請・リリースフロー
 
 > **リリース記録 (v1.6.5)**:
-> `release/web-inspector-v1.6.5.zip` はタグ `v1.6.5`（コミット `c825dc9`）から作成されました。以後の main の差分は tests/docs/test-server のみであり、公開用 zip の内容には一切影響しません。
+> `release/web-inspector-v1.6.5.zip` はタグ `v1.6.5`（コミット `c825dc9`）から作成されました。以後の main の差分は、ビルド入力(src/、public/、package.json、ロックファイル、ビルド設定、scripts/package.mjs)を含まず、公開用 zip の内容には影響しません。
 
 1. **パッケージの確認**:
    - `release/web-inspector-vX.X.X.zip` のサイズ（約70〜100KB）および中身を確認します。

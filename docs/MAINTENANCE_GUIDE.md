@@ -154,13 +154,44 @@ npm test
 ```
 - 脆弱性突合ロジックやバージョン判定テストがすべてパスすることを確認します。
 
-#### ステップ 4: 新しいDBを内包したZIPパッケージの作成
+#### ステップ 4: NVD 一次情報・CPE との機械的照合検証
+```bash
+npm run advisories:verify-nvd
+# またはオンライン直接取得: node scripts/verify-advisories-nvd.mjs --online
+```
+- NVD の Primary CVSS スコアおよび CPE バージョン範囲と全件自動突合し、未解決差異が 0 件であることを確認します。
+
+#### ステップ 5: 新しいDBを内包したZIPパッケージの作成
 ```bash
 npm run package
 ```
 - 検証、ビルド、ZIP圧縮が一括で実行され、`release/web-inspector-vX.X.X.zip` が生成されます。
 
 ---
+
+### 2.4 NVD CPE 照合検証・既知の逸脱および凍結基準 (Freeze Criteria)
+
+本拡張機能では、手作業による恣意的な判定の排除と継続的再現性を保証するため、NVD の CPE 定義と機械的に照合する検証スクリプト（`scripts/verify-advisories-nvd.mjs`）を運用しています。
+
+#### ① 凍結基準 (Freeze Criteria)
+リリース前、および週次 CI ジョブにおいて、以下の基準が満たされていることを**凍結条件**とします：
+1. **完全照合性**: 脆弱性DBの全エントリについて、`scripts/verify-advisories-nvd.mjs` の実行結果が `[PASS]`（終了コード 0、未解決差異 0 件）であること。
+2. **逸脱の透明性**: NVD CPE のバージョン範囲と異なるエントリが存在する場合、すべて以下の「既知の逸脱一覧」に公式根拠とともに登録・合意されていること。
+
+#### ② 既知の逸脱一覧 (Known Deviations from NVD CPE)
+
+| CVE | ソフトウェア | DB range | NVD range | 分類 | 公式根拠・採用理由 |
+|---|---|---|---|---|---|
+| **CVE-2022-21661** | WordPress | `< 5.8.3` | 3.7〜5.8 (22系統) | 安全側包括 (EOL連動) | NVD CPE は 3.7〜5.8 の 22 系統にバックポート修正版（5.7.5 等）を定義しているが、WordPress 5.8 以前のブランチはすべて現在 EOL（公式サポート終了）である。EOL 警告と連動し、修正版であっても最新 6.x 系統への更新を促す安全側（Safe-side）ポリシーとして `< 5.8.3` を適用。 |
+| **CVE-2023-39332** | Node.js | `>= 20.0.0, < 20.8.1` | `>= 20.0.0, < 20.8.0` | ベンダー公式優先 | Node.js 公式セキュリティリリース（2023-10-13）において 20.8.1 で修正パッチが提供された。NVD CPE は `< 20.8.0` で登録されているが、20.8.0 も脆弱であるため、ベンダー公式パッチバージョン（20.8.1）を優先採用。 |
+| **CVE-2021-3129** | Laravel | `< 8.4.3` | `< 2.5.2` (Ignition) | 連動パッケージ置換 | NVD CVE-2021-3129 の configurations において、`cpe:2.3:a:facade:ignition < 2.5.2` と `cpe:2.3:a:laravel:laravel <= 8.4.2` が連動ノードとして定義。Laravel 8.4.3 で ignition 2.5.2 以降に依存引き上げが行われたため、本体バージョン `< 8.4.3` としてマッピング。 |
+| **CVE-2024-4577** | PHP | `< 8.1.29 \|\| ...` | `>= 8.1.0, < 8.1.29 \|\| ...` | 安全側包括 (EOL連動) | EOL の PHP 8.0 以前は公式パッチ未提供だが、Windows 上の PHP-CGI 環境では本脆弱性に該当する。DB では安全側に倒して `< 8.1.29` として検知対象に含め、EOL 判定と併せて更新を促す。NVD CPE はパッチ提供ブランチである `>= 8.1.0` から定義。 |
+| **CVE-2023-44487** | nginx | `< 1.25.3` | `>= 1.9.5, <= 1.25.2 \|\| ...` | 安全側包括 (EOL連動) | HTTP/2 Rapid Reset 攻撃。nginx 公式では 1.25.3 および 1.24.0以前のパッチで対応。NVD CPE は HTTP/2 サポート開始の `>= 1.9.5` から定義しているが、1.9.5 以前の nginx は EOL であるため DB では `< 1.25.3` で包括。 |
+| **CVE-2020-7676** | AngularJS | `< 1.8.0` | `(NVD未登録)` | GHSA 主導エントリ | NVD 未採番 / GitHub Advisory Database (GHSA-mhp6-pxh8-r675) 主導エントリ。Primary スコアソースは GHSA (CVSS 5.4)。 |
+| **CVE-2022-25869** | AngularJS | `<= 1.8.3` | `(NVD未登録)` | GHSA 主導エントリ | NVD 未採番 / GitHub Advisory Database (GHSA-prc3-vjfx-vhm9) 主導エントリ。Primary スコアソースは GHSA (CVSS 6.1)。EOLのため公式パッチなし (fixedVersion: null)。 |
+
+---
+
 
 ## 3. Chrome Web Store 申請・リリースフロー
 

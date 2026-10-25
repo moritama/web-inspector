@@ -15,6 +15,7 @@ import {
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
+import { resolveRecommendedVersion } from '../detection/advisory';
 
 let currentReport: InspectionReport | null = null;
 let allReportsList: InspectionReport[] = [];
@@ -63,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.2';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.3';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -293,7 +294,8 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
       if (t.isCandidateGroup) {
         recommendation = '稼働しているバックエンド環境の特定を推奨';
       } else if (t.advisories && t.advisories.length > 0) {
-        recommendation = `脆弱性修正版（v${t.advisories[0].fixedVersion || '最新'}以上）への更新推奨`;
+        const recVer = resolveRecommendedVersion(t.version, t.advisories);
+        recommendation = recVer ? `脆弱性修正版（v${recVer}以上）への更新推奨` : '脆弱性修正版への更新推奨';
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
       } else if (t.offlineMatchStatus === 'Unknown Version' && t.version) {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Web Technology & Security Inspector",
   "short_name": "Web Inspector",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Webサイトの使用技術の特定と、外部から確認できるセキュリティ設定の受動的診断を行う拡張機能",
   "permissions": [
     "activeTab",

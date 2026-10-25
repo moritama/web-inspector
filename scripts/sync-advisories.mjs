@@ -43,7 +43,7 @@ const BASE_LIBRARIES = {
     aliases: ['jquery'],
     versions: [
       {
-        range: '< 3.5.0',
+        range: '>= 1.2.0, < 3.5.0',
         cve: 'CVE-2020-11022',
         cvssScore: 6.1,
         title: 'Regex in jQuery.htmlPrefilter can result in XSS',
@@ -53,7 +53,7 @@ const BASE_LIBRARIES = {
         scoreSource: DEFAULT_SOURCE
       },
       {
-        range: '< 3.5.0',
+        range: '>= 1.0.3, < 3.5.0',
         cve: 'CVE-2020-11023',
         cvssScore: 6.1,
         title: 'XSS in jQuery.htmlPrefilter even with sanitizers',
@@ -95,7 +95,7 @@ const BASE_LIBRARIES = {
     aliases: ['bootstrap', 'twitter-bootstrap'],
     versions: [
       {
-        range: '< 3.4.1 || >= 4.0.0, < 4.3.1',
+        range: '< 3.4.1 || >= 4.3.0, < 4.3.1',
         cve: 'CVE-2019-8331',
         cvssScore: 6.1,
         title: 'XSS in Bootstrap Tooltip and Popover data-template',
@@ -105,7 +105,7 @@ const BASE_LIBRARIES = {
         scoreSource: DEFAULT_SOURCE
       },
       {
-        range: '< 4.1.2',
+        range: '>= 4.0.0, < 4.1.2',
         cve: 'CVE-2018-14041',
         cvssScore: 6.1,
         title: 'XSS in Bootstrap Collapse plugin data-parent attribute',
@@ -115,7 +115,7 @@ const BASE_LIBRARIES = {
         scoreSource: DEFAULT_SOURCE
       },
       {
-        range: '< 3.4.0',
+        range: '>= 3.0.0, < 3.4.0',
         cve: 'CVE-2016-10735',
         cvssScore: 6.1,
         title: 'XSS in data-target attribute for Bootstrap 3',
@@ -154,18 +154,8 @@ const BASE_LIBRARIES = {
   },
   vue: {
     aliases: ['vue', 'vue.js', 'vuejs'],
-    versions: [
-      {
-        range: '< 2.6.10',
-        cve: 'CVE-2020-13426',
-        cvssScore: 6.5,
-        title: 'ReDoS in vue-template-compiler',
-        fixedVersion: '2.6.10',
-        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-13426',
-        verifiedAt: VERIFIED_DATE,
-        scoreSource: DEFAULT_SOURCE
-      }
-    ],
+    // ※ CVE-2020-13426 は WordPress プラグイン (Multi-Scheduler) の脆弱性であり Vue.js 本体とは無関係のため除外。Vue 2 系は全件 EOL として保護。
+    versions: [],
     eol: [
       { cycle: '2.x', eolDate: '2023-12-31', status: 'EOL' },
       { cycle: '3.x', eolDate: null, status: 'Supported' }
@@ -227,12 +217,12 @@ const BASE_LIBRARIES = {
         scoreSource: DEFAULT_SOURCE
       },
       {
-        range: '< 4.17.19',
+        range: '< 4.17.20',
         cve: 'CVE-2020-8203',
         cvssScore: 7.4,
         title: 'Prototype Pollution in lodash.zipObjectDeep',
         summary: 'Prototype pollution in lodash.zipObjectDeep via Object.prototype manipulation.',
-        fixedVersion: '4.17.19',
+        fixedVersion: '4.17.20',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-8203',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE
@@ -309,7 +299,7 @@ const BASE_LIBRARIES = {
     aliases: ['nginx'],
     versions: [
       {
-        range: '< 1.25.0',
+        range: '< 1.25.3',
         cve: 'CVE-2023-44487',
         cvssScore: 7.5,
         title: 'HTTP/2 Rapid Reset Denial of Service Vulnerability',
@@ -367,7 +357,7 @@ const BASE_LIBRARIES = {
         notes: 'CISA-ADP評価: 7.5 (High, 単体ファイル開示)。CISA KEV 登録 (2021-11-03)'
       },
       {
-        range: '= 2.4.50',
+        range: '>= 2.4.49, <= 2.4.50',
         cve: 'CVE-2021-42013',
         cvssScore: 9.8,
         title: 'Path Traversal and RCE in Apache HTTP Server 2.4.50',

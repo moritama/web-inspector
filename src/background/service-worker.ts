@@ -35,8 +35,9 @@ import {
   NetworkSignals,
   SecurityCheckResult,
 } from '../shared/types';
+import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.0';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.3';
 
 // タブIDごとのレスポンスヘッダーキャッシュ (インメモリ + chrome.storage.session によるSWスリープ永続化)
 // 容量上限対策: 最大保持タブ数
@@ -491,16 +492,12 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
       const maxScore = tech.maxCvss ?? 6.1;
       const severity = maxScore >= 7.0 ? 'high' : 'medium';
 
-      const hasUnpatchedAdvisory = tech.advisories.some((a) => !a.fixedVersion);
       const isEol = tech.supportStatus === 'EOL';
 
-      let cveRecommendation = '';
-      if (hasUnpatchedAdvisory || isEol) {
-        const altTech = tech.technology.toLowerCase() === 'angularjs' ? 'Angularなど' : 'サポート対象の後継技術';
-        cveRecommendation = `公式の修正版はありません。${altTech}への移行、またはサニタイズ/CSPなどの緩和策の適用を検討してください。`;
-      } else {
-        cveRecommendation = `修正済みバージョン（${topAdvisory.fixedVersion} 以上）への速やかなアップデートを推奨します。`;
-      }
+      const cveRecommendation = formatAdvisoryRecommendation(tech.version, tech.advisories, {
+        isEol,
+        technologyName: tech.technology,
+      });
 
       librarySecurityChecks.push({
         checkId: `SEC-CVE-${tech.technology.toUpperCase()}`,

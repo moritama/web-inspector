@@ -8,8 +8,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateDbFreshness,
+  formatAdvisoryRecommendation,
   getAdvisoryDbMetadata,
   matchOfflineAdvisories,
+  resolveRecommendedVersion,
 } from '../src/detection/advisory';
 
 describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / D11-D20)', () => {
@@ -173,5 +175,79 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(cve?.affectedRange).toBe('<= 1.8.3');
     expect(cve?.fixedVersion).toBeNull();
     expect(cve?.referenceUrls).toContain('https://github.com/advisories/GHSA-prc3-vjfx-vhm9');
+  });
+
+  // 複数ブランチ・複数アドバイザリ対応の推奨版導出テスト (レビュー 2-4 対応)
+  describe('複数ブランチ・複数アドバイザリ推奨版解決テスト (レビュー 2-4 準拠)', () => {
+    it('Apache 2.4.49 検出時に、複数の脆弱性 (CVE-2021-41773: 2.4.50, CVE-2021-42013: 2.4.51, CVE-2021-44790: 2.4.52) の中で全てを解消できる最高バージョン (2.4.52) が推奨されること', () => {
+      const result = matchOfflineAdvisories('Apache', '2.4.49');
+      expect(result.advisories.length).toBeGreaterThanOrEqual(2);
+
+      // 先頭エントリの 2.4.50 ではなく、全てを解消する 2.4.52 が導出されること
+      const recommended = resolveRecommendedVersion('2.4.49', result.advisories);
+      expect(recommended).toBe('2.4.52');
+
+      const recText = formatAdvisoryRecommendation('2.4.49', result.advisories, {
+        isEol: result.eolInfo.status === 'EOL',
+        technologyName: 'Apache',
+      });
+      expect(recText).toContain('v2.4.52 以上');
+    });
+
+    it('Apache で CVE-2021-41773 (2.4.50) と CVE-2021-42013 (2.4.51) のみ該当する場合、2.4.50 ではなく 2.4.51 が推奨されること', () => {
+      const mockAdvisories = [
+        { fixedVersion: '2.4.50' }, // CVE-2021-41773
+        { fixedVersion: '2.4.51' }, // CVE-2021-42013
+      ];
+      const recommended = resolveRecommendedVersion('2.4.49', mockAdvisories);
+      expect(recommended).toBe('2.4.51');
+
+      const recText = formatAdvisoryRecommendation('2.4.49', mockAdvisories, {
+        technologyName: 'Apache',
+      });
+      expect(recText).toContain('v2.4.51 以上');
+      expect(recText).not.toContain('2.4.50');
+    });
+
+    it('PHP 8.0.10 検出時に、CVE-2022-31628 の複数ブランチ修正版 (7.4.31 / 8.0.24 / 8.1.11) から利用者の 8.0 系統に対応する 8.0.24 が正確に抽出されること', () => {
+      const mockAdvisory = [{ fixedVersion: '7.4.31 / 8.0.24 / 8.1.11' }];
+      const recommended = resolveRecommendedVersion('8.0.10', mockAdvisory);
+      expect(recommended).toBe('8.0.24');
+
+      const recText = formatAdvisoryRecommendation('8.0.10', mockAdvisory, {
+        isEol: false,
+        technologyName: 'PHP',
+      });
+      // 「7.4.31 / 8.0.24 / 8.1.11 以上」といったスラッシュ併記ではなく、単一の明確なバージョンであること
+      expect(recText).toContain('v8.0.24 以上');
+      expect(recText).not.toContain('7.4.31 / 8.0.24');
+    });
+
+    it('PHP 7.4.30 検出時に、CVE-2022-31628 の複数ブランチ修正版から 7.4 系統に対応する 7.4.31 が正確に抽出されること', () => {
+      const mockAdvisory = [{ fixedVersion: '7.4.31 / 8.0.24 / 8.1.11' }];
+      const recommended = resolveRecommendedVersion('7.4.30', mockAdvisory);
+      expect(recommended).toBe('7.4.31');
+    });
+
+    it('PHP 8.0.10 実DB照合時: 8.0系パッチが存在しない CVE-2024-4577 (8.1.29) と CVE-2022-31628 (8.0.24) が同時にヒットした場合、全体を解消できる 8.1.29 以上が推奨されること', () => {
+      const result = matchOfflineAdvisories('PHP', '8.0.10');
+      const recommended = resolveRecommendedVersion('8.0.10', result.advisories);
+      expect(recommended).toBe('8.1.29');
+    });
+
+    it('Bootstrap 4.3.0 検出時に、複数ブランチ修正版 (3.4.1 / 4.3.1) から 4.3 系列の 4.3.1 が正確に抽出されること', () => {
+      const result = matchOfflineAdvisories('Bootstrap', '4.3.0');
+      expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
+
+      const recommended = resolveRecommendedVersion('4.3.0', result.advisories);
+      expect(recommended).toBe('4.3.1');
+
+      const recText = formatAdvisoryRecommendation('4.3.0', result.advisories, {
+        isEol: false,
+        technologyName: 'Bootstrap',
+      });
+      expect(recText).toContain('v4.3.1 以上');
+      expect(recText).not.toContain('3.4.1 / 4.3.1');
+    });
   });
 });

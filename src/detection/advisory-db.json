@@ -2,7 +2,7 @@
   "schemaVersion": "2.1",
   "version": "2026.10",
   "dataVersion": "20261025",
-  "generatedAt": "2026-10-25T02:33:06.488Z",
+  "generatedAt": "2026-10-25T02:58:01.592Z",
   "sources": [
     "NIST NVD 2.0 API (Primary: nvd@nist.gov)",
     "GitHub Advisory Database (GHSA)",
@@ -10,7 +10,7 @@
     "CISA KEV Catalog"
   ],
   "coverage": {
-    "totalAdvisories": 25,
+    "totalAdvisories": 24,
     "technologies": [
       "jquery",
       "bootstrap",
@@ -34,7 +34,7 @@
       ],
       "versions": [
         {
-          "range": "< 3.5.0",
+          "range": ">= 1.2.0, < 3.5.0",
           "cve": "CVE-2020-11022",
           "cvssScore": 6.1,
           "title": "Regex in jQuery.htmlPrefilter can result in XSS",
@@ -45,7 +45,7 @@
           "severity": "medium"
         },
         {
-          "range": "< 3.5.0",
+          "range": ">= 1.0.3, < 3.5.0",
           "cve": "CVE-2020-11023",
           "cvssScore": 6.1,
           "title": "XSS in jQuery.htmlPrefilter even with sanitizers",
@@ -109,7 +109,7 @@
       ],
       "versions": [
         {
-          "range": "< 3.4.1 || >= 4.0.0, < 4.3.1",
+          "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
           "cve": "CVE-2019-8331",
           "cvssScore": 6.1,
           "title": "XSS in Bootstrap Tooltip and Popover data-template",
@@ -120,7 +120,7 @@
           "severity": "medium"
         },
         {
-          "range": "< 4.1.2",
+          "range": ">= 4.0.0, < 4.1.2",
           "cve": "CVE-2018-14041",
           "cvssScore": 6.1,
           "title": "XSS in Bootstrap Collapse plugin data-parent attribute",
@@ -131,7 +131,7 @@
           "severity": "medium"
         },
         {
-          "range": "< 3.4.0",
+          "range": ">= 3.0.0, < 3.4.0",
           "cve": "CVE-2016-10735",
           "cvssScore": 6.1,
           "title": "XSS in data-target attribute for Bootstrap 3",
@@ -217,19 +217,7 @@
         "vue.js",
         "vuejs"
       ],
-      "versions": [
-        {
-          "range": "< 2.6.10",
-          "cve": "CVE-2020-13426",
-          "cvssScore": 6.5,
-          "title": "ReDoS in vue-template-compiler",
-          "fixedVersion": "2.6.10",
-          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-13426",
-          "verifiedAt": "2026-10-25",
-          "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
-        }
-      ],
+      "versions": [],
       "eol": [
         {
           "cycle": "3.5",
@@ -444,12 +432,12 @@
           "severity": "high"
         },
         {
-          "range": "< 4.17.19",
+          "range": "< 4.17.20",
           "cve": "CVE-2020-8203",
           "cvssScore": 7.4,
           "title": "Prototype Pollution in lodash.zipObjectDeep",
           "summary": "Prototype pollution in lodash.zipObjectDeep via Object.prototype manipulation.",
-          "fixedVersion": "4.17.19",
+          "fixedVersion": "4.17.20",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
@@ -900,7 +888,7 @@
       ],
       "versions": [
         {
-          "range": "< 1.25.0",
+          "range": "< 1.25.3",
           "cve": "CVE-2023-44487",
           "cvssScore": 7.5,
           "title": "HTTP/2 Rapid Reset Denial of Service Vulnerability",
@@ -1121,7 +1109,7 @@
           "severity": "critical"
         },
         {
-          "range": "= 2.4.50",
+          "range": ">= 2.4.49, <= 2.4.50",
           "cve": "CVE-2021-42013",
           "cvssScore": 9.8,
           "title": "Path Traversal and RCE in Apache HTTP Server 2.4.50",

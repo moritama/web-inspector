@@ -16,6 +16,7 @@ import {
   SupportStatus,
 } from '../shared/types';
 import {
+  compareVersions,
   isLinuxPackageVersion,
   parseVersionParts,
   satisfiesVersionRange,
@@ -410,3 +411,101 @@ function buildEolResult(techName: string, version: string, entry: LibraryEolEntr
     recommendation,
   };
 }
+
+/**
+ * 検出バージョンおよび該当する全アドバイザリから、最適な推奨修正バージョンを解決する
+ * 
+ * 1. fixedVersion が "7.4.31 / 8.0.24 / 8.1.11" のような複数ブランチ表記の場合、
+ *    検出バージョンと同一系統 (メジャー・マイナー) の修正版を優先抽出します。
+ * 2. 複数のアドバイザリが存在する場合 (例: Apache 2.4.49 に対して 2.4.50, 2.4.51, 2.4.52)、
+ *    全てを解消できる最も高い修正版を選択します。
+ * 
+ * @param detectedVersion 検出されたバージョン文字列 (例: "2.4.49", "8.0.10")
+ * @param advisories 該当した脆弱性アドバイザリ配列
+ * @returns 推奨修正バージョン文字列 (例: "8.0.24", "2.4.52")、または null
+ */
+export function resolveRecommendedVersion(
+  detectedVersion: string | null | undefined,
+  advisories: { fixedVersion?: string | null }[]
+): string | null {
+  if (!advisories || advisories.length === 0) return null;
+
+  const detectedParts = parseVersionParts(detectedVersion);
+  const candidateVersions: string[] = [];
+
+  for (const adv of advisories) {
+    if (!adv.fixedVersion) continue;
+
+    // スラッシュ区切りの複数ブランチ修正版を分割
+    const branches = adv.fixedVersion
+      .split('/')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (branches.length === 1) {
+      candidateVersions.push(branches[0]);
+    } else if (branches.length > 1) {
+      if (detectedParts) {
+        // 1. 同一メジャー・マイナー系列の修正版を探す (例: 8.0.10 -> 8.0.24)
+        const matchMinor = branches.find((b) => {
+          const bp = parseVersionParts(b);
+          return bp && bp[0] === detectedParts[0] && bp[1] === detectedParts[1];
+        });
+        if (matchMinor) {
+          candidateVersions.push(matchMinor);
+          continue;
+        }
+
+        // 2. 同一メジャー系列の修正版を探す (例: 8.0.10 -> 8.x)
+        const matchMajor = branches.find((b) => {
+          const bp = parseVersionParts(b);
+          return bp && bp[0] === detectedParts[0];
+        });
+        if (matchMajor) {
+          candidateVersions.push(matchMajor);
+          continue;
+        }
+      }
+      // 該当系列が見つからない場合は、最も新しいブランチの修正版を採用
+      const sortedBranches = [...branches].sort((a, b) => compareVersions(b, a));
+      candidateVersions.push(sortedBranches[0]);
+    }
+  }
+
+  if (candidateVersions.length === 0) return null;
+
+  // 複数のアドバイザリが存在する場合、すべてを解消できる「最も高い修正バージョン」を選択
+  candidateVersions.sort((a, b) => compareVersions(b, a));
+  return candidateVersions[0];
+}
+
+/**
+ * 脆弱性検出に対する推奨文を生成する
+ * 
+ * @param detectedVersion 検出されたバージョン文字列
+ * @param advisories 該当した脆弱性アドバイザリ配列
+ * @param options オプション (isEol, technologyName)
+ * @returns ユーザー向け推奨アクション文面
+ */
+export function formatAdvisoryRecommendation(
+  detectedVersion: string | null | undefined,
+  advisories: { fixedVersion?: string | null }[],
+  options?: { isEol?: boolean; technologyName?: string }
+): string {
+  const isEol = options?.isEol ?? false;
+  const techName = options?.technologyName ?? '';
+  const hasUnpatched = advisories.some((a) => !a.fixedVersion);
+
+  if (hasUnpatched || isEol) {
+    const alt = techName.toLowerCase() === 'angularjs' ? 'Angularなど' : 'サポート対象の後継技術';
+    return `公式の修正版はありません。${alt}への移行、またはサニタイズ/CSPなどの緩和策の適用を検討してください。`;
+  }
+
+  const recommendedVer = resolveRecommendedVersion(detectedVersion, advisories);
+  if (recommendedVer) {
+    return `修正済みバージョン（v${recommendedVer} 以上）への速やかなアップデートを推奨します。`;
+  }
+
+  return '最新のセキュリティ修正済みバージョンへの速やかなアップデートを推奨します。';
+}
+

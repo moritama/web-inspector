@@ -27,12 +27,13 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(result.eolInfo.status).toBe('EOL');
   });
 
-  it('サポート終了済みのPHP 7.4.33 に対してEOLおよび脆弱性が照合され Matched となること', () => {
-    const result = matchOfflineAdvisories('PHP', '7.4.33');
+  it('サポート終了済みの古いPHP 7.4.30 に対してEOLおよび脆弱性が照合され Matched となること', () => {
+    const result = matchOfflineAdvisories('PHP', '7.4.30');
 
     expect(result.offlineMatchStatus).toBe('Matched');
     expect(result.eolInfo.status).toBe('EOL');
     expect(result.matchStatus).toBe('Potentially Affected');
+    expect(result.advisories.some((a) => a.id === 'CVE-2022-31628')).toBe(true);
   });
 
   // D12: No Match テスト

@@ -117,4 +117,40 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
       }
     }
   });
+
+  it('package.json, manifest.json, 各HTML, READMEのバージョン表記が完全に一致していること', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
+    const version = pkg.version;
+
+    // 1. manifest.json との完全一致
+    expect(manifest.version).toBe(version);
+
+    // 2. HTMLファイルのバージョンバッジ表示一致
+    const htmlFiles = [
+      path.join(rootDir, 'popup.html'),
+      path.join(rootDir, 'dashboard.html'),
+      path.join(rootDir, 'src', 'popup', 'popup.html'),
+      path.join(rootDir, 'src', 'dashboard', 'dashboard.html'),
+    ];
+
+    for (const htmlPath of htmlFiles) {
+      if (fs.existsSync(htmlPath)) {
+        const content = fs.readFileSync(htmlPath, 'utf-8');
+        expect(
+          content.includes(`v${version}`),
+          `${htmlPath} にバージョン "v${version}" が含まれていません`
+        ).toBe(true);
+      }
+    }
+
+    // 3. README.md のバッジ一致
+    const readmeContent = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf-8');
+    expect(
+      readmeContent.includes(`version-${version}-blue.svg`),
+      `README.md にバージョンバッジ "version-${version}-blue.svg" が含まれていません`
+    ).toBe(true);
+  });
 });
+

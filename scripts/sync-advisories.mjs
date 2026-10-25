@@ -95,11 +95,11 @@ const BASE_LIBRARIES = {
     aliases: ['bootstrap', 'twitter-bootstrap'],
     versions: [
       {
-        range: '>= 4.0.0, < 4.3.1',
+        range: '< 3.4.1 || >= 4.0.0, < 4.3.1',
         cve: 'CVE-2019-8331',
         cvssScore: 6.1,
         title: 'XSS in Bootstrap Tooltip and Popover data-template',
-        fixedVersion: '4.3.1',
+        fixedVersion: '3.4.1 / 4.3.1',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2019-8331',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE
@@ -269,24 +269,24 @@ const BASE_LIBRARIES = {
     aliases: ['php'],
     versions: [
       {
-        range: '< 8.1.29',
+        range: '>= 8.1.0, < 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8',
         cve: 'CVE-2024-4577',
         cvssScore: 9.8,
         title: 'PHP CGI Argument Injection vulnerability leading to RCE',
         summary: '該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合)。Best-fit mapping bypass allows arbitrary command-line arguments.',
-        fixedVersion: '8.1.29',
+        fixedVersion: '8.1.29 / 8.2.20 / 8.3.8',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2024-4577',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE,
         notes: 'CISA KEV 登録 (2024-06-12)'
       },
       {
-        range: '< 7.4.31',
+        range: '< 7.4.31 || >= 8.0.0, < 8.0.24 || >= 8.1.0, < 8.1.11',
         cve: 'CVE-2022-31628',
         cvssScore: 5.5,
         title: 'Infinite Loop in phar extension via gzip quine (DoS)',
         summary: 'Uncontrolled recursion in phar gzip uncompressor causes an infinite loop and DoS when handling quine archives.',
-        fixedVersion: '7.4.31',
+        fixedVersion: '7.4.31 / 8.0.24 / 8.1.11',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2022-31628',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE
@@ -436,12 +436,12 @@ const BASE_LIBRARIES = {
         scoreSource: DEFAULT_SOURCE
       },
       {
-        range: '< 18.14.1',
+        range: '>= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1',
         cve: 'CVE-2023-23918',
         cvssScore: 7.5,
         title: 'Permissions-Policy bypass via process.mainModule.require()',
         summary: '該当の可能性あり (条件: --experimental-policy 有効時)。Policy bypass allowing unauthorized module loading.',
-        fixedVersion: '18.14.1',
+        fixedVersion: '14.21.3 / 16.19.1 / 18.14.1 / 19.6.1',
         advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2023-23918',
         verifiedAt: VERIFIED_DATE,
         scoreSource: DEFAULT_SOURCE

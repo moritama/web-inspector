@@ -242,7 +242,22 @@ async function runSmokeTest() {
       throw new Error(`JSON ダウンロードファイルが不正です: ${jsonFilename}, size=${jsonStat.size}`);
     }
 
+    // スクリーンショット保存（目視確認用）
+    if (!fs.existsSync(path.join(ROOT_DIR, '.tmp'))) {
+      fs.mkdirSync(path.join(ROOT_DIR, '.tmp'), { recursive: true });
+    }
+    await dashPage.screenshot({ path: path.join(ROOT_DIR, '.tmp', 'dashboard-e2e.png') });
+    console.log(`  ✓ ダッシュボード画面キャプチャ保存: .tmp/dashboard-e2e.png`);
+
     await dashPage.close();
+
+    // ポップアップ画面の表示とキャプチャ
+    const popupPage = await context.newPage();
+    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'networkidle' });
+    await popupPage.waitForTimeout(500);
+    await popupPage.screenshot({ path: path.join(ROOT_DIR, '.tmp', 'popup-e2e.png') });
+    console.log(`  ✓ ポップアップ画面キャプチャ保存: .tmp/popup-e2e.png`);
+    await popupPage.close();
 
     // -------------------------------------------------------------
     // 検証 6: 一般外部サイト (GitHub.com, optional)

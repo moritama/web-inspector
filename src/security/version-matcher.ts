@@ -115,27 +115,38 @@ export function satisfiesSingleClause(version: string, clause: string): boolean 
 }
 
 /**
- * バージョンが複合条件（例: ">= 4.0.0, < 4.3.1" または ">= 3.0.0 < 3.5.0"）を満たすか判定する
- *
- * @param version 検査するバージョン (例: "4.3.0")
- * @param rangeSpec バージョン範囲指定 (例: ">= 4.0.0, < 4.3.1")
+ * バージョンが指定された範囲条件を満たすか判定する
+ * 
+ * - カンマ区切りの場合はAND条件（例: ">= 4.0.0, < 4.3.1"）
+ * - "||" 区切りの場合はOR条件（例: "< 7.4.31 || >= 8.0.0, < 8.0.24 || >= 8.1.0, < 8.1.11"）
+ * 
+ * @param version 検査するバージョン (例: "8.0.23")
+ * @param rangeSpec バージョン範囲指定 (例: "< 7.4.31 || >= 8.0.0, < 8.0.24")
  * @returns 範囲内であれば true
  */
 export function satisfiesVersionRange(version: string | null | undefined, rangeSpec: string): boolean {
   if (!version) return false;
   if (!rangeSpec || rangeSpec.trim() === '*' || rangeSpec.trim() === 'all') return true;
 
-  // カンマまたはスペース区切りの各句をAND条件として判定
-  const clauses = rangeSpec
-    .split(',')
-    .map((c) => c.trim())
-    .filter((c) => c.length > 0);
+  // 1. "||" によるOR条件の分割
+  const orBranches = rangeSpec
+    .split('||')
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0);
 
-  for (const clause of clauses) {
-    if (!satisfiesSingleClause(version, clause)) {
-      return false;
+  // いずれかのブランチ条件を満たせば該当
+  for (const branch of orBranches) {
+    // 2. カンマ区切りの各句をAND条件として判定
+    const clauses = branch
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+
+    const branchMatches = clauses.every((clause) => satisfiesSingleClause(version, clause));
+    if (branchMatches) {
+      return true;
     }
   }
 
-  return true;
+  return false;
 }

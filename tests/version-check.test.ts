@@ -25,6 +25,18 @@ describe('Version Matcher Utility', () => {
     expect(satisfiesVersionRange('3.4.1', '< 3.5.0')).toBe(true);
     expect(satisfiesVersionRange('3.6.0', '< 3.5.0')).toBe(false);
   });
+
+  it('satisfiesVersionRange が "||" による複数ブランチ（OR条件）を正しく判定すること', () => {
+    // PHP CVE-2022-31628: 7.4.31 未満、8.0.0〜8.0.23、8.1.0〜8.1.10
+    const php2022Range = '< 7.4.31 || >= 8.0.0, < 8.0.24 || >= 8.1.0, < 8.1.11';
+    expect(satisfiesVersionRange('7.4.30', php2022Range)).toBe(true);
+    expect(satisfiesVersionRange('7.4.31', php2022Range)).toBe(false);
+    expect(satisfiesVersionRange('8.0.23', php2022Range)).toBe(true);
+    expect(satisfiesVersionRange('8.0.24', php2022Range)).toBe(false);
+    expect(satisfiesVersionRange('8.1.10', php2022Range)).toBe(true);
+    expect(satisfiesVersionRange('8.1.11', php2022Range)).toBe(false);
+    expect(satisfiesVersionRange('8.2.0', php2022Range)).toBe(false);
+  });
 });
 
 describe('T01 - T05: JavaScript & CSS バージョン検出と整合性確認', () => {

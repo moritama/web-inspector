@@ -108,9 +108,32 @@ flowchart LR
 - **コード修正不要**: `advisories:sync` が実行日の日付（例: `20261024`）をメタデータとして自動埋め込むため、画面表示やレポート（Markdown / CSV）の日付を変更するためのソースコード修正は一切不要です。
 - **鮮度警告の自動判定**: DBの `generatedAt` から経過日数が動的に計算され、31日を超過すると `⚠️ DB鮮度: 31日以上経過` バッジが自動点灯します。
 
+### 2.2 脆弱性スコア・重大度 採用ポリシー
+
+本拡張機能では、客観的かつ機械的なセキュリティ診断を行うため、以下のスコア採用基準と重大度導出ルールを定めています。手書きによる恣意的な重大度の設定は禁止されています。
+
+#### ① スコア採用の優先順位
+1. **第一優先 (Primary)**: NIST NVD (`nvd@nist.gov`) の公式評価「Type: Primary」の CVSS v3.1 ベーススコアを採用する。
+2. **第二優先 (Secondary)**: NVD の Primary 評価が存在しない場合は、CISA-ADP（Cybersecurity and Infrastructure Security Agency Automated Data Processing）または CNA（CVE Numbering Authority）の評価を採用する（評価主体ラベルは「CISA-ADP」と明記する）。
+3. **第三優先 (Fallback)**: NVD に CVSS v3.x が登録されていない場合は、GitHub Advisory Database (GHSA) の公式スコアを採用する。
+※ CVSS v3.1 と v4.0 が併記されている場合は、エコシステムの互換性維持のため **CVSS v3.1 を優先** します。
+
+#### ② 重大度 (Severity) の機械的導出ルール
+重大度はスコア値から以下の閾値に基づき機械的に導出します：
+- **`CRITICAL`**: CVSS スコア 9.0 〜 10.0
+- **`HIGH`**: CVSS スコア 7.0 〜 8.9
+- **`MEDIUM`**: CVSS スコア 4.0 〜 6.9
+- **`LOW`**: CVSS スコア 0.1 〜 3.9
+
+#### ③ 評価乖離時の透明性
+Primary 評価と Secondary（CISA-ADP 等）評価の間で重大度レベルに乖離がある場合（例: Primary 9.8 Critical に対し Secondary 7.5 High など）、Primary のスコアを採用した上で、`scoreSource: "nvd@nist.gov (Primary)"` と記録し、要約・注記欄に `CISA-ADP評価: X.X (重大度)` を併記します。
+
+#### ④ 適用条件のある脆弱性の扱い
+特定環境・特定モジュール（例: Windows上のPHP-CGI、Apacheのmod_lua、Node.jsの実験的パーミッションモデルなど）が有効化されている場合のみ成立する脆弱性は、バージョン単体で断定せず、データ側の文面（要約・根拠）に `該当の可能性あり (条件: ○○)` を必ず明記します。
+
 ---
 
-### 2.2 脆弱性DBの更新手順（ステップ・バイ・ステップ）
+### 2.3 脆弱性DBの更新手順（ステップ・バイ・ステップ）
 
 #### ステップ 1: 最新アドバイザリの同期
 ターミナルで以下のコマンドを実行します。

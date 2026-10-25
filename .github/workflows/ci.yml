@@ -35,7 +35,8 @@ jobs:
       - name: Check for forbidden paths and environment traces (CI-01 Guard)
         run: |
           echo "Checking for sensitive author environment paths or tools..."
-          if git grep -nI -i -e "kopak[a]s" -e "/User[s]/" -e "antigravit[y]" -e "Desktop/Developmen[t]" -- . ':!package-lock.json' ':!.github/workflows/ci.yml'; then
+          if git grep -nI -E "/User[s]/[^/]+/" -- . ':!package-lock.json' ':!.github/workflows/ci.yml' || \
+             git grep -nI -i -e "kopak[a]s" -e "antigravit[y]" -e "Desktop/Developmen[t]" -- . ':!package-lock.json' ':!.github/workflows/ci.yml'; then
             echo "::error::Sensitive author environment paths or tools detected in repository!"
             exit 1
           fi

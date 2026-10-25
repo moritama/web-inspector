@@ -26,10 +26,13 @@ interface LibraryVersionAdvisory {
   range: string;
   cve: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
+  cvssScore?: number;
   title: string;
   fixedVersion?: string | null;
   summary?: string;
   advisoryUrl?: string;
+  verifiedAt?: string;
+  scoreSource?: string;
 }
 
 interface LibraryEolEntry {
@@ -52,6 +55,7 @@ export interface AdvisoryDatabase {
   sources?: string[];
   coverage?: {
     technologies: string[];
+    totalAdvisories?: number;
   };
   advisoryCount?: number;
   productCount?: number;
@@ -80,20 +84,28 @@ export interface OfflineAdvisoryResult {
  * DBスナップショットのメタデータを取得する (Rev.2.1 IMP-06 / 5.4)
  */
 export function getAdvisoryDbMetadata(): AdvisoryDbMetadata {
+  const libs = advisoryDb.libraries || {};
+  const computedCount = Object.values(libs).reduce(
+    (acc, lib) => acc + (Array.isArray(lib.versions) ? lib.versions.length : 0),
+    0
+  );
+
   return {
     schemaVersion: advisoryDb.schemaVersion || '2.1',
     dataVersion: advisoryDb.dataVersion || advisoryDb.version || 'unknown',
     generatedAt: advisoryDb.generatedAt || new Date().toISOString(),
     sources: advisoryDb.sources || [
+      'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
+      'GitHub Advisory Database (GHSA)',
       'endoflife.date API',
-      'NVD / NIST CVE Catalog',
-      'GitHub Security Advisories',
+      'CISA KEV Catalog',
     ],
     coverage: advisoryDb.coverage || {
-      technologies: Object.keys(advisoryDb.libraries || {}),
+      technologies: Object.keys(libs),
+      totalAdvisories: computedCount,
     },
-    advisoryCount: advisoryDb.advisoryCount || 0,
-    productCount: advisoryDb.productCount || Object.keys(advisoryDb.libraries || {}).length,
+    advisoryCount: advisoryDb.coverage?.totalAdvisories ?? computedCount,
+    productCount: Object.keys(libs).length,
     syncStatus: advisoryDb.syncStatus || 'success',
   };
 }
@@ -243,16 +255,18 @@ export function matchOfflineAdvisories(
         else if (sevUpper === 'MEDIUM') defaultCvss = 6.0;
         else if (sevUpper === 'LOW') defaultCvss = 3.5;
 
+        const actualCvss = typeof adv.cvssScore === 'number' ? adv.cvssScore : defaultCvss;
+
         matchedAdvisories.push({
           id: adv.cve,
           title: adv.title,
           severity: sevUpper,
-          cvssScore: defaultCvss,
+          cvssScore: actualCvss,
           affectedRange: adv.range,
           fixedVersion: adv.fixedVersion || null,
           summary: adv.summary || adv.title,
           referenceUrls: adv.advisoryUrl
-            ? [adv.advisoryUrl, `https://nvd.nist.gov/vuln/detail/${adv.cve}`]
+            ? Array.from(new Set([adv.advisoryUrl, `https://nvd.nist.gov/vuln/detail/${adv.cve}`]))
             : [`https://nvd.nist.gov/vuln/detail/${adv.cve}`],
         });
       }

@@ -4,6 +4,10 @@
  * 
  * ビルド時に実行され、主要ライブラリ・ソフトウェアのEOL・既知脆弱性カタログを
  * ミニファイされたスナップショットJSON (src/detection/advisory-db.json) として生成します。
+ * 
+ * 【重要ポリシー (DB-01 / docs/MAINTENANCE_GUIDE.md 準拠)】
+ * - 重大度 (severity) は手書きせず、CVSSスコア (cvssScore) から機械的に導出します。
+ * - 全エントリに advisoryUrl, verifiedAt, scoreSource, cvssScore を必須とします。
  */
 
 import fs from 'node:fs';
@@ -15,6 +19,24 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const OUTPUT_FILE = path.join(ROOT_DIR, 'src', 'detection', 'advisory-db.json');
 
+/**
+ * CVSS v3.1 ベーススコアから重大度を機械的に導出する
+ * @param {number} score 
+ * @returns {'critical' | 'high' | 'medium' | 'low'}
+ */
+export function deriveSeverity(score) {
+  if (typeof score !== 'number' || isNaN(score) || score < 0 || score > 10) {
+    throw new Error(`無効なCVSSスコアです: ${score}`);
+  }
+  if (score >= 9.0) return 'critical';
+  if (score >= 7.0) return 'high';
+  if (score >= 4.0) return 'medium';
+  return 'low';
+}
+
+const VERIFIED_DATE = '2026-10-25';
+const DEFAULT_SOURCE = 'nvd@nist.gov (Primary)';
+
 // 主要ライブラリ・サーバー・言語のベース脆弱性カタログ (ビルド時スナップショット)
 const BASE_LIBRARIES = {
   jquery: {
@@ -23,30 +45,43 @@ const BASE_LIBRARIES = {
       {
         range: '< 3.5.0',
         cve: 'CVE-2020-11022',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'Regex in jQuery.htmlPrefilter can result in XSS',
-        fixedVersion: '3.5.0'
+        fixedVersion: '3.5.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-11022',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 3.5.0',
         cve: 'CVE-2020-11023',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'XSS in jQuery.htmlPrefilter even with sanitizers',
-        fixedVersion: '3.5.0'
+        fixedVersion: '3.5.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-11023',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2025-01-23)'
       },
       {
         range: '< 3.4.0',
         cve: 'CVE-2019-11358',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'jQuery prototype pollution via $.extend',
-        fixedVersion: '3.4.0'
+        fixedVersion: '3.4.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2019-11358',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 3.0.0',
         cve: 'CVE-2015-9251',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'XSS via cross-domain ajax requests with dataType script',
-        fixedVersion: '3.0.0'
+        fixedVersion: '3.0.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2015-9251',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -62,23 +97,32 @@ const BASE_LIBRARIES = {
       {
         range: '>= 4.0.0, < 4.3.1',
         cve: 'CVE-2019-8331',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'XSS in Bootstrap Tooltip and Popover data-template',
-        fixedVersion: '4.3.1'
+        fixedVersion: '4.3.1',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2019-8331',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 4.1.2',
         cve: 'CVE-2018-14041',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'XSS in Bootstrap Collapse plugin data-parent attribute',
-        fixedVersion: '4.1.2'
+        fixedVersion: '4.1.2',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2018-14041',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 3.4.0',
         cve: 'CVE-2016-10735',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'XSS in data-target attribute for Bootstrap 3',
-        fixedVersion: '3.4.0'
+        fixedVersion: '3.4.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2016-10735',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -93,9 +137,12 @@ const BASE_LIBRARIES = {
       {
         range: '< 16.0.0',
         cve: 'CVE-2018-6341',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'Potential XSS when generating attributes in React SSR',
-        fixedVersion: '16.0.0'
+        fixedVersion: '16.0.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2018-6341',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -111,9 +158,12 @@ const BASE_LIBRARIES = {
       {
         range: '< 2.6.10',
         cve: 'CVE-2020-13426',
-        severity: 'low',
-        title: 'Potential ReDoS in vue template compiler',
-        fixedVersion: '2.6.10'
+        cvssScore: 6.5,
+        title: 'ReDoS in vue-template-compiler',
+        fixedVersion: '2.6.10',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-13426',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -132,27 +182,30 @@ const BASE_LIBRARIES = {
       { cycle: '18.x+', eolDate: null, status: 'Supported' }
     ]
   },
-  // 手動管理エントリ (最終取得確認日: 2026-10-24, 出典: GitHub Advisory Database GHSA-mhp6-pxh8-r675, GHSA-prc3-vjfx-vhm9 / OSV npm/angular)
   angularjs: {
     aliases: ['angularjs', 'angular.js'],
     versions: [
       {
         range: '< 1.8.0',
         cve: 'CVE-2020-7676',
-        severity: 'medium',
+        cvssScore: 5.4,
         title: 'Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite',
         summary: 'AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in <select>/<option>), allowing sanitizer bypass and XSS.',
         fixedVersion: '1.8.0',
-        advisoryUrl: 'https://github.com/advisories/GHSA-mhp6-pxh8-r675'
+        advisoryUrl: 'https://github.com/advisories/GHSA-mhp6-pxh8-r675',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: 'GitHub Advisory Database (GHSA)'
       },
       {
         range: '<= 1.8.3',
         cve: 'CVE-2022-25869',
-        severity: 'medium',
+        cvssScore: 6.1,
         title: 'Cross-site Scripting (XSS) in AngularJS via page cache and textarea interpolation',
         summary: 'XSS in AngularJS due to improper page caching and <textarea> interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.',
         fixedVersion: null,
-        advisoryUrl: 'https://github.com/advisories/GHSA-prc3-vjfx-vhm9'
+        advisoryUrl: 'https://github.com/advisories/GHSA-prc3-vjfx-vhm9',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: 'GitHub Advisory Database (GHSA)'
       }
     ],
     eol: [
@@ -165,16 +218,24 @@ const BASE_LIBRARIES = {
       {
         range: '< 4.17.21',
         cve: 'CVE-2021-23337',
-        severity: 'high',
-        title: 'Prototype Pollution in lodash.template',
-        fixedVersion: '4.17.21'
+        cvssScore: 7.2,
+        title: 'Command Injection in lodash.template via variable option',
+        summary: 'Command injection in lodash.template when passing unsanitized variable options into the template compiler.',
+        fixedVersion: '4.17.21',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-23337',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 4.17.19',
         cve: 'CVE-2020-8203',
-        severity: 'high',
+        cvssScore: 7.4,
         title: 'Prototype Pollution in lodash.zipObjectDeep',
-        fixedVersion: '4.17.19'
+        summary: 'Prototype pollution in lodash.zipObjectDeep via Object.prototype manipulation.',
+        fixedVersion: '4.17.19',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2020-8203',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -186,19 +247,17 @@ const BASE_LIBRARIES = {
     aliases: ['wordpress'],
     versions: [
       {
-        range: '< 6.2.2',
-        cve: 'CVE-2023-32243',
-        severity: 'critical',
-        title: 'WordPress Shortcode API Directory Traversal / RCE',
-        fixedVersion: '6.2.2'
-      },
-      {
         range: '< 5.8.3',
         cve: 'CVE-2022-21661',
-        severity: 'high',
+        cvssScore: 7.5,
         title: 'SQL Injection in WP_Query',
-        fixedVersion: '5.8.3'
+        summary: 'Improper input sanitization in WP_Query meta queries allows potential SQL injection via unsafe plugin/theme inputs.',
+        fixedVersion: '5.8.3',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2022-21661',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
+      // ※ CVE-2023-32243 は本体ではなくプラグイン (Essential Addons for Elementor) の脆弱性のため除外
     ],
     eol: [
       { cycle: '4.x', eolDate: '2022-12-01', status: 'EOL' },
@@ -212,16 +271,25 @@ const BASE_LIBRARIES = {
       {
         range: '< 8.1.29',
         cve: 'CVE-2024-4577',
-        severity: 'critical',
+        cvssScore: 9.8,
         title: 'PHP CGI Argument Injection vulnerability leading to RCE',
-        fixedVersion: '8.1.29'
+        summary: '該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合)。Best-fit mapping bypass allows arbitrary command-line arguments.',
+        fixedVersion: '8.1.29',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2024-4577',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2024-06-12)'
       },
       {
-        range: '< 7.4.33',
+        range: '< 7.4.31',
         cve: 'CVE-2022-31628',
-        severity: 'high',
-        title: 'Phar deserialization vulnerability',
-        fixedVersion: '7.4.33'
+        cvssScore: 5.5,
+        title: 'Infinite Loop in phar extension via gzip quine (DoS)',
+        summary: 'Uncontrolled recursion in phar gzip uncompressor causes an infinite loop and DoS when handling quine archives.',
+        fixedVersion: '7.4.31',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2022-31628',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -243,16 +311,25 @@ const BASE_LIBRARIES = {
       {
         range: '< 1.25.0',
         cve: 'CVE-2023-44487',
-        severity: 'high',
+        cvssScore: 7.5,
         title: 'HTTP/2 Rapid Reset Denial of Service Vulnerability',
-        fixedVersion: '1.25.3'
+        summary: 'Stream reset abuse in HTTP/2 allows distributed denial-of-service (DDoS).',
+        fixedVersion: '1.25.3',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2023-44487',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2023-10-10)'
       },
       {
         range: '< 1.21.0',
         cve: 'CVE-2021-23017',
-        severity: 'high',
+        cvssScore: 7.7,
         title: '1-byte memory overwrite in resolver',
-        fixedVersion: '1.21.0'
+        summary: '1-byte memory overwrite in DNS resolver when processing malformed responses.',
+        fixedVersion: '1.21.0',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-23017',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
     ],
     eol: [
@@ -269,23 +346,37 @@ const BASE_LIBRARIES = {
       {
         range: '< 2.4.52',
         cve: 'CVE-2021-44790',
-        severity: 'critical',
+        cvssScore: 9.8,
         title: 'Buffer overflow in mod_lua multipart parser',
-        fixedVersion: '2.4.52'
+        summary: '該当の可能性あり (条件: mod_lua モジュールが有効化されている場合)。Heap buffer overflow in r:parsebody() in mod_lua.',
+        fixedVersion: '2.4.52',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-44790',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '= 2.4.49',
         cve: 'CVE-2021-41773',
-        severity: 'critical',
+        cvssScore: 9.8,
         title: 'Path Traversal and File Disclosure in Apache HTTP Server 2.4.49',
-        fixedVersion: '2.4.50'
+        summary: 'Path normalization flaw allows unauthenticated remote attackers to map URLs to files outside the document root. CGI有効時にRCEに至る。',
+        fixedVersion: '2.4.50',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-41773',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA-ADP評価: 7.5 (High, 単体ファイル開示)。CISA KEV 登録 (2021-11-03)'
       },
       {
         range: '= 2.4.50',
         cve: 'CVE-2021-42013',
-        severity: 'critical',
+        cvssScore: 9.8,
         title: 'Path Traversal and RCE in Apache HTTP Server 2.4.50',
-        fixedVersion: '2.4.51'
+        summary: 'Incomplete fix for CVE-2021-41773 allows path traversal and RCE when CGI scripts are mapped.',
+        fixedVersion: '2.4.51',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-42013',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2021-11-03)'
       }
     ],
     eol: [
@@ -299,16 +390,26 @@ const BASE_LIBRARIES = {
       {
         range: '< 8.4.3',
         cve: 'CVE-2021-3129',
-        severity: 'critical',
+        cvssScore: 9.8,
         title: 'Ignition RCE vulnerability in Laravel',
-        fixedVersion: '8.4.3'
+        summary: 'Unauthenticated RCE in facade/ignition before 2.5.2 when debug mode is enabled.',
+        fixedVersion: '8.4.3',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2021-3129',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2023-09-18)'
       },
       {
         range: '< 5.6.30',
         cve: 'CVE-2018-15133',
-        severity: 'high',
+        cvssScore: 8.1,
         title: 'Deserialization of untrusted data in Laravel Application Key',
-        fixedVersion: '5.6.30'
+        summary: 'RCE via deserialization of untrusted data if APP_KEY is leaked.',
+        fixedVersion: '5.6.30',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2018-15133',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE,
+        notes: 'CISA KEV 登録 (2024-01-16)'
       }
     ],
     eol: [
@@ -324,26 +425,28 @@ const BASE_LIBRARIES = {
     aliases: ['node', 'nodejs', 'node.js'],
     versions: [
       {
-        range: '< 18.19.0',
+        range: '>= 20.0.0, < 20.8.1',
         cve: 'CVE-2023-39332',
-        severity: 'high',
-        title: 'Node.js HTTP request smuggling vulnerability',
-        fixedVersion: '18.19.0'
+        cvssScore: 9.8,
+        title: 'Path Traversal via Uint8Array in node:fs',
+        summary: '該当の可能性あり (条件: --experimental-permission 有効時)。Path traversal in node:fs functions when passing non-Buffer Uint8Array objects.',
+        fixedVersion: '20.8.1',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2023-39332',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       },
       {
         range: '< 18.14.1',
         cve: 'CVE-2023-23918',
-        severity: 'medium',
-        title: 'Node.js Permissions-Policy bypass',
-        fixedVersion: '18.14.1'
-      },
-      {
-        range: '< 18.10.0',
-        cve: 'CVE-2022-35255',
-        severity: 'medium',
-        title: 'Node.js HTTP request smuggling through whitespace in header field',
-        fixedVersion: '18.10.0'
+        cvssScore: 7.5,
+        title: 'Permissions-Policy bypass via process.mainModule.require()',
+        summary: '該当の可能性あり (条件: --experimental-policy 有効時)。Policy bypass allowing unauthorized module loading.',
+        fixedVersion: '18.14.1',
+        advisoryUrl: 'https://nvd.nist.gov/vuln/detail/CVE-2023-23918',
+        verifiedAt: VERIFIED_DATE,
+        scoreSource: DEFAULT_SOURCE
       }
+      // ※ CVE-2022-35255 は不正確な記述の排除のため削除
     ],
     eol: [
       { cycle: '14.x', eolDate: '2023-04-30', status: 'EOL' },
@@ -358,118 +461,91 @@ const BASE_LIBRARIES = {
 /**
  * endoflife.date APIから最新のEOL情報を取得する（失敗時はローカルフォールバック）
  */
-async function fetchOnlineEolData(product) {
+async function fetchEolData(product) {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000); // 3秒タイムアウト
-    const res = await fetch(`https://endoflife.date/api/${product}.json`, {
-      signal: controller.signal,
-      headers: { 'Accept': 'application/json', 'User-Agent': 'Web-Inspector-Builder' }
-    });
-    clearTimeout(timeout);
-
+    const url = `https://endoflife.date/api/${encodeURIComponent(product)}.json`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) return null;
-    const data = await res.json();
-    if (!Array.isArray(data)) return null;
-
-    const today = new Date().toISOString().slice(0, 10);
-    return data.map((item) => {
-      const eolVal = typeof item.eol === 'string' ? item.eol : (item.eol === true ? 'EOL' : null);
-      let status = 'Supported';
-      if (item.eol === true || (typeof item.eol === 'string' && item.eol <= today)) {
-        status = 'EOL';
-      } else if (item.support && typeof item.support === 'string' && item.support <= today) {
-        status = 'Maintenance';
-      }
-
-      return {
-        cycle: String(item.cycle),
-        eolDate: typeof item.eol === 'string' ? item.eol : (status === 'EOL' ? 'Past' : null),
-        status
-      };
-    });
-  } catch {
+    const cycles = await res.json();
+    return cycles.map(c => ({
+      cycle: c.cycle,
+      eolDate: typeof c.eol === 'string' ? c.eol : (c.eol === true ? 'EOL' : null),
+      status: (c.eol === true || (typeof c.eol === 'string' && new Date(c.eol) <= new Date())) ? 'EOL' : 'Supported'
+    }));
+  } catch (err) {
     return null;
   }
 }
 
-async function main() {
+async function syncAdvisories() {
   console.log('[sync-advisories] オフライン脆弱性・EOLスナップショットDB (Rev.2.1) を生成中...');
-
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const dataVersion = `${yyyy}${mm}${dd}`;
-
-  const libraries = {};
-  let totalAdvisories = 0;
-  let hasPartialError = false;
-
-  for (const [key, lib] of Object.entries(BASE_LIBRARIES)) {
-    let eolList = lib.eol;
-
-    try {
-      // 外部APIからの動的補完（PHP, Nginx等で可能な場合。angularjs等は静的定義を使用）
-      if (key !== 'angularjs') {
-        const onlineEol = await fetchOnlineEolData(key);
-        if (onlineEol && onlineEol.length > 0) {
-          eolList = onlineEol;
-        }
-      }
-    } catch (err) {
-      console.warn(`[sync-advisories] ${key} のオンラインEOL取得に失敗しました (ローカルデータを使用):`, err);
-      hasPartialError = true;
-    }
-
-    libraries[key] = {
-      aliases: lib.aliases,
-      versions: lib.versions,
-      eol: eolList
-    };
-    totalAdvisories += (lib.versions || []).length;
-  }
-
-  // Rev.2.1 メタデータ仕様に準拠
+  
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  
   const db = {
     schemaVersion: '2.1',
-    version: `${yyyy}.${mm}`, // 後方互換性用
-    dataVersion,
-    generatedAt: today.toISOString(),
+    version: '2026.10',
+    dataVersion: dateStr,
+    generatedAt: now.toISOString(),
     sources: [
+      'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
+      'GitHub Advisory Database (GHSA)',
       'endoflife.date API',
-      'NVD / NIST CVE Catalog',
-      'GitHub Security Advisories'
+      'CISA KEV Catalog'
     ],
     coverage: {
+      totalAdvisories: 0,
       technologies: Object.keys(BASE_LIBRARIES)
     },
-    advisoryCount: totalAdvisories,
-    productCount: Object.keys(BASE_LIBRARIES).length,
-    syncStatus: hasPartialError ? 'partial' : 'success',
-    libraries
+    libraries: {}
   };
 
-  // ディレクトリ作成確認
-  const outDir = path.dirname(OUTPUT_FILE);
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: true });
+  let totalAdvisories = 0;
+
+  for (const [key, lib] of Object.entries(BASE_LIBRARIES)) {
+    let eol = lib.eol;
+    if (key !== 'angularjs') {
+      try {
+        const liveEol = await fetchEolData(key);
+        if (liveEol && liveEol.length > 0) {
+          eol = liveEol;
+        }
+      } catch {
+        // フォールバック
+      }
+    }
+
+    // 重大度をスコアから機械的導出
+    const derivedVersions = lib.versions.map(v => {
+      const severity = deriveSeverity(v.cvssScore);
+      return {
+        ...v,
+        severity
+      };
+    });
+
+    db.libraries[key] = {
+      aliases: lib.aliases,
+      versions: derivedVersions,
+      eol
+    };
+
+    totalAdvisories += derivedVersions.length;
   }
 
-  // 一時ファイルへのアトミック書き出し（失敗時に既存DBを保護）
-  const tempFile = `${OUTPUT_FILE}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), 'utf-8');
-  fs.renameSync(tempFile, OUTPUT_FILE);
+  db.coverage.totalAdvisories = totalAdvisories;
+  db.syncStatus = 'success';
 
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(db, null, 2), 'utf-8');
   console.log(`[sync-advisories] 正常に生成完了: ${OUTPUT_FILE}`);
   console.log(`  - schemaVersion: ${db.schemaVersion}`);
   console.log(`  - dataVersion: ${db.dataVersion}`);
-  console.log(`  - 登録製品数: ${db.productCount}, 登録脆弱性数: ${db.advisoryCount}`);
+  console.log(`  - 登録製品数: ${Object.keys(db.libraries).length}, 登録脆弱性数: ${totalAdvisories}`);
   console.log(`  - 同期ステータス: ${db.syncStatus}`);
 }
 
-main().catch((err) => {
-  console.error('[sync-advisories] 生成エラー (既存のDBは保持されます):', err);
+syncAdvisories().catch(err => {
+  console.error('[sync-advisories] エラー:', err);
   process.exit(1);
 });
-

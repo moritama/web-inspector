@@ -74,7 +74,7 @@ async function getNvdData(cveId, snapshotData) {
   if (isOnline) {
     console.log(`[verify-nvd] オンライン取得中: ${cveId}...`);
     const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(cveId)}`;
-    const headers = { 'User-Agent': 'Web-Inspector-Verifier/1.6.4' };
+    const headers = { 'User-Agent': 'Web-Inspector-Verifier/1.6.5' };
     if (process.env.NVD_API_KEY) {
       headers['apiKey'] = process.env.NVD_API_KEY;
     }

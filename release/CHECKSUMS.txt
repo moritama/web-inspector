@@ -6,7 +6,7 @@ df4955fcd394fbb8ef8f74e14cc33f0907a02dbaf5366de9aec67b7d94781e5d  web-inspector-
 df21a12239f69589f47bed5263e39e01250488d94e16a6935a1ecb34a741321a  web-inspector-v1.2.0.zip  ストア未提出 (※複数コミットでzip更新履歴あり, コミット済zipと配布zipが一致しない可能性あり)
 75e5458775499feca6f95c5b387ce02adbf1071f4403fc18a6c4df8310b19b9a  web-inspector-v1.3.1.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 9e3c0d4)
 81255175e32fdb3be8d26df2290e794c15dd015cb9382da2fddde994a8216efc  web-inspector-v1.3.2.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 9a75355)
-f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-v1.3.3.zip  ★ Chrome Web Store 公開中 (2026-10 承認済み, Tag: v1.3.3-published, Commit: 1444aca)
+f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-v1.3.3.zip  旧公開版(1.6.4 に置き換え) (2026-10 承認済み, Tag: v1.3.3-published, Commit: 1444aca)
 582edc3b0001e1183af499ff1acf8e8352a7b19b79c92f767abdc2eb67f2cfa2  web-inspector-v1.3.4.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 74109bf)
 64e3f30b1d687fbf50bc01cb937e6b63dcf1ed4c3415d1ff78ea3fc0dcd73845  web-inspector-v1.4.0.zip  ストア未提出 (リポジトリ内の過去成果物, Commit: 09ea46e)
 6e7c89386307881b3d7937a87e1bbd37e75b76bf72aef2a6dee99993e25d7884  web-inspector-v1.5.0.zip  ストア未提出 (※複数コミットでzip更新履歴あり, コミット済zipと配布zipが一致しない可能性あり)
@@ -14,6 +14,7 @@ f52cfdbc343dd050ac1e70b421f43e22717b76aa14d14b1e4b76cd5acd0d93bd  web-inspector-
 41b534a77d425f1dab5325bfaee1f2b34298eb1841389e16a2e122c3362268e1  web-inspector-v1.6.1.zip  ストア未提出 (※タグ時点のzipとコミット内のzipで内容が異なる, Commit: 43f4a6c)
 441f71cd33f89082acbd322cdff4ce727bf9bf704b672933370bc69afecf2c59  web-inspector-v1.6.2.zip  ストア未提出 (NVD CPE完全照合・複数ブランチ対応版, Tag: v1.6.2, Commit: 5142fa9)
 03131217c60eba03fd7d3c8f4ba19b706a51ef7830b746e5bd961adb4660b2bd  web-inspector-v1.6.3.zip  ストア未提出 (NVD CPE完全検証・複数ブランチ推奨版対応版, Tag: v1.6.3, Commit: cb9f695)
-4bd1e2fe5b683104f9adfe2fddaaaf2a446d8780ade4efd7c1d372547fcc799f  web-inspector-v1.6.4.zip  ★ ストア提出確定版 (WordPress22ブランチ・nginx条件精緻化・NVDスナップショット完全再現・凍結版, Tag: v1.6.4)
+4bd1e2fe5b683104f9adfe2fddaaaf2a446d8780ade4efd7c1d372547fcc799f  web-inspector-v1.6.4.zip  ★ ストア公開中 (WordPress22ブランチ・nginx条件精緻化・NVDスナップショット完全再現・凍結版, Tag: v1.6.4, Commit: 4e002d1)
+9547a7e767c41ad8c27c400e6ba9c670e24ebaaf142589d3f348aa3c14769dcb  web-inspector-v1.6.5.zip  提出準備(ヘッダーキャッシュの許可リスト化) (Tag: v1.6.5)
 
 

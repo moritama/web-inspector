@@ -111,6 +111,28 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ Laravel (Cookie直接, 確信度=${laravelTech.confidence}%) を正常検出`);
 
+    // 3-1 実機E2E: /next-ssr-positive (X-Powered-By: Next.js + x-nextjs-cache: HIT -> Node.js推論)
+    console.log('[e2e-smoke] [3-1] Next.js SSR連動推論 (/next-ssr-positive & /next-static-negative) を検証中...');
+    await page.goto('http://localhost:3000/clear-cookies', { waitUntil: 'networkidle' });
+    const nextSsrReport = await inspectUrl('http://localhost:3000/next-ssr-positive');
+    const ssrNextTech = nextSsrReport.technologies.find((t) => t.technology === 'Next.js');
+    const ssrNodeTech = nextSsrReport.technologies.find((t) => t.technology === 'Node.js');
+    if (!ssrNextTech) {
+      throw new Error(`/next-ssr-positive: Next.js が未検出です (実際: ${JSON.stringify(nextSsrReport.technologies)})`);
+    }
+    if (!ssrNodeTech || ssrNodeTech.detectionMethod !== 'inferred') {
+      throw new Error(`/next-ssr-positive: x-nextjs-cache 経由の Node.js 推論に失敗しました (実際: ${JSON.stringify(ssrNodeTech)})`);
+    }
+    console.log(`  ✓ Next.js SSR (ヘッダー x-nextjs-cache 経由) で Node.js が正常に連動推論されました`);
+
+    // 3-1 実機E2E: /next-static-negative (SSR指標なし -> Node.js推論なし)
+    const nextStaticReport = await inspectUrl('http://localhost:3000/next-static-negative');
+    const staticNodeTech = nextStaticReport.technologies.find((t) => t.technology === 'Node.js');
+    if (staticNodeTech) {
+      throw new Error(`/next-static-negative: SSR指標がないにもかかわらず Node.js が誤推論されました (実際: ${JSON.stringify(staticNodeTech)})`);
+    }
+    console.log(`  ✓ Next.js 静的配信 (SSR指標なし) で Node.js が正しく除外されていることを確認`);
+
     // -------------------------------------------------------------
     // 検証 3: 否定コントロール & エッジケース (/edge-cases, /rails-session, /negative-angular)
     // -------------------------------------------------------------

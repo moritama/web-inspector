@@ -96,11 +96,24 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
-  if (pathname === '/after-token') {
+  // 3-1: /next-ssr-positive (X-Powered-By: Next.js と x-nextjs-cache: HIT -> Node.js が推論される)
+  if (pathname === '/next-ssr-positive') {
+    res.statusCode = 200;
+    res.setHeader('X-Powered-By', 'Next.js');
+    res.setHeader('x-nextjs-cache', 'HIT');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end('<!doctype html><title>after token</title><h1>after token</h1>');
+    res.end('<!doctype html><title>Next SSR Positive</title><h1>Next.js SSR Page</h1><script src="/_next/static/chunks/main.js"></script>');
     return;
   }
+
+  // 3-1: /next-static-negative (SSR の指標なし -> Node.js が推論されない)
+  if (pathname === '/next-static-negative') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>Next Static Negative</title><h1>Next.js Static Page</h1><script src="/_next/static/chunks/main.js"></script>');
+    return;
+  }
+
 
   // --- 1. /insecure-cookie (IMP-01: Cookie用途別判定テスト) ---
   if (pathname === '/insecure-cookie') {

@@ -235,7 +235,14 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
   });
 
   it('A1: Service Workerのキャッシュ経由で x-nextjs-cache を含むレスポンスから Node.js が正しく推論されること', async () => {
-    // x-nextjs-cache が許可リストに含まれ、キャッシュ経由で届くことで Node.js が連動推論される
+    const { filterAndSanitizeHeaders } = await import('../src/background/service-worker');
+
+    // レスポンスヘッダーが許可リスト・サニタイズ処理を経てキャッシュされる
+    const rawHeaders = {
+      'x-nextjs-cache': ['HIT'],
+    };
+    const cachedHeaders = filterAndSanitizeHeaders(rawHeaders);
+
     const deps = createMockDeps({
       tab: { id: 102, url: 'https://example.com/' },
       fetchDomSignals: vi.fn().mockResolvedValue(
@@ -245,9 +252,7 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       ),
       getCachedHeaders: vi.fn().mockResolvedValue({
         url: 'https://example.com/',
-        headers: {
-          'x-nextjs-cache': ['HIT'],
-        },
+        headers: cachedHeaders,
         observed: true,
       }),
     });
@@ -258,10 +263,42 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     const nextTech = report.technologies.find((t) => t.technology === 'Next.js');
     expect(nextTech).toBeDefined();
 
-    // x-nextjs-cache ヘッダーの存在により、サーバーサイド稼働とみなされ Node.js が連動推論されること
+    // x-nextjs-cache ヘッダーがキャッシュに残ることで、サーバーサイド稼働と判定され Node.js が連動推論されること
     const nodeTech = report.technologies.find((t) => t.technology === 'Node.js');
     expect(nodeTech).toBeDefined();
     expect(nodeTech?.detectionMethod).toBe('inferred');
+  });
+
+  it('3-3: 許可リスト (ALLOWED_RESPONSE_HEADERS) の期待値テスト (包含・除外ヘッダーの網羅性)', async () => {
+    const { ALLOWED_RESPONSE_HEADERS } = await import('../src/background/service-worker');
+
+    // 含まれるべきヘッダー
+    const expectedIncluded = [
+      'x-nextjs-cache',
+      'x-nitro-cache',
+      'content-security-policy',
+      'strict-transport-security',
+      'server',
+      'x-powered-by',
+      'x-frame-options',
+    ];
+    for (const h of expectedIncluded) {
+      expect(ALLOWED_RESPONSE_HEADERS.has(h), `ヘッダー "${h}" が許可リストに含まれていません`).toBe(true);
+    }
+
+    // 含まれてはならない機密・認証・危険ヘッダー
+    const expectedExcluded = [
+      'set-cookie',
+      'set-cookie2',
+      'authorization',
+      'location',
+      'www-authenticate',
+      'proxy-authenticate',
+      'authentication-info',
+    ];
+    for (const h of expectedExcluded) {
+      expect(ALLOWED_RESPONSE_HEADERS.has(h), `機密ヘッダー "${h}" が誤って許可リストに含まれています`).toBe(false);
+    }
   });
 
   it('ヘッダー観測判定がキャッシュヘッダー数に依存せず、許可ヘッダー0個でも観測済み(complete)と判定されること', async () => {

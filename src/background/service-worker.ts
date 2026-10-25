@@ -5,7 +5,8 @@
  */
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
-import { RULES_VERSION } from '../detection/rules';
+import { ALL_TECHNOLOGY_RULES, RULES_VERSION } from '../detection/rules';
+import { SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
 import { SecurityEngine } from '../security/engine';
 import {
@@ -39,10 +40,94 @@ import { formatAdvisoryRecommendation } from '../detection/advisory';
 
 const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.4';
 
+/**
+ * キャッシュに保持するヘッダーエントリ構造
+ */
+export interface HeaderCacheEntry {
+  url: string;
+  headers: Record<string, string[]>;
+  updatedAt: number;
+  observed: boolean;
+}
+
+/**
+ * 許可されたレスポンスヘッダー名（小文字）のホワイトリストセット
+ * 検出ルール (type: 'header') の target および セキュリティ診断の対象ヘッダーから動的に生成
+ */
+export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
+  ...SECURITY_HEADER_NAMES.map((h) => h.toLowerCase()),
+  ...ALL_TECHNOLOGY_RULES.flatMap((rule) =>
+    rule.signals
+      .filter((s) => s.type === 'header' && s.target)
+      .map((s) => s.target.toLowerCase())
+  ),
+]);
+
+/**
+ * キャッシュ保存用にURLをサニタイズ（クエリおよびフラグメントを除去し origin + pathname のみにする）
+ */
+export function sanitizeUrlForCache(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return rawUrl.split(/[?#]/)[0] || rawUrl;
+  }
+}
+
+/**
+ * レスポンスヘッダーから許可リストに含まれるヘッダーのみを抽出し、小文字キーで正規化する
+ * 許可されないヘッダー（Set-Cookie, Authorization, Location 等）はキーごと破棄する
+ */
+export function filterAndSanitizeHeaders(
+  headers: Record<string, string[]> | chrome.webRequest.HttpHeader[]
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+
+  if (Array.isArray(headers)) {
+    for (const h of headers) {
+      if (!h.name) continue;
+      const lowerName = h.name.toLowerCase();
+      if (ALLOWED_RESPONSE_HEADERS.has(lowerName)) {
+        if (!result[lowerName]) {
+          result[lowerName] = [];
+        }
+        if (h.value) {
+          result[lowerName].push(h.value);
+        }
+      }
+    }
+  } else if (headers && typeof headers === 'object') {
+    for (const [key, value] of Object.entries(headers)) {
+      const lowerName = key.toLowerCase();
+      if (ALLOWED_RESPONSE_HEADERS.has(lowerName)) {
+        const valArr = Array.isArray(value) ? value : [String(value)];
+        result[lowerName] = valArr;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * sessionストレージ等から復元したキャッシュエントリを再検証・サニタイズする
+ */
+export function sanitizeRestoredHeaderEntry(entry: any): HeaderCacheEntry {
+  const safeUrl = sanitizeUrlForCache(entry?.url || '');
+  const safeHeaders = filterAndSanitizeHeaders(entry?.headers || {});
+  return {
+    url: safeUrl,
+    headers: safeHeaders,
+    updatedAt: typeof entry?.updatedAt === 'number' ? entry.updatedAt : Date.now(),
+    observed: true,
+  };
+}
+
 // タブIDごとのレスポンスヘッダーキャッシュ (インメモリ + chrome.storage.session によるSWスリープ永続化)
 // 容量上限対策: 最大保持タブ数
 const MAX_HEADER_CACHE_TABS = 100;
-const headersCache = new Map<number, { url: string; headers: Record<string, string[]>; updatedAt: number }>();
+const headersCache = new Map<number, HeaderCacheEntry>();
 
 // Service Worker起動時のセッションストレージ復元Promise（初期化競合防止）
 let restoreHeadersPromise: Promise<void> | null = null;
@@ -59,11 +144,8 @@ async function ensureHeadersRestored(): Promise<void> {
             if (key.startsWith('tab_headers_')) {
               const tabId = parseInt(key.replace('tab_headers_', ''), 10);
               if (!isNaN(tabId) && value && (value as any).headers) {
-                headersCache.set(tabId, {
-                  url: (value as any).url,
-                  headers: (value as any).headers,
-                  updatedAt: (value as any).updatedAt || Date.now(),
-                });
+                const sanitized = sanitizeRestoredHeaderEntry(value);
+                headersCache.set(tabId, sanitized);
                 restoredTabIds.push(tabId);
               }
             }
@@ -104,10 +186,15 @@ if (typeof chrome !== 'undefined') {
   ensureHeadersRestored().catch(() => {});
 }
 
-async function saveHeadersCache(tabId: number, data: { url: string; headers: Record<string, string[]> }): Promise<void> {
-  const entry = {
-    ...data,
+async function saveHeadersCache(
+  tabId: number,
+  data: { url: string; headers: Record<string, string[]>; observed?: boolean }
+): Promise<void> {
+  const entry: HeaderCacheEntry = {
+    url: sanitizeUrlForCache(data.url),
+    headers: filterAndSanitizeHeaders(data.headers),
     updatedAt: Date.now(),
+    observed: data.observed ?? true,
   };
 
   // 既に存在する場合は再登録（Map末尾に移動してLRU順序を維持）
@@ -134,7 +221,7 @@ async function saveHeadersCache(tabId: number, data: { url: string; headers: Rec
   }
 }
 
-async function getCachedHeaders(tabId: number): Promise<{ url: string; headers: Record<string, string[]> } | undefined> {
+async function getCachedHeaders(tabId: number): Promise<HeaderCacheEntry | undefined> {
   // 初期化復元を待機
   await ensureHeadersRestored();
 
@@ -146,8 +233,9 @@ async function getCachedHeaders(tabId: number): Promise<{ url: string; headers: 
       const key = `tab_headers_${tabId}`;
       const res = await chrome.storage.session.get(key);
       if (res && res[key]) {
-        headersCache.set(tabId, res[key]);
-        return res[key];
+        const sanitized = sanitizeRestoredHeaderEntry(res[key]);
+        headersCache.set(tabId, sanitized);
+        return sanitized;
       }
     }
   } catch {
@@ -174,31 +262,21 @@ try {
       );
     }
 
-    // レスポンスヘッダー受信時の保存
+    // レスポンスヘッダー受信時の保存（extraHeadersを外し、許可リスト方式で取り込み）
     if (chrome.webRequest.onHeadersReceived) {
       chrome.webRequest.onHeadersReceived.addListener(
         (details) => {
           if (details.tabId > 0 && details.type === 'main_frame') {
-            const headerMap: Record<string, string[]> = {};
-            if (details.responseHeaders) {
-              for (const h of details.responseHeaders) {
-                const name = h.name.toLowerCase();
-                if (!headerMap[name]) {
-                  headerMap[name] = [];
-                }
-                if (h.value) {
-                  headerMap[name].push(h.value);
-                }
-              }
-            }
+            const headerMap = filterAndSanitizeHeaders(details.responseHeaders || []);
             saveHeadersCache(details.tabId, {
               url: details.url,
               headers: headerMap,
+              observed: true,
             });
           }
         },
         { urls: ['<all_urls>'] },
-        ['responseHeaders', 'extraHeaders']
+        ['responseHeaders']
       );
     }
   }
@@ -371,7 +449,7 @@ export interface InspectionDependencies {
   tab: { id: number; url: string };
   fetchDomSignals: (tabId: number, url: string) => Promise<DomSignals>;
   fetchRuntimeVersions: (tabId: number) => Promise<{ versions: Record<string, string | null>; frameworkMarkers: string[] }>;
-  getCachedHeaders: (tabId: number) => Promise<{ url: string; headers: Record<string, string[]> } | undefined>;
+  getCachedHeaders: (tabId: number) => Promise<{ url: string; headers: Record<string, string[]>; observed?: boolean } | undefined>;
   getInspectedCookies: (url: string) => Promise<InspectedCookieInfo[]>;
   getAllFindingExceptions: () => Promise<FindingException[]>;
   saveReport?: (report: InspectionReport) => Promise<void>;
@@ -410,6 +488,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   // 3. HTTPヘッダー・Cookieの取得
   const cachedData = await deps.getCachedHeaders(currentTabId);
   const responseHeaders = cachedData?.headers || {};
+  const headersObserved = Boolean(cachedData?.observed ?? cachedData);
   const cookies = await deps.getInspectedCookies(url);
 
   const networkSignals: NetworkSignals = {
@@ -569,11 +648,11 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   // 8. 調査完全性評価 (Rev.2.1 IMP-08)
   const coverage = assessInspectionCoverage({
     hasDom: Boolean(domSignals.title || domSignals.metaTags.length > 0 || domSignals.scriptUrls.length > 0),
-    hasHeaders: Object.keys(responseHeaders).length > 0,
+    hasHeaders: headersObserved,
     hasCookiesPermission: true,
     cookieCount: cookies.length,
     hasWebRequestPermission: deps.hasWebRequestPermission ?? true,
-    unobservedPreScan: Object.keys(responseHeaders).length === 0,
+    unobservedPreScan: !headersObserved,
     domItemCount: domSignals.metaTags.length + domSignals.scriptUrls.length,
     headerCount: Object.keys(responseHeaders).length,
   });

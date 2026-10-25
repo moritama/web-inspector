@@ -56,6 +56,52 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost:3000'}`);
   const pathname = url.pathname;
 
+  // 目印つきの Set-Cookie を返すページ (Canary テスト用)
+  if (pathname === '/cookie-canary') {
+    res.setHeader('Set-Cookie', [
+      'canary_session=CANARY_VALUE_7f3a91c2; Path=/; HttpOnly; SameSite=Lax',
+      'canary_plain=CANARY_PLAIN_55e1b0; Path=/',
+    ]);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>cookie canary</title><h1>cookie canary</h1>');
+    return;
+  }
+
+  // ログイン直後のリダイレクトを模したページ(302 で Set-Cookie を返してから遷移)
+  if (pathname === '/login-redirect') {
+    res.statusCode = 302;
+    res.setHeader('Set-Cookie', 'canary_login=CANARY_LOGIN_a91c33; Path=/; HttpOnly');
+    res.setHeader('Location', '/after-login');
+    res.end();
+    return;
+  }
+  if (pathname === '/after-login') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>after login</title><h1>after login</h1>');
+    return;
+  }
+
+  // 200 のログイン応答 (Set-Cookie を返す)
+  if (pathname === '/login-200') {
+    res.setHeader('Set-Cookie', 'canary_200=CANARY_LOGIN_200_ef881b; Path=/; HttpOnly');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>login 200</title><h1>login 200</h1>');
+    return;
+  }
+
+  // Location ヘッダーにトークンを含む 302 リダイレクト
+  if (pathname === '/token-redirect') {
+    res.statusCode = 302;
+    res.setHeader('Location', '/after-token?token=CANARY_TOKEN_99cc22');
+    res.end();
+    return;
+  }
+  if (pathname === '/after-token') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<!doctype html><title>after token</title><h1>after token</h1>');
+    return;
+  }
+
   // --- 1. /insecure-cookie (IMP-01: Cookie用途別判定テスト) ---
   if (pathname === '/insecure-cookie') {
     res.setHeader('Server', 'nginx/1.24.0');

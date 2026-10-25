@@ -282,7 +282,44 @@ async function runSmokeTest() {
       console.warn('  ⚠️ GitHub.com アクセススキップ (ネットワーク制限):', e.message);
     }
 
-    console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存）が実機で確認されました。');
+    // -------------------------------------------------------------
+    // 検証 7: レスポンスヘッダーキャッシュ機密情報保護 (Set-Cookie / 認証情報 / URLクエリ遮断)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [7/7] レスポンスヘッダーキャッシュ機密情報保護 (Canaryテスト) を検証中...');
+
+    // 1. /cookie-canary へのアクセス
+    await page.goto('http://localhost:3000/cookie-canary', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+
+    // 2. /login-redirect (302 + Set-Cookie) へのアクセス
+    await page.goto('http://localhost:3000/login-redirect', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+
+    // 3. /login-200 (200 + Set-Cookie) へのアクセス
+    await page.goto('http://localhost:3000/login-200', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+
+    // 4. /token-redirect (302 + Location: ...token=CANARY_TOKEN) へのアクセス
+    await page.goto('http://localhost:3000/token-redirect', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+
+    // chrome.storage.session 内の全データを取得してスキャン
+    const sessionDump = await serviceWorker.evaluate(async () => {
+      if (!chrome.storage?.session) return {};
+      return await chrome.storage.session.get(null);
+    });
+
+    const sessionStr = JSON.stringify(sessionDump);
+    const canaryMatches = sessionStr.match(/CANARY_[A-Za-z0-9_]+/g);
+
+    if (canaryMatches && canaryMatches.length > 0) {
+      throw new Error(
+        `chrome.storage.session に機密情報 (CANARY_) が漏洩・保存されています: ${[...new Set(canaryMatches)].join(', ')}`
+      );
+    }
+    console.log(`  ✓ sessionストレージに CANARY_ 機密情報が保存されていないことを確認`);
+
+    console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {
       await context.close();

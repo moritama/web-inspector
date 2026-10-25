@@ -2,54 +2,54 @@ import { describe, expect, it, vi } from 'vitest';
 import { executeInspection, InspectionDependencies } from '../src/background/service-worker';
 import { DomSignals, FindingException, InspectedCookieInfo } from '../src/shared/types';
 
-describe('Service Worker 調査統合テスト (executeInspection)', () => {
-  const createMockDomSignals = (overrides: Partial<DomSignals> = {}): DomSignals => ({
+const createMockDomSignals = (overrides: Partial<DomSignals> = {}): DomSignals => ({
+  url: 'https://example.com/',
+  title: 'Example Domain',
+  metaTags: [{ name: 'generator', content: 'WordPress 6.4.2' }],
+  scriptUrls: ['https://unpkg.com/react@18.2.0/umd/react.production.min.js'],
+  linkUrls: [],
+  domMarkers: [],
+  htmlSnippets: [],
+  mixedContent: [],
+  cookiesFromDocument: [],
+  cssAssets: [],
+  ...overrides,
+});
+
+const createMockDeps = (overrides: Partial<InspectionDependencies> = {}): InspectionDependencies => ({
+  tab: { id: 101, url: 'https://example.com/' },
+  fetchDomSignals: vi.fn().mockResolvedValue(createMockDomSignals()),
+  fetchRuntimeVersions: vi.fn().mockResolvedValue({
+    versions: { react: '18.2.0' },
+    frameworkMarkers: ['__reactContainer$'],
+  }),
+  getCachedHeaders: vi.fn().mockResolvedValue({
     url: 'https://example.com/',
-    title: 'Example Domain',
-    metaTags: [{ name: 'generator', content: 'WordPress 6.4.2' }],
-    scriptUrls: ['https://unpkg.com/react@18.2.0/umd/react.production.min.js'],
-    linkUrls: [],
-    domMarkers: [],
-    htmlSnippets: [],
-    mixedContent: [],
-    cookiesFromDocument: [],
-    cssAssets: [],
-    ...overrides,
-  });
+    headers: {
+      server: ['Apache/2.4.58 (Ubuntu)'],
+      'x-powered-by': ['PHP/8.2.10'],
+    },
+  }),
+  getInspectedCookies: vi.fn().mockResolvedValue([
+    {
+      name: 'laravel_session',
+      domain: 'example.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      session: true,
+      issues: [],
+    } as InspectedCookieInfo,
+  ]),
+  getAllFindingExceptions: vi.fn().mockResolvedValue([] as FindingException[]),
+  saveReport: vi.fn().mockResolvedValue(undefined),
+  updateBadge: vi.fn(),
+  hasWebRequestPermission: true,
+  ...overrides,
+});
 
-  const createMockDeps = (overrides: Partial<InspectionDependencies> = {}): InspectionDependencies => ({
-    tab: { id: 101, url: 'https://example.com/' },
-    fetchDomSignals: vi.fn().mockResolvedValue(createMockDomSignals()),
-    fetchRuntimeVersions: vi.fn().mockResolvedValue({
-      versions: { react: '18.2.0' },
-      frameworkMarkers: ['__reactContainer$'],
-    }),
-    getCachedHeaders: vi.fn().mockResolvedValue({
-      url: 'https://example.com/',
-      headers: {
-        server: ['Apache/2.4.58 (Ubuntu)'],
-        'x-powered-by': ['PHP/8.2.10'],
-      },
-    }),
-    getInspectedCookies: vi.fn().mockResolvedValue([
-      {
-        name: 'laravel_session',
-        domain: 'example.com',
-        path: '/',
-        secure: true,
-        httpOnly: true,
-        sameSite: 'lax',
-        session: true,
-        issues: [],
-      } as InspectedCookieInfo,
-    ]),
-    getAllFindingExceptions: vi.fn().mockResolvedValue([] as FindingException[]),
-    saveReport: vi.fn().mockResolvedValue(undefined),
-    updateBadge: vi.fn(),
-    hasWebRequestPermission: true,
-    ...overrides,
-  });
-
+describe('Service Worker 調査統合テスト (executeInspection)', () => {
   it('DOM、MAINワールドランタイム、HTTPヘッダー、Cookieを総合して例外なく完全なレポートを生成すること', async () => {
     const deps = createMockDeps();
     const report = await executeInspection(deps);
@@ -127,5 +127,85 @@ describe('Service Worker 調査統合テスト (executeInspection)', () => {
     // CVSSフォールバック値表示の検証: 不正確な「CVSS: 6」を含まず一次情報通りの「重大度: MEDIUM」を表示すること
     expect(cveCheck?.observed).not.toContain('CVSS: 6');
     expect(cveCheck?.observed).toContain('重大度: MEDIUM');
+  });
+});
+
+describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & URLサニタイズ', () => {
+  it('許可リスト方式により機密ヘッダー(set-cookie, authorization等)が除外され、許可ヘッダー(server, csp等)のみが保持されること', async () => {
+    // service-worker からエクスポートされた関数をテスト
+    const { filterAndSanitizeHeaders } = await import('../src/background/service-worker');
+    
+    const inputHeaders = {
+      'Set-Cookie': ['session=SECRET_TOKEN; Path=/; HttpOnly', 'canary=CANARY_VAL'],
+      'authorization': ['Bearer eyJhbGciOi...'],
+      'x-auth-token': ['SUPER_SECRET'],
+      'Location': ['/redirect?token=SECRET_CANARY'],
+      'Server': ['Apache/2.4.58'],
+      'Content-Security-Policy': ["default-src 'self'"],
+      'Strict-Transport-Security': ['max-age=31536000'],
+      'X-Powered-By': ['PHP/8.2.14'],
+      'CF-Ray': ['8923489234'],
+    };
+
+    const sanitized = filterAndSanitizeHeaders(inputHeaders);
+
+    // 許可ヘッダーは保持される
+    expect(sanitized['server']).toEqual(['Apache/2.4.58']);
+    expect(sanitized['content-security-policy']).toEqual(["default-src 'self'"]);
+    expect(sanitized['strict-transport-security']).toEqual(['max-age=31536000']);
+    expect(sanitized['x-powered-by']).toEqual(['PHP/8.2.14']);
+    expect(sanitized['cf-ray']).toEqual(['8923489234']);
+
+    // 機密・認証ヘッダーはキーごと破棄される (置換やREDACTEDではなく完全除外)
+    expect(sanitized['set-cookie']).toBeUndefined();
+    expect(sanitized['authorization']).toBeUndefined();
+    expect(sanitized['x-auth-token']).toBeUndefined();
+    expect(sanitized['location']).toBeUndefined();
+    expect(Object.keys(sanitized)).not.toContain('set-cookie');
+    expect(Object.keys(sanitized)).not.toContain('authorization');
+  });
+
+  it('キャッシュに保存するURLからクエリパラメータとフラグメントが完全に除去され origin + pathname のみになること', async () => {
+    const { sanitizeUrlForCache } = await import('../src/background/service-worker');
+
+    expect(sanitizeUrlForCache('https://example.com/login?token=SECRET_CANARY#section')).toBe('https://example.com/login');
+    expect(sanitizeUrlForCache('http://localhost:3000/api/v1/user?id=123&auth=abc')).toBe('http://localhost:3000/api/v1/user');
+    expect(sanitizeUrlForCache('https://sub.domain.jp:8080/path/to/page?q=test#frag')).toBe('https://sub.domain.jp:8080/path/to/page');
+  });
+
+  it('sessionストレージからの復元時にも許可リストとURLサニタイズが再適用されること', async () => {
+    const { sanitizeRestoredHeaderEntry } = await import('../src/background/service-worker');
+
+    const rawStoredEntry = {
+      url: 'https://example.com/profile?session_token=CANARY_STOKEN#anchor',
+      headers: {
+        'set-cookie': ['canary_cookie=CANARY_VALUE'],
+        'authorization': ['Bearer CANARY_AUTH'],
+        'server': ['nginx/1.24.0'],
+      },
+      updatedAt: 123456789,
+    };
+
+    const restored = sanitizeRestoredHeaderEntry(rawStoredEntry);
+
+    expect(restored.url).toBe('https://example.com/profile');
+    expect(restored.headers['server']).toEqual(['nginx/1.24.0']);
+    expect(restored.headers['set-cookie']).toBeUndefined();
+    expect(restored.headers['authorization']).toBeUndefined();
+    expect(restored.observed).toBe(true);
+  });
+
+  it('ヘッダー観測判定がキャッシュヘッダー数に依存せず、許可ヘッダー0個でも観測済み(complete)と判定されること', async () => {
+    const deps = createMockDeps({
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://example.com/',
+        headers: {},
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    expect(report.coverage?.headers).toBe('complete');
+    expect(report.coverage?.details?.unobservedPreScan).toBe(false);
   });
 });

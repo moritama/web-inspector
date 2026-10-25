@@ -7,6 +7,27 @@ import { SecurityCheckResult } from '../shared/types';
 import { analyzeCSPHeader } from './csp-parser';
 
 /**
+ * セキュリティ診断 (checkHttpHeaders) で評価・参照されるHTTPヘッダー名一覧（小文字）
+ * 手書きでの二重管理を防ぐため、診断ロジックで参照されるヘッダーを一元定義する
+ */
+export const SECURITY_HEADER_NAMES: readonly string[] = [
+  'strict-transport-security',
+  'content-security-policy',
+  'content-security-policy-report-only',
+  'x-frame-options',
+  'x-content-type-options',
+  'referrer-policy',
+  'permissions-policy',
+  'access-control-allow-origin',
+  'access-control-allow-credentials',
+  'cross-origin-opener-policy',
+  'cross-origin-embedder-policy',
+  'cross-origin-resource-policy',
+  'server',
+  'x-powered-by',
+];
+
+/**
  * HTTPレスポンスヘッダーを診断する
  *
  * @param headers レスポンスヘッダーのマップ (キーは小文字)

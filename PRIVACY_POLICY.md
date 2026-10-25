@@ -1,6 +1,6 @@
 # Privacy Policy for Web Technology & Security Inspector
 
-Last updated: October 22, 2026
+Last updated: October 26, 2026
 
 **Web Technology & Security Inspector** (hereinafter referred to as "the Extension") is committed to protecting your privacy. This Privacy Policy explains our practices regarding user information and data collection.
 

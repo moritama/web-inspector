@@ -28,7 +28,8 @@ sequenceDiagram
 
 ## 2. 事前準備物チェックリスト
 
-- [x] **配布用ZIPパッケージ**: `release/web-inspector-v1.0.0.zip`（`npm run package` で自動生成）
+- [x] **配布用ZIPパッケージ**: `release/web-inspector-v1.6.5.zip`（`npm run package` で自動生成）
+- [x] **審査員向けソースコードZIP (審査提出用)**: [REVIEW_PACKAGE_GUIDE.md](./REVIEW_PACKAGE_GUIDE.md) に従い `python3 scripts/create_review_package.py <tag>` で生成（`review/` 配下）
 - [x] **プライバシーポリシー**: [PRIVACY_POLICY.md](../PRIVACY_POLICY.md)
   - 公開URL: `https://github.com/moritama/web-inspector/blob/main/PRIVACY_POLICY.md`
 - [x] **アプリアイコン**: `public/icons/icon128.png`（128x128 PNG）

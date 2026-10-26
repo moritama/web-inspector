@@ -22,3 +22,7 @@ Thumbs.db
 .gemini/
 scratch/
 .tmp/
+
+# Review Packages (GitHub登録対象外)
+review/
+review-packages/

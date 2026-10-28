@@ -136,7 +136,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   it('D17: getAdvisoryDbMetadata() で Rev.2.1 スキーマメタデータが取得できること', () => {
     const meta = getAdvisoryDbMetadata();
 
-    expect(meta.schemaVersion).toBe('2.1');
+    expect(['2.1', '2.2']).toContain(meta.schemaVersion); // 2.2 = 自動生成パイプライン (2.1 上位互換)
     expect(meta.dataVersion).toMatch(/^\d{8}$/); // YYYYMMDD形式
     expect(meta.productCount).toBeGreaterThanOrEqual(5);
     expect(meta.advisoryCount).toBeGreaterThanOrEqual(10);

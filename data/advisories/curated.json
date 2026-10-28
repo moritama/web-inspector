@@ -1,0 +1,361 @@
+{
+  "_comment": "人間がレビュー済みのアドバイザリ (v1.6.5 時点の24件を移行)。自動取得結果より常に優先される。変更はPRレビュー必須。",
+  "schemaVersion": 1,
+  "products": {
+    "jquery": {
+      "advisories": [
+        {
+          "cve": "CVE-2020-11022",
+          "range": ">= 1.2.0, < 3.5.0",
+          "cvssScore": 6.1,
+          "title": "Regex in jQuery.htmlPrefilter can result in XSS",
+          "fixedVersion": "3.5.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-11022",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2020-11023",
+          "range": ">= 1.0.3, < 3.5.0",
+          "cvssScore": 6.1,
+          "title": "XSS in jQuery.htmlPrefilter even with sanitizers",
+          "fixedVersion": "3.5.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-11023",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2025-01-23)"
+        },
+        {
+          "cve": "CVE-2019-11358",
+          "range": "< 3.4.0",
+          "cvssScore": 6.1,
+          "title": "jQuery prototype pollution via $.extend",
+          "fixedVersion": "3.4.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-11358",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2015-9251",
+          "range": "< 3.0.0",
+          "cvssScore": 6.1,
+          "title": "XSS via cross-domain ajax requests with dataType script",
+          "fixedVersion": "3.0.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2015-9251",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "bootstrap": {
+      "advisories": [
+        {
+          "cve": "CVE-2019-8331",
+          "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
+          "cvssScore": 6.1,
+          "title": "XSS in Bootstrap Tooltip and Popover data-template",
+          "fixedVersion": "3.4.1 / 4.3.1",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-8331",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2018-14041",
+          "range": ">= 4.0.0, < 4.1.2",
+          "cvssScore": 6.1,
+          "title": "XSS in Bootstrap Collapse plugin data-parent attribute",
+          "fixedVersion": "4.1.2",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-14041",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2016-10735",
+          "range": ">= 3.0.0, < 3.4.0",
+          "cvssScore": 6.1,
+          "title": "XSS in data-target attribute for Bootstrap 3",
+          "fixedVersion": "3.4.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2016-10735",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "react": {
+      "advisories": [
+        {
+          "cve": "CVE-2018-6341",
+          "range": ">= 16.0.0, < 16.0.1 || >= 16.1.0, < 16.1.2 || >= 16.2.0, < 16.2.1 || >= 16.3.0, < 16.3.3 || >= 16.4.0, < 16.4.2",
+          "cvssScore": 6.1,
+          "title": "Potential XSS when generating attributes in React SSR",
+          "fixedVersion": "16.0.1 / 16.1.2 / 16.2.1 / 16.3.3 / 16.4.2",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-6341",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "vue": {
+      "advisories": []
+    },
+    "angular": {
+      "advisories": []
+    },
+    "angularjs": {
+      "advisories": [
+        {
+          "cve": "CVE-2020-7676",
+          "range": "< 1.8.0",
+          "cvssScore": 5.4,
+          "title": "Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite",
+          "summary": "AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in <select>/<option>), allowing sanitizer bypass and XSS.",
+          "fixedVersion": "1.8.0",
+          "advisoryUrl": "https://github.com/advisories/GHSA-mhp6-pxh8-r675",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "GitHub Advisory Database (GHSA)"
+        },
+        {
+          "cve": "CVE-2022-25869",
+          "range": "<= 1.8.3",
+          "cvssScore": 6.1,
+          "title": "Cross-site Scripting (XSS) in AngularJS via page cache and textarea interpolation",
+          "summary": "XSS in AngularJS due to improper page caching and <textarea> interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.",
+          "advisoryUrl": "https://github.com/advisories/GHSA-prc3-vjfx-vhm9",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "GitHub Advisory Database (GHSA)",
+          "fixedVersion": null
+        }
+      ],
+      "staticEol": [
+        {
+          "cycle": "1.x",
+          "eolDate": "2022-01-01",
+          "status": "EOL"
+        }
+      ]
+    },
+    "lodash": {
+      "advisories": [
+        {
+          "cve": "CVE-2021-23337",
+          "range": "< 4.17.21",
+          "cvssScore": 7.2,
+          "title": "Command Injection in lodash.template via variable option",
+          "summary": "Command injection in lodash.template when passing unsanitized variable options into the template compiler.",
+          "fixedVersion": "4.17.21",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23337",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2020-8203",
+          "range": "< 4.17.20",
+          "cvssScore": 7.4,
+          "title": "Prototype Pollution in lodash.zipObjectDeep",
+          "summary": "Prototype pollution in lodash.zipObjectDeep via Object.prototype manipulation.",
+          "fixedVersion": "4.17.20",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ],
+      "staticEol": [
+        {
+          "cycle": "4.x",
+          "eolDate": null,
+          "status": "Supported"
+        },
+        {
+          "cycle": "3.x",
+          "eolDate": "2016-01-12",
+          "status": "EOL"
+        }
+      ]
+    },
+    "wordpress": {
+      "advisories": [
+        {
+          "cve": "CVE-2022-21661",
+          "range": ">= 3.7, < 3.7.37 || >= 3.8, < 3.8.37 || >= 3.9, < 3.9.35 || >= 4.0, < 4.0.34 || >= 4.1, < 4.1.34 || >= 4.2, < 4.2.31 || >= 4.3, < 4.3.27 || >= 4.4, < 4.4.26 || >= 4.5, < 4.5.25 || >= 4.6, < 4.6.22 || >= 4.7, < 4.7.22 || >= 4.8, < 4.8.18 || >= 4.9, < 4.9.19 || >= 5.0, < 5.0.15 || >= 5.1, < 5.1.12 || >= 5.2, < 5.2.14 || >= 5.3, < 5.3.11 || >= 5.4, < 5.4.9 || >= 5.5, < 5.5.8 || >= 5.6, < 5.6.7 || >= 5.7, < 5.7.5 || >= 5.8, < 5.8.3",
+          "cvssScore": 7.5,
+          "title": "SQL Injection in WP_Query",
+          "summary": "Improper input sanitization in WP_Query meta queries allows potential SQL injection via unsafe plugin/theme inputs.",
+          "fixedVersion": "5.8.3",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-21661",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "php": {
+      "advisories": [
+        {
+          "cve": "CVE-2024-4577",
+          "range": "< 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
+          "cvssScore": 9.8,
+          "title": "PHP CGI Argument Injection vulnerability leading to RCE",
+          "summary": "該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合。EOLの8.0以前は公式パッチ未提供)。Best-fit mapping bypass allows arbitrary command-line arguments.",
+          "fixedVersion": "8.1.29 / 8.2.20 / 8.3.8",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-4577",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2024-06-12)"
+        },
+        {
+          "cve": "CVE-2022-31628",
+          "range": "< 7.4.31 || >= 8.0.0, < 8.0.24 || >= 8.1.0, < 8.1.11",
+          "cvssScore": 5.5,
+          "title": "Infinite Loop in phar extension via gzip quine (DoS)",
+          "summary": "Uncontrolled recursion in phar gzip uncompressor causes an infinite loop and DoS when handling quine archives.",
+          "fixedVersion": "7.4.31 / 8.0.24 / 8.1.11",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-31628",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "nginx": {
+      "advisories": [
+        {
+          "cve": "CVE-2023-44487",
+          "range": ">= 1.9.5, < 1.25.3",
+          "cvssScore": 7.5,
+          "title": "HTTP/2 Rapid Reset Denial of Service Vulnerability",
+          "summary": "該当の可能性あり (条件: HTTP/2が有効で、keepalive_requests や http2_max_concurrent_streams を既定より大幅に大きく設定している場合)。HTTP/2 Stream Cancellation (Rapid Reset) によるDoS。",
+          "fixedVersion": "1.25.3",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2023-10-10) / 公式: https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products/"
+        },
+        {
+          "cve": "CVE-2021-23017",
+          "range": ">= 0.6.18, < 1.20.1",
+          "cvssScore": 7.7,
+          "title": "1-byte memory overwrite in resolver",
+          "summary": "1-byte memory overwrite in DNS resolver when processing malformed responses.",
+          "fixedVersion": "1.20.1 / 1.21.0",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23017",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "apache": {
+      "advisories": [
+        {
+          "cve": "CVE-2021-44790",
+          "range": "< 2.4.52",
+          "cvssScore": 9.8,
+          "title": "Buffer overflow in mod_lua multipart parser",
+          "summary": "該当の可能性あり (条件: mod_lua モジュールが有効化されている場合)。Heap buffer overflow in r:parsebody() in mod_lua.",
+          "fixedVersion": "2.4.52",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-44790",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2021-41773",
+          "range": "= 2.4.49",
+          "cvssScore": 9.8,
+          "title": "Path Traversal and File Disclosure in Apache HTTP Server 2.4.49",
+          "summary": "Path normalization flaw allows unauthenticated remote attackers to map URLs to files outside the document root. CGI有効時にRCEに至る。",
+          "fixedVersion": "2.4.50",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-41773",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA-ADP評価: 7.5 (High, 単体ファイル開示)。CISA KEV 登録 (2021-11-03)"
+        },
+        {
+          "cve": "CVE-2021-42013",
+          "range": ">= 2.4.49, <= 2.4.50",
+          "cvssScore": 9.8,
+          "title": "Path Traversal and RCE in Apache HTTP Server 2.4.50",
+          "summary": "Incomplete fix for CVE-2021-41773 allows path traversal and RCE when CGI scripts are mapped.",
+          "fixedVersion": "2.4.51",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-42013",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2021-11-03)"
+        }
+      ]
+    },
+    "laravel": {
+      "advisories": [
+        {
+          "cve": "CVE-2021-3129",
+          "range": "< 8.4.3",
+          "cvssScore": 9.8,
+          "title": "Ignition RCE vulnerability in Laravel",
+          "summary": "Unauthenticated RCE in facade/ignition before 2.5.2 when debug mode is enabled.",
+          "fixedVersion": "8.4.3",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-3129",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2023-09-18)"
+        },
+        {
+          "cve": "CVE-2018-15133",
+          "range": "< 5.5.41 || >= 5.6.0, < 5.6.30",
+          "cvssScore": 8.1,
+          "title": "Deserialization of untrusted data in Laravel Application Key",
+          "summary": "RCE via deserialization of untrusted data if APP_KEY is leaked.",
+          "fixedVersion": "5.5.41 / 5.6.30",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-15133",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA KEV 登録 (2024-01-16)"
+        }
+      ]
+    },
+    "nodejs": {
+      "advisories": [
+        {
+          "cve": "CVE-2023-39332",
+          "range": ">= 20.0.0, < 20.8.1",
+          "cvssScore": 9.8,
+          "title": "Path Traversal via Uint8Array in node:fs",
+          "summary": "該当の可能性あり (条件: --experimental-permission 有効時)。Path traversal in node:fs functions when passing non-Buffer Uint8Array objects.",
+          "fixedVersion": "20.8.1",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-39332",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        },
+        {
+          "cve": "CVE-2023-23918",
+          "range": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
+          "cvssScore": 7.5,
+          "title": "Permissions-Policy bypass via process.mainModule.require()",
+          "summary": "該当の可能性あり (条件: --experimental-policy 有効時)。Policy bypass allowing unauthorized module loading.",
+          "fixedVersion": "14.21.3 / 16.19.1 / 18.14.1 / 19.6.1",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-23918",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)"
+        }
+      ]
+    },
+    "moment": {
+      "advisories": [],
+      "staticEol": [
+        {
+          "cycle": "2",
+          "eolDate": null,
+          "status": "Maintenance"
+        }
+      ],
+      "_note": "Moment.js 公式はレガシー/メンテナンスモードと宣言 (新機能なし)。検出ルールは未実装 (レビュー指摘 SPEC-03)"
+    }
+  },
+  "excludes": [
+    {
+      "id": "CVE-2020-13426",
+      "product": "vue",
+      "reason": "Vue.js 本体ではなく WordPress プラグイン Multi-Scheduler の脆弱性 (MAINTENANCE_GUIDE 2.5-1)"
+    },
+    {
+      "id": "CVE-2023-32243",
+      "product": "wordpress",
+      "reason": "WordPress 本体ではなく Essential Addons for Elementor の脆弱性 (MAINTENANCE_GUIDE 2.5-2)"
+    }
+  ]
+}

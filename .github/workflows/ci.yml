@@ -6,18 +6,29 @@ on:
   pull_request:
     branches: [ main ]
 
+# 既定は読み取り専用 (最小権限)
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Typecheck, LinkCheck, Test, Advisory & Guard
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 20
+          persist-credentials: false
+
+      - name: Setup Node.js 22 (LTS)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -25,6 +36,18 @@ jobs:
 
       - name: Validate Advisory Database
         run: npm run advisories:validate
+
+      - name: Advisory DB reproducibility (snapshot -> advisory-db.json)
+        # upstream スナップショットが存在する場合、コミット済みDBが手編集されていないことを検証する
+        run: |
+          if [ -f data/advisories/upstream/manifest.json ]; then
+            node scripts/advisories/build-db.mjs --check
+          else
+            echo "upstream スナップショット未作成のためスキップ (初回の Advisory DB Update 実行後に有効化されます)"
+          fi
+
+      - name: Verify curated advisories against NVD snapshot
+        run: npm run advisories:verify-nvd
 
       - name: Run Test Suite (Typecheck, Link Check, Vitest)
         run: npm test

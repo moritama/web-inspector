@@ -124,8 +124,10 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
     const version = pkg.version;
 
-    // 1. manifest.json との完全一致
-    expect(manifest.version).toBe(version);
+    // 1. manifest.json との一致 (DBのみ更新リリースでは第4要素 = DBリビジョンが付与される: 例 1.6.5.2)
+    const [mBase, mRev] = [manifest.version.split('.').slice(0, 3).join('.'), manifest.version.split('.')[3]];
+    expect(mBase).toBe(version);
+    if (mRev !== undefined) expect(mRev).toMatch(/^\d+$/);
 
     // 2. HTMLファイルのバージョンバッジ表示一致
     const htmlFiles = [

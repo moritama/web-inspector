@@ -1,0 +1,172 @@
+name: Advisory DB Update
+
+# 脆弱性DBの定期自動更新。
+#   1. 上流 (OSV / NVD / endoflife.date / CISA KEV) からスナップショットを取得
+#   2. スナップショットから advisory-db.json を決定的に生成・検証
+#   3. 差分を分類 (none / minor / major) し、変更があれば manifest の DBリビジョンを採番して PR を作成
+#   4. minor かつリポジトリ変数 ADVISORY_AUTO_MERGE=true の場合は自動マージを予約
+# マージ後は release.yml が manifest.version の変更を検知してパッケージ作成・ストア提出を行う。
+#
+# 必要な設定 (Settings > Secrets and variables > Actions):
+#   secrets.NVD_API_KEY          (任意) NVD API キー。未設定でも動作するが取得が遅くなる
+#   vars.BOT_APP_CLIENT_ID       (推奨) GitHub App の Client ID
+#   secrets.BOT_APP_PRIVATE_KEY  (推奨) GitHub App の秘密鍵
+#     ※ GITHUB_TOKEN で作成した PR では CI (pull_request) が起動しないため、
+#        ブランチ保護で CI 必須にしている場合は GitHub App トークンが必要
+#   vars.ADVISORY_AUTO_MERGE     (任意) "true" で minor 変更を自動マージ
+
+on:
+  schedule:
+    - cron: '23 20 * * 0' # 毎週月曜 05:23 JST
+  workflow_dispatch:
+    inputs:
+      only:
+        description: '対象製品キー (カンマ区切り。空欄で全件)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advisory-db-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      BOT_BRANCH: bot/advisory-db-update
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        if: ${{ vars.BOT_APP_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token || github.token }}
+
+      - name: Setup Node.js 22 (LTS)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch upstream advisories
+        id: fetch
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          set +e
+          if [ -n "$ONLY" ]; then
+            node scripts/advisories/fetch-upstream.mjs --only "$ONLY"
+          else
+            node scripts/advisories/fetch-upstream.mjs
+          fi
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "::error::上流ソースの取得にすべて失敗しました"
+            exit 1
+          fi
+          if [ "$code" -eq 2 ]; then
+            echo "::warning::一部の上流ソースの取得に失敗しました (前回スナップショットを継続使用)。PR は major 扱いになります"
+          fi
+
+      - name: Build advisory DB from snapshot
+        run: node scripts/advisories/build-db.mjs
+
+      - name: Validate advisory DB
+        run: node scripts/validate-advisories.mjs
+
+      - name: Diff against main
+        id: diff
+        run: node scripts/advisories/diff-db.mjs --base-ref origin/main --refresh-days 21 --md "$RUNNER_TEMP/db-diff.md" --json "$RUNNER_TEMP/db-diff.json"
+
+      - name: Bump DB revision (manifest.version 第4要素)
+        id: bump
+        if: steps.diff.outputs.classification != 'none'
+        run: node scripts/advisories/bump-db-revision.mjs
+
+      - name: Test & build
+        if: steps.diff.outputs.classification != 'none'
+        run: |
+          npm test
+          npm run build
+
+      - name: Create or update pull request
+        if: steps.diff.outputs.classification != 'none'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          CLASSIFICATION: ${{ steps.diff.outputs.classification }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          AUTO_MERGE: ${{ vars.ADVISORY_AUTO_MERGE }}
+        run: |
+          git config user.name "advisory-db-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BOT_BRANCH"
+          git add data/advisories src/detection/advisory-db.json public/manifest.json
+          git commit -m "chore(advisory-db): 脆弱性DB自動更新 v${VERSION} [${CLASSIFICATION}]"
+          git push --force-with-lease origin "$BOT_BRANCH"
+
+          gh label create advisory-db --color 1f6feb --description "脆弱性DB自動更新" --force >/dev/null
+          gh label create "db:${CLASSIFICATION}" --color "$([ "$CLASSIFICATION" = major ] && echo d73a4a || echo 0e8a16)" --force >/dev/null
+          title="chore(advisory-db): 脆弱性DB自動更新 v${VERSION} [${CLASSIFICATION}]"
+          if gh pr view "$BOT_BRANCH" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$BOT_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/db-diff.md"
+            gh pr edit "$BOT_BRANCH" --remove-label db:minor >/dev/null 2>&1 || true
+            gh pr edit "$BOT_BRANCH" --remove-label db:major >/dev/null 2>&1 || true
+            gh pr edit "$BOT_BRANCH" --add-label "db:${CLASSIFICATION}" --add-label advisory-db
+          else
+            gh pr create --head "$BOT_BRANCH" --base main --title "$title" --body-file "$RUNNER_TEMP/db-diff.md" \
+              --label advisory-db --label "db:${CLASSIFICATION}"
+          fi
+
+          if [ "$CLASSIFICATION" = "minor" ] && [ "$AUTO_MERGE" = "true" ]; then
+            gh pr merge "$BOT_BRANCH" --auto --squash
+          else
+            gh pr merge "$BOT_BRANCH" --disable-auto >/dev/null 2>&1 || true
+          fi
+
+      - name: Upload diff & build report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: advisory-db-report
+          path: |
+            ${{ runner.temp }}/db-diff.md
+            ${{ runner.temp }}/db-diff.json
+            data/advisories/build-report.json
+            data/advisories/upstream/manifest.json
+          if-no-files-found: ignore
+
+      - name: Notify failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="脆弱性DB自動更新ジョブが失敗しました"
+          num=$(gh issue list --state open --search "in:title $title" --json number -q '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "再度失敗しました: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "実行ログ: $RUN_URL
+          DB の鮮度が 31 日を超えると拡張機能に「DB鮮度」警告が表示されます。早急に確認してください。"
+          fi

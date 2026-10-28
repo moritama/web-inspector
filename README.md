@@ -261,7 +261,8 @@ npm run test-server
 # オフライン脆弱性DBの整合性・サイズ検証
 npm run advisories:validate
 
-# オフライン脆弱性DBの最新化 (OSV/NVDから同期)
+# オフライン脆弱性DBの最新化 (OSV/NVD/endoflife.date/KEV から取得 → 生成 → 検証)
+# ※通常は GitHub Actions「Advisory DB Update」が週次で自動実行し PR を作成します
 npm run advisories:sync
 
 # Chrome Web Store配布用ZIPパッケージ作成 (検証 → ビルド → ZIP生成)

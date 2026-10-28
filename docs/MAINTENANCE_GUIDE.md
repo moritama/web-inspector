@@ -135,12 +135,19 @@ Primary 評価と Secondary（CISA-ADP 等）評価の間で重大度レベル�
 
 ### 2.3 脆弱性DBの更新手順（ステップ・バイ・ステップ）
 
-#### ステップ 1: 最新アドバイザリの同期
-ターミナルで以下のコマンドを実行します。
+> **v1.6.6 以降の更新方式 (自動化):** 脆弱性DBは GitHub Actions `Advisory DB Update` (毎週月曜 05:23 JST) が
+> 上流 (OSV / NVD / endoflife.date / CISA KEV) から自動取得・生成し、PR を作成します。手作業は PR のレビューのみです。
+> 設計・必要な設定・段階的な有効化は [レビュー結果・開発指示書 第5章](./REVIEW_v1.6.5.md) を参照してください。
+> `src/detection/advisory-db.json` は手編集禁止です (CI の `build-db.mjs --check` で検出されます)。
+> 人手で管理するデータは `data/advisories/catalog.json` (対象製品・取得元) と `data/advisories/curated.json` (レビュー済みエントリ・除外・静的EOL) です。
+
+#### ステップ 1: 最新アドバイザリの同期 (ローカルで手動実行する場合)
 ```bash
-npm run advisories:sync
+npm run advisories:fetch   # 上流スナップショット取得 (要ネットワーク, 任意で NVD_API_KEY)
+npm run advisories:build   # スナップショットから advisory-db.json を決定的に生成
+npm run advisories:diff    # origin/main との差分と分類 (none / minor / major)
 ```
-- 主要ライブラリ（jQuery, React, Vue, Bootstrap, PHP, WordPress, Laravel等）の最新CVEおよびEOL情報が取得され、`src/detection/advisory-db.json` が上書き更新されます。
+- `advisories:sync` は上記 fetch → build → validate を連続実行します。
 
 #### ステップ 2: DBの整合性・サイズ検証
 ```bash

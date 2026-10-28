@@ -1,0 +1,90 @@
+{
+  "_comment": "脆弱性DBの対象製品カタログ (人間管理)。製品の追加・取得元の変更はPRレビュー必須。キーは advisory-db.json の libraries キーと一致させる。",
+  "schemaVersion": 1,
+  "defaults": {
+    "nvd": {
+      "publishedSince": "2018-01-01",
+      "minCvss": 7.0,
+      "includeKevAlways": true
+    }
+  },
+  "products": {
+    "jquery": {
+      "aliases": ["jquery"],
+      "osv": [{ "ecosystem": "npm", "name": "jquery" }],
+      "eol": { "slug": "jquery" }
+    },
+    "bootstrap": {
+      "aliases": ["bootstrap", "twitter-bootstrap"],
+      "osv": [{ "ecosystem": "npm", "name": "bootstrap" }],
+      "eol": { "slug": "bootstrap" }
+    },
+    "react": {
+      "aliases": ["react", "reactjs"],
+      "osv": [
+        { "ecosystem": "npm", "name": "react" },
+        { "ecosystem": "npm", "name": "react-dom" }
+      ],
+      "eol": {
+        "slug": "react",
+        "supportedLatestCycles": 1,
+        "_note": "React 公式は最新メジャーのみ修正を提供。endoflife.date 上で eol=false のまま残る旧サイクルを EOL とみなす (レビュー指摘 DB-EOL-1)"
+      }
+    },
+    "vue": {
+      "aliases": ["vue", "vue.js", "vuejs"],
+      "osv": [{ "ecosystem": "npm", "name": "vue" }],
+      "eol": { "slug": "vue" }
+    },
+    "angular": {
+      "aliases": ["angular", "angular-core"],
+      "osv": [{ "ecosystem": "npm", "name": "@angular/core" }],
+      "eol": { "slug": "angular" }
+    },
+    "angularjs": {
+      "aliases": ["angularjs", "angular.js"],
+      "osv": [{ "ecosystem": "npm", "name": "angular" }],
+      "eol": { "static": true }
+    },
+    "lodash": {
+      "aliases": ["lodash"],
+      "osv": [{ "ecosystem": "npm", "name": "lodash" }],
+      "eol": { "static": true }
+    },
+    "moment": {
+      "aliases": ["moment", "moment.js", "momentjs"],
+      "osv": [{ "ecosystem": "npm", "name": "moment" }],
+      "eol": { "static": true }
+    },
+    "wordpress": {
+      "aliases": ["wordpress"],
+      "nvd": { "targets": ["wordpress:wordpress"], "autoIngest": false },
+      "eol": { "slug": "wordpress" }
+    },
+    "php": {
+      "aliases": ["php"],
+      "nvd": { "targets": ["php:php"], "autoIngest": false },
+      "eol": { "slug": "php" }
+    },
+    "nginx": {
+      "aliases": ["nginx"],
+      "nvd": { "targets": ["f5:nginx", "nginx:nginx"], "autoIngest": false },
+      "eol": { "slug": "nginx" }
+    },
+    "apache": {
+      "aliases": ["apache", "apache-httpd", "httpd"],
+      "nvd": { "targets": ["apache:http_server"], "autoIngest": false },
+      "eol": { "slug": "apache-http-server" }
+    },
+    "laravel": {
+      "aliases": ["laravel", "laravel-framework"],
+      "osv": [{ "ecosystem": "Packagist", "name": "laravel/framework" }],
+      "eol": { "slug": "laravel" }
+    },
+    "nodejs": {
+      "aliases": ["node", "nodejs", "node.js"],
+      "nvd": { "targets": ["nodejs:node.js"], "autoIngest": false },
+      "eol": { "slug": "nodejs" }
+    }
+  }
+}

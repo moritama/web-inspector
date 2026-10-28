@@ -268,8 +268,15 @@ async function main() {
   const results = [];
   let diffCount = 0;
 
+  let skippedAuto = 0;
   for (const [key, lib] of Object.entries(db.libraries)) {
     for (const adv of lib.versions || []) {
+      // 自動取得エントリ (origin: auto) は上流スナップショットから機械生成され、
+      // build-db.mjs --check で再現性が検証されるため、本スクリプトは人手管理の curated エントリのみを照合する
+      if (adv.origin === 'auto') {
+        skippedAuto++;
+        continue;
+      }
       const cveId = adv.cve;
       const deviation = KNOWN_DEVIATIONS[cveId];
 
@@ -377,6 +384,7 @@ async function main() {
   const matchCount = results.filter((r) => r.status === 'MATCH').length;
   const devCount = results.filter((r) => r.status === 'KNOWN_DEVIATION').length;
   console.log(`\n合計件数: ${results.length} 件 (一致: ${matchCount}, 既知の逸脱: ${devCount}, 要確認差異: ${diffCount} 件)`);
+  if (skippedAuto > 0) console.log(`(自動取得エントリ ${skippedAuto} 件は build-db.mjs --check の対象のため照合対象外)`);
 
   if (diffCount > 0) {
     console.error(`\n[FAIL] ${diffCount} 件の未解決差異が検出されました。`);

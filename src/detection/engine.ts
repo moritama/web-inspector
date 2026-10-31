@@ -381,6 +381,22 @@ export class DetectionEngine {
               }
             }
 
+            // 要素テキストの検査 (T06 / DOC-01: 例: Spring Boot Whitelabel Error Page)
+            if (input.dom?.elementTexts && signal.pattern) {
+              for (const text of input.dom.elementTexts) {
+                if (this.matchPattern(text, signal.pattern)) {
+                  evidences.push({
+                    type: 'html',
+                    name: `要素テキスト (${signal.target})`,
+                    value: text.substring(0, 50),
+                    source: input.url,
+                    detail: signal.detail || `DOM要素「${signal.target}」のテキストから特徴を検出`,
+                    weight: signal.weight,
+                  });
+                }
+              }
+            }
+
             // HTMLスニペット/bodyコンテンツの検査 (属性セレクタ [attr] やフォーム要素は domMarkers でのみ評価)
             const isAttrSelector = signal.target.includes('[') || signal.target.includes('input[') || signal.target.includes('meta[');
             if (input.dom?.htmlSnippets && signal.target !== 'title' && !isAttrSelector) {

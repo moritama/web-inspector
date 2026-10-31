@@ -154,5 +154,33 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
       `README.md にバージョンバッジ "version-${version}-blue.svg" が含まれていません`
     ).toBe(true);
   });
+
+  it('自動生成された DOM セレクタ一覧 (dom-selectors.generated.ts) がルール定義と完全に一致していること (T06 / DOC-01)', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const genFilePath = path.join(rootDir, 'src', 'content', 'dom-selectors.generated.ts');
+    expect(fs.existsSync(genFilePath), `${genFilePath} が存在しません`).toBe(true);
+
+    const expectedSet = new Set<string>();
+    for (const rule of allRules) {
+      for (const sig of rule.signals) {
+        if (sig.type === 'dom') {
+          if (sig.target === 'title') continue;
+          const parts = sig.target.split(',').map((s) => s.trim()).filter(Boolean);
+          for (const p of parts) {
+            expectedSet.add(p);
+          }
+        }
+      }
+    }
+    const expectedSorted = Array.from(expectedSet).sort();
+
+    const genContent = fs.readFileSync(genFilePath, 'utf-8');
+    const match = genContent.match(/export const DOM_MARKER_SELECTORS:\s*string\[\]\s*=\s*(\[[\s\S]*?\]);/);
+    expect(match, 'DOM_MARKER_SELECTORS の定義が見つかりませんでした').toBeDefined();
+    if (match) {
+      const parsedSelectors = JSON.parse(match[1]) as string[];
+      expect(parsedSelectors).toEqual(expectedSorted);
+    }
+  });
 });
 

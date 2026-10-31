@@ -121,6 +121,31 @@
   - 受け入れテスト `SPEC-09`（4件）の `it.skip` を解除（期待値は無変更）。`tests/detection.test.ts` に Bootstrap クラス群からの Tailwind 陰性判定、Tailwind 固有クラスからの陽性判定、テーマ css からの Font Awesome 陰性判定、cdnjs / kit からの Font Awesome 陽性判定、orgchart.js / md3.js の Chart.js / D3.js 陰性判定、正規 D3.js の陽性判定、Passenger 単独での Rails 抑制判定を網羅的に追加した。
 - 未解決: なし
 
+---
 
-
-
+## T06 DOMシグナル収集の汎用化と到達性テスト (2026-10-31 11:43)
+- 変更ファイル:
+  - `src/shared/types.ts`
+  - `src/content/dom-selectors.generated.ts`
+  - `src/content/content-script.ts`
+  - `src/detection/engine.ts`
+  - `src/detection/rules/backend.json`
+  - `src/detection/rules/language.json`
+  - `scripts/generate-spec-catalog.mjs`
+  - `tests/fixtures/dom-signal-fixtures.ts`
+  - `tests/rule-reachability.test.ts`
+  - `tests/spec-integrity.test.ts`
+  - `tests/review-v1.6.5-acceptance.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - content-script が service-worker と共有モジュール（ルールJSON等）を import すると Vite が共有チャンクを作成して content-script.js に import 文が入る（通常のスクリプトとして読み込まれるため動作不能になる）制約（R03/R07）に対応するため、ルール JSON から DOM セレクタのみを抽出した独立ファイル `src/content/dom-selectors.generated.ts` を作成し、content-script はこれのみを import する設計とした。
+  - `scripts/generate-spec-catalog.mjs` に `generateDomSelectorsFile()` を追加し、`npm run spec:generate` 実行時にルール定義からセレクタ一覧が自動更新されるようにした。さらに `tests/spec-integrity.test.ts` に生成ファイルとルール定義の一致を検証するテストを追加した。
+  - `content-script.ts` において、生成されたセレクタ群（およびフォールバック用セレクタ）に対して `document.querySelector` を実行し、一致したセレクタを `domMarkers` に自動追加する汎用ロジックを実装した。`ng-version`、`__NEXT_DATA__`、`__NUXT_DATA__` の既存特殊処理を維持しつつ、Rails の `meta[name='csrf-param']` については content 属性値（例: `authenticity_token`）もマーカーに追加するようにした（DOC-01）。
+  - Google Tag Manager の `target: "iframe"` シグナル（`googletagmanager.com/ns.html`）について、セレクタ探査で `iframe` 要素が見つかった際に要素自体のセレクタ文字列だけでなく、`src` 属性値も `domMarkers` に収集するよう改修した。また、`noscript` タグ走査において happy-dom 環境で `textContent` が空になる挙動に対応するため、`innerHTML` も含めて走査するよう修正した。
+  - Spring Boot の Whitelabel Error Page などテキストで判定するシグナルについて、`backend.json` の `target` を `body` から `h1` に変更し、content-script で見出し要素（`h1`, `h2` 等）の `textContent` 先頭200文字を `elementTexts: string[]`（`DomSignals` に追加）として収集して、`engine.ts` の `case 'dom':` で `elementTexts` を照合する処理を追加した。
+  - `tests/fixtures/dom-signal-fixtures.ts` を新規作成し、全26件の `type: 'dom'` シグナルを発火させる最小 HTML フィクスチャを定義した。
+  - `tests/rule-reachability.test.ts` を新規作成し、全26件の DOM シグナルに対応するフィクスチャが存在すること、および各フィクスチャを読み込んで `extractDomSignals()` → `DetectionEngine.detect()` することで該当技術が確実に検出されること（到達性）を検証した。なお、Bootstrap（weight: 40）は単独では採用閾値（50）未満で除外される設計のため、エビデンス（`domMarkers` に `.container`）が収集されていることを検証対象とした。また、happy-dom 環境で iframe 要素接続時に発生する page loading 抑制の console.error をテスト実行時に抑制した。
+  - 受け入れテスト `tests/review-v1.6.5-acceptance.test.ts` の `DOC-01`（Alpine.js, htmx, Material UI, Spring Security, Ruby on Rails の5件）の `it.skip.each` を `it.each` に解除した（期待値は無変更）。
+- 未解決: なし

@@ -611,6 +611,8 @@ export interface DomSignals {
   runtimeVersions?: Record<string, string | null>; // window.jQuery, window.bootstrap等
   // Rev.2.1 追加
   metaCsp?: string[];
+  // T06 / DOC-01 追加: 特定DOM要素のテキスト先頭200文字 (例: Spring Boot Whitelabel Error Page)
+  elementTexts?: string[];
 }
 
 /**

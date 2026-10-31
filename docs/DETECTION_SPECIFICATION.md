@@ -128,7 +128,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `python` | **Python** | `header`: `server` | Python(?:/([0-9.]+))? | 85 |
 | `ruby` | **Ruby** | `header`: `x-powered-by` | Phusion Passenger.*Ruby | 85 |
 | `python-django` | **Django** | `cookie`: `csrftoken`<br>`dom`: `input[name='csrfmiddlewaretoken']` | ^csrftoken$<br>csrfmiddlewaretoken | 40<br>80 |
-| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | authenticity_token<br>Phusion Passenger | 70<br>40 |
+| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | csrf-param\|authenticity_token<br>Phusion Passenger | 70<br>40 |
 | `laravel` | **Laravel** | `header`: `x-powered-by`<br>`cookie`: `laravel_session`<br>`cookie`: `app_session`<br>`cookie`: `XSRF-TOKEN` | Laravel(?:/([0-9.]+))?<br>^laravel_session$<br>^(?!_)(?!ci_)[a-zA-Z0-9_-]+_session$<br>^XSRF-TOKEN$ | 95<br>85<br>35<br>35 |
 | `nodejs` | **Node.js** | `header`: `x-powered-by`<br>`header`: `server`<br>`cookie`: `connect.sid`<br>`cookie`: `XSRF-TOKEN` | Node\.js(?:/([0-9.]+))?<br>Node\.js(?:/([0-9.]+))?<br>^connect\.sid$<br>^XSRF-TOKEN$ | 90<br>90<br>80<br>35 |
 | `dotnet` | **.NET** | `header`: `server` | Kestrel | 80 |
@@ -143,7 +143,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 
 | 技術ID | 技術名 | 判定シグナル | 照合パターン / 正規表現 | 重み | 連動推論先 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `spring-boot` | **Spring Boot** | `header`: `x-application-context`<br>`dom`: `body`<br>`script`: `src` | .*<br>Whitelabel Error Page<br>spring-boot | 95<br>90<br>80 | $\rightarrow$ **Java** (`unknown`) |
+| `spring-boot` | **Spring Boot** | `header`: `x-application-context`<br>`dom`: `h1`<br>`script`: `src` | .*<br>Whitelabel Error Page<br>spring-boot | 95<br>90<br>80 | $\rightarrow$ **Java** (`unknown`) |
 | `aspnet-core` | **ASP.NET Core** | `cookie`: `.AspNetCore.Antiforgery.`<br>`cookie`: `.AspNetCore.Session`<br>`cookie`: `.AspNetCore.Cookies`<br>`header`: `server` | ^\.AspNetCore\.Antiforgery\.<br>^\.AspNetCore\.Session$<br>^\.AspNetCore\.Cookies$<br>Kestrel | 90<br>90<br>90<br>90 | $\rightarrow$ **.NET** (`unknown`) |
 | `express` | **Express** | `header`: `x-powered-by` | Express | 95 | $\rightarrow$ **Node.js** (`unknown`) |
 | `fastapi` | **FastAPI** | `dom`: `title`<br>`header`: `x-fastapi` | FastAPI - Swagger UI\|FastAPI - ReDoc<br>.* | 95<br>90 | $\rightarrow$ **Python** (`unknown`) |

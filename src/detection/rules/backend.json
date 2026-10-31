@@ -23,7 +23,7 @@
       },
       {
         "type": "dom",
-        "target": "body",
+        "target": "h1",
         "pattern": "Whitelabel Error Page",
         "weight": 90,
         "detail": "Spring Boot固有のWhitelabelエラーページを検出"

@@ -135,7 +135,7 @@ describe('SPEC-12: ヘッダー値の妥当性', () => {
 });
 
 describe('DOC-01: 仕様書に記載された DOM シグナルが実際に発火する', () => {
-  it.skip.each([
+  it.each([
     ['Alpine.js', '<div x-data="{o:false}"></div>'],
     ['htmx', '<button hx-get="/a">x</button>'],
     ['Material UI', '<div class="MuiButton-root"></div>'],

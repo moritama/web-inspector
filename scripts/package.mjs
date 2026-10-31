@@ -11,9 +11,9 @@ const rootDir = process.cwd();
 const distDir = path.join(rootDir, 'dist');
 const releaseDir = path.join(rootDir, 'release');
 
-// package.jsonからバージョン取得
-const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8'));
-const version = pkg.version || '1.0.0';
+// manifest.json からバージョン取得 (DBのみ更新リリースでは第4要素 = DBリビジョンを含むため package.json ではなく manifest を正とする)
+const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
+const version = manifest.version || '1.0.0';
 const zipName = `web-inspector-v${version}.zip`;
 const zipPath = path.join(releaseDir, zipName);
 

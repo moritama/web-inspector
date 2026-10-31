@@ -219,6 +219,8 @@ export interface DetectedTechnology {
   version: string | null;
   /** バージョン取得元 ('runtime' | 'css-url' | 'css-comment' | 'script-url' | 'header' | 'meta' | 'pattern') */
   versionSource?: string;
+  /** Linuxディストリビューション版ヒント (T04 / SPEC-02) (例: 'Ubuntu', 'Debian', 'RHEL', 'ubuntu-package') */
+  distroHint?: string;
   /** 確信度スコア (0〜100) */
   confidence: number;
   /** 確信度判定ラベル */
@@ -609,6 +611,8 @@ export interface DomSignals {
   runtimeVersions?: Record<string, string | null>; // window.jQuery, window.bootstrap等
   // Rev.2.1 追加
   metaCsp?: string[];
+  // T06 / DOC-01 追加: 特定DOM要素のテキスト先頭200文字 (例: Spring Boot Whitelabel Error Page)
+  elementTexts?: string[];
 }
 
 /**

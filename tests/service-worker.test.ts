@@ -128,6 +128,44 @@ describe('Service Worker 調査統合テスト (executeInspection)', () => {
     expect(cveCheck?.observed).not.toContain('CVSS: 6');
     expect(cveCheck?.observed).toContain('重大度: MEDIUM');
   });
+
+  it('MAIN world から取得した不正な実行時バージョンおよび未知のフレームワークマーカーが無害化・除去されること (IMPL-04)', async () => {
+    let capturedDomSignals: any = null;
+    const deps = createMockDeps({
+      fetchDomSignals: vi.fn().mockImplementation(async (_tabId, _url) => {
+        const dom = createMockDomSignals();
+        capturedDomSignals = dom;
+        return dom;
+      }),
+      fetchRuntimeVersions: vi.fn().mockResolvedValue({
+        versions: {
+          jquery: 'custom-build', // 書式不一致 -> null
+          vue: '3.4.1', // 正常 -> '3.4.1'
+          react: 'A'.repeat(50), // 32文字超え -> null
+          malicious: '1.0.0<script>alert(1)</script>', // 不正文字 -> null
+          num: 123 as any, // string 以外 -> null
+        },
+        frameworkMarkers: [
+          '__reactContainer$', // 既知 -> 保持
+          '__evil_marker__', // 未知 -> 除外
+          '__vue_app__', // 既知 -> 保持
+        ],
+      }),
+    });
+
+    await executeInspection(deps);
+
+    expect(capturedDomSignals.runtimeVersions).toEqual({
+      jquery: null,
+      vue: '3.4.1',
+      react: null,
+      malicious: null,
+      num: null,
+    });
+    expect(capturedDomSignals.domMarkers).toContain('__reactContainer$');
+    expect(capturedDomSignals.domMarkers).toContain('__vue_app__');
+    expect(capturedDomSignals.domMarkers).not.toContain('__evil_marker__');
+  });
 });
 
 describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & URLサニタイズ', () => {
@@ -308,5 +346,49 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     const report = await executeInspection(deps);
     expect(report.coverage?.headers).toBe('complete');
     expect(report.coverage?.details?.unobservedPreScan).toBe(false);
+  });
+
+  it('IMPL-02: キャッシュの origin がタブと異なる場合に未観測扱いになること', async () => {
+    const deps = createMockDeps({
+      tab: { id: 101, url: 'https://example.com/page' },
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://another-domain.com/page',
+        headers: {
+          'strict-transport-security': ['max-age=31536000'],
+          'x-frame-options': ['DENY'],
+        },
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    const headerChecks = report.securityChecks.filter((c) =>
+      /^SEC-(HSTS|CSP|XFO|XCTO|REF|PERM|CORS|DISC)/.test(c.checkId)
+    );
+    expect(headerChecks.length).toBeGreaterThan(0);
+    expect(headerChecks.every((c) => c.status === 'unknown' && c.severity === 'info')).toBe(true);
+    expect(report.summary.requiresAttentionCount).toBe(0);
+    expect(report.coverage?.headers).toBe('partial');
+    expect(report.coverage?.details?.unobservedPreScan).toBe(true);
+  });
+
+  it('IMPL-02: 同一 origin・別パスでは観測済みのままであること', async () => {
+    const deps = createMockDeps({
+      tab: { id: 101, url: 'https://example.com/dashboard' },
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://example.com/login',
+        headers: {
+          'strict-transport-security': ['max-age=31536000'],
+          'x-frame-options': ['DENY'],
+        },
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    const hstsCheck = report.securityChecks.find((c) => c.checkId.startsWith('SEC-HSTS-'));
+    expect(hstsCheck).toBeDefined();
+    expect(hstsCheck?.status).toBe('pass');
+    expect(report.coverage?.headers).toBe('complete');
   });
 });

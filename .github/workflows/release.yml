@@ -1,0 +1,166 @@
+name: Release
+
+# main の public/manifest.json の version が変わったとき (コードリリース / DBリビジョン更新の双方) に
+#   1. 検証・ビルド・配布用 ZIP 作成 (SHA-256 付き)
+#   2. タグ v<version> と GitHub Release (ドラフト) を作成
+#   3. Chrome Web Store API v2 でアップロード & 審査提出 (Environment "chrome-web-store" の承認後)
+# を行う。
+#
+# 職務分離の既定構成:
+#   - Environment "chrome-web-store" に必須レビュアー (ストアアップロード担当) を設定 → 提出前に人の承認
+#   - publishType=STAGED_PUBLISH → Google 審査通過後も自動公開せず、ダッシュボードで人が公開
+#   完全自動化する場合: Environment のレビュアーを外し、vars.CWS_PUBLISH_TYPE=DEFAULT_PUBLISH
+#
+# 必要な設定:
+#   vars.CWS_ENABLED="true", vars.CWS_PUBLISHER_ID, vars.CWS_EXTENSION_ID
+#   認証 (どちらか):
+#     [推奨/鍵なし] vars.GCP_WORKLOAD_IDENTITY_PROVIDER, vars.GCP_SERVICE_ACCOUNT
+#                   (サービスアカウントを CWS デベロッパーダッシュボードの Account に追加しておく)
+#     [代替]       secrets.CWS_CLIENT_ID, secrets.CWS_CLIENT_SECRET, secrets.CWS_REFRESH_TOKEN
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'public/manifest.json' ]
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Chrome Web Store へ提出する'
+        type: boolean
+        default: true
+      publish_type:
+        description: '公開方式'
+        type: choice
+        options: [ STAGED_PUBLISH, DEFAULT_PUBLISH ]
+        default: STAGED_PUBLISH
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      should_release: ${{ steps.v.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: v
+        run: |
+          version=$(node -p "require('./public/manifest.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "タグ v$version は既に存在するためリリースしません"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Validate, test, build & package
+        run: |
+          npm test
+          npm run package
+      - name: Checksums
+        run: |
+          cd release
+          sha256sum web-inspector-v${{ needs.prepare.outputs.version }}.zip > web-inspector-v${{ needs.prepare.outputs.version }}.zip.sha256
+          cat *.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: extension-zip
+          path: release/web-inspector-v${{ needs.prepare.outputs.version }}.zip*
+          if-no-files-found: error
+
+  github-release:
+    needs: [ prepare, build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: extension-zip
+          path: release
+      - name: Create tag & draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # ドラフトリリースはタグを作成しないため、二重リリース防止用のタグを先に作成する
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$GITHUB_SHA" >/dev/null
+          gh release create "v$VERSION" release/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "v$VERSION" --notes "自動生成リリース (commit $GITHUB_SHA)。ストア提出状況は Actions の submit ジョブを参照。"
+
+  submit:
+    needs: [ prepare, build ]
+    if: vars.CWS_ENABLED == 'true' && (github.event_name != 'workflow_dispatch' || inputs.submit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: chrome-web-store
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: extension-zip
+          path: release
+      - name: Verify checksum
+        run: cd release && sha256sum -c *.sha256
+      - name: Authenticate to Google (Workload Identity Federation)
+        id: gauth
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          access_token_lifetime: 900s
+      - name: Upload to Chrome Web Store
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: node scripts/cws-publish.mjs upload --zip "release/web-inspector-v${{ needs.prepare.outputs.version }}.zip"
+      - name: Submit for review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.gauth.outputs.access_token }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          PUBLISH_TYPE: ${{ inputs.publish_type || vars.CWS_PUBLISH_TYPE || 'STAGED_PUBLISH' }}
+        run: node scripts/cws-publish.mjs publish --type "$PUBLISH_TYPE"

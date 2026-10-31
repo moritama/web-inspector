@@ -1,0 +1,117 @@
+{
+  "checkedAt": "2026-10-31T04:00:10.696Z",
+  "targetVersion": "1.6.6",
+  "mode": "full",
+  "passed": 16,
+  "failed": 2,
+  "results": [
+    {
+      "id": "C01",
+      "title": "バージョンが 1.6.6 に統一されている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C02",
+      "title": "インラインイベントハンドラ (onclick= 等) が残っていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C03",
+      "title": "P0 受け入れテスト (SPEC-01, SPEC-02, SPEC-04, SPEC-06, SPEC-09, DOC-01, DOC-02) の skip が外れている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C04",
+      "title": "P1 受け入れテストが削除されていない",
+      "status": "PASS",
+      "detail": "存在: SPEC-07 / SPEC-08, SPEC-10, SPEC-12"
+    },
+    {
+      "id": "C05",
+      "title": "旧DB・旧エンジンが削除され、参照も残っていない",
+      "status": "FAIL",
+      "detail": "src/security/cve/cve-database.json, src/security/cve/cve-engine.ts, src/security/eol/eol-database.json, src/security/eol/eol-engine.ts"
+    },
+    {
+      "id": "C06",
+      "title": "lodash / moment ルールが存在し、Underscore との誤認防止がある",
+      "status": "PASS",
+      "detail": "lodash=true moment=true cloneDeepGuard=true"
+    },
+    {
+      "id": "C07",
+      "title": "escapeHtml / safeHref が src/shared/html.ts に共通化されている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C08",
+      "title": "指示書で求めた新規テストが存在する",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C09",
+      "title": "変更禁止領域が変更されていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C12",
+      "title": "作業キットが変更されていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10",
+      "title": "WORKLOG に T01〜T12 すべての記録がある",
+      "status": "PASS",
+      "detail": "記録済みタスク数: 12/12"
+    },
+    {
+      "id": "C11",
+      "title": "完了報告書が作成され、未記入の <...> が残っていない",
+      "status": "FAIL",
+      "detail": "未記入: <span>"
+    },
+    {
+      "id": "R01",
+      "title": "npm test (typecheck + links + vitest)",
+      "status": "PASS",
+      "detail": "Tests  317 passed | 5 skipped (322) (3s)"
+    },
+    {
+      "id": "R02",
+      "title": "npm run build",
+      "status": "PASS",
+      "detail": " (1s)"
+    },
+    {
+      "id": "R03",
+      "title": "content-script.js が 40KB 以下",
+      "status": "PASS",
+      "detail": "5.5 KB"
+    },
+    {
+      "id": "R07",
+      "title": "content-script.js に import / export 文が無い（共有チャンク化していない）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R04",
+      "title": "npm run advisories:validate",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "R05",
+      "title": "npm run advisories:verify-nvd",
+      "status": "PASS",
+      "detail": " (0s)"
+    }
+  ]
+}

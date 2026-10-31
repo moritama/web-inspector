@@ -193,14 +193,14 @@
       {
         "type": "dom",
         "target": "meta[name='csrf-param']",
-        "pattern": "authenticity_token",
+        "pattern": "csrf-param|authenticity_token",
         "weight": 70
       },
       {
         "type": "header",
         "target": "x-powered-by",
         "pattern": "Phusion Passenger",
-        "weight": 80
+        "weight": 40
       }
     ]
   },

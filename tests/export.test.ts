@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { exportReportToCsv } from '../src/export/csv';
 import { exportReportToJson } from '../src/export/json';
+import { generateMarkdownReport } from '../src/export/markdown';
 import { InspectionReport } from '../src/shared/types';
 
 describe('Export Functions', () => {
@@ -76,5 +77,27 @@ describe('Export Functions', () => {
     expect(csvStr).toContain('PHP');
     expect(csvStr).toContain('SEC-HSTS-01');
     expect(csvStr).toContain('ヘッダー未設定');
+  });
+
+  it('SPEC-02: distroHint が JSON, CSV, Markdown エクスポートに正確に出力されること', () => {
+    const reportWithDistro: InspectionReport = {
+      ...dummyReport,
+      technologies: [
+        {
+          ...dummyReport.technologies[0],
+          distroHint: 'Ubuntu',
+        },
+      ],
+    };
+
+    const jsonStr = exportReportToJson(reportWithDistro);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.technologies[0].distroHint).toBe('Ubuntu');
+
+    const csvStr = exportReportToCsv(reportWithDistro);
+    expect(csvStr).toContain('"Ubuntu"');
+
+    const mdStr = generateMarkdownReport(reportWithDistro);
+    expect(mdStr).toContain('`Ubuntu`');
   });
 });

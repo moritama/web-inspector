@@ -1,7 +1,7 @@
 # Web Technology & Security Inspector 技術検出仕様および判定基準書
 
-**対象バージョン：** v1.6.0  
-**最終更新日：** 2026年10月24日  
+**対象バージョン：** v1.6.6  
+**最終更新日：** 2026年10月31日  
 **対象コンポーネント：** `src/detection/` (ルール定義・判定エンジン・推論エンジン)
 
 ---
@@ -95,7 +95,7 @@ v1.6.0で導入されたImplication Engineでは、「検出方式（直接検�
 
 ---
 
-## 3. 全調査対象技術 判定基準カタログ (計68技術)
+## 3. 全調査対象技術 判定基準カタログ (計70技術)
 
 > [!NOTE]
 > **カタログの自動整合保証:**  
@@ -128,7 +128,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `python` | **Python** | `header`: `server` | Python(?:/([0-9.]+))? | 85 |
 | `ruby` | **Ruby** | `header`: `x-powered-by` | Phusion Passenger.*Ruby | 85 |
 | `python-django` | **Django** | `cookie`: `csrftoken`<br>`dom`: `input[name='csrfmiddlewaretoken']` | ^csrftoken$<br>csrfmiddlewaretoken | 40<br>80 |
-| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | authenticity_token<br>Phusion Passenger | 70<br>80 |
+| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | csrf-param\|authenticity_token<br>Phusion Passenger | 70<br>40 |
 | `laravel` | **Laravel** | `header`: `x-powered-by`<br>`cookie`: `laravel_session`<br>`cookie`: `app_session`<br>`cookie`: `XSRF-TOKEN` | Laravel(?:/([0-9.]+))?<br>^laravel_session$<br>^(?!_)(?!ci_)[a-zA-Z0-9_-]+_session$<br>^XSRF-TOKEN$ | 95<br>85<br>35<br>35 |
 | `nodejs` | **Node.js** | `header`: `x-powered-by`<br>`header`: `server`<br>`cookie`: `connect.sid`<br>`cookie`: `XSRF-TOKEN` | Node\.js(?:/([0-9.]+))?<br>Node\.js(?:/([0-9.]+))?<br>^connect\.sid$<br>^XSRF-TOKEN$ | 90<br>90<br>80<br>35 |
 | `dotnet` | **.NET** | `header`: `server` | Kestrel | 80 |
@@ -143,7 +143,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 
 | 技術ID | 技術名 | 判定シグナル | 照合パターン / 正規表現 | 重み | 連動推論先 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `spring-boot` | **Spring Boot** | `header`: `x-application-context`<br>`dom`: `body`<br>`script`: `src` | .*<br>Whitelabel Error Page<br>spring-boot | 95<br>90<br>80 | $\rightarrow$ **Java** (`unknown`) |
+| `spring-boot` | **Spring Boot** | `header`: `x-application-context`<br>`dom`: `h1`<br>`script`: `src` | .*<br>Whitelabel Error Page<br>spring-boot | 95<br>90<br>80 | $\rightarrow$ **Java** (`unknown`) |
 | `aspnet-core` | **ASP.NET Core** | `cookie`: `.AspNetCore.Antiforgery.`<br>`cookie`: `.AspNetCore.Session`<br>`cookie`: `.AspNetCore.Cookies`<br>`header`: `server` | ^\.AspNetCore\.Antiforgery\.<br>^\.AspNetCore\.Session$<br>^\.AspNetCore\.Cookies$<br>Kestrel | 90<br>90<br>90<br>90 | $\rightarrow$ **.NET** (`unknown`) |
 | `express` | **Express** | `header`: `x-powered-by` | Express | 95 | $\rightarrow$ **Node.js** (`unknown`) |
 | `fastapi` | **FastAPI** | `dom`: `title`<br>`header`: `x-fastapi` | FastAPI - Swagger UI\|FastAPI - ReDoc<br>.* | 95<br>90 | $\rightarrow$ **Python** (`unknown`) |
@@ -181,19 +181,21 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `svelte` | **Svelte** | `dom`: `[class*='svelte-']`<br>`script`: `src` | svelte-<br>/_app/immutable/ | 90<br>75 | - |
 | `jquery` | **jQuery** | `script`: `src`<br>`script`: `src` | jquery[.-\]\([0-9.]+)(?:\.min)?\.js<br>jquery(?:\.min)?\.js | 90<br>75 | - |
 | `bootstrap` | **Bootstrap** | `link`: `href`<br>`script`: `src`<br>`dom`: `.container, .row, .col-` | bootstrap(?:\.min)?\.css<br>bootstrap(?:\.bundle)?(?:\.min)?\.js<br>container | 85<br>80<br>40 | - |
-| `tailwind` | **Tailwind CSS** | `css`: `class`<br>`script`: `src` | (?:flex\|grid\|hidden\|block)\s+(?:items-\|justify-\|space-\|p-\|m-\|text-\|bg-)<br>tailwindcss\|cdn\.tailwindcss\.com | 80<br>90 | - |
+| `tailwind` | **Tailwind CSS** | `css`: `class`<br>`script`: `src` | (?:sm\|md\|lg\|xl\|2xl\|hover\|focus\|dark):[a-z0-9_-]+\|[a-z0-9_-]+-\[[^\]]+\]\|(?:text\|bg\|border\|ring\|from\|to\|via)-[a-z]+-(?:50\|[1-9]00\|950)<br>tailwindcss\|cdn\.tailwindcss\.com | 70<br>90 | - |
 | `alpine` | **Alpine.js** | `dom`: `[x-data], [x-init], [x-bind]`<br>`script`: `src` | x-data\|x-init\|x-bind<br>alpine(?:\.min)?\.js\|cdn\.jsdelivr\.net/npm/alpinejs | 90<br>85 | - |
 | `htmx` | **htmx** | `dom`: `[hx-get], [hx-post], [hx-target], [hx-swap]`<br>`script`: `src` | hx-get\|hx-post\|hx-target\|hx-swap\|hx-trigger<br>htmx(?:\.org)?(?:\.min)?\.js | 90<br>85 | - |
 | `datatables` | **DataTables** | `dom`: `table.dataTable, .dataTables_wrapper`<br>`script`: `src`<br>`link`: `href` | dataTable\|dataTables_wrapper<br>(?:jquery\.)?dataTables(?:\.min)?\.js<br>(?:jquery\.)?dataTables.*\.css | 85<br>90<br>80 | - |
-| `chartjs` | **Chart.js** | `script`: `src` | chart(?:\.umd)?(?:\.min)?\.js | 85 | - |
+| `chartjs` | **Chart.js** | `script`: `src` | (?:^\|/)chart(?:\.umd)?(?:\.min)?\.js\|/chart\.js@\|/npm/chart\.js | 85 | - |
 | `axios` | **Axios** | `script`: `src` | axios(?:\.min)?\.js | 85 | - |
-| `d3` | **D3.js** | `script`: `src` | d3(?:\.v[0-9]+)?(?:\.min)?\.js | 85 | - |
+| `d3` | **D3.js** | `script`: `src` | (?:^\|/)d3(?:\.v[0-9]+)?(?:\.min)?\.js\|/d3@[0-9] | 85 | - |
 | `tinymce` | **TinyMCE** | `dom`: `.tox-tinymce, .mce-tinymce`<br>`script`: `src` | tox-tinymce\|mce-tinymce<br>tinymce(?:\.min)?\.js | 90<br>85 | - |
 | `ckeditor` | **CKEditor** | `dom`: `.ck-editor, .cke`<br>`script`: `src` | ck-editor\|cke_<br>ckeditor(?:\.min)?\.js | 90<br>85 | - |
-| `fontawesome` | **Font Awesome** | `link`: `href`<br>`dom`: `i[class*='fa-'], [class*='fas '], [class*='fab ']` | font-awesome\|fontawesome\|all(?:\.min)?\.css<br>fa-\|fas \|fab  | 85<br>70 | - |
+| `fontawesome` | **Font Awesome** | `link`: `href`<br>`script`: `src`<br>`dom`: `i[class*='fa-'], [class*='fas '], [class*='fab ']` | font-?awesome\|use\.fontawesome\.com\|kit\.fontawesome\.com<br>kit\.fontawesome\.com\|font-?awesome<br>fa-\|fas \|fab  | 85<br>85<br>70 | - |
 | `material-ui` | **Material UI** | `dom`: `[class*='MuiButton-'], [class*='MuiBox-'], [class*='MuiTypography-']` | Mui[A-Z][a-zA-Z]+- | 85 | $\rightarrow$ **React** (`possible`) |
 | `astro` | **Astro** | `dom`: `[data-astro-cid-], astro-island`<br>`meta`: `generator` | data-astro-cid-\|astro-island<br>Astro(?:\s+v?([0-9.]+))? | 95<br>95 | - |
 | `sveltekit` | **SvelteKit** | `dom`: `script[data-sveltekit-], div#svelte, link[rel='modulepreload'][href*='_app/immutable/']` | data-sveltekit\|__sveltekit\|_app/immutable\|div#svelte | 95 | $\rightarrow$ **Svelte** (`possible`)<br>$\rightarrow$ **Node.js** (`unknown`) |
+| `lodash` | **Lodash** | `script`: `src` | (?:^\|/)lodash(?:[.-\]\(\d+(?:\.\d+)*))?(?:\.core)?(?:\.min)?\.js\|/lodash@(\d+(?:\.\d+)*)\|/lodash\.js/(\d+(?:\.\d+)*) | 85 | - |
+| `moment` | **Moment.js** | `script`: `src` | (?:^\|/)moment(?:-with-locales)?(?:[.-\]\(\d+(?:\.\d+)*))?(?:\.min)?\.js\|/moment@(\d+(?:\.\d+)*)\|/moment\.js/(\d+(?:\.\d+)*) | 85 | - |
 
 ---
 
@@ -233,7 +235,7 @@ Implication Engine は、親技術が直接検出された際に、依存関係�
 
 ```mermaid
 graph LR
-    Next["Next.js"] -->|"framework-dependency (confirmed)"| React["React"]
+    Next["Next.js"] -->|"framework-dependency (possible)"| React["React"]
     Next -->|"possible-runtime (unknown)"| Node["Node.js"]
     
     Nuxt["Nuxt"] -->|"framework-dependency (confirmed)"| Vue["Vue.js"]
@@ -312,3 +314,8 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **断定の回避**: バージョンが隠蔽されて特定できない場合は、「バージョン不明」として安全に扱い、**無関係なバージョンのCVEを誤報（False Positive）として出さない**安全機構（IMP-19）が働きます。
 - **Linuxディストリビューション版（バックポート修正）への配慮**:
   `Server: Apache/2.4.41 (Ubuntu)` のように OS パッケージ版が使用されている場合、バージョン番号上は古く見えても、セキュリティパッチがバックポート（逆移植）されている可能性があります。そのため、診断レポート上では「バージョン表記上は該当。Linuxディストリビューション版（Ubuntu/RHEL等）の場合はバックポート修正済みの可能性あり（要確認）」と確度を分けてガイダンスします。
+  - **v1.6.6 での実装（第1段階: Needs Review 扱い）**:
+    v1.6.6 では、バックポート考慮の第1段階として以下が実装されています（SPEC-02）。
+    1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、バージョンを抽出したヘッダー値全文から括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）およびパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1` 等）を自動検出し、`DetectedTechnology.distroHint` を設定します。
+    2. **オフライン脆弱性照合での安全処理**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、「{distro} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。」という注記を付与します。
+    3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジを表示し、JSON / CSV / Markdown エクスポートにも `distroHint` および注記文を出力します。

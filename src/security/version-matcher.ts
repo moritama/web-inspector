@@ -66,6 +66,7 @@ export function compareVersions(v1: string, v2: string): number {
  * バージョンが指定された単一の比較条件（例: "< 4.3.1", ">= 3.0.0", "= 3.6.0"）を満たすか判定する
  */
 export function satisfiesSingleClause(version: string, clause: string): boolean {
+  if (!version || parseVersionParts(version) === null) return false;
   const trimmed = clause.trim();
   if (!trimmed || trimmed === '*') return true;
 
@@ -125,7 +126,7 @@ export function satisfiesSingleClause(version: string, clause: string): boolean 
  * @returns 範囲内であれば true
  */
 export function satisfiesVersionRange(version: string | null | undefined, rangeSpec: string): boolean {
-  if (!version) return false;
+  if (!version || parseVersionParts(version) === null) return false;
   if (!rangeSpec || rangeSpec.trim() === '*' || rangeSpec.trim() === 'all') return true;
 
   // 1. "||" によるOR条件の分割

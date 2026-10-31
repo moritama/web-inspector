@@ -1,11 +1,14 @@
 {
   "name": "web-inspector",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "advisories:sync": "node scripts/sync-advisories.mjs",
+    "advisories:fetch": "node scripts/advisories/fetch-upstream.mjs",
+    "advisories:build": "node scripts/advisories/build-db.mjs",
+    "advisories:sync": "npm run advisories:fetch && npm run advisories:build && npm run advisories:validate",
+    "advisories:diff": "node scripts/advisories/diff-db.mjs",
     "advisories:validate": "node scripts/validate-advisories.mjs",
     "advisories:verify-nvd": "node scripts/verify-advisories-nvd.mjs",
     "build": "npm run typecheck && vite build",
@@ -16,7 +19,8 @@
     "test:e2e": "npm run build && node scripts/test-e2e-smoke.mjs",
     "test-server": "node test-server/server.mjs",
     "spec:generate": "node scripts/generate-spec-catalog.mjs",
-    "package": "npm run advisories:validate && npm run advisories:verify-nvd && npm run build && node scripts/package.mjs"
+    "package": "npm run advisories:validate && npm run advisories:verify-nvd && npm run build && node scripts/package.mjs",
+    "cws": "node scripts/cws-publish.mjs"
   },
   "keywords": [
     "chrome-extension",

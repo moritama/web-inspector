@@ -1076,6 +1076,283 @@ describe('DetectionEngine', () => {
       expect(java).toBeUndefined();
     });
   });
+
+  describe('ディストリビューション版バックポート考慮 (SPEC-02 / T04)', () => {
+    it('nginx/1.18.0 (Ubuntu) は distroHint: "Ubuntu" かつ advisoryMatchStatus: "Needs Review" となること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            server: ['nginx/1.18.0 (Ubuntu)'],
+          },
+          cookies: [],
+        },
+      });
+
+      const nginx = results.find((r) => r.technology === 'Nginx');
+      expect(nginx).toBeDefined();
+      expect(nginx?.version).toBe('1.18.0');
+      expect(nginx?.distroHint).toBe('Ubuntu');
+      expect(nginx?.advisoryMatchStatus).toBe('Needs Review');
+      expect(nginx?.offlineMatchStatus).toBe('Unknown Version');
+    });
+
+    it('Apache/2.4.58 (Unix) は Unix をディストリ扱いせず従来どおり照合されること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            server: ['Apache/2.4.58 (Unix)'],
+          },
+          cookies: [],
+        },
+      });
+
+      const apache = results.find((r) => r.technology === 'Apache');
+      expect(apache).toBeDefined();
+      expect(apache?.version).toBe('2.4.58');
+      expect(apache?.distroHint).toBeUndefined();
+      expect(apache?.advisoryMatchStatus).not.toBe('Needs Review');
+    });
+
+    it('X-Powered-By: PHP/8.1.2-1ubuntu2.14 は distroHint: "Ubuntu" かつ Needs Review となること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            'x-powered-by': ['PHP/8.1.2-1ubuntu2.14'],
+          },
+          cookies: [],
+        },
+      });
+
+      const php = results.find((r) => r.technology === 'PHP');
+      expect(php).toBeDefined();
+      expect(php?.version).toBe('8.1.2');
+      expect(php?.distroHint).toBe('Ubuntu');
+      expect(php?.advisoryMatchStatus).toBe('Needs Review');
+      expect(php?.offlineMatchStatus).toBe('Unknown Version');
+    });
+  });
+
+  describe('誤検知の抑制と検出精度 (SPEC-09 / T05)', () => {
+    describe('Tailwind CSS の陽性・陰性判定', () => {
+      it.each([
+        ['d-flex justify-content-between align-items-center'],
+        ['container-fluid py-4'],
+        ['col-md-6 mb-3 text-muted'],
+        ['btn btn-primary px-4'],
+      ])('Bootstrap クラス "%s" から Tailwind CSS を検出しないこと', (snippet) => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: { ...emptyDom, htmlSnippets: [snippet] },
+        });
+        expect(results.some((r) => r.technology === 'Tailwind CSS')).toBe(false);
+      });
+
+      it.each([
+        ['flex items-center justify-between bg-gray-100 px-4 md:px-8'],
+        ['text-slate-700 hover:text-slate-900'],
+      ])('Tailwind 固有クラス "%s" から Tailwind CSS を検出できること', (snippet) => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: { ...emptyDom, htmlSnippets: [snippet] },
+        });
+        const tailwind = results.find((r) => r.technology === 'Tailwind CSS');
+        expect(tailwind).toBeDefined();
+        expect(tailwind?.confidence).toBeGreaterThanOrEqual(50);
+      });
+    });
+
+    describe('Font Awesome の陽性・陰性判定', () => {
+      it('テーマの small.css / all.css から Font Awesome を検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              { rel: 'stylesheet', href: '/themes/t/css/small.css' },
+              { rel: 'stylesheet', href: '/themes/t/css/all.css' },
+            ],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Font Awesome')).toBe(false);
+      });
+
+      it('cdnjs の CSS URL から Font Awesome を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css' },
+            ],
+          },
+        });
+        const fa = results.find((r) => r.technology === 'Font Awesome');
+        expect(fa).toBeDefined();
+        expect(fa?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('kit.fontawesome.com の スクリプト URL から Font Awesome を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://kit.fontawesome.com/abc123.js'],
+          },
+        });
+        const fa = results.find((r) => r.technology === 'Font Awesome');
+        expect(fa).toBeDefined();
+        expect(fa?.confidence).toBeGreaterThanOrEqual(80);
+      });
+    });
+
+    describe('Chart.js / D3.js の誤検知防止', () => {
+      it('orgchart.js / md3.js から Chart.js / D3.js を検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/js/orgchart.js', '/static/md3.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Chart.js')).toBe(false);
+        expect(results.some((r) => r.technology === 'D3.js')).toBe(false);
+      });
+
+      it('正規の D3.js スクリプトから D3.js を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://d3js.org/d3.v7.min.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'D3.js')).toBe(true);
+      });
+    });
+
+    describe('Ruby on Rails の Passenger 単独評価の抑制', () => {
+      it('X-Powered-By: Phusion Passenger 単独で Ruby on Rails を高確信度にしないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: emptyDom,
+          network: {
+            url: 'https://example.com/',
+            responseHeaders: {
+              'x-powered-by': ['Phusion Passenger(R) 6.0.17'],
+            },
+            cookies: [],
+          },
+        });
+        const rails = results.find((r) => r.technology === 'Ruby on Rails');
+        expect(rails?.confidenceLevel ?? 'low').not.toBe('high');
+      });
+    });
+
+    describe('DOC-02: Lodash / Moment.js のスクリプトURL検出 (T07)', () => {
+      it('cdnjs のスクリプトURLから Lodash およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBe('4.17.21');
+        expect(lodash?.category).toBe('js-css-library');
+        expect(lodash?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('jsdelivr のスクリプトURLから Lodash およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBe('4.17.21');
+      });
+
+      it('ローカルスクリプトURLから Lodash を検出できること（バージョンなし）', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/assets/js/lodash.min.js', '/assets/js/lodash.core.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBeNull();
+      });
+
+      it('cdnjs のスクリプトURLから Moment.js およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBe('2.29.4');
+        expect(moment?.category).toBe('js-css-library');
+        expect(moment?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('jsdelivr のスクリプトURLから Moment.js およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBe('2.29.4');
+      });
+
+      it('ローカルスクリプトURLから Moment.js を検出できること（バージョンなし）', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/static/js/moment-with-locales.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBeNull();
+      });
+
+      it('類似名称の無関係なスクリプトから Lodash / Moment.js を誤検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/js/my-lodash.js', '/static/momentary.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Lodash')).toBe(false);
+        expect(results.some((r) => r.technology === 'Moment.js')).toBe(false);
+      });
+    });
+  });
 });
 
 

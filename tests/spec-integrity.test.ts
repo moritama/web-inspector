@@ -38,10 +38,10 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
   const ruleIds = allRules.map((r) => r.id);
   const ruleIdSet = new Set(ruleIds);
 
-  it('ルール定義と仕様書カタログの登録技術数が完全に一致すること (全68技術)', () => {
-    expect(allRules.length).toBe(68);
-    expect(specTechIds.length).toBe(68);
-    expect(new Set(specTechIds).size).toBe(68);
+  it('ルール定義と仕様書カタログの登録技術数が完全に一致すること (全70技術)', () => {
+    expect(allRules.length).toBe(70);
+    expect(specTechIds.length).toBe(70);
+    expect(new Set(specTechIds).size).toBe(70);
   });
 
   it('ルール定義(rules/*.json)に存在する全技術IDが仕様書に含まれていること', () => {
@@ -124,8 +124,10 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
     const version = pkg.version;
 
-    // 1. manifest.json との完全一致
-    expect(manifest.version).toBe(version);
+    // 1. manifest.json との一致 (DBのみ更新リリースでは第4要素 = DBリビジョンが付与される: 例 1.6.5.2)
+    const [mBase, mRev] = [manifest.version.split('.').slice(0, 3).join('.'), manifest.version.split('.')[3]];
+    expect(mBase).toBe(version);
+    if (mRev !== undefined) expect(mRev).toMatch(/^\d+$/);
 
     // 2. HTMLファイルのバージョンバッジ表示一致
     const htmlFiles = [
@@ -151,6 +153,34 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
       readmeContent.includes(`version-${version}-blue.svg`),
       `README.md にバージョンバッジ "version-${version}-blue.svg" が含まれていません`
     ).toBe(true);
+  });
+
+  it('自動生成された DOM セレクタ一覧 (dom-selectors.generated.ts) がルール定義と完全に一致していること (T06 / DOC-01)', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const genFilePath = path.join(rootDir, 'src', 'content', 'dom-selectors.generated.ts');
+    expect(fs.existsSync(genFilePath), `${genFilePath} が存在しません`).toBe(true);
+
+    const expectedSet = new Set<string>();
+    for (const rule of allRules) {
+      for (const sig of rule.signals) {
+        if (sig.type === 'dom') {
+          if (sig.target === 'title') continue;
+          const parts = sig.target.split(',').map((s) => s.trim()).filter(Boolean);
+          for (const p of parts) {
+            expectedSet.add(p);
+          }
+        }
+      }
+    }
+    const expectedSorted = Array.from(expectedSet).sort();
+
+    const genContent = fs.readFileSync(genFilePath, 'utf-8');
+    const match = genContent.match(/export const DOM_MARKER_SELECTORS:\s*string\[\]\s*=\s*(\[[\s\S]*?\]);/);
+    expect(match, 'DOM_MARKER_SELECTORS の定義が見つかりませんでした').toBeDefined();
+    if (match) {
+      const parsedSelectors = JSON.parse(match[1]) as string[];
+      expect(parsedSelectors).toEqual(expectedSorted);
+    }
   });
 });
 

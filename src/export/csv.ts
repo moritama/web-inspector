@@ -53,6 +53,7 @@ export function exportReportToCsv(report: InspectionReport): string {
       'カテゴリ',
       '代表バージョン',
       'バージョン検出元',
+      'ディストリ版ヒント',
       '確信度スコア',
       '検出方式',
       '連動種別',
@@ -72,7 +73,7 @@ export function exportReportToCsv(report: InspectionReport): string {
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     for (const tech of report.technologies) {
       const evidenceSummary = tech.evidence
@@ -120,6 +121,7 @@ export function exportReportToCsv(report: InspectionReport): string {
           tech.category,
           tech.version || 'バージョン不明',
           tech.versionSource || 'pattern',
+          tech.distroHint || '-',
           tech.confidence,
           detectionMethodText,
           implicationTypeText,

@@ -38,7 +38,7 @@ import {
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.5';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.6';
 
 /**
  * キャッシュに保持するヘッダーエントリ構造
@@ -63,6 +63,20 @@ export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
       .map((s) => s.target.toLowerCase())
   ),
 ]);
+
+/**
+ * HTTPレスポンスヘッダーに依存するセキュリティ診断項目のプレフィックス (SPEC-01)
+ */
+export const HEADER_DEPENDENT_CHECK_PREFIXES = [
+  'SEC-HSTS-',
+  'SEC-CSP-',
+  'SEC-XFO-',
+  'SEC-XCTO-',
+  'SEC-REF-',
+  'SEC-PERM-',
+  'SEC-CORS-',
+  'SEC-DISC-',
+] as const;
 
 /**
  * キャッシュ保存用にURLをサニタイズ（クエリおよびフラグメントを除去し origin + pathname のみにする）
@@ -310,6 +324,32 @@ if (typeof chrome !== 'undefined' && chrome.tabs?.onRemoved) {
   });
 }
 
+// プリレンダリング対応: removedTabId のキャッシュを addedTabId へ移行 (SPEC-16)
+if (typeof chrome !== 'undefined' && chrome.tabs?.onReplaced) {
+  chrome.tabs.onReplaced.addListener(async (addedTabId, removedTabId) => {
+    try {
+      await ensureHeadersRestored();
+      const entry = headersCache.get(removedTabId);
+      if (entry) {
+        headersCache.delete(removedTabId);
+        headersCache.set(addedTabId, entry);
+      }
+      if (chrome.storage?.session) {
+        const removedKey = `tab_headers_${removedTabId}`;
+        const addedKey = `tab_headers_${addedTabId}`;
+        const sessionData = await chrome.storage.session.get(removedKey);
+        const savedEntry = sessionData?.[removedKey] || entry;
+        if (savedEntry) {
+          await chrome.storage.session.set({ [addedKey]: savedEntry });
+          await chrome.storage.session.remove(removedKey);
+        }
+      }
+    } catch (e) {
+      console.warn('tabs.onReplaced header cache migration warning:', e);
+    }
+  });
+}
+
 /**
  * Cookie属性の取得 (値は除外)
  */
@@ -390,7 +430,11 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
           bootstrap4: w.jQuery?.fn?.modal?.Constructor?.VERSION ?? null,
           bootstrap5: w.bootstrap?.Modal?.VERSION ?? null,
           vue: w.Vue?.version ?? null,
-          lodash: w._?.VERSION ?? null,
+          // Underscore.js との誤認防止: window._.VERSION は Underscore にも存在するため、cloneDeep 関数の有無で判別 (T07 / DOC-02)
+          lodash:
+            typeof w._?.cloneDeep === 'function' && typeof w._?.VERSION === 'string'
+              ? w._.VERSION
+              : null,
           moment: w.moment?.version ?? null,
           angularjs: w.angular?.version?.full ?? null,
         };
@@ -404,7 +448,7 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
             document.getElementById('app'),
             document.getElementById('__next'),
             document.body,
-            ...Array.from(document.querySelectorAll('div[id], main, #root > *, body > *')),
+            ...Array.from(document.querySelectorAll('div[id], main, #root > *, body > *')).slice(0, 200),
           ];
           for (const node of candidateNodes) {
             if (!node) continue;
@@ -425,7 +469,7 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
             document.getElementById('root'),
             document.getElementById('__nuxt'),
             document.body,
-            ...Array.from(document.querySelectorAll('div[id], main, [data-v-app]')),
+            ...Array.from(document.querySelectorAll('div[id], main, [data-v-app]')).slice(0, 200),
           ];
           for (const node of candidateNodes) {
             if (!node) continue;
@@ -493,15 +537,53 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
 
   // 2. JavaScript実行時バージョンおよび内部フレームワークマーカーの取得 (MAIN World)
   const runtimeInfo = await deps.fetchRuntimeVersions(currentTabId);
-  domSignals.runtimeVersions = runtimeInfo.versions;
-  if (runtimeInfo.frameworkMarkers.length > 0) {
-    domSignals.domMarkers = [...(domSignals.domMarkers || []), ...runtimeInfo.frameworkMarkers];
+
+  // IMPL-04: MAIN world から取得した実行時バージョンの検証（ページによる偽装や肥大化を防止）
+  const runtimeVersionPattern = /^\d+(\.\d+){0,3}([-+.][0-9A-Za-z.-]{1,16})?$/;
+  const validatedVersions: Record<string, string | null> = {};
+  if (runtimeInfo && runtimeInfo.versions && typeof runtimeInfo.versions === 'object') {
+    for (const [key, val] of Object.entries(runtimeInfo.versions)) {
+      if (
+        typeof val === 'string' &&
+        val.length >= 1 &&
+        val.length <= 32 &&
+        runtimeVersionPattern.test(val)
+      ) {
+        validatedVersions[key] = val;
+      } else {
+        validatedVersions[key] = null;
+      }
+    }
+  }
+  domSignals.runtimeVersions = validatedVersions;
+
+  // IMPL-04: 既知のフレームワークマーカーのみ許可
+  const ALLOWED_FRAMEWORK_MARKERS = new Set(['__reactContainer$', '__vue_app__']);
+  const validatedMarkers = Array.isArray(runtimeInfo?.frameworkMarkers)
+    ? runtimeInfo.frameworkMarkers.filter(
+        (m): m is string => typeof m === 'string' && ALLOWED_FRAMEWORK_MARKERS.has(m)
+      )
+    : [];
+  if (validatedMarkers.length > 0) {
+    domSignals.domMarkers = [...(domSignals.domMarkers || []), ...validatedMarkers];
   }
 
-  // 3. HTTPヘッダー・Cookieの取得
+  // 3. HTTPヘッダー・Cookieの取得 (IMPL-02: URL照合)
   const cachedData = await deps.getCachedHeaders(currentTabId);
-  const responseHeaders = cachedData?.headers || {};
-  const headersObserved = Boolean(cachedData?.observed ?? cachedData);
+  let isOriginMatch = false;
+  if (cachedData?.url) {
+    try {
+      const cachedOrigin = new URL(cachedData.url).origin;
+      const tabOrigin = new URL(url).origin;
+      isOriginMatch = cachedOrigin === tabOrigin;
+    } catch {
+      isOriginMatch = false;
+    }
+  }
+
+  const rawHeadersObserved = Boolean(cachedData?.observed ?? cachedData);
+  const headersObserved = rawHeadersObserved && isOriginMatch;
+  const responseHeaders = headersObserved ? (cachedData?.headers || {}) : {};
   const cookies = await deps.getInspectedCookies(url);
 
   const networkSignals: NetworkSignals = {
@@ -551,6 +633,28 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
     baseSecurityChecks.length = 0;
     baseSecurityChecks.push(...nonCspChecks, ...advancedCspChecks);
+  }
+
+  // SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「未観測」とする
+  if (!headersObserved) {
+    const hasMetaCsp = Boolean(domSignals.metaCsp && domSignals.metaCsp.length > 0);
+    for (const c of baseSecurityChecks) {
+      const isHeaderDependent = HEADER_DEPENDENT_CHECK_PREFIXES.some((prefix) =>
+        c.checkId.startsWith(prefix)
+      );
+      if (isHeaderDependent) {
+        // meta CSP が存在する場合の CSP 解析結果は meta 由来として維持
+        if (c.checkId.startsWith('SEC-CSP-') && hasMetaCsp) {
+          continue;
+        }
+        c.status = 'unknown';
+        c.severity = 'info';
+        c.observed = 'HTTPレスポンスヘッダー未観測';
+        c.description =
+          '拡張機能がこのページのレスポンスヘッダーを観測できませんでした。ページを再読み込みしてから再調査してください。';
+        c.recommendation = 'ページを再読み込み（リロード）してから再調査してください。';
+      }
+    }
   }
 
   // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致)

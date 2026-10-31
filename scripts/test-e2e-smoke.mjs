@@ -3,11 +3,11 @@
  * Playwright 実拡張機能 包括的スモークE2Eテスト (scripts/test-e2e-smoke.mjs)
  * 
  * 実際のdist/ビルド拡張機能をChromiumに読み込み、以下を自動検証します：
- * 1. 肯定コントロール: React 18, Apache 2.4.58, PHP 8.2.14, Laravel (Cookie)
- * 2. 否定コントロール: Apache-Coyote (Apache未検出), Rails Cookie (Laravel未検出), loading-spinner (AngularJS未検出)
+ * 1. 肯定コントロール: React 18, Apache 2.4.58, PHP 8.2.14, Laravel (Cookie), Linuxディストリ版Apache (Needs Review)
+ * 2. 否定コントロール: Apache-Coyote (Apache未検出), Rails Cookie (Laravel未検出), loading-spinner (AngularJS未検出), Bootstrap 5 (Tailwind未検出)
  * 3. エッジケース: Vue 3 (data-v- scoped CSS), GTM (noscript iframe), AWS ALB (Cookie)
  * 4. AngularJS EOL & 脆弱性診断: EOL表示、CVE-2022-25869 「修正版なし・移行推奨」文言の厳格なassert
- * 5. エクスポート保存: downloads権限廃止後のアンカー方式による Markdown / CSV / JSON ダウンロード実動
+ * 5. エクスポート保存 & 調査履歴操作: Markdown / CSV / JSON ダウンロード実動、履歴表示・削除・CSP違反0件
  * 6. 一般外部サイト: GitHub.com 調査 (soft fail)
  */
 
@@ -137,6 +137,18 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ Next.js 静的配信 (Next.js検出あり・SSR指標なし) で Node.js が正しく除外されていることを確認`);
 
+    // 2-2 実機E2E: /distro-apache (Server: Apache/2.4.41 (Ubuntu) -> Needs Review / バックポート考慮: SPEC-02)
+    console.log('[e2e-smoke] [2-2] ディストリ版バックポート考慮: /distro-apache を検証中...');
+    const distroApacheReport = await inspectUrl('http://localhost:3000/distro-apache');
+    const distroApacheTech = distroApacheReport.technologies.find((t) => t.technology === 'Apache');
+    if (!distroApacheTech || distroApacheTech.version !== '2.4.41') {
+      throw new Error(`/distro-apache: Apache 2.4.41 が未検出です (実際: ${JSON.stringify(distroApacheTech)})`);
+    }
+    if (distroApacheTech.advisoryMatchStatus !== 'Needs Review') {
+      throw new Error(`/distro-apache: Apache の advisoryMatchStatus が 'Needs Review' ではありません (実際: ${distroApacheTech.advisoryMatchStatus})`);
+    }
+    console.log(`  ✓ Apache 2.4.41 (Server: Apache/2.4.41 (Ubuntu)) が Needs Review (distroHint: ${distroApacheTech.distroHint}) として正常判定されました`);
+
     // -------------------------------------------------------------
     // 検証 3: 否定コントロール & エッジケース (/edge-cases, /rails-session, /negative-angular)
     // -------------------------------------------------------------
@@ -192,6 +204,14 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ 否定: loading-spinner から AngularJS が除外されていることを確認`);
 
+    // 否定: Bootstrap 5 のクラスのみで Tailwind CSS が誤検出されないこと (SPEC-09)
+    const bootstrapReport = await inspectUrl('http://localhost:3000/bootstrap-only');
+    const falseTailwind = bootstrapReport.technologies.find((t) => t.technology === 'Tailwind CSS');
+    if (falseTailwind) {
+      throw new Error(`/bootstrap-only: Bootstrap 5 のクラスから Tailwind CSS が誤検出されました (検出: ${JSON.stringify(falseTailwind)})`);
+    }
+    console.log(`  ✓ 否定: /bootstrap-only から Tailwind CSS が除外されていることを確認`);
+
     // -------------------------------------------------------------
     // 検証 4: AngularJS EOL & CVE-2022-25869 修正版なし案内 (assert)
     // -------------------------------------------------------------
@@ -234,6 +254,18 @@ async function runSmokeTest() {
     
     // ダッシュボードページを開く
     const dashPage = await context.newPage();
+
+    // コンソールエラー（特にCSP違反）を監視
+    const dashboardConsoleErrors = [];
+    dashPage.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        dashboardConsoleErrors.push(msg.text());
+      }
+    });
+    dashPage.on('pageerror', (err) => {
+      dashboardConsoleErrors.push(err.message);
+    });
+
     await dashPage.goto(`chrome-extension://${extensionId}/dashboard.html`, { waitUntil: 'networkidle' });
     await dashPage.waitForTimeout(1000);
 
@@ -275,6 +307,72 @@ async function runSmokeTest() {
     if (!jsonFilename.endsWith('.json') || jsonStat.size === 0) {
       throw new Error(`JSON ダウンロードファイルが不正です: ${jsonFilename}, size=${jsonStat.size}`);
     }
+
+    // -------------------------------------------------------------
+    // 検証 5-2: ダッシュボード調査履歴操作 (IMPL-01)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [5-2] ダッシュボード調査履歴操作 (表示・削除・CSP違反なし) を検証中...');
+
+    // 調査履歴タブに切り替え
+    await dashPage.click('.nav-item[data-view="historyView"]');
+    await dashPage.waitForSelector('#historyListContainer');
+    await dashPage.waitForTimeout(500);
+
+    // 履歴アイテム（表示ボタン）を取得
+    const initialViewBtns = await dashPage.$$('.history-view-btn');
+    const initialCount = initialViewBtns.length;
+    if (initialCount === 0) {
+      throw new Error('ダッシュボードの調査履歴にアイテムが存在しません');
+    }
+    console.log(`  - 削除前の調査履歴件数: ${initialCount} 件`);
+
+    // 1. 「表示」ボタンをクリックして概要サマリーへ遷移することを確認
+    await initialViewBtns[0].click();
+    await dashPage.waitForTimeout(500);
+
+    const isOverviewActive = await dashPage.$eval('#overviewView', (el) => el.classList.contains('active'));
+    if (!isOverviewActive) {
+      throw new Error('履歴の「表示」ボタンをクリックしても概要ビューに遷移しませんでした');
+    }
+    console.log('  ✓ 履歴「表示」ボタンクリックで概要サマリーへ正常遷移');
+
+    // 再度、調査履歴タブに戻る
+    await dashPage.click('.nav-item[data-view="historyView"]');
+    await dashPage.waitForTimeout(500);
+
+    // 2. confirm ダイアログを自動承認して「削除」ボタンをクリック
+    dashPage.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+
+    const deleteBtns = await dashPage.$$('.history-delete-btn');
+    if (deleteBtns.length === 0) {
+      throw new Error('履歴の「削除」ボタンが見つかりません');
+    }
+    await deleteBtns[0].click();
+    await dashPage.waitForTimeout(1000);
+
+    // 3. 削除後に履歴件数が減っていることを検証
+    const remainingViewBtns = await dashPage.$$('.history-view-btn');
+    const remainingCount = remainingViewBtns.length;
+    console.log(`  - 削除後の調査履歴件数: ${remainingCount} 件`);
+    if (remainingCount !== initialCount - 1) {
+      throw new Error(`履歴削除後の件数が不正です (削除前: ${initialCount}, 削除後: ${remainingCount}, 期待値: ${initialCount - 1})`);
+    }
+    console.log('  ✓ 履歴「削除」ボタンクリックで履歴が1件減少');
+
+    // 4. CSP 違反のコンソールエラーが 0 件であることを確認
+    const cspErrors = dashboardConsoleErrors.filter(
+      (msg) =>
+        msg.toLowerCase().includes('content security policy') ||
+        msg.toLowerCase().includes('inline event handler') ||
+        msg.toLowerCase().includes('violates') ||
+        msg.toLowerCase().includes('refused to execute')
+    );
+    if (cspErrors.length > 0) {
+      throw new Error(`CSP違反エラーが検出されました: ${cspErrors.join(', ')}`);
+    }
+    console.log('  ✓ 調査履歴の操作中にCSP違反エラーは0件でした');
 
     // スクリーンショット保存（目視確認用）
     if (!fs.existsSync(path.join(ROOT_DIR, '.tmp'))) {

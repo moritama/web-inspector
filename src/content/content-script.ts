@@ -5,6 +5,7 @@
  */
 
 import { DomSignals, InspectedCssAsset, MixedContentItem } from '../shared/types';
+import { DOM_MARKER_SELECTORS } from './dom-selectors.generated';
 
 /**
  * CSSファイル参照（linkタグ）を解析し、ライブラリ名とバージョンを推定する (ADD-02)
@@ -187,7 +188,7 @@ export function extractDomSignals(): DomSignals {
   // noscript タグ内のテキスト走査 (JS有効時のGTM noscriptフォールバック要素探査)
   try {
     document.querySelectorAll('noscript').forEach((el) => {
-      const text = el.textContent || '';
+      const text = (el.textContent || '') + ' ' + (el.innerHTML || '');
       if (text.includes('googletagmanager.com/ns.html')) {
         domMarkers.push('googletagmanager.com/ns.html');
       }
@@ -196,24 +197,8 @@ export function extractDomSignals(): DomSignals {
     // 例外防止
   }
 
-  const markerSelectors = [
-    '#root',
-    '#app',
-    '#__next',
-    '#__nuxt',
-    'script#__NEXT_DATA__',
-    'script#__NUXT_DATA__',
-    '[data-reactroot]',
-    '[data-reactid]',
-    '[data-v-app]',
-    '[ng-version]',
-    '[ng-app]',
-    '[ng-controller]',
-    "[class*='svelte-']",
-    "input[name='csrfmiddlewaretoken']",
-    "meta[name='csrf-param']",
-    'astro-island',
-  ];
+  // 4b. 自動生成されたルール定義に基づくDOMマーカーセレクタの自動探査 (T06 / DOC-01)
+  const markerSelectors = Array.from(new Set([...DOM_MARKER_SELECTORS, '#root', '#app', '#__next']));
 
   markerSelectors.forEach((sel) => {
     try {
@@ -225,12 +210,35 @@ export function extractDomSignals(): DomSignals {
           domMarkers.push('__NEXT_DATA__');
         } else if (sel === 'script#__NUXT_DATA__') {
           domMarkers.push('__NUXT_DATA__');
+        } else if (sel === "meta[name='csrf-param']") {
+          // Rails meta[name='csrf-param'] は content属性値も含めてマーカーに追加 (T06 / DOC-01)
+          domMarkers.push(sel);
+          const content = el.getAttribute('content');
+          if (content) {
+            domMarkers.push(content);
+          }
+        } else if (sel === 'iframe') {
+          // GTM 等の iframe シグナル: セレクタ自体に加え、iframe の src 属性値もマーカーに含める
+          domMarkers.push(sel);
+          try {
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach((iframeEl, idx) => {
+              if (idx < 10) {
+                const src = iframeEl.getAttribute('src');
+                if (src) {
+                  domMarkers.push(src);
+                }
+              }
+            });
+          } catch {
+            // 例外防止
+          }
         } else {
           domMarkers.push(sel);
         }
       }
     } catch {
-      // セレクタ評価例外防止
+      // セレクタ評価例外防止（無効なセレクタ文字列等は安全にスキップ）
     }
   });
 
@@ -245,6 +253,22 @@ export function extractDomSignals(): DomSignals {
       }
     }
   });
+
+  // 5b. 特定要素テキスト収集 (T06 / DOC-01: Spring Boot Whitelabel Error Page 等のテキスト判定用)
+  const elementTexts: string[] = [];
+  try {
+    const textElements = document.querySelectorAll('h1, h2, [class*="error"], [id*="error"]');
+    textElements.forEach((el, index) => {
+      if (index < 10) {
+        const text = (el.textContent || '').trim().slice(0, 200);
+        if (text) {
+          elementTexts.push(text);
+        }
+      }
+    });
+  } catch {
+    // テキスト取得例外防止
+  }
 
   // 6. 混在コンテンツ (Mixed Content) の収集
   const mixedContent: MixedContentItem[] = [];
@@ -327,6 +351,7 @@ export function extractDomSignals(): DomSignals {
     cookiesFromDocument,
     cssAssets,
     metaCsp,
+    elementTexts,
   };
 }
 

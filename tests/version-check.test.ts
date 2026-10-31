@@ -5,9 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { matchOfflineAdvisories } from '../src/detection/advisory';
 import { DetectionEngine } from '../src/detection/engine';
-import { checkCveAdvisories } from '../src/security/cve/cve-engine';
-import { checkEolStatus } from '../src/security/eol/eol-engine';
 import { compareVersions, satisfiesVersionRange } from '../src/security/version-matcher';
 import { DomSignals } from '../src/shared/types';
 
@@ -36,6 +35,18 @@ describe('Version Matcher Utility', () => {
     expect(satisfiesVersionRange('8.1.10', php2022Range)).toBe(true);
     expect(satisfiesVersionRange('8.1.11', php2022Range)).toBe(false);
     expect(satisfiesVersionRange('8.2.0', php2022Range)).toBe(false);
+  });
+
+  it('satisfiesVersionRange は解析できないバージョンに対して常に false を返すこと (SPEC-06)', () => {
+    expect(satisfiesVersionRange('abc', '< 3.0.0')).toBe(false);
+    expect(satisfiesVersionRange('custom-build', '>= 1.0.0')).toBe(false);
+  });
+
+  it("'1.x' サイクルが 10.2.0 に一致しないこと (SPEC-04)", () => {
+    // AngularJS のサイクルは '1.x' のみ。10.2.0 はこれに一致してはならず、未知系列として Unknown になる
+    const result = matchOfflineAdvisories('AngularJS', '10.2.0');
+    expect(result.eolInfo.status).not.toBe('EOL');
+    expect(result.eolInfo.status).toBe('Unknown');
   });
 });
 
@@ -149,33 +160,31 @@ describe('T01 - T05: JavaScript & CSS バージョン検出と整合性確認', 
 
 describe('T06 - T09: EOL & CVE 照合', () => {
   it('T06: Bootstrap 4.3.1 を照合すると EOL と判定されること', () => {
-    const eol = checkEolStatus('Bootstrap', '4.3.1');
-    expect(eol.status).toBe('EOL');
-    expect(eol.eolDate).toBe('2023-01');
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.1');
+    expect(result.eolInfo.status).toBe('EOL');
+    expect(result.eolInfo.eolDate).toBe('2023-01-01');
   });
 
-  it('T07: Bootstrap 4.2.0 を照合すると CVE-2019-8331 (Potentially Affected) と判定されること', () => {
-    const cve = checkCveAdvisories('Bootstrap', '4.2.0');
-    expect(cve.matchStatus).toBe('Potentially Affected');
-    expect(cve.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
-    expect(cve.maxCvss).toBe(6.1);
+  it('T07: Bootstrap 4.3.0 を照合すると CVE-2019-8331 (Potentially Affected) と判定されること', () => {
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.0');
+    expect(result.matchStatus).toBe('Potentially Affected');
+    expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
+    expect(result.maxCvss).toBe(6.1);
   });
 
   it('Bootstrap 4.3.1 (修正済み) を照合すると CVE-2019-8331 には該当しないこと', () => {
-    const cve = checkCveAdvisories('Bootstrap', '4.3.1');
-    expect(cve.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(false);
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.1');
+    expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(false);
   });
 
   it('T08: バージョンが不明な場合は Unknown / Needs Review と判定されること', () => {
-    const eol = checkEolStatus('Bootstrap', null);
-    expect(eol.status).toBe('Unknown');
-
-    const cve = checkCveAdvisories('Bootstrap', null);
-    expect(cve.matchStatus).toBe('Needs Review');
+    const result = matchOfflineAdvisories('Bootstrap', null);
+    expect(result.eolInfo.status).toBe('Unknown');
+    expect(result.matchStatus).toBe('Needs Review');
   });
 
   it('T09: 未登録の未知技術の場合は No Data と判定されること', () => {
-    const cve = checkCveAdvisories('UnknownCustomLib', '1.0.0');
-    expect(cve.matchStatus).toBe('No Data');
+    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0');
+    expect(result.matchStatus).toBe('No Data');
   });
 });

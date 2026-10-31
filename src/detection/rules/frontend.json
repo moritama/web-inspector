@@ -253,8 +253,9 @@
       {
         "type": "css",
         "target": "class",
-        "pattern": "(?:flex|grid|hidden|block)\\s+(?:items-|justify-|space-|p-|m-|text-|bg-)",
-        "weight": 80
+        "pattern": "(?:sm|md|lg|xl|2xl|hover|focus|dark):[a-z0-9_-]+|[a-z0-9_-]+-\\[[^\\]]+\\]|(?:text|bg|border|ring|from|to|via)-[a-z]+-(?:50|[1-9]00|950)",
+        "weight": 70,
+        "detail": "HTMLクラスにTailwind CSS固有のユーティリティパターン（バリアントやカラースケール等）を検出"
       },
       {
         "type": "script",
@@ -350,7 +351,7 @@
       {
         "type": "script",
         "target": "src",
-        "pattern": "chart(?:\\.umd)?(?:\\.min)?\\.js",
+        "pattern": "(?:^|/)chart(?:\\.umd)?(?:\\.min)?\\.js|/chart\\.js@|/npm/chart\\.js",
         "weight": 85,
         "detail": "スクリプトURLからChart.jsを検出"
       }
@@ -382,7 +383,7 @@
       {
         "type": "script",
         "target": "src",
-        "pattern": "d3(?:\\.v[0-9]+)?(?:\\.min)?\\.js",
+        "pattern": "(?:^|/)d3(?:\\.v[0-9]+)?(?:\\.min)?\\.js|/d3@[0-9]",
         "weight": 85,
         "detail": "スクリプトURLからD3.jsを検出"
       }
@@ -444,9 +445,16 @@
       {
         "type": "link",
         "target": "href",
-        "pattern": "font-awesome|fontawesome|all(?:\\.min)?\\.css",
+        "pattern": "font-?awesome|use\\.fontawesome\\.com|kit\\.fontawesome\\.com",
         "weight": 85,
         "detail": "アセットURLからFont Awesomeスタイルシートを検出"
+      },
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "kit\\.fontawesome\\.com|font-?awesome",
+        "weight": 85,
+        "detail": "スクリプトURLからFont Awesomeを検出"
       },
       {
         "type": "dom",
@@ -529,6 +537,40 @@
         "pattern": "data-sveltekit|__sveltekit|_app/immutable|div#svelte",
         "weight": 95,
         "detail": "DOMマーカーおよびアセットパスからSvelteKitを検出"
+      }
+    ]
+  },
+  {
+    "id": "lodash",
+    "name": "Lodash",
+    "category": "js-css-library",
+    "website": "https://lodash.com/",
+    "description": "配列やオブジェクトの操作を容易にするモダンなJavaScriptユーティリティライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:^|/)lodash(?:[.-](\\d+(?:\\.\\d+)*))?(?:\\.core)?(?:\\.min)?\\.js|/lodash@(\\d+(?:\\.\\d+)*)|/lodash\\.js/(\\d+(?:\\.\\d+)*)",
+        "versionRegex": "(?:/lodash@|/lodash\\.js/|(?:^|/)lodash[.-])(\\d+(?:\\.\\d+)*)",
+        "weight": 85,
+        "detail": "スクリプトURLからLodashを検出"
+      }
+    ]
+  },
+  {
+    "id": "moment",
+    "name": "Moment.js",
+    "category": "js-css-library",
+    "website": "https://momentjs.com/",
+    "description": "日付と時刻の解析、検証、操作、表示を行うJavaScriptライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:^|/)moment(?:-with-locales)?(?:[.-](\\d+(?:\\.\\d+)*))?(?:\\.min)?\\.js|/moment@(\\d+(?:\\.\\d+)*)|/moment\\.js/(\\d+(?:\\.\\d+)*)",
+        "versionRegex": "(?:/moment@|/moment\\.js/|(?:^|/)moment(?:-with-locales)?[.-])(\\d+(?:\\.\\d+)*)",
+        "weight": 85,
+        "detail": "スクリプトURLからMoment.jsを検出"
       }
     ]
   }

@@ -44,6 +44,8 @@ function createLayout(title, content) {
       <a href="/rails-session">/rails-session (Rails単独)</a>
       <a href="/react18-app">/react18-app (React 18)</a>
       <a href="/vue3-app">/vue3-app (Vue 3)</a>
+      <a href="/bootstrap-only">/bootstrap-only (Bootstrapのみ)</a>
+      <a href="/distro-apache">/distro-apache (Distro Apache)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -513,6 +515,50 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  // --- 13. /bootstrap-only (Bootstrap 5 のみ・Tailwind CSS 誤検知防止検証: SPEC-09) ---
+  if (pathname === '/bootstrap-only') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'Bootstrap 5 誤検知防止検証',
+        `<h1>Bootstrap 5 誤検知防止検証 (/bootstrap-only)</h1>
+        <p>このページでは Bootstrap 5 のユーティリティクラス（d-flex justify-content-between align-items-center等）のみを使用し、Tailwind CSS は使用していません。</p>
+        <div class="d-flex justify-content-between align-items-center p-3 mb-2 bg-light text-dark" style="border: 1px solid #dee2e6; border-radius: 4px;">
+          <span>Bootstrap 5 ユーティリティ要素</span>
+          <button type="button" class="btn btn-primary">Primary Button</button>
+        </div>
+        <div class="card">
+          <h3>期待される検出結果:</h3>
+          <ul>
+            <li><strong>Tailwind CSS</strong>: 未検出（0件）であること</li>
+          </ul>
+        </div>`
+      )
+    );
+  }
+
+  // --- 14. /distro-apache (Linuxディストリビューション版バックポート考慮検証: SPEC-02) ---
+  if (pathname === '/distro-apache') {
+    res.setHeader('Server', 'Apache/2.4.41 (Ubuntu)');
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'Linuxディストリビューション版 Apache 検証',
+        `<h1>Linuxディストリビューション版 Apache 検証 (/distro-apache)</h1>
+        <p>このページでは <code>Server: Apache/2.4.41 (Ubuntu)</code> レスポンスヘッダーを返却します。</p>
+        <div class="card">
+          <h3>期待される検出結果:</h3>
+          <ul>
+            <li><strong>Apache</strong>: 検出方式 direct、バージョン <code>2.4.41</code></li>
+            <li><strong>脆弱性照合 (advisoryMatchStatus)</strong>: <code>Needs Review</code>（ディストリビューション版 Ubuntu のためバックポートを考慮）</li>
+          </ul>
+        </div>`
+      )
+    );
+  }
+
   // --- 8. デフォルト (v1.1 テストページ) ---
   res.setHeader('Server', 'Apache/2.4.58 (Unix)');
   res.setHeader('X-Powered-By', 'PHP/8.2.14');
@@ -560,4 +606,6 @@ server.listen(PORT, () => {
   console.log(`  - Rails Cookie誤検知防止検証: http://localhost:${PORT}/rails-session`);
   console.log(`  - React 18 実機検証: http://localhost:${PORT}/react18-app`);
   console.log(`  - Vue 3 実機検証: http://localhost:${PORT}/vue3-app`);
+  console.log(`  - Bootstrap 5 のみ (Tailwind誤検知防止): http://localhost:${PORT}/bootstrap-only`);
+  console.log(`  - ディストリ版 Apache (バックポート考慮): http://localhost:${PORT}/distro-apache`);
 });

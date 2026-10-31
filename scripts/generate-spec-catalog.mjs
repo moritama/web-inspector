@@ -120,9 +120,43 @@ function generateServicesTable(rules) {
   return [header, divider, ...rows].join('\n');
 }
 
+function generateDomSelectorsFile() {
+  const domSelectors = new Set();
+
+  for (const rule of allRules) {
+    for (const signal of rule.signals) {
+      if (signal.type === 'dom') {
+        if (signal.target === 'title') continue;
+        const targets = signal.target.split(',').map((t) => t.trim()).filter(Boolean);
+        for (const t of targets) {
+          domSelectors.add(t);
+        }
+      }
+    }
+  }
+
+  const sortedSelectors = Array.from(domSelectors).sort();
+
+  const fileContent = `/**
+ * Web Technology & Security Inspector
+ * 自動生成ファイル: DOMシグナル探査用セレクタ一覧 (src/content/dom-selectors.generated.ts)
+ * 
+ * scripts/generate-spec-catalog.mjs により自動生成されます。手動で編集しないでください。
+ * (npm run spec:generate で再生成されます)
+ */
+
+export const DOM_MARKER_SELECTORS: string[] = ${JSON.stringify(sortedSelectors, null, 2)};
+`;
+
+  const outputPath = path.join(ROOT_DIR, 'src', 'content', 'dom-selectors.generated.ts');
+  fs.writeFileSync(outputPath, fileContent, 'utf-8');
+  console.log(`[generate-spec-catalog] DOMセレクタ一覧を正常に生成完了 (${sortedSelectors.length}件): ${outputPath}`);
+}
+
 function main() {
   console.log(`[generate-spec-catalog] 全${allRules.length}技術のルール定義からカタログを生成中...`);
 
+  // 1. 仕様書カタログMarkdownの更新
   const specContent = fs.readFileSync(SPEC_FILE, 'utf-8');
 
   const startMarker = '## 3. 全調査対象技術 判定基準カタログ';
@@ -198,6 +232,9 @@ ${generateTable(cdnWafRules)}
 
   fs.writeFileSync(SPEC_FILE, newSpecContent, 'utf-8');
   console.log(`[generate-spec-catalog] 仕様書カタログを正常に更新完了: ${SPEC_FILE}`);
+
+  // 2. content-script専用のDOMセレクタ定義の生成 (T06 / DOC-01)
+  generateDomSelectorsFile();
 }
 
 main();

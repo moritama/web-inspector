@@ -1,0 +1,101 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "react"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-g53w-52xc-2j85",
+      "aliases": [
+        "CVE-2013-7035"
+      ],
+      "summary": "Cross-Site Scripting in react",
+      "published": "2020-09-04T16:52:57Z",
+      "modified": "2023-11-08T03:57:27.158332Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2013-7035",
+        "https://github.com/facebook/react/commit/393a889aaceb761f058b09a701f889fa8f8b4e64",
+        "https://github.com/facebook/react/commit/94a9a3e752fe089ab23f3a90c26d20d46d62ab10",
+        "https://github.com/facebook/react",
+        "https://reactjs.org/blog/2013/12/18/react-v0.5.2-v0.4.2.html",
+        "https://snyk.io/vuln/npm:react:20131217"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0.4.0"
+                },
+                {
+                  "fixed": "0.4.2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0.5.0"
+                },
+                {
+                  "fixed": "0.5.2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-hg79-j56m-fxgv",
+      "aliases": [],
+      "summary": "Cross-Site Scripting in react",
+      "published": "2020-09-04T15:26:04Z",
+      "modified": "2021-10-01T20:15:16Z",
+      "withdrawn": null,
+      "severity": [],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/facebook/react",
+        "https://reactjs.org/blog/2015/10/07/react-v0.14.html#notable-enhancements",
+        "https://reactjs.org/blog/2019/10/22/react-release-channels.html#experimental-channel",
+        "https://snyk.io/vuln/npm:react:20150318",
+        "https://www.npmjs.com/advisories/1347",
+        "http://danlec.com/blog/xss-via-a-spoofed-react-element"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0.0.1"
+                },
+                {
+                  "fixed": "0.14.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

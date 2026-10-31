@@ -1,0 +1,396 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "jquery"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-2pqj-h3vj-pqgw",
+      "aliases": [
+        "CVE-2012-6708"
+      ],
+      "summary": "Cross-Site Scripting in jquery",
+      "published": "2020-09-01T16:41:46Z",
+      "modified": "2024-03-08T05:20:14.907785Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2017-16011",
+        "https://nvd.nist.gov/vuln/detail/CVE-2012-6708",
+        "https://github.com/jquery/jquery/commit/05531fc4080ae24070930d15ae0cea7ae056457d",
+        "https://web.archive.org/web/20200227132049/http://www.securityfocus.com/bid/102792",
+        "https://snyk.io/vuln/npm:jquery:20120206",
+        "https://security.snyk.io/vuln/SNYK-DOTNET-JQUERY-450223",
+        "https://research.insecurelabs.org/jquery/test",
+        "https://lists.apache.org/thread.html/f9bc3e55f4e28d1dcd1a69aae6d53e609a758e34d2869b4d798e13cc@%3Cissues.drill.apache.org%3E",
+        "https://lists.apache.org/thread.html/b0656d359c7d40ec9f39c8cc61bca66802ef9a2a12ee199f5b0c1442@%3Cdev.drill.apache.org%3E",
+        "https://lists.apache.org/thread.html/519eb0fd45642dcecd9ff74cb3e71c20a4753f7d82e2f07864b5108f@%3Cdev.drill.apache.org%3E"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.9.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-579v-mp3v-rrw5",
+      "aliases": [
+        "CVE-2011-4969"
+      ],
+      "summary": "jQuery vulnerable to Cross-Site Scripting (XSS)",
+      "published": "2022-05-14T01:09:51Z",
+      "modified": "2026-02-03T02:56:26.437604Z",
+      "withdrawn": null,
+      "severity": [],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2011-4969",
+        "https://github.com/jquery/jquery/commit/db9e023e62c1ff5d8f21ed9868ab6878da2005e9",
+        "https://github.com/jquery/jquery",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/jquery-rails/CVE-2011-4969.yml",
+        "https://lists.apache.org/thread.html/ff8dcfe29377088ab655fda9d585dccd5b1f07fabd94ae84fd60a7f8@%3Ccommits.pulsar.apache.org%3E",
+        "https://security.netapp.com/advisory/ntap-20190416-0007",
+        "https://security.snyk.io/vuln/SNYK-DOTNET-JQUERY-450224",
+        "http://blog.jquery.com/2011/09/01/jquery-1-6-3-released",
+        "http://blog.mindedsecurity.com/2011/07/jquery-is-sink.html",
+        "http://bugs.jquery.com/ticket/9521"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.6.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-6c3j-c64m-qhgq",
+      "aliases": [
+        "CVE-2019-11358",
+        "DRUPAL-CORE-2019-006",
+        "PYSEC-2026-628",
+        "SNYK-JS-JQUERY-174006"
+      ],
+      "summary": "XSS in jQuery as used in Drupal, Backdrop CMS, and other products",
+      "published": "2019-04-26T16:29:11Z",
+      "modified": "2026-07-08T05:56:09.047237467Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-11358",
+        "https://github.com/maximebf/php-debugbar/issues/447",
+        "https://github.com/jquery/jquery/pull/4333",
+        "https://github.com/maximebf/php-debugbar/commit/847216e60544258c881f2733d699bbcfeefac0fc",
+        "https://github.com/django/django/commit/34ec52269ade54af31a021b12969913129571a3f",
+        "https://github.com/django/django/commit/95649bc08547a878cebfa1d019edec8cb1b80829",
+        "https://github.com/django/django/commit/baaf187a4e354bf3976c51e2c83a0d2f8ee6e6ad",
+        "https://github.com/jquery/jquery/commit/753d591aea698e57d6db58c9f722cd0808619b1b",
+        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/WZW27UCJ5CYFL4KFFFMYMIBNMIU2ALG5",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4UOAZIFCSZ3ENEFOR5IXX6NFAD3HV7FA"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.1.4"
+                },
+                {
+                  "fixed": "3.4.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-gxr4-xjj5-5px2",
+      "aliases": [
+        "BIT-drupal-2020-11022",
+        "CVE-2020-11022"
+      ],
+      "summary": "Potential XSS vulnerability in jQuery",
+      "published": "2020-04-29T22:18:55Z",
+      "modified": "2026-09-10T03:48:45.850954196Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/jquery/jquery/security/advisories/GHSA-gxr4-xjj5-5px2",
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-11022",
+        "https://github.com/maximebf/php-debugbar/issues/447",
+        "https://github.com/jquery/jquery/commit/1d61fd9407e6fbe82fe55cb0b938307aa0791f77",
+        "https://github.com/maximebf/php-debugbar/commit/847216e60544258c881f2733d699bbcfeefac0fc",
+        "https://blog.jquery.com/2020/04/10/jquery-3-5-0-released",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VOE7P7APPRQKD4FGNHBKJPDY6FFCOH3W",
+        "https://lists.opensuse.org/opensuse-security-announce/2020-07/msg00067.html",
+        "https://lists.opensuse.org/opensuse-security-announce/2020-07/msg00085.html",
+        "https://lists.opensuse.org/opensuse-security-announce/2020-11/msg00039.html"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.12.0"
+                },
+                {
+                  "fixed": "3.5.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-jpcq-cgw6-v4j6",
+      "aliases": [
+        "BIT-drupal-2020-11023",
+        "CVE-2020-11023"
+      ],
+      "summary": "Potential XSS vulnerability in jQuery",
+      "published": "2020-04-29T22:19:14Z",
+      "modified": "2026-09-10T03:48:45.809517754Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:L/A:N/E:H"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/jquery/jquery/security/advisories/GHSA-jpcq-cgw6-v4j6",
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-11023",
+        "https://github.com/jquery/jquery/commit/1d61fd9407e6fbe82fe55cb0b938307aa0791f77",
+        "https://lists.apache.org/thread.html/rda99599896c3667f2cc9e9d34c7b6ef5d2bbed1f4801e1d75a2b0679@%3Ccommits.nifi.apache.org%3E",
+        "https://lists.apache.org/thread.html/re4ae96fa5c1a2fe71ccbb7b7ac1538bd0cb677be270a2bf6e2f8d108%40%3Cissues.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/re4ae96fa5c1a2fe71ccbb7b7ac1538bd0cb677be270a2bf6e2f8d108@%3Cissues.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/rede9cfaa756e050a3d83045008f84a62802fc68c17f2b4eabeaae5e4%40%3Cissues.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/rede9cfaa756e050a3d83045008f84a62802fc68c17f2b4eabeaae5e4@%3Cissues.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/ree3bd8ddb23df5fa4e372d11c226830ea3650056b1059f3965b3fce2%40%3Cissues.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/ree3bd8ddb23df5fa4e372d11c226830ea3650056b1059f3965b3fce2@%3Cissues.flink.apache.org%3E"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.0.3"
+                },
+                {
+                  "fixed": "3.5.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-mhpp-875w-9cpv",
+      "aliases": [
+        "CVE-2016-10707"
+      ],
+      "summary": "Denial of Service in jquery",
+      "published": "2018-01-22T13:32:42Z",
+      "modified": "2025-09-02T22:35:01Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2016-10707",
+        "https://github.com/jquery/jquery/issues/3133",
+        "https://github.com/jquery/jquery/issues/3133#issuecomment-358978489",
+        "https://github.com/jquery/jquery/pull/3134",
+        "https://github.com/advisories/GHSA-mhpp-875w-9cpv",
+        "https://github.com/jquery/jquery",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/jquery-rails/CVE-2016-10707.yml",
+        "https://snyk.io/vuln/npm:jquery:20160529",
+        "https://www.npmjs.com/advisories/330"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "3.0.0-rc.1"
+                },
+                {
+                  "fixed": "3.0.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-q4m3-2j7h-f7xw",
+      "aliases": [
+        "CVE-2020-7656",
+        "SNYK-JS-JQUERY-569619"
+      ],
+      "summary": "Cross-Site Scripting in jquery",
+      "published": "2020-05-20T16:18:01Z",
+      "modified": "2026-07-08T06:49:51.784220278Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-7656",
+        "https://github.com/jquery/jquery/commit/05531fc4080ae24070930d15ae0cea7ae056457d",
+        "https://github.com/jquery/jquery/commit/606b863edaff29035960e4d813b45d63b8d92876",
+        "https://github.com/jquery/jquery",
+        "https://github.com/jquery/jquery/blob/9e6393b0bcb52b15313f88141d0bd7dd54227426/src/ajax.js#L203",
+        "https://github.com/rails/jquery-rails/blob/master/CHANGELOG.md#220-19-january-2013",
+        "https://github.com/rails/jquery-rails/blob/v2.1.4/vendor/assets/javascripts/jquery.js#L7481",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/jquery-rails/CVE-2020-7656.yml",
+        "https://security.netapp.com/advisory/ntap-20200528-0001",
+        "https://snyk.io/vuln/SNYK-JS-JQUERY-569619"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.2.1"
+                },
+                {
+                  "fixed": "1.9.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-rmxg-73gg-4p98",
+      "aliases": [
+        "CVE-2015-9251"
+      ],
+      "summary": "Cross-Site Scripting (XSS) in jquery",
+      "published": "2018-01-22T13:32:06Z",
+      "modified": "2024-03-10T05:18:22.438189Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2015-9251",
+        "https://github.com/jquery/jquery/issues/2432",
+        "https://github.com/jquery/jquery/issues/2432#issuecomment-403761229",
+        "https://github.com/jquery/jquery/pull/2588",
+        "https://github.com/jquery/jquery/pull/2588/commits/c254d308a7d3f1eac4d0b42837804cfffcba4bb2",
+        "https://github.com/jquery/jquery/commit/b078a62013782c7424a4a61a240c23c4c0b42614",
+        "https://github.com/jquery/jquery/commit/f60729f3903d17917dc351f3ac87794de379b0cc",
+        "https://access.redhat.com/errata/RHSA-2020:0481",
+        "https://seclists.org/bugtraq/2019/May/18",
+        "https://security.netapp.com/advisory/ntap-20210108-0004"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.12.2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.12.3"
+                },
+                {
+                  "fixed": "3.0.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

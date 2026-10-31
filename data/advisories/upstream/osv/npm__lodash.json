@@ -1,0 +1,444 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "lodash"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-29mw-wpgm-hmr9",
+      "aliases": [
+        "CVE-2020-28500"
+      ],
+      "summary": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "published": "2022-01-06T20:30:46Z",
+      "modified": "2025-09-29T21:12:31.102523Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-28500",
+        "https://github.com/github/advisory-database/pull/6139",
+        "https://github.com/lodash/lodash/pull/5065",
+        "https://github.com/lodash/lodash/pull/5065/commits/02906b8191d3c100c193fe6f7b27d1c40f200bb7",
+        "https://github.com/lodash/lodash/commit/c4847ebe7d14540bb28a8b932a9ce1b9ecbfee1a",
+        "https://www.oracle.com/security-alerts/cpuoct2021.html",
+        "https://www.oracle.com/security-alerts/cpujul2022.html",
+        "https://www.oracle.com/security-alerts/cpujan2022.html",
+        "https://www.oracle.com//security-alerts/cpujul2021.html",
+        "https://snyk.io/vuln/SNYK-JS-LODASH-1018905"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "4.0.0"
+                },
+                {
+                  "fixed": "4.17.21"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-35jh-r3h4-6jhm",
+      "aliases": [
+        "CVE-2021-23337"
+      ],
+      "summary": "Command Injection in lodash",
+      "published": "2021-05-06T16:05:51Z",
+      "modified": "2026-10-17T02:55:38.085813876Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-23337",
+        "https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c",
+        "https://www.oracle.com/security-alerts/cpuoct2021.html",
+        "https://www.oracle.com/security-alerts/cpujul2022.html",
+        "https://www.oracle.com/security-alerts/cpujan2022.html",
+        "https://www.oracle.com//security-alerts/cpujul2021.html",
+        "https://snyk.io/vuln/SNYK-JS-LODASH-1040724",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-1074929",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBLODASH-1074931",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-1074928"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "4.17.21"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-4xc9-xhrj-v574",
+      "aliases": [
+        "CVE-2018-16487"
+      ],
+      "summary": "Prototype Pollution in lodash",
+      "published": "2019-02-07T18:16:48Z",
+      "modified": "2025-08-12T21:55:35.778975Z",
+      "withdrawn": null,
+      "severity": [],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+        "https://github.com/lodash/lodash/commit/90e6199a161b6445b01454517b40ef65ebecd2ad",
+        "https://hackerone.com/reports/380873",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-16487.yml",
+        "https://security.netapp.com/advisory/ntap-20190919-0004"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "4.17.11"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-f23m-r3pf-42rh",
+      "aliases": [
+        "CVE-2026-2950"
+      ],
+      "summary": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+      "published": "2026-04-01T23:50:27Z",
+      "modified": "2026-10-17T02:56:13.084362346Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/lodash/lodash/security/advisories/GHSA-f23m-r3pf-42rh",
+        "https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-2950",
+        "https://github.com/lodash/lodash"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "4.18.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-fvqr-27wr-82fm",
+      "aliases": [
+        "CVE-2018-3721"
+      ],
+      "summary": "Prototype Pollution in lodash",
+      "published": "2018-07-26T15:14:52Z",
+      "modified": "2025-08-12T21:55:16.003066Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2018-3721",
+        "https://github.com/lodash/lodash/commit/d8e069cc3410082e44eb18fcf8e7f3d08ebe1d4a",
+        "https://hackerone.com/reports/310443",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2018-3721.yml",
+        "https://security.netapp.com/advisory/ntap-20190919-0004"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "4.17.5"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-jf85-cpcp-j695",
+      "aliases": [
+        "CVE-2019-10744",
+        "SNYK-JS-LODASH-450202"
+      ],
+      "summary": "Prototype Pollution in lodash",
+      "published": "2019-07-10T19:45:23Z",
+      "modified": "2026-09-10T03:47:55.238868631Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
+        }
+      ],
+      "databaseSeverity": "CRITICAL",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-10744",
+        "https://github.com/lodash/lodash/pull/4336",
+        "https://access.redhat.com/errata/RHSA-2019:3024",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2019-10744.yml",
+        "https://security.netapp.com/advisory/ntap-20191004-0005",
+        "https://snyk.io/vuln/SNYK-JS-LODASH-450202",
+        "https://support.f5.com/csp/article/K47105354?utm_source=f5support&amp%3Butm_medium=RSS",
+        "https://support.f5.com/csp/article/K47105354?utm_source=f5support&amp;utm_medium=RSS",
+        "https://www.oracle.com/security-alerts/cpujan2021.html",
+        "https://www.oracle.com/security-alerts/cpuoct2020.html"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "4.17.12"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-p6mc-m468-83gw",
+      "aliases": [
+        "CVE-2020-8203"
+      ],
+      "summary": "Prototype Pollution in lodash",
+      "published": "2020-07-15T19:15:48Z",
+      "modified": "2025-08-12T21:56:17.174859Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
+        "https://github.com/lodash/lodash/issues/4744",
+        "https://github.com/lodash/lodash/issues/4874",
+        "https://github.com/github/advisory-database/pull/2884",
+        "https://github.com/lodash/lodash/commit/c84fe82760fb2d3e03a63379b297a1cc1a2fce12",
+        "https://hackerone.com/reports/712065",
+        "https://hackerone.com/reports/864701",
+        "https://github.com/lodash/lodash",
+        "https://github.com/lodash/lodash/wiki/Changelog#v41719",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2020-8203.yml"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "3.7.0"
+                },
+                {
+                  "fixed": "4.17.19"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-r5fr-rjxr-66jc",
+      "aliases": [
+        "CVE-2026-4800"
+      ],
+      "summary": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "published": "2026-04-01T23:51:12Z",
+      "modified": "2026-10-17T02:56:15.633068434Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/lodash/lodash/security/advisories/GHSA-r5fr-rjxr-66jc",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-4800",
+        "https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c",
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+        "https://github.com/lodash/lodash"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "4.0.0"
+                },
+                {
+                  "fixed": "4.18.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-x5rq-j2xg-h7qm",
+      "aliases": [
+        "CVE-2019-1010266",
+        "SNYK-JS-LODASH-73639"
+      ],
+      "summary": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "published": "2019-07-19T16:13:07Z",
+      "modified": "2026-09-10T03:48:25.206281974Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-1010266",
+        "https://github.com/lodash/lodash/issues/3359",
+        "https://github.com/github/advisory-database/pull/6138",
+        "https://github.com/lodash/lodash/commit/5c08f18d365b64063bfbfa686cbb97cdd6267347",
+        "https://github.com/lodash/lodash",
+        "https://github.com/lodash/lodash/wiki/Changelog",
+        "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2019-1010266.yml",
+        "https://security.netapp.com/advisory/ntap-20190919-0004",
+        "https://snyk.io/vuln/SNYK-JS-LODASH-73639"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "4.7.0"
+                },
+                {
+                  "fixed": "4.17.11"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-xxjr-mmjv-4gpg",
+      "aliases": [
+        "CVE-2025-13465"
+      ],
+      "summary": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions",
+      "published": "2026-01-21T23:01:22Z",
+      "modified": "2026-10-17T02:55:54.229635593Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:L/SC:H/SI:H/SA:H/E:P"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-13465",
+        "https://github.com/lodash/lodash/commit/edadd452146f7e4bad4ea684e955708931d84d81",
+        "https://cert-portal.siemens.com/productcert/html/ssa-253495.html",
+        "https://github.com/lodash/lodash"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "4.0.0"
+                },
+                {
+                  "fixed": "4.17.23"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

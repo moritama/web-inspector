@@ -1,0 +1,234 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "moment"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-446m-mv8f-q348",
+      "aliases": [
+        "CVE-2017-18214"
+      ],
+      "summary": "Regular Expression Denial of Service in moment",
+      "published": "2018-03-05T18:35:09Z",
+      "modified": "2023-11-08T03:59:15.374363Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2017-18214",
+        "https://github.com/moment/moment/issues/4163",
+        "https://github.com/moment/moment/pull/4326",
+        "https://github.com/moment/moment/commit/69ed9d44957fa6ab12b73d2ae29d286a857b80eb",
+        "https://github.com/advisories/GHSA-446m-mv8f-q348",
+        "https://github.com/moment/moment",
+        "https://www.npmjs.com/advisories/532",
+        "https://www.tenable.com/security/tns-2019-02"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "2.19.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-4p3w-j4w9-5jqw",
+      "aliases": [
+        "CVE-2026-17495"
+      ],
+      "summary": "moment vulnerable to Path Traversal via crafted non-string locale name",
+      "published": "2026-09-29T23:46:02Z",
+      "modified": "2026-09-30T00:00:03.858466235Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/moment/moment/security/advisories/GHSA-4p3w-j4w9-5jqw",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-17495",
+        "https://github.com/moment/moment/pull/6386",
+        "https://github.com/moment/moment/commit/5f7d983c9881e65e07574de9dda3190d99520c07",
+        "https://cna.openjsf.org/security-advisories.html",
+        "https://github.com/moment/moment",
+        "https://github.com/moment/moment/releases/tag/2.31.0"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "2.29.2"
+                },
+                {
+                  "fixed": "2.31.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-87vv-r9j6-g5qv",
+      "aliases": [
+        "CVE-2016-4055"
+      ],
+      "summary": "Regular Expression Denial of Service in moment",
+      "published": "2017-10-24T18:33:35Z",
+      "modified": "2023-11-08T03:58:28.366374Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2016-4055",
+        "https://github.com/advisories/GHSA-87vv-r9j6-g5qv",
+        "https://github.com/moment/moment",
+        "https://lists.apache.org/thread.html/10f0f3aefd51444d1198c65f44ffdf2d78ca3359423dbc1c168c9731@%3Cdev.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/17ff53f7999e74fbe3cc0ceb4e1c3b00b180b7c5afec8e978837bc49@%3Cuser.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/52bafac05ad174000ea465fe275fd3cc7bd5c25535a7631c0bc9bfb2@%3Cuser.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/54df3aeb4239b64b50b356f0ca6f986e3c4ca5b84c515dce077c7854@%3Cuser.flink.apache.org%3E",
+        "https://www.npmjs.com/advisories/55",
+        "https://www.tenable.com/security/tns-2019-02",
+        "http://www.openwall.com/lists/oss-security/2016/04/20/11"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "2.11.2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-8hfj-j24r-96c4",
+      "aliases": [
+        "CVE-2022-24785"
+      ],
+      "summary": "Path Traversal: 'dir/../../filename' in moment.locale",
+      "published": "2022-04-04T21:25:48Z",
+      "modified": "2026-09-10T03:49:28.830024482Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/moment/moment/security/advisories/GHSA-8hfj-j24r-96c4",
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-24785",
+        "https://github.com/moment/moment/commit/4211bfc8f15746be4019bba557e29a7ba83d54c5",
+        "https://github.com/moment/moment",
+        "https://lists.debian.org/debian-lts-announce/2023/01/msg00035.html",
+        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/6QIO6YNLTK2T7SPKDS4JEL45FANLNC2Q",
+        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/ORJX2LF6KMPIHP6B2P6KZIVKMLE3LVJ5",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/6QIO6YNLTK2T7SPKDS4JEL45FANLNC2Q",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ORJX2LF6KMPIHP6B2P6KZIVKMLE3LVJ5",
+        "https://security.netapp.com/advisory/ntap-20220513-0006"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "2.29.2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-wc69-rhjr-hc9g",
+      "aliases": [
+        "CVE-2022-31129"
+      ],
+      "summary": "Moment.js vulnerable to Inefficient Regular Expression Complexity",
+      "published": "2022-07-06T18:38:49Z",
+      "modified": "2026-09-10T03:49:45.131249858Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/moment/moment/security/advisories/GHSA-wc69-rhjr-hc9g",
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
+        "https://github.com/moment/moment/pull/6015#issuecomment-1152961973",
+        "https://github.com/moment/moment/pull/6015/commits/4bbb9f3ccbe231de40207503f344fe5ce97584f4",
+        "https://github.com/moment/moment/pull/6015/commits/bfd4f2375d5c1a2106246721d693a9611dddfbfe",
+        "https://github.com/moment/moment/pull/6015/commits/dc0d180e90d8a84f7ff13572363330a22b3ea504",
+        "https://github.com/moment/moment/commit/9a3b5894f3d5d602948ac8a02e4ee528a49ca3a3",
+        "https://security.netapp.com/advisory/ntap-20241108-0002",
+        "https://security.netapp.com/advisory/ntap-20221014-0003",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZMX5YHELQVCGKKQVFXIYOTBMN23YYSRO"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "2.18.0"
+                },
+                {
+                  "fixed": "2.29.4"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

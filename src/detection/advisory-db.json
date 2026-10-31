@@ -1,16 +1,18 @@
 {
-  "schemaVersion": "2.1",
+  "schemaVersion": "2.2",
   "version": "2026.10",
-  "dataVersion": "20261025",
-  "generatedAt": "2026-10-25T03:32:38.171Z",
+  "dataVersion": "20261031",
+  "generatedAt": "2026-10-31T16:02:25.248Z",
+  "minExtensionVersion": "1.6.5",
   "sources": [
     "NIST NVD 2.0 API (Primary: nvd@nist.gov)",
-    "GitHub Advisory Database (GHSA)",
+    "OSV.dev (GitHub Advisory Database / npm / Packagist)",
     "endoflife.date API",
-    "CISA KEV Catalog"
+    "CISA KEV Catalog",
+    "Curated (data/advisories/curated.json)"
   ],
   "coverage": {
-    "totalAdvisories": 24,
+    "totalAdvisories": 87,
     "technologies": [
       "jquery",
       "bootstrap",
@@ -19,6 +21,7 @@
       "angular",
       "angularjs",
       "lodash",
+      "moment",
       "wordpress",
       "php",
       "nginx",
@@ -27,6 +30,12 @@
       "nodejs"
     ]
   },
+  "syncStatus": "success",
+  "integrity": {
+    "algorithm": "sha256",
+    "target": "libraries",
+    "digest": "263d3ff8a1a394906d2a2653a55dc40c71a30c9cc130da404190b67185f4305b"
+  },
   "libraries": {
     "jquery": {
       "aliases": [
@@ -34,49 +43,116 @@
       ],
       "versions": [
         {
-          "range": ">= 1.2.0, < 3.5.0",
-          "cve": "CVE-2020-11022",
-          "cvssScore": 6.1,
-          "title": "Regex in jQuery.htmlPrefilter can result in XSS",
-          "fixedVersion": "3.5.0",
-          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-11022",
-          "verifiedAt": "2026-10-25",
+          "range": ">= 3.0.0-rc.1, < 3.0.0",
+          "cve": "CVE-2016-10707",
+          "ghsa": "GHSA-mhpp-875w-9cpv",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Denial of Service in jquery",
+          "fixedVersion": "3.0.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2016-10707",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2018-01-22",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 1.2.1, < 1.9.0",
+          "cve": "CVE-2020-7656",
+          "ghsa": "GHSA-q4m3-2j7h-f7xw",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Cross-Site Scripting in jquery",
+          "fixedVersion": "1.9.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-7656",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2020-05-20",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": ">= 1.0.3, < 3.5.0",
           "cve": "CVE-2020-11023",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "XSS in jQuery.htmlPrefilter even with sanitizers",
           "fixedVersion": "3.5.0",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-11023",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2025-01-23)",
-          "severity": "medium"
+          "kev": true,
+          "kevDateAdded": "2025-01-23",
+          "origin": "curated"
+        },
+        {
+          "range": ">= 1.2.0, < 3.5.0",
+          "cve": "CVE-2020-11022",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Regex in jQuery.htmlPrefilter can result in XSS",
+          "fixedVersion": "3.5.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-11022",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "origin": "curated"
         },
         {
           "range": "< 3.4.0",
           "cve": "CVE-2019-11358",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "jQuery prototype pollution via $.extend",
           "fixedVersion": "3.4.0",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-11358",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
         },
         {
           "range": "< 3.0.0",
           "cve": "CVE-2015-9251",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "XSS via cross-domain ajax requests with dataType script",
           "fixedVersion": "3.0.0",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2015-9251",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
+        },
+        {
+          "range": "< 1.9.0",
+          "cve": "CVE-2012-6708",
+          "ghsa": "GHSA-2pqj-h3vj-pqgw",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Cross-Site Scripting in jquery",
+          "fixedVersion": "1.9.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2012-6708",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2020-09-01",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         }
       ],
       "eol": [
@@ -88,16 +164,16 @@
         {
           "cycle": "3",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "2",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         },
         {
           "cycle": "1",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         }
       ]
@@ -109,37 +185,157 @@
       ],
       "versions": [
         {
+          "range": ">= 1.4.0, <= 3.4.1",
+          "cve": "CVE-2024-6485",
+          "ghsa": "GHSA-vxmc-5x29-h64v",
+          "cvssScore": 6.4,
+          "severity": "medium",
+          "title": "Bootstrap Cross-Site Scripting (XSS) vulnerability for data-* attributes",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-6485",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "36c7be3b-2937-45df-85ea-ca7133ea542c (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:L/A:L",
+          "published": "2024-07-11",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
           "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
           "cve": "CVE-2019-8331",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "XSS in Bootstrap Tooltip and Popover data-template",
           "fixedVersion": "3.4.1 / 4.3.1",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-8331",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
+        },
+        {
+          "range": "< 3.4.0",
+          "cve": "CVE-2018-20677",
+          "ghsa": "GHSA-ph58-4vrj-w6hr",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "bootstrap Cross-site Scripting vulnerability",
+          "fixedVersion": "3.4.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-20677",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2019-01-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 3.4.0",
+          "cve": "CVE-2018-20676",
+          "ghsa": "GHSA-3mgp-fx93-9xv5",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "XSS vulnerability that affects bootstrap",
+          "fixedVersion": "3.4.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-20676",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2019-01-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 2.3.0, < 3.4.0 || >= 4.0.0, < 4.1.2",
+          "cve": "CVE-2018-14042",
+          "ghsa": "GHSA-7mvr-5x2g-wfc8",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Bootstrap Cross-site Scripting vulnerability",
+          "fixedVersion": "3.4.0 / 4.1.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-14042",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2018-09-13",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": ">= 4.0.0, < 4.1.2",
           "cve": "CVE-2018-14041",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "XSS in Bootstrap Collapse plugin data-parent attribute",
           "fixedVersion": "4.1.2",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-14041",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
+        },
+        {
+          "range": ">= 2.3.0, < 3.4.0 || >= 4.0.0, < 4.1.2",
+          "cve": "CVE-2018-14040",
+          "ghsa": "GHSA-3wqf-4x89-9g79",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Bootstrap vulnerable to Cross-Site Scripting (XSS)",
+          "fixedVersion": "3.4.0 / 4.1.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-14040",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2022-05-13",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": ">= 3.0.0, < 3.4.0",
           "cve": "CVE-2016-10735",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "XSS in data-target attribute for Bootstrap 3",
           "fixedVersion": "3.4.0",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2016-10735",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
+        },
+        {
+          "range": "= 3.4.1",
+          "cve": "CVE-2025-1647",
+          "ghsa": "GHSA-q58r-hwc8-rm9j",
+          "cvssScore": 5.6,
+          "severity": "medium",
+          "title": "Bootstrap Vulnerable to Cross-Site Scripting in its Popover and Tooltip Components",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2025-1647",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "36c7be3b-2937-45df-85ea-ca7133ea542c (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
+          "published": "2025-05-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         }
       ],
       "eol": [
@@ -172,15 +368,36 @@
       ],
       "versions": [
         {
+          "range": ">= 0.4.0, < 0.4.2 || >= 0.5.0, < 0.5.2",
+          "cve": "CVE-2013-7035",
+          "ghsa": "GHSA-g53w-52xc-2j85",
+          "cvssScore": 6.5,
+          "severity": "medium",
+          "title": "Cross-Site Scripting in react",
+          "fixedVersion": "0.4.2 / 0.5.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2013-7035",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N",
+          "published": "2020-09-04",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
           "range": ">= 16.0.0, < 16.0.1 || >= 16.1.0, < 16.1.2 || >= 16.2.0, < 16.2.1 || >= 16.3.0, < 16.3.3 || >= 16.4.0, < 16.4.2",
           "cve": "CVE-2018-6341",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "Potential XSS when generating attributes in React SSR",
           "fixedVersion": "16.0.1 / 16.1.2 / 16.2.1 / 16.3.3 / 16.4.2",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-6341",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -192,22 +409,22 @@
         {
           "cycle": "18",
           "eolDate": null,
-          "status": "Supported"
+          "status": "EOL"
         },
         {
           "cycle": "17",
           "eolDate": null,
-          "status": "Supported"
+          "status": "EOL"
         },
         {
           "cycle": "16",
           "eolDate": null,
-          "status": "Supported"
+          "status": "EOL"
         },
         {
           "cycle": "15",
           "eolDate": null,
-          "status": "Supported"
+          "status": "EOL"
         }
       ]
     },
@@ -217,7 +434,27 @@
         "vue.js",
         "vuejs"
       ],
-      "versions": [],
+      "versions": [
+        {
+          "range": ">= 2.0.0-alpha.1, < 3.0.0-alpha.0",
+          "cve": "CVE-2024-9506",
+          "ghsa": "GHSA-5j4c-8p2g-v4jx",
+          "cvssScore": 3.7,
+          "severity": "low",
+          "title": "ReDoS vulnerability in vue package that is exploitable through inefficient regex evaluation in the parseHTML function",
+          "fixedVersion": "3.0.0-alpha.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-9506",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "36c7be3b-2937-45df-85ea-ca7133ea542c (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L",
+          "published": "2024-10-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        }
+      ],
       "eol": [
         {
           "cycle": "3.5",
@@ -235,11 +472,6 @@
           "status": "EOL"
         },
         {
-          "cycle": "2.7",
-          "eolDate": "2023-12-31",
-          "status": "EOL"
-        },
-        {
           "cycle": "3.2",
           "eolDate": "2023-05-11",
           "status": "EOL"
@@ -252,6 +484,11 @@
         {
           "cycle": "3.0",
           "eolDate": "2021-06-07",
+          "status": "EOL"
+        },
+        {
+          "cycle": "2.7",
+          "eolDate": "2023-12-31",
           "status": "EOL"
         },
         {
@@ -291,7 +528,7 @@
         },
         {
           "cycle": "1",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         }
       ]
@@ -301,7 +538,179 @@
         "angular",
         "angular-core"
       ],
-      "versions": [],
+      "versions": [
+        {
+          "range": ">= 17.0.0-next.0, <= 18.2.14 || >= 19.0.0-next.0, < 19.2.20 || >= 20.0.0-next.0.0.0, < 20.3.18 || >= 21.0.0-next.0, < 21.2.4 || >= 22.0.0-next.0, < 22.0.0-next.3",
+          "cve": "CVE-2026-32635",
+          "ghsa": "GHSA-g93w-mfhg-p222",
+          "cvssScore": 9,
+          "severity": "critical",
+          "title": "Angular vulnerable to XSS in i18n attribute bindings",
+          "fixedVersion": "19.2.20 / 20.3.18 / 21.2.4 / 22.0.0-next.3",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-32635",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:H",
+          "published": "2026-03-13",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 19.2.25 || >= 20.0.0, < 20.3.28 || >= 21.0.0, < 21.2.20 || >= 22.0.0, < 22.1.0",
+          "cve": "CVE-2026-88057",
+          "ghsa": "GHSA-hh8m-fm6v-7cvg",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular: Sanitization bypass via directive host bindings on concrete host elements in @angular/core and @angular/compiler",
+          "fixedVersion": "20.3.28 / 21.2.20 / 22.1.0",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-88057",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-09-10",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.27 || >= 21.0.0-next.0, < 21.2.19 || >= 22.0.0-next.0, < 22.0.1",
+          "cve": "CVE-2026-69151",
+          "ghsa": "GHSA-jj27-h5hq-8x99",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular i18n: Cross-Site Scripting (XSS) via event-handler attributes",
+          "fixedVersion": "20.3.27 / 21.2.19 / 22.0.1",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-69151",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-08-03",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.25 || >= 21.0.0-next.0, < 21.2.17 || >= 22.0.0-next.0, < 22.0.1",
+          "cve": "CVE-2026-54267",
+          "ghsa": "GHSA-rgjc-h3x7-9mwg",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular Client Hydration DOM Clobbering & Response-Cache Poisoning",
+          "fixedVersion": "20.3.25 / 21.2.17 / 22.0.1",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-54267",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-06-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.23 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
+          "cve": "CVE-2026-52725",
+          "ghsa": "GHSA-692r-grfm-v8x7",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "@angular/core: Angular Template and Dynamic Component Namespace Bypass leading to Cross-Site Scripting (XSS)",
+          "fixedVersion": "19.2.23 / 20.3.22 / 21.2.15 / 22.0.0-rc.2",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-52725",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-06-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.22 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
+          "cve": "CVE-2026-50557",
+          "ghsa": "GHSA-f3m7-gqxr-g87x",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular: Template and Attribute Namespace Sanitization Bypass (XSS)",
+          "fixedVersion": "19.2.22 / 20.3.22 / 21.2.15 / 22.0.0-rc.2",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-50557",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-06-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.19 || >= 20.0.0-next.0, < 20.3.17 || >= 21.0.0-next.0, < 21.1.6 || >= 21.2.0-next.0, < 21.2.0",
+          "cve": "CVE-2026-27970",
+          "ghsa": "GHSA-prjf-86w9-mfqv",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular i18n vulnerable to Cross-Site Scripting",
+          "fixedVersion": "19.2.19 / 20.3.17 / 21.1.6 / 21.2.0",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-27970",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-02-27",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.18 || >= 20.0.0-next.0, < 20.3.16 || >= 21.0.0-next.0, < 21.0.7 || >= 21.1.0-next.0, < 21.1.0-rc.0",
+          "cve": "CVE-2026-22610",
+          "ghsa": "GHSA-jrmj-c5cx-3cw6",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Angular has XSS Vulnerability via Unsanitized SVG Script Attributes",
+          "fixedVersion": "19.2.18 / 20.3.16 / 21.0.7 / 21.1.0-rc.0",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-22610",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2026-01-09",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 10.2.5 || >= 11.0.0, < 11.0.5 || >= 11.1.0-next.0, < 11.1.0-next.3",
+          "cve": "CVE-2021-4231",
+          "ghsa": "GHSA-c75v-2vq8-878f",
+          "cvssScore": 5.4,
+          "severity": "medium",
+          "title": "Angular vulnerable to Cross-site Scripting",
+          "fixedVersion": "10.2.5 / 11.0.5 / 11.1.0-next.3",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-4231",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2022-05-27",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        }
+      ],
       "eol": [
         {
           "cycle": "22",
@@ -311,12 +720,12 @@
         {
           "cycle": "21",
           "eolDate": "2027-06-30",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "20",
           "eolDate": "2026-11-28",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "19",
@@ -382,28 +791,259 @@
       ],
       "versions": [
         {
-          "range": "< 1.8.0",
-          "cve": "CVE-2020-7676",
-          "cvssScore": 5.4,
-          "title": "Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite",
-          "summary": "AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in <select>/<option>), allowing sanitizer bypass and XSS.",
-          "fixedVersion": "1.8.0",
-          "advisoryUrl": "https://github.com/advisories/GHSA-mhp6-pxh8-r675",
-          "verifiedAt": "2026-10-25",
-          "scoreSource": "GitHub Advisory Database (GHSA)",
-          "severity": "medium"
+          "range": ">= 1.2.0-rc.3, <= 1.8.3",
+          "cve": "CVE-2026-11998",
+          "ghsa": "GHSA-7x27-g8rg-x87w",
+          "cvssScore": 7.6,
+          "severity": "high",
+          "title": "Angular’s deprecated package has a Cross-Site Scripting issue",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-11998",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "36c7be3b-2937-45df-85ea-ca7133ea542c (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:L",
+          "published": "2026-06-24",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 1.3.0, <= 1.8.3",
+          "cve": "CVE-2024-21490",
+          "ghsa": "GHSA-4w4v-5hc9-xrr2",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "angular vulnerable to super-linear runtime due to backtracking",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-21490",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2024-02-10",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 1.7.0",
+          "cve": "CVE-2022-25844",
+          "ghsa": "GHSA-m2h2-264f-f486",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "angular vulnerable to regular expression denial of service (ReDoS)",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-25844",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2022-05-03",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 1.7.9",
+          "cve": "CVE-2019-10768",
+          "ghsa": "GHSA-89mq-4x47-5v83",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "angular Prototype Pollution vulnerability",
+          "fixedVersion": "1.7.9",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-10768",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2019-11-20",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "<= 1.8.3",
           "cve": "CVE-2022-25869",
           "cvssScore": 6.1,
+          "severity": "medium",
           "title": "Cross-site Scripting (XSS) in AngularJS via page cache and textarea interpolation",
-          "summary": "XSS in AngularJS due to improper page caching and <textarea> interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.",
+          "summary": "XSS in AngularJS due to improper page caching and ＜textarea＞ interpolation in Internet Explorer. All versions up to 1.8.3 are affected with no official patch due to EOL.",
           "fixedVersion": null,
+          "fixStatus": "none",
           "advisoryUrl": "https://github.com/advisories/GHSA-prc3-vjfx-vhm9",
           "verifiedAt": "2026-10-25",
           "scoreSource": "GitHub Advisory Database (GHSA)",
-          "severity": "medium"
+          "origin": "curated"
+        },
+        {
+          "range": "< 1.5.0-beta.1",
+          "cve": "CVE-2019-14863",
+          "ghsa": "GHSA-r5fx-8r73-v86c",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "AngularJS Cross-site Scripting due to failure to sanitize ‘xlink.href‘ attributes",
+          "fixedVersion": "1.5.0-beta.1",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-14863",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2020-02-14",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 1.8.0",
+          "cve": "CVE-2020-7676",
+          "cvssScore": 5.4,
+          "severity": "medium",
+          "title": "Cross-site Scripting (XSS) in AngularJS via regex replacement in jQLite",
+          "summary": "AngularJS jQLite improperly modifies HTML tags during regex replacement (such as tags in ＜select＞/＜option＞), allowing sanitizer bypass and XSS.",
+          "fixedVersion": "1.8.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-mhp6-pxh8-r675",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "GitHub Advisory Database (GHSA)",
+          "origin": "curated"
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2023-26118",
+          "ghsa": "GHSA-qwqh-hm9m-p5hr",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "angular vulnerable to regular expression denial of service via the ＜input type=”url”＞ element",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-26118",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+          "published": "2023-03-30",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2023-26117",
+          "ghsa": "GHSA-2qqx-w9hr-q5gx",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "angular vulnerable to regular expression denial of service via the $resource service",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-26117",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+          "published": "2023-03-30",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2023-26116",
+          "ghsa": "GHSA-2vrf-hf26-jrp5",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "angular vulnerable to regular expression denial of service via the angular.copy() utility",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-26116",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+          "published": "2023-03-30",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 1.8.0",
+          "cve": "GHSA-5cp4-xmrw-59wf",
+          "cvssScore": 5,
+          "severity": "medium",
+          "title": "XSS via JQLite DOM manipulation functions in AngularJS",
+          "fixedVersion": "1.8.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-5cp4-xmrw-59wf",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:L",
+          "published": "2020-08-05",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2025-0716",
+          "ghsa": "GHSA-j58c-ww9w-pwp5",
+          "cvssScore": 4.8,
+          "severity": "medium",
+          "title": "AngularJS improperly sanitizes SVG elements",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2025-0716",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "36c7be3b-2937-45df-85ea-ca7133ea542c (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L",
+          "published": "2025-04-29",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "<= 1.8.3",
+          "cve": "CVE-2024-8373",
+          "ghsa": "GHSA-mqm9-c95h-x2p6",
+          "cvssScore": 4.3,
+          "severity": "medium",
+          "title": "AngularJS allows attackers to bypass common image source restrictions",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-8373",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+          "published": "2024-09-09",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 1.3.0-rc.4, <= 1.8.3",
+          "cve": "CVE-2024-8372",
+          "ghsa": "GHSA-m9gf-397r-hwpg",
+          "cvssScore": 4.3,
+          "severity": "medium",
+          "title": "AngularJS allows attackers to bypass common image source restrictions",
+          "fixedVersion": null,
+          "fixStatus": "none",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-8372",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+          "published": "2024-09-09",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         }
       ],
       "eol": [
@@ -420,40 +1060,307 @@
       ],
       "versions": [
         {
-          "range": "< 4.17.21",
-          "cve": "CVE-2021-23337",
-          "cvssScore": 7.2,
-          "title": "Command Injection in lodash.template via variable option",
-          "summary": "Command injection in lodash.template when passing unsanitized variable options into the template compiler.",
-          "fixedVersion": "4.17.21",
-          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23337",
-          "verifiedAt": "2026-10-25",
+          "range": ">= 4.0.0, < 4.18.0",
+          "cve": "CVE-2026-4800",
+          "ghsa": "GHSA-r5fr-rjxr-66jc",
+          "cvssScore": 9.8,
+          "severity": "critical",
+          "title": "lodash vulnerable to Code Injection via ‘_.template‘ imports key names",
+          "fixedVersion": "4.18.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-4800",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "high"
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "published": "2026-04-01",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 4.17.12",
+          "cve": "CVE-2019-10744",
+          "ghsa": "GHSA-jf85-cpcp-j695",
+          "cvssScore": 9.1,
+          "severity": "critical",
+          "title": "Prototype Pollution in lodash",
+          "fixedVersion": "4.17.12",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-10744",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+          "published": "2019-07-10",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "< 4.17.20",
           "cve": "CVE-2020-8203",
           "cvssScore": 7.4,
+          "severity": "high",
           "title": "Prototype Pollution in lodash.zipObjectDeep",
           "summary": "Prototype pollution in lodash.zipObjectDeep via Object.prototype manipulation.",
           "fixedVersion": "4.17.20",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "high"
+          "origin": "curated"
+        },
+        {
+          "range": "< 4.17.21",
+          "cve": "CVE-2021-23337",
+          "cvssScore": 7.2,
+          "severity": "high",
+          "title": "Command Injection in lodash.template via variable option",
+          "summary": "Command injection in lodash.template when passing unsanitized variable options into the template compiler.",
+          "fixedVersion": "4.17.21",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23337",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "origin": "curated"
+        },
+        {
+          "range": ">= 4.7.0, < 4.17.11",
+          "cve": "CVE-2019-1010266",
+          "ghsa": "GHSA-x5rq-j2xg-h7qm",
+          "cvssScore": 6.5,
+          "severity": "medium",
+          "title": "Regular Expression Denial of Service (ReDoS) in lodash",
+          "fixedVersion": "4.17.11",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-1010266",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2019-07-19",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 4.17.5",
+          "cve": "CVE-2018-3721",
+          "ghsa": "GHSA-fvqr-27wr-82fm",
+          "cvssScore": 6.5,
+          "severity": "medium",
+          "title": "Prototype Pollution in lodash",
+          "fixedVersion": "4.17.5",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-3721",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2018-07-26",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 4.17.11",
+          "cve": "CVE-2018-16487",
+          "ghsa": "GHSA-4xc9-xhrj-v574",
+          "cvssScore": 5.6,
+          "severity": "medium",
+          "title": "Prototype Pollution in lodash",
+          "fixedVersion": "4.17.11",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-16487",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
+          "published": "2019-02-07",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 4.18.0",
+          "cve": "CVE-2026-2950",
+          "ghsa": "GHSA-f23m-r3pf-42rh",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "lodash vulnerable to Prototype Pollution via array path bypass in ‘_.unset‘ and ‘_.omit‘",
+          "fixedVersion": "4.18.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-2950",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+          "published": "2026-04-01",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 4.0.0, < 4.17.23",
+          "cve": "CVE-2025-13465",
+          "ghsa": "GHSA-xxjr-mmjv-4gpg",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "Lodash has Prototype Pollution Vulnerability in ‘_.unset‘ and ‘_.omit‘ functions",
+          "fixedVersion": "4.17.23",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2025-13465",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+          "published": "2026-01-21",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 4.0.0, < 4.17.21",
+          "cve": "CVE-2020-28500",
+          "ghsa": "GHSA-29mw-wpgm-hmr9",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "Regular Expression Denial of Service (ReDoS) in lodash",
+          "fixedVersion": "4.17.21",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-28500",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+          "published": "2022-01-06",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         }
       ],
       "eol": [
         {
-          "cycle": "3.x",
-          "eolDate": "2016-01-12",
-          "status": "EOL"
-        },
-        {
           "cycle": "4.x",
           "eolDate": null,
           "status": "Supported"
+        },
+        {
+          "cycle": "3.x",
+          "eolDate": "2016-01-12",
+          "status": "EOL"
+        }
+      ]
+    },
+    "moment": {
+      "aliases": [
+        "moment",
+        "moment.js",
+        "momentjs"
+      ],
+      "versions": [
+        {
+          "range": ">= 2.18.0, < 2.29.4",
+          "cve": "CVE-2022-31129",
+          "ghsa": "GHSA-wc69-rhjr-hc9g",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Moment.js vulnerable to Inefficient Regular Expression Complexity",
+          "fixedVersion": "2.29.4",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2022-07-06",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 2.29.2",
+          "cve": "CVE-2022-24785",
+          "ghsa": "GHSA-8hfj-j24r-96c4",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Path Traversal: ’dir/../../filename’ in moment.locale",
+          "fixedVersion": "2.29.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-24785",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2022-04-04",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 2.19.3",
+          "cve": "CVE-2017-18214",
+          "ghsa": "GHSA-446m-mv8f-q348",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Regular Expression Denial of Service in moment",
+          "fixedVersion": "2.19.3",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2017-18214",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2018-03-05",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 2.11.2",
+          "cve": "CVE-2016-4055",
+          "ghsa": "GHSA-87vv-r9j6-g5qv",
+          "cvssScore": 6.5,
+          "severity": "medium",
+          "title": "Regular Expression Denial of Service in moment",
+          "fixedVersion": "2.11.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2016-4055",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+          "published": "2017-10-24",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 2.29.2, < 2.31.0",
+          "cve": "CVE-2026-17495",
+          "ghsa": "GHSA-4p3w-j4w9-5jqw",
+          "cvssScore": 5.9,
+          "severity": "medium",
+          "title": "moment vulnerable to Path Traversal via crafted non-string locale name",
+          "fixedVersion": "2.31.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-17495",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "ce714d77-add3-4f53-aff5-83d477b104bb (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2026-09-29",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        }
+      ],
+      "eol": [
+        {
+          "cycle": "2",
+          "eolDate": null,
+          "status": "Maintenance"
         }
       ]
     },
@@ -466,13 +1373,15 @@
           "range": ">= 3.7, < 3.7.37 || >= 3.8, < 3.8.37 || >= 3.9, < 3.9.35 || >= 4.0, < 4.0.34 || >= 4.1, < 4.1.34 || >= 4.2, < 4.2.31 || >= 4.3, < 4.3.27 || >= 4.4, < 4.4.26 || >= 4.5, < 4.5.25 || >= 4.6, < 4.6.22 || >= 4.7, < 4.7.22 || >= 4.8, < 4.8.18 || >= 4.9, < 4.9.19 || >= 5.0, < 5.0.15 || >= 5.1, < 5.1.12 || >= 5.2, < 5.2.14 || >= 5.3, < 5.3.11 || >= 5.4, < 5.4.9 || >= 5.5, < 5.5.8 || >= 5.6, < 5.6.7 || >= 5.7, < 5.7.5 || >= 5.8, < 5.8.3",
           "cve": "CVE-2022-21661",
           "cvssScore": 7.5,
+          "severity": "high",
           "title": "SQL Injection in WP_Query",
           "summary": "Improper input sanitization in WP_Query meta queries allows potential SQL injection via unsafe plugin/theme inputs.",
           "fixedVersion": "5.8.3",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-21661",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "high"
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -484,122 +1393,122 @@
         {
           "cycle": "7.0",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.9",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.8",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.7",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.6",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.5",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.4",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.3",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.2",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.1",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "6.0",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.9",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.8",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.7",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.6",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.5",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.4",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.3",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.2",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.1",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "5.0",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "4.9",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "4.8",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "4.7",
           "eolDate": null,
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "4.6",
@@ -767,26 +1676,32 @@
           "range": "< 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
           "cve": "CVE-2024-4577",
           "cvssScore": 9.8,
+          "severity": "critical",
           "title": "PHP CGI Argument Injection vulnerability leading to RCE",
           "summary": "該当の可能性あり (条件: Windows OS上でPHP-CGIとして稼働している場合。EOLの8.0以前は公式パッチ未提供)。Best-fit mapping bypass allows arbitrary command-line arguments.",
           "fixedVersion": "8.1.29 / 8.2.20 / 8.3.8",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-4577",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2024-06-12)",
-          "severity": "critical"
+          "kev": true,
+          "kevDateAdded": "2024-06-12",
+          "origin": "curated"
         },
         {
           "range": "< 7.4.31 || >= 8.0.0, < 8.0.24 || >= 8.1.0, < 8.1.11",
           "cve": "CVE-2022-31628",
           "cvssScore": 5.5,
+          "severity": "medium",
           "title": "Infinite Loop in phar extension via gzip quine (DoS)",
           "summary": "Uncontrolled recursion in phar gzip uncompressor causes an infinite loop and DoS when handling quine archives.",
           "fixedVersion": "7.4.31 / 8.0.24 / 8.1.11",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2022-31628",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "medium"
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -803,12 +1718,12 @@
         {
           "cycle": "8.3",
           "eolDate": "2027-12-31",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "8.2",
           "eolDate": "2026-12-31",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "8.1",
@@ -879,6 +1794,31 @@
           "cycle": "5.0",
           "eolDate": "2005-09-05",
           "status": "EOL"
+        },
+        {
+          "cycle": "4.4",
+          "eolDate": "2008-08-07",
+          "status": "EOL"
+        },
+        {
+          "cycle": "4.3",
+          "eolDate": "2005-03-31",
+          "status": "EOL"
+        },
+        {
+          "cycle": "4.2",
+          "eolDate": "2002-09-06",
+          "status": "EOL"
+        },
+        {
+          "cycle": "4.1",
+          "eolDate": "2002-03-12",
+          "status": "EOL"
+        },
+        {
+          "cycle": "4.0",
+          "eolDate": "2001-06-23",
+          "status": "EOL"
         }
       ]
     },
@@ -888,29 +1828,35 @@
       ],
       "versions": [
         {
+          "range": ">= 0.6.18, < 1.20.1",
+          "cve": "CVE-2021-23017",
+          "cvssScore": 7.7,
+          "severity": "high",
+          "title": "1-byte memory overwrite in resolver",
+          "summary": "1-byte memory overwrite in DNS resolver when processing malformed responses.",
+          "fixedVersion": "1.20.1 / 1.21.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23017",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "origin": "curated"
+        },
+        {
           "range": ">= 1.9.5, < 1.25.3",
           "cve": "CVE-2023-44487",
           "cvssScore": 7.5,
+          "severity": "high",
           "title": "HTTP/2 Rapid Reset Denial of Service Vulnerability",
           "summary": "該当の可能性あり (条件: HTTP/2が有効で、keepalive_requests や http2_max_concurrent_streams を既定より大幅に大きく設定している場合)。HTTP/2 Stream Cancellation (Rapid Reset) によるDoS。",
           "fixedVersion": "1.25.3",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2023-10-10) / 公式: https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products/",
-          "severity": "high"
-        },
-        {
-          "range": ">= 0.6.18, < 1.20.1",
-          "cve": "CVE-2021-23017",
-          "cvssScore": 7.7,
-          "title": "1-byte memory overwrite in resolver",
-          "summary": "1-byte memory overwrite in DNS resolver when processing malformed responses.",
-          "fixedVersion": "1.20.1 / 1.21.0",
-          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-23017",
-          "verifiedAt": "2026-10-25",
-          "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "high"
+          "kev": true,
+          "kevDateAdded": "2023-10-10",
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -1087,39 +2033,49 @@
           "range": "< 2.4.52",
           "cve": "CVE-2021-44790",
           "cvssScore": 9.8,
+          "severity": "critical",
           "title": "Buffer overflow in mod_lua multipart parser",
           "summary": "該当の可能性あり (条件: mod_lua モジュールが有効化されている場合)。Heap buffer overflow in r:parsebody() in mod_lua.",
           "fixedVersion": "2.4.52",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-44790",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "critical"
-        },
-        {
-          "range": "= 2.4.49",
-          "cve": "CVE-2021-41773",
-          "cvssScore": 9.8,
-          "title": "Path Traversal and File Disclosure in Apache HTTP Server 2.4.49",
-          "summary": "Path normalization flaw allows unauthenticated remote attackers to map URLs to files outside the document root. CGI有効時にRCEに至る。",
-          "fixedVersion": "2.4.50",
-          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-41773",
-          "verifiedAt": "2026-10-25",
-          "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "CISA-ADP評価: 7.5 (High, 単体ファイル開示)。CISA KEV 登録 (2021-11-03)",
-          "severity": "critical"
+          "origin": "curated"
         },
         {
           "range": ">= 2.4.49, <= 2.4.50",
           "cve": "CVE-2021-42013",
           "cvssScore": 9.8,
+          "severity": "critical",
           "title": "Path Traversal and RCE in Apache HTTP Server 2.4.50",
           "summary": "Incomplete fix for CVE-2021-41773 allows path traversal and RCE when CGI scripts are mapped.",
           "fixedVersion": "2.4.51",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-42013",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2021-11-03)",
-          "severity": "critical"
+          "kev": true,
+          "kevDateAdded": "2021-11-03",
+          "origin": "curated"
+        },
+        {
+          "range": "= 2.4.49",
+          "cve": "CVE-2021-41773",
+          "cvssScore": 9.8,
+          "severity": "critical",
+          "title": "Path Traversal and File Disclosure in Apache HTTP Server 2.4.49",
+          "summary": "Path normalization flaw allows unauthenticated remote attackers to map URLs to files outside the document root. CGI有効時にRCEに至る。",
+          "fixedVersion": "2.4.50",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-41773",
+          "verifiedAt": "2026-10-25",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "CISA-ADP評価: 7.5 (High, 単体ファイル開示)。CISA KEV 登録 (2021-11-03)",
+          "kev": true,
+          "kevDateAdded": "2021-11-03",
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -1152,30 +2108,376 @@
       ],
       "versions": [
         {
+          "range": ">= 4.1.0, < 6.18.31 || >= 7.0.0, < 7.22.4",
+          "cve": "GHSA-qm5c-m76r-2hfr",
+          "cvssScore": 9.9,
+          "severity": "critical",
+          "title": "Laravel RCE vulnerability in ”cookie” session driver",
+          "fixedVersion": "6.18.31 / 7.22.4",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-qm5c-m76r-2hfr",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H",
+          "published": "2024-05-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 10.48.29 || >= 11.0.0, < 11.44.1 || >= 12.0.0, < 12.1.1",
+          "cve": "CVE-2025-27515",
+          "ghsa": "GHSA-78fx-h6xr-vch4",
+          "cvssScore": 9.8,
+          "severity": "critical",
+          "title": "Laravel has a File Validation Bypass",
+          "fixedVersion": "10.48.29 / 11.44.1 / 12.1.1",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2025-27515",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "published": "2025-03-05",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
           "range": "< 8.4.3",
           "cve": "CVE-2021-3129",
           "cvssScore": 9.8,
+          "severity": "critical",
           "title": "Ignition RCE vulnerability in Laravel",
           "summary": "Unauthenticated RCE in facade/ignition before 2.5.2 when debug mode is enabled.",
           "fixedVersion": "8.4.3",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-3129",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2023-09-18)",
-          "severity": "critical"
+          "kev": true,
+          "kevDateAdded": "2023-09-18",
+          "origin": "curated"
+        },
+        {
+          "range": ">= 5.7.0, < 6.20.44",
+          "cve": "CVE-2019-9081",
+          "ghsa": "GHSA-pfg4-p438-p874",
+          "cvssScore": 9.8,
+          "severity": "critical",
+          "title": "Laravel Framework Deserialization Vulnerability",
+          "fixedVersion": "6.20.44",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-9081",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.0 vector)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "published": "2022-05-14",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 12.60.0 || >= 13.0.0, < 13.10.0",
+          "cve": "CVE-2026-48019",
+          "ghsa": "GHSA-5vg9-5847-vvmq",
+          "cvssScore": 8.9,
+          "severity": "high",
+          "title": "Laravel Framework: CRLF injection in default email rule",
+          "fixedVersion": "12.60.0 / 13.10.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-48019",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "security-advisories@github.com (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:L",
+          "published": "2026-06-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 5.8.17",
+          "cve": "CVE-2020-19316",
+          "ghsa": "GHSA-w2pm-r78h-4m7v",
+          "cvssScore": 8.8,
+          "severity": "high",
+          "title": "OS Command Injection in Laravel Framework",
+          "fixedVersion": "5.8.17",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-19316",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+          "published": "2022-01-06",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "< 5.5.41 || >= 5.6.0, < 5.6.30",
           "cve": "CVE-2018-15133",
           "cvssScore": 8.1,
+          "severity": "high",
           "title": "Deserialization of untrusted data in Laravel Application Key",
           "summary": "RCE via deserialization of untrusted data if APP_KEY is leaked.",
           "fixedVersion": "5.5.41 / 5.6.30",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2018-15133",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
           "notes": "CISA KEV 登録 (2024-01-16)",
-          "severity": "high"
+          "kev": true,
+          "kevDateAdded": "2024-01-16",
+          "origin": "curated"
+        },
+        {
+          "range": "< 6.20.45 || >= 7.0.0, < 7.30.7 || >= 8.0.0, < 8.83.28 || >= 9.0.0, < 9.52.17 || >= 10.0.0, < 10.48.23 || >= 11.0.0, < 11.31.0",
+          "cve": "CVE-2024-52301",
+          "ghsa": "GHSA-gv7v-rgg6-548h",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Laravel environment manipulation via query string",
+          "fixedVersion": "6.20.45 / 7.30.7 / 8.83.28 / 9.52.17 / 10.48.23 / 11.31.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-52301",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2024-11-12",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 6.18.35 || >= 7.0.0, < 7.24.0",
+          "cve": "CVE-2020-24941",
+          "ghsa": "GHSA-w68r-5p45-5rqp",
+          "cvssScore": 7.5,
+          "severity": "high",
+          "title": "Improper Input Validation in Laravel",
+          "fixedVersion": "6.18.35 / 7.24.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2020-24941",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+          "published": "2021-05-06",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 6.20.14 || >= 7.0.0, < 7.30.4 || >= 8.0.0, < 8.24.0",
+          "cve": "GHSA-x7p5-p2c9-phvg",
+          "cvssScore": 7.2,
+          "severity": "high",
+          "title": "Unexpected database bindings",
+          "fixedVersion": "6.20.14 / 7.30.4 / 8.24.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-x7p5-p2c9-phvg",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N",
+          "published": "2021-02-02",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 12.45.0, < 12.68.0 || >= 13.0.0, < 13.27.0",
+          "cve": "CVE-2026-114508",
+          "ghsa": "GHSA-5wcm-3v2w-8362",
+          "cvssScore": 6.5,
+          "severity": "medium",
+          "title": "Laravel relationship inclusion can trigger unauthorized data destruction",
+          "fixedVersion": "12.68.0 / 13.27.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-114508",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "security-advisories@github.com (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L",
+          "published": "2026-10-23",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 11.9.0, < 11.36.0",
+          "cve": "CVE-2024-13919",
+          "ghsa": "GHSA-83wp-f5c3-hqqr",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Laravel framework susceptible to reflected cross-site scripting",
+          "fixedVersion": "11.36.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-13919",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2025-03-10",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 11.9.0, < 11.36.0",
+          "cve": "CVE-2024-13918",
+          "ghsa": "GHSA-546h-56qp-8jmw",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Laravel framework susceptible to reflected cross-site scripting",
+          "fixedVersion": "11.36.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2024-13918",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2025-03-10",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 6.20.42 || >= 7.0.0, < 7.30.6 || >= 8.0.0, < 8.75.0",
+          "cve": "CVE-2021-43808",
+          "ghsa": "GHSA-66hf-2p6w-jqfw",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Laravel Framework XSS in Blade templating engine",
+          "fixedVersion": "6.20.42 / 7.30.6 / 8.75.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-43808",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2021-12-08",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 5.3.0, <= 5.3.31 || >= 5.4.0, < 5.4.22",
+          "cve": "CVE-2017-9303",
+          "ghsa": "GHSA-rc8x-jrrc-frfv",
+          "cvssScore": 6.1,
+          "severity": "medium",
+          "title": "Laravel does not properly constrain the host portion of a password-reset URL",
+          "fixedVersion": "5.4.22",
+          "fixStatus": "partial",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2017-9303",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2022-05-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 5.5.10",
+          "cve": "CVE-2017-14775",
+          "ghsa": "GHSA-c2v7-j5gq-wcq4",
+          "cvssScore": 5.9,
+          "severity": "medium",
+          "title": "Laravel Sensitive Data Exposure",
+          "fixedVersion": "5.5.10",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2017-14775",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+          "published": "2022-05-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 6.0.0, < 6.20.11 || >= 7.0.0, < 7.30.2 || >= 8.0.0, < 8.22.1",
+          "cve": "CVE-2021-21263",
+          "ghsa": "GHSA-3p32-j457-pg5x",
+          "cvssScore": 5.3,
+          "severity": "medium",
+          "title": "Query Binding Exploitation",
+          "fixedVersion": "6.20.11 / 7.30.2 / 8.22.1",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2021-21263",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "nvd@nist.gov (Primary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+          "published": "2021-01-19",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": ">= 7.0.0, < 7.1.2",
+          "cve": "GHSA-vr95-p7q6-8m9q",
+          "cvssScore": 4.3,
+          "severity": "medium",
+          "title": "Laravel Cross-site Scripting (XSS) vulnerability in blade templating",
+          "fixedVersion": "7.1.2",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-vr95-p7q6-8m9q",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+          "published": "2024-05-15",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 12.61.1 || >= 13.0.0, < 13.12.0",
+          "cve": "GHSA-crmm-hgp2-wgrp",
+          "cvssScore": 4.2,
+          "severity": "medium",
+          "title": "Laravel Framework: Temporary Signed URL Path Confusion",
+          "fixedVersion": "12.61.1 / 13.12.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://github.com/advisories/GHSA-crmm-hgp2-wgrp",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "GHSA (CVSS v3.1 vector)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N",
+          "published": "2026-06-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
+        },
+        {
+          "range": "< 12.69.0 || >= 13.0.0, < 13.30.0",
+          "cve": "CVE-2026-102279",
+          "ghsa": "GHSA-jh5r-qr3c-85q8",
+          "cvssScore": 3.1,
+          "severity": "low",
+          "title": "Laravel: XSS in Debug Page Information",
+          "fixedVersion": "12.69.0 / 13.30.0",
+          "fixStatus": "fixed",
+          "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-102279",
+          "verifiedAt": "2026-10-31",
+          "scoreSource": "security-advisories@github.com (Secondary)",
+          "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N",
+          "published": "2026-09-29",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         }
       ],
       "eol": [
@@ -1187,7 +2489,7 @@
         {
           "cycle": "12",
           "eolDate": "2027-02-24",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "11",
@@ -1242,25 +2544,29 @@
           "range": ">= 20.0.0, < 20.8.1",
           "cve": "CVE-2023-39332",
           "cvssScore": 9.8,
+          "severity": "critical",
           "title": "Path Traversal via Uint8Array in node:fs",
           "summary": "該当の可能性あり (条件: --experimental-permission 有効時)。Path traversal in node:fs functions when passing non-Buffer Uint8Array objects.",
           "fixedVersion": "20.8.1",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-39332",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "critical"
+          "origin": "curated"
         },
         {
           "range": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
           "cve": "CVE-2023-23918",
           "cvssScore": 7.5,
+          "severity": "high",
           "title": "Permissions-Policy bypass via process.mainModule.require()",
           "summary": "該当の可能性あり (条件: --experimental-policy 有効時)。Policy bypass allowing unauthorized module loading.",
           "fixedVersion": "14.21.3 / 16.19.1 / 18.14.1 / 19.6.1",
+          "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2023-23918",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "severity": "high"
+          "origin": "curated"
         }
       ],
       "eol": [
@@ -1277,7 +2583,7 @@
         {
           "cycle": "24",
           "eolDate": "2028-04-30",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "23",
@@ -1287,7 +2593,7 @@
         {
           "cycle": "22",
           "eolDate": "2027-04-30",
-          "status": "Supported"
+          "status": "Maintenance"
         },
         {
           "cycle": "21",
@@ -1381,21 +2687,20 @@
         },
         {
           "cycle": "3",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         },
         {
           "cycle": "2",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         },
         {
           "cycle": "1",
-          "eolDate": "EOL",
+          "eolDate": null,
           "status": "EOL"
         }
       ]
     }
-  },
-  "syncStatus": "success"
+  }
 }

@@ -16,50 +16,99 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 import { resolveRecommendedVersion } from '../detection/advisory';
+import { renderHistoryListHtml } from './render';
 
 let currentReport: InspectionReport | null = null;
 let allReportsList: InspectionReport[] = [];
 
 // DOM要素参照
-const currentHostnameEl = document.getElementById('currentHostname') as HTMLElement;
-const inspectedAtTimeEl = document.getElementById('inspectedAtTime') as HTMLElement;
-const dashAdvisoryDbDateEl = document.getElementById('dashAdvisoryDbDate') as HTMLElement;
-const dashTotalTechsEl = document.getElementById('dashTotalTechs') as HTMLElement;
-const dashAttentionCountEl = document.getElementById('dashAttentionCount') as HTMLElement;
-const dashEolCountEl = document.getElementById('dashEolCount') as HTMLElement;
-const dashVulnCountEl = document.getElementById('dashVulnCount') as HTMLElement;
-const dashHttpsStatusEl = document.getElementById('dashHttpsStatus') as HTMLElement;
-const dashMixedStatusEl = document.getElementById('dashMixedStatus') as HTMLElement;
+let currentHostnameEl = document.getElementById('currentHostname') as HTMLElement;
+let inspectedAtTimeEl = document.getElementById('inspectedAtTime') as HTMLElement;
+let dashAdvisoryDbDateEl = document.getElementById('dashAdvisoryDbDate') as HTMLElement;
+let dashTotalTechsEl = document.getElementById('dashTotalTechs') as HTMLElement;
+let dashAttentionCountEl = document.getElementById('dashAttentionCount') as HTMLElement;
+let dashEolCountEl = document.getElementById('dashEolCount') as HTMLElement;
+let dashVulnCountEl = document.getElementById('dashVulnCount') as HTMLElement;
+let dashHttpsStatusEl = document.getElementById('dashHttpsStatus') as HTMLElement;
+let dashMixedStatusEl = document.getElementById('dashMixedStatus') as HTMLElement;
 
-const overviewLibrarySecListEl = document.getElementById('overviewLibrarySecList') as HTMLElement;
-const overviewSecurityListEl = document.getElementById('overviewSecurityList') as HTMLElement;
-const librarySecurityTableContainerEl = document.getElementById('librarySecurityTableContainer') as HTMLElement;
-const fullTechsContainerEl = document.getElementById('fullTechsContainer') as HTMLElement;
-const fullSecurityContainerEl = document.getElementById('fullSecurityContainer') as HTMLElement;
-const cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
-const historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
-const exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
+let overviewLibrarySecListEl = document.getElementById('overviewLibrarySecList') as HTMLElement;
+let overviewSecurityListEl = document.getElementById('overviewSecurityList') as HTMLElement;
+let librarySecurityTableContainerEl = document.getElementById('librarySecurityTableContainer') as HTMLElement;
+let fullTechsContainerEl = document.getElementById('fullTechsContainer') as HTMLElement;
+let fullSecurityContainerEl = document.getElementById('fullSecurityContainer') as HTMLElement;
+let cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
+let historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
+let exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
 
-const compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
-const compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
-const executeCompareBtn = document.getElementById('executeCompareBtn') as HTMLButtonElement;
-const compareResultContainer = document.getElementById('compareResultContainer') as HTMLElement;
-const domainsContainerEl = document.getElementById('domainsContainer') as HTMLElement;
+let compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
+let compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
+let executeCompareBtn = document.getElementById('executeCompareBtn') as HTMLButtonElement;
+let compareResultContainer = document.getElementById('compareResultContainer') as HTMLElement;
+let domainsContainerEl = document.getElementById('domainsContainer') as HTMLElement;
 
-const themeToggleBtn = document.getElementById('themeToggleBtn') as HTMLButtonElement;
-const exportMdBtn = document.getElementById('exportMdBtn') as HTMLButtonElement;
-const exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
-const exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElement;
-const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
-const clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
+let themeToggleBtn = document.getElementById('themeToggleBtn') as HTMLButtonElement;
+let exportMdBtn = document.getElementById('exportMdBtn') as HTMLButtonElement;
+let exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
+let exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElement;
+let refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
+let clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
 
-document.addEventListener('DOMContentLoaded', async () => {
+function initDomElements(): void {
+  currentHostnameEl = document.getElementById('currentHostname') as HTMLElement;
+  inspectedAtTimeEl = document.getElementById('inspectedAtTime') as HTMLElement;
+  dashAdvisoryDbDateEl = document.getElementById('dashAdvisoryDbDate') as HTMLElement;
+  dashTotalTechsEl = document.getElementById('dashTotalTechs') as HTMLElement;
+  dashAttentionCountEl = document.getElementById('dashAttentionCount') as HTMLElement;
+  dashEolCountEl = document.getElementById('dashEolCount') as HTMLElement;
+  dashVulnCountEl = document.getElementById('dashVulnCount') as HTMLElement;
+  dashHttpsStatusEl = document.getElementById('dashHttpsStatus') as HTMLElement;
+  dashMixedStatusEl = document.getElementById('dashMixedStatus') as HTMLElement;
+
+  overviewLibrarySecListEl = document.getElementById('overviewLibrarySecList') as HTMLElement;
+  overviewSecurityListEl = document.getElementById('overviewSecurityList') as HTMLElement;
+  librarySecurityTableContainerEl = document.getElementById('librarySecurityTableContainer') as HTMLElement;
+  fullTechsContainerEl = document.getElementById('fullTechsContainer') as HTMLElement;
+  fullSecurityContainerEl = document.getElementById('fullSecurityContainer') as HTMLElement;
+  cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
+  historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
+  exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
+
+  compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
+  compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
+  executeCompareBtn = document.getElementById('executeCompareBtn') as HTMLButtonElement;
+  compareResultContainer = document.getElementById('compareResultContainer') as HTMLElement;
+  domainsContainerEl = document.getElementById('domainsContainer') as HTMLElement;
+
+  themeToggleBtn = document.getElementById('themeToggleBtn') as HTMLButtonElement;
+  exportMdBtn = document.getElementById('exportMdBtn') as HTMLButtonElement;
+  exportJsonBtn = document.getElementById('exportJsonBtn') as HTMLButtonElement;
+  exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElement;
+  refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
+  clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
+}
+
+/**
+ * ダッシュボードの初期化処理
+ */
+export async function initDashboard(): Promise<void> {
+  initDomElements();
   initTheme();
   setupVersionBadge();
   setupNav();
   setupActions();
   await loadDashboardData();
-});
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      void initDashboard();
+    });
+  } else {
+    void initDashboard();
+  }
+}
 
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
@@ -102,8 +151,8 @@ function setupNav(): void {
 }
 
 function setupActions(): void {
-  themeToggleBtn.addEventListener('click', toggleTheme);
-  refreshBtn.addEventListener('click', loadDashboardData);
+  if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+  if (refreshBtn) refreshBtn.addEventListener('click', loadDashboardData);
 
   if (exportMdBtn) {
     exportMdBtn.addEventListener('click', () => {
@@ -111,22 +160,36 @@ function setupActions(): void {
     });
   }
 
-  exportJsonBtn.addEventListener('click', () => {
-    if (currentReport) downloadJsonFile(currentReport);
-  });
+  if (exportJsonBtn) {
+    exportJsonBtn.addEventListener('click', () => {
+      if (currentReport) downloadJsonFile(currentReport);
+    });
+  }
 
-  exportCsvBtn.addEventListener('click', () => {
-    if (currentReport) downloadCsvFile(currentReport);
-  });
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', () => {
+      if (currentReport) downloadCsvFile(currentReport);
+    });
+  }
 
-  clearHistoryBtn.addEventListener('click', async () => {
-    if (confirm('すべての調査履歴を完全に削除しますか？')) {
-      await chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
-      await loadDashboardData();
-    }
-  });
+  if (clearHistoryBtn) {
+    clearHistoryBtn.addEventListener('click', async () => {
+      if (confirm('すべての調査履歴を完全に削除しますか？')) {
+        await chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+        await loadDashboardData();
+      }
+    });
+  }
 
-  executeCompareBtn.addEventListener('click', handleCompare);
+  if (executeCompareBtn) {
+    executeCompareBtn.addEventListener('click', handleCompare);
+  }
+
+  const historyContainer = historyListContainerEl || document.getElementById('historyListContainer');
+  if (historyContainer && !historyContainer.dataset.listenerAttached) {
+    historyContainer.addEventListener('click', handleHistoryClick);
+    historyContainer.dataset.listenerAttached = 'true';
+  }
 }
 
 async function loadDashboardData(): Promise<void> {
@@ -154,23 +217,23 @@ async function loadDashboardData(): Promise<void> {
 }
 
 function renderDashboard(report: InspectionReport): void {
-  currentHostnameEl.textContent = report.hostname;
-  inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+  if (currentHostnameEl) currentHostnameEl.textContent = report.hostname;
+  if (inspectedAtTimeEl) inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
   if (dashAdvisoryDbDateEl) {
     dashAdvisoryDbDateEl.textContent = `🛡️ 脆弱性DB: ${report.advisoryDatabaseVersion || '2026-10-23'}`;
   }
 
   // サマリーカード
-  dashTotalTechsEl.textContent = String(report.technologies.length);
-  dashAttentionCountEl.textContent = String(report.summary.requiresAttentionCount);
+  if (dashTotalTechsEl) dashTotalTechsEl.textContent = String(report.technologies.length);
+  if (dashAttentionCountEl) dashAttentionCountEl.textContent = String(report.summary.requiresAttentionCount);
 
   const eolCount = report.summary.librarySecurity?.eolCount ?? 0;
   const vulnCount = report.summary.librarySecurity?.vulnerableLibraryCount ?? 0;
-  dashEolCountEl.textContent = String(eolCount);
-  dashVulnCountEl.textContent = `既知脆弱性: ${vulnCount}件 / 不一致: ${report.summary.librarySecurity?.mismatchCount ?? 0}件`;
+  if (dashEolCountEl) dashEolCountEl.textContent = String(eolCount);
+  if (dashVulnCountEl) dashVulnCountEl.textContent = `既知脆弱性: ${vulnCount}件 / 不一致: ${report.summary.librarySecurity?.mismatchCount ?? 0}件`;
 
-  dashHttpsStatusEl.textContent = report.summary.isHttps ? 'HTTPS (暗号化)' : 'HTTP (非暗号化)';
-  dashMixedStatusEl.textContent = `混在コンテンツ: ${report.summary.mixedContentCount}件`;
+  if (dashHttpsStatusEl) dashHttpsStatusEl.textContent = report.summary.isHttps ? 'HTTPS (暗号化)' : 'HTTP (非暗号化)';
+  if (dashMixedStatusEl) dashMixedStatusEl.textContent = `混在コンテンツ: ${report.summary.mixedContentCount}件`;
 
   // 1. 概要ビュー
   renderOverviewLibrarySec(report.technologies);
@@ -559,50 +622,44 @@ function renderCookiesTable(cookies: any[]): void {
     .join('');
 }
 
-function renderHistoryList(reports: InspectionReport[]): void {
-  if (reports.length === 0) {
-    historyListContainerEl.innerHTML = '<div class="empty-state">保存された履歴はありません</div>';
-    return;
-  }
+function handleHistoryClick(event: MouseEvent): void {
+  const target = (event.target as HTMLElement | null)?.closest('button[data-id]') as HTMLButtonElement | null;
+  if (!target) return;
 
-  historyListContainerEl.innerHTML = reports
-    .map(
-      (r) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--border-color);border-radius:var(--radius-sm);margin-bottom:8px;background:var(--bg-surface);">
-      <div>
-        <strong>${escapeHtml(r.hostname)}</strong>
-        <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${new Date(r.inspectedAt).toLocaleString('ja-JP')}</span>
-        <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
-          技術: ${r.technologies.length}件 / 要確認: ${r.summary.requiresAttentionCount}件 / EOL: ${r.summary.librarySecurity?.eolCount ?? 0}件 / ${r.summary.isHttps ? 'HTTPS' : 'HTTP'}
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-secondary btn-sm" onclick="window.viewReport('${r.id}')">表示</button>
-        <button class="btn btn-danger btn-sm" onclick="window.deleteReport('${r.id}')">削除</button>
-      </div>
-    </div>
-  `
-    )
-    .join('');
+  const id = target.getAttribute('data-id');
+  if (!id) return;
+
+  if (target.classList.contains('history-view-btn')) {
+    viewReport(id);
+  } else if (target.classList.contains('history-delete-btn')) {
+    void deleteReport(id);
+  }
 }
 
-(window as any).viewReport = (id: string) => {
+function renderHistoryList(reports: InspectionReport[]): void {
+  const container = historyListContainerEl || document.getElementById('historyListContainer');
+  if (!container) return;
+  container.innerHTML = renderHistoryListHtml(reports);
+}
+
+function viewReport(id: string): void {
   const target = allReportsList.find((r) => r.id === id);
   if (target) {
     currentReport = target;
     renderDashboard(target);
     document.querySelector('.nav-item[data-view="overviewView"]')?.dispatchEvent(new Event('click'));
   }
-};
+}
 
-(window as any).deleteReport = async (id: string) => {
+async function deleteReport(id: string): Promise<void> {
   if (confirm('この調査レポートを削除しますか？')) {
     await chrome.runtime.sendMessage({ type: 'DELETE_HISTORY_ITEM', id });
     await loadDashboardData();
   }
-};
+}
 
 function populateCompareSelects(reports: InspectionReport[]): void {
+  if (!compareSelectA || !compareSelectB) return;
   compareSelectA.innerHTML = '';
   compareSelectB.innerHTML = '';
 
@@ -610,17 +667,18 @@ function populateCompareSelects(reports: InspectionReport[]): void {
     const optA = document.createElement('option');
     optA.value = r.id;
     optA.textContent = `${r.hostname} (${new Date(r.inspectedAt).toLocaleString('ja-JP')})`;
-    compareSelectA.appendChild(optA);
+    compareSelectA?.appendChild(optA);
 
     const optB = document.createElement('option');
     optB.value = r.id;
     optB.textContent = `${r.hostname} (${new Date(r.inspectedAt).toLocaleString('ja-JP')})`;
     if (idx === 1 || (idx === 0 && reports.length === 1)) optB.selected = true;
-    compareSelectB.appendChild(optB);
+    compareSelectB?.appendChild(optB);
   });
 }
 
 function handleCompare(): void {
+  if (!compareSelectA || !compareSelectB) return;
   const idA = compareSelectA.value;
   const idB = compareSelectB.value;
 

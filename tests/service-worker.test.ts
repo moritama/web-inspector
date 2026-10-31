@@ -309,4 +309,48 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(report.coverage?.headers).toBe('complete');
     expect(report.coverage?.details?.unobservedPreScan).toBe(false);
   });
+
+  it('IMPL-02: キャッシュの origin がタブと異なる場合に未観測扱いになること', async () => {
+    const deps = createMockDeps({
+      tab: { id: 101, url: 'https://example.com/page' },
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://another-domain.com/page',
+        headers: {
+          'strict-transport-security': ['max-age=31536000'],
+          'x-frame-options': ['DENY'],
+        },
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    const headerChecks = report.securityChecks.filter((c) =>
+      /^SEC-(HSTS|CSP|XFO|XCTO|REF|PERM|CORS|DISC)/.test(c.checkId)
+    );
+    expect(headerChecks.length).toBeGreaterThan(0);
+    expect(headerChecks.every((c) => c.status === 'unknown' && c.severity === 'info')).toBe(true);
+    expect(report.summary.requiresAttentionCount).toBe(0);
+    expect(report.coverage?.headers).toBe('partial');
+    expect(report.coverage?.details?.unobservedPreScan).toBe(true);
+  });
+
+  it('IMPL-02: 同一 origin・別パスでは観測済みのままであること', async () => {
+    const deps = createMockDeps({
+      tab: { id: 101, url: 'https://example.com/dashboard' },
+      getCachedHeaders: vi.fn().mockResolvedValue({
+        url: 'https://example.com/login',
+        headers: {
+          'strict-transport-security': ['max-age=31536000'],
+          'x-frame-options': ['DENY'],
+        },
+        observed: true,
+      }),
+    });
+
+    const report = await executeInspection(deps);
+    const hstsCheck = report.securityChecks.find((c) => c.checkId.startsWith('SEC-HSTS-'));
+    expect(hstsCheck).toBeDefined();
+    expect(hstsCheck?.status).toBe('pass');
+    expect(report.coverage?.headers).toBe('complete');
+  });
 });

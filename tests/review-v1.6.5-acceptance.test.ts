@@ -35,7 +35,7 @@ const techNames = (dom: DomSignals, network?: NetworkSignals, runtimeVersions?: 
   engine.detect({ url: dom.url, dom, network, runtimeVersions }).map((t) => t.technology);
 
 describe('SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「未観測」とし要確認件数に含めない', () => {
-  it.skip('headers 未取得 (getCachedHeaders = undefined) のとき HSTS/CSP/XFO 等は warning にならない', async () => {
+  it('headers 未取得 (getCachedHeaders = undefined) のとき HSTS/CSP/XFO 等は warning にならない', async () => {
     const report = await executeInspection({
       tab: { id: 1, url: 'https://example.com/' },
       fetchDomSignals: async () => ({ ...emptyDom(), title: 't' }),

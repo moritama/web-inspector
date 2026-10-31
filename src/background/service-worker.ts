@@ -65,6 +65,20 @@ export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
 ]);
 
 /**
+ * HTTPレスポンスヘッダーに依存するセキュリティ診断項目のプレフィックス (SPEC-01)
+ */
+export const HEADER_DEPENDENT_CHECK_PREFIXES = [
+  'SEC-HSTS-',
+  'SEC-CSP-',
+  'SEC-XFO-',
+  'SEC-XCTO-',
+  'SEC-REF-',
+  'SEC-PERM-',
+  'SEC-CORS-',
+  'SEC-DISC-',
+] as const;
+
+/**
  * キャッシュ保存用にURLをサニタイズ（クエリおよびフラグメントを除去し origin + pathname のみにする）
  * file:, about:, data:, blob: 等で origin が "null" になる場合や不正なURL文字列でも安全に処理
  */
@@ -310,6 +324,32 @@ if (typeof chrome !== 'undefined' && chrome.tabs?.onRemoved) {
   });
 }
 
+// プリレンダリング対応: removedTabId のキャッシュを addedTabId へ移行 (SPEC-16)
+if (typeof chrome !== 'undefined' && chrome.tabs?.onReplaced) {
+  chrome.tabs.onReplaced.addListener(async (addedTabId, removedTabId) => {
+    try {
+      await ensureHeadersRestored();
+      const entry = headersCache.get(removedTabId);
+      if (entry) {
+        headersCache.delete(removedTabId);
+        headersCache.set(addedTabId, entry);
+      }
+      if (chrome.storage?.session) {
+        const removedKey = `tab_headers_${removedTabId}`;
+        const addedKey = `tab_headers_${addedTabId}`;
+        const sessionData = await chrome.storage.session.get(removedKey);
+        const savedEntry = sessionData?.[removedKey] || entry;
+        if (savedEntry) {
+          await chrome.storage.session.set({ [addedKey]: savedEntry });
+          await chrome.storage.session.remove(removedKey);
+        }
+      }
+    } catch (e) {
+      console.warn('tabs.onReplaced header cache migration warning:', e);
+    }
+  });
+}
+
 /**
  * Cookie属性の取得 (値は除外)
  */
@@ -498,10 +538,22 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     domSignals.domMarkers = [...(domSignals.domMarkers || []), ...runtimeInfo.frameworkMarkers];
   }
 
-  // 3. HTTPヘッダー・Cookieの取得
+  // 3. HTTPヘッダー・Cookieの取得 (IMPL-02: URL照合)
   const cachedData = await deps.getCachedHeaders(currentTabId);
-  const responseHeaders = cachedData?.headers || {};
-  const headersObserved = Boolean(cachedData?.observed ?? cachedData);
+  let isOriginMatch = false;
+  if (cachedData?.url) {
+    try {
+      const cachedOrigin = new URL(cachedData.url).origin;
+      const tabOrigin = new URL(url).origin;
+      isOriginMatch = cachedOrigin === tabOrigin;
+    } catch {
+      isOriginMatch = false;
+    }
+  }
+
+  const rawHeadersObserved = Boolean(cachedData?.observed ?? cachedData);
+  const headersObserved = rawHeadersObserved && isOriginMatch;
+  const responseHeaders = headersObserved ? (cachedData?.headers || {}) : {};
   const cookies = await deps.getInspectedCookies(url);
 
   const networkSignals: NetworkSignals = {
@@ -551,6 +603,28 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
     baseSecurityChecks.length = 0;
     baseSecurityChecks.push(...nonCspChecks, ...advancedCspChecks);
+  }
+
+  // SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「未観測」とする
+  if (!headersObserved) {
+    const hasMetaCsp = Boolean(domSignals.metaCsp && domSignals.metaCsp.length > 0);
+    for (const c of baseSecurityChecks) {
+      const isHeaderDependent = HEADER_DEPENDENT_CHECK_PREFIXES.some((prefix) =>
+        c.checkId.startsWith(prefix)
+      );
+      if (isHeaderDependent) {
+        // meta CSP が存在する場合の CSP 解析結果は meta 由来として維持
+        if (c.checkId.startsWith('SEC-CSP-') && hasMetaCsp) {
+          continue;
+        }
+        c.status = 'unknown';
+        c.severity = 'info';
+        c.observed = 'HTTPレスポンスヘッダー未観測';
+        c.description =
+          '拡張機能がこのページのレスポンスヘッダーを観測できませんでした。ページを再読み込みしてから再調査してください。';
+        c.recommendation = 'ページを再読み込み（リロード）してから再調査してください。';
+      }
+    }
   }
 
   // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致)

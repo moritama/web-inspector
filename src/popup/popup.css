@@ -488,6 +488,7 @@ body {
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.sev-unknown,
 .sev-info {
   background: rgba(148, 163, 184, 0.15);
   color: var(--text-secondary);

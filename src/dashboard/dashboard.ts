@@ -558,6 +558,28 @@ function renderFullSecurity(checks: SecurityCheckResult[]): void {
           ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:6px;">許容済</span>'
           : '';
 
+        let badgeClass = 'sev-medium';
+        let badgeText = c.severity.toUpperCase();
+        if (c.status === 'unknown') {
+          badgeClass = 'sev-unknown';
+          badgeText = '未観測';
+        } else if (c.status === 'pass') {
+          badgeClass = 'sev-pass';
+          badgeText = 'PASS';
+        } else if (c.severity === 'high') {
+          badgeClass = 'sev-high';
+          badgeText = 'HIGH';
+        } else if (c.severity === 'medium') {
+          badgeClass = 'sev-medium';
+          badgeText = 'MEDIUM';
+        } else if (c.severity === 'low') {
+          badgeClass = 'sev-low';
+          badgeText = 'LOW';
+        } else if (c.severity === 'info') {
+          badgeClass = 'sev-info';
+          badgeText = 'INFO';
+        }
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
@@ -567,7 +589,7 @@ function renderFullSecurity(checks: SecurityCheckResult[]): void {
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           ${exceptionBadge}
-          <span class="badge ${c.status === 'pass' ? 'sev-pass' : c.severity === 'high' ? 'sev-high' : 'sev-medium'}">${c.status === 'pass' ? 'PASS' : c.severity.toUpperCase()}</span>
+          <span class="badge ${badgeClass}">${badgeText}</span>
         </div>
       </div>
       <div class="accordion-body">

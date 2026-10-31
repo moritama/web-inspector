@@ -288,7 +288,10 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
 
     let sevClass = 'sev-info';
     let sevLabel = '情報';
-    if (c.status === 'pass') {
+    if (c.status === 'unknown') {
+      sevClass = 'sev-unknown';
+      sevLabel = '未観測';
+    } else if (c.status === 'pass') {
       sevClass = 'sev-pass';
       sevLabel = '適正';
     } else if (c.severity === 'high') {

@@ -20,7 +20,8 @@
     "test-server": "node test-server/server.mjs",
     "spec:generate": "node scripts/generate-spec-catalog.mjs",
     "package": "npm run advisories:validate && npm run advisories:verify-nvd && npm run build && node scripts/package.mjs",
-    "cws": "node scripts/cws-publish.mjs"
+    "cws": "node scripts/cws-publish.mjs",
+    "check:v1.6.6": "node scripts/dev/check-v1.6.6.mjs"
   },
   "keywords": [
     "chrome-extension",

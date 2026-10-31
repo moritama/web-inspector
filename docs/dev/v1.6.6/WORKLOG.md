@@ -267,5 +267,25 @@
   - `docs/REVIEW_v1.6.5.md` は変更禁止ルールおよびレビュー記録維持の原則に従い一切変更していない。
 - 未解決: なし
 
+---
+
+## T12 E2E追加・最終確認（E2E項目追加） (2026-10-31 12:55)
+- 変更ファイル:
+  - `test-server/server.mjs`
+  - `scripts/test-e2e-smoke.mjs`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - `node scripts/check-links.mjs` → PASS（リンク切れなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行。E2E実機実行および総合チェック・完了報告書作成は別実行で実施予定。
+- 判断したこと:
+  - `test-server/server.mjs` に `/bootstrap-only`（Bootstrap 5 ユーティリティクラスのみ・Tailwind CSS なし）および `/distro-apache`（`Server: Apache/2.4.41 (Ubuntu)`）のエンドポイントを追加し、ナビゲーションメニューおよびサーバー起動ログに反映した。
+  - `scripts/test-e2e-smoke.mjs` に以下 3 つの E2E 実機検証項目を追加した:
+    1. `/distro-apache` にて Apache 2.4.41 が検出され、`advisoryMatchStatus` が `Needs Review`（`distroHint: 'Ubuntu'`）となることの検証（SPEC-02）。
+    2. `/bootstrap-only` にて Tailwind CSS が検出されないことの否定コントロール検証（SPEC-09）。
+    3. ダッシュボードの調査履歴において、「表示」ボタンクリックで概要ビューに正常遷移すること、ダイアログ承認を伴う「削除」ボタンクリックで履歴件数が 1 件減少すること、およびこれら一連の履歴操作中に CSP 違反のエラーがコンソールに 0 件であることを検証するステップ（IMPL-01）。ダッシュボードのページ生成直後から `console` および `pageerror` を監視し、厳格にアサートした。
+  - 無人（夜間）モードの指示に基づき、今回の実行では手順 1・2（テストサーバーのルート追加およびスモークテスト項目の追加）までを実施し、総合チェック（`check-v1.6.6.mjs`）および完了報告書（`COMPLETION_REPORT.md`）の作成は次のレポート作成実行（REPORT_PROMPT）に委ねる形とした。
+- 未解決: なし
+
+
 
 

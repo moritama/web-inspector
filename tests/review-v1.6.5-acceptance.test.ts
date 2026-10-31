@@ -51,7 +51,7 @@ describe('SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「�
 });
 
 describe('SPEC-02: Linux ディストリビューション版のバックポート考慮', () => {
-  it.skip('Server: Apache/2.4.41 (Ubuntu) / X-Powered-By: PHP/7.4.3-4ubuntu2.19 は Potentially Affected と断定しない', () => {
+  it('Server: Apache/2.4.41 (Ubuntu) / X-Powered-By: PHP/7.4.3-4ubuntu2.19 は Potentially Affected と断定しない', () => {
     const r = engine.detect({ url: 'https://e.com/', dom: emptyDom(), network: net({ server: ['Apache/2.4.41 (Ubuntu)'], 'x-powered-by': ['PHP/7.4.3-4ubuntu2.19'] }) });
     for (const name of ['Apache', 'PHP']) {
       const t = r.find((x) => x.technology === name)!;

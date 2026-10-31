@@ -219,6 +219,8 @@ export interface DetectedTechnology {
   version: string | null;
   /** バージョン取得元 ('runtime' | 'css-url' | 'css-comment' | 'script-url' | 'header' | 'meta' | 'pattern') */
   versionSource?: string;
+  /** Linuxディストリビューション版ヒント (T04 / SPEC-02) (例: 'Ubuntu', 'Debian', 'RHEL', 'ubuntu-package') */
+  distroHint?: string;
   /** 確信度スコア (0〜100) */
   confidence: number;
   /** 確信度判定ラベル */

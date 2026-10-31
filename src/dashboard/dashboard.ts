@@ -333,7 +333,9 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
           : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
 
       let cveBadge = '<span class="badge sev-pass">該当なし</span>';
-      if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
+      if (t.distroHint) {
+        cveBadge = '<span class="badge badge-medium">ディストリ版（バックポートの可能性）</span>';
+      } else if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
         cveBadge = `<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${t.maxCvss || '6.1'})</span>`;
       } else if (t.offlineMatchStatus === 'Not Covered') {
         cveBadge = '<span style="color:var(--text-muted);font-size:11px;">未登録</span>';
@@ -361,6 +363,8 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
         recommendation = recVer ? `脆弱性修正版（v${recVer}以上）への更新推奨` : '脆弱性修正版への更新推奨';
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
+      } else if (t.distroHint) {
+        recommendation = `${escapeHtml(t.distroHint)} ディストリビューションのセキュリティ情報を確認`;
       } else if (t.offlineMatchStatus === 'Unknown Version' && t.version) {
         recommendation = 'パッケージ固有版のため個別セキュリティ情報の確認を推奨';
       }
@@ -457,7 +461,8 @@ function renderFullTechnologies(techs: DetectedTechnology[], coverage?: any): vo
           }
           <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t.isCandidateGroup ? '言語・FW候補' : formatCategory(t.category))}</span>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${t.distroHint ? '<span class="badge badge-medium">ディストリ版（バックポートの可能性）</span>' : ''}
           ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
           ${t.advisories && t.advisories.length > 0 ? `<span class="badge badge-cve">CVE ${t.advisories.length}件</span>` : ''}
           <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
@@ -470,10 +475,11 @@ function renderFullTechnologies(techs: DetectedTechnology[], coverage?: any): vo
             ${t.inferredFrom ? ` / <strong>推論元:</strong> ${escapeHtml(t.inferredFrom)} (${formatImplicationType(t.implicationType)})` : ''}
           </div>
           ${t.inferencePath && t.inferencePath.length > 1 ? `<div style="font-size:12px;margin-bottom:4px;"><strong>推論経路:</strong> <code>${escapeHtml(t.inferencePath.join(' → '))}</code></div>` : ''}
-          <div style="font-size:12px;">
+          <div style="font-size:12px;margin-bottom:4px;">
             <strong>ランタイム状態:</strong> ${formatRuntimeStatus(t.runtimeStatus)}
             ${t.runtimeStatus === 'unknown' ? '<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">(※サーバー内部の稼働状態を観測できないため断定を保留)</span>' : ''}
           </div>
+          ${t.distroHint ? `<div style="font-size:12px;color:var(--warning-color);"><strong>ディストリビューション:</strong> ${escapeHtml(t.distroHint)}（セキュリティ修正バックポートの可能性があるため機械的断定を保留）</div>` : ''}
         </div>
         ${
           t.isCandidateGroup && t.candidateTechnologies

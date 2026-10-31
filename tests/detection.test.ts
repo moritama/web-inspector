@@ -1076,6 +1076,70 @@ describe('DetectionEngine', () => {
       expect(java).toBeUndefined();
     });
   });
+
+  describe('ディストリビューション版バックポート考慮 (SPEC-02 / T04)', () => {
+    it('nginx/1.18.0 (Ubuntu) は distroHint: "Ubuntu" かつ advisoryMatchStatus: "Needs Review" となること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            server: ['nginx/1.18.0 (Ubuntu)'],
+          },
+          cookies: [],
+        },
+      });
+
+      const nginx = results.find((r) => r.technology === 'Nginx');
+      expect(nginx).toBeDefined();
+      expect(nginx?.version).toBe('1.18.0');
+      expect(nginx?.distroHint).toBe('Ubuntu');
+      expect(nginx?.advisoryMatchStatus).toBe('Needs Review');
+      expect(nginx?.offlineMatchStatus).toBe('Unknown Version');
+    });
+
+    it('Apache/2.4.58 (Unix) は Unix をディストリ扱いせず従来どおり照合されること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            server: ['Apache/2.4.58 (Unix)'],
+          },
+          cookies: [],
+        },
+      });
+
+      const apache = results.find((r) => r.technology === 'Apache');
+      expect(apache).toBeDefined();
+      expect(apache?.version).toBe('2.4.58');
+      expect(apache?.distroHint).toBeUndefined();
+      expect(apache?.advisoryMatchStatus).not.toBe('Needs Review');
+    });
+
+    it('X-Powered-By: PHP/8.1.2-1ubuntu2.14 は distroHint: "Ubuntu" かつ Needs Review となること', () => {
+      const results = engine.detect({
+        url: 'https://example.com/',
+        dom: emptyDom,
+        network: {
+          url: 'https://example.com/',
+          responseHeaders: {
+            'x-powered-by': ['PHP/8.1.2-1ubuntu2.14'],
+          },
+          cookies: [],
+        },
+      });
+
+      const php = results.find((r) => r.technology === 'PHP');
+      expect(php).toBeDefined();
+      expect(php?.version).toBe('8.1.2');
+      expect(php?.distroHint).toBe('Ubuntu');
+      expect(php?.advisoryMatchStatus).toBe('Needs Review');
+      expect(php?.offlineMatchStatus).toBe('Unknown Version');
+    });
+  });
 });
 
 

@@ -234,6 +234,12 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
       mismatchBadgeHtml = '<span class="badge badge-mismatch">不一致</span>';
     }
 
+    // ディストリ版バッジ (T04 / SPEC-02)
+    let distroBadgeHtml = '';
+    if (t.distroHint) {
+      distroBadgeHtml = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
+    }
+
     // バージョン表示
     let verLabel = t.isCandidateGroup
       ? 'いずれかの可能性あり'
@@ -263,6 +269,7 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
         </div>
       </div>
       <div class="item-side">
+        ${distroBadgeHtml}
         ${mismatchBadgeHtml}
         ${eolBadgeHtml}
         ${cveBadgeHtml}
@@ -439,7 +446,9 @@ function showTechModal(tech: DetectedTechnology): void {
     if (statusLabel === 'No Match') {
       statusText = 'オフラインDBに収録されていますが、検出されたバージョンには該当する既知脆弱性はありません。';
     } else if (statusLabel === 'Unknown Version') {
-      statusText = 'バージョン不明、またはLinuxディストリビューション固有パッケージのため脆弱性断定を保留しています。';
+      statusText = tech.distroHint
+        ? `${tech.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。`
+        : 'バージョン不明、またはLinuxディストリビューション固有パッケージのため脆弱性断定を保留しています。';
     }
     cveHtml = `
       <div>

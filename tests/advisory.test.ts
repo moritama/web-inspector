@@ -90,6 +90,15 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(result.matchStatus).toBe('Needs Review');
   });
 
+  it('SPEC-02: distroHint オプション指定時は Unknown Version / Needs Review となりディストリ固有注記が返ること', () => {
+    const result = matchOfflineAdvisories('Apache', '2.4.41', undefined, { distroHint: 'Ubuntu' });
+    expect(result.offlineMatchStatus).toBe('Unknown Version');
+    expect(result.matchStatus).toBe('Needs Review');
+    expect(result.advisories.length).toBe(0);
+    expect(result.warning).toContain('Ubuntu のディストリビューション版です');
+    expect(result.eolInfo.recommendation).toContain('Ubuntu のディストリビューション版です');
+  });
+
   // D13: Stale Data テスト (生成日から31日以上経過したDBスナップショット)
   it('D13: 生成日から31日以上経過しているDBスナップショットは isStale: true / dbFreshness: stale と判定されること', () => {
     // 40日前の日付

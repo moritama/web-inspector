@@ -73,4 +73,33 @@
   - 受け入れテスト `SPEC-04` および `SPEC-06` の skip を解除（期待値は無変更）。`tests/version-check.test.ts` に解析不能バージョンの判定テストおよび `1.x` サイクル非一致テストを追加し、`tests/service-worker.test.ts` に実行時値およびマーカーの無害化テストを追加した。
 - 未解決: なし
 
+---
+
+## T04 ディストリ版のバックポート考慮・第1段階 (2026-10-31 10:55)
+- 変更ファイル:
+  - `src/shared/types.ts`
+  - `src/detection/advisory.ts`
+  - `src/detection/engine.ts`
+  - `src/popup/popup.ts`
+  - `src/dashboard/dashboard.ts`
+  - `src/export/csv.ts`
+  - `src/export/markdown.ts`
+  - `tests/review-v1.6.5-acceptance.test.ts`
+  - `tests/detection.test.ts`
+  - `tests/advisory.test.ts`
+  - `tests/export.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `DetectedTechnology` に任意フィールド `distroHint?: string` を追加した（SPEC-02）。
+  - `DetectionEngine` の header シグナル処理において、バージョンを抽出したヘッダー値全文から (1) 括弧内OS名（`/\((Ubuntu|Debian|CentOS|Red Hat(?: Enterprise Linux)?|RHEL|Fedora|AlmaLinux|Rocky Linux|Amazon Linux|SUSE|Raspbian)\)/i`）および (2) パッケージ版接尾辞（`/^[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i`）を検出し、標準的なディストリビューション名（例: 'Ubuntu', 'Debian', 'RHEL', 'Amazon Linux'等）を `distroHint` に設定するようにした。Unixなどの汎用OS名はディストリ扱いせず従来通り照合する。
+  - `matchOfflineAdvisories()` に `options?: MatchOfflineAdvisoriesOptions` 引数を追加し、`options.distroHint` が渡された場合は既存の Linux パッケージ分岐と同様に `Needs Review` / `Unknown Version` とし、ディストリビューション名を含むバックポート注記を recommendation および warning に設定するようにした。
+  - ポップアップおよびダッシュボードにおいて、`distroHint` を持つ技術に「ディストリ版（バックポートの可能性）」バッジを表示し、詳細モーダルやアコーディオン内でもバックポート考慮の注記を表示するようにした。
+  - JSON、CSV、Markdown の各エクスポート機能において `distroHint` を出力するように拡張した（CSVには「ディストリ版ヒント」列を追加、Markdownには検出技術一覧およびライブラリセキュリティ表にディストリ版を出力）。
+  - 情報露出（SEC-DISC-01）の判定ロジックは変更せず維持した。
+  - 受け入れテスト `SPEC-02` の skip を解除（期待値は無変更）。`tests/detection.test.ts` に `nginx/1.18.0 (Ubuntu)`（Needs Review）、`Apache/2.4.58 (Unix)`（通常照合）、`PHP/8.1.2-1ubuntu2.14`（Needs Review）のテストを追加した。さらに `tests/advisory.test.ts` および `tests/export.test.ts` にも単体テストを追加した。
+- 未解決: なし
+
+
 

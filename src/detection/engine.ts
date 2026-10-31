@@ -46,6 +46,7 @@ export class DetectionEngine {
       let versionSource: string | undefined = undefined;
       let jsVersion: string | null = null;
       let cssVersion: string | null = null;
+      let distroHint: string | undefined = undefined;
 
       // --- A. JavaScript 実行時バージョンのチェック (ADD-01) ---
       if (rule.id === 'jquery' && runtime.jquery) {
@@ -194,6 +195,14 @@ export class DetectionEngine {
                     if (v) {
                       detectedVersion = v;
                       versionSource = 'response-header';
+                    }
+                  }
+
+                  // ディストリビューション版ヒントの判定 (T04 / SPEC-02)
+                  if (!distroHint) {
+                    const hint = this.detectDistroHint(val, detectedVersion);
+                    if (hint) {
+                      distroHint = hint;
                     }
                   }
                 }
@@ -421,8 +430,8 @@ export class DetectionEngine {
           versionIntegrity = this.evaluateVersionIntegrity(jsVersion, cssVersion);
         }
 
-        // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05) ---
-        const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion);
+        // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05 / SPEC-02) ---
+        const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion, undefined, { distroHint });
         const eolInfo =
           offlineResult.eolInfo.status !== 'Unknown'
             ? offlineResult.eolInfo
@@ -438,6 +447,7 @@ export class DetectionEngine {
           detected: true,
           version: detectedVersion,
           versionSource,
+          distroHint,
           confidence,
           confidenceLevel: level,
           evidence: evidences,
@@ -834,5 +844,69 @@ export class DetectionEngine {
   private truncateUrl(url: string, maxLength = 80): string {
     if (url.length <= maxLength) return url;
     return url.substring(0, maxLength - 3) + '...';
+  }
+
+  /**
+   * HTTPヘッダー値からLinuxディストリビューション版ヒントを検出する (T04 / SPEC-02)
+   */
+  private detectDistroHint(headerValue: string, extractedVersion: string | null): string | undefined {
+    // 1. 括弧内 OS 名の判定
+    const osRegex = /\((Ubuntu|Debian|CentOS|Red Hat(?: Enterprise Linux)?|RHEL|Fedora|AlmaLinux|Rocky Linux|Amazon Linux|SUSE|Raspbian)\)/i;
+    const osMatch = headerValue.match(osRegex);
+    if (osMatch) {
+      return this.normalizeDistroName(osMatch[1]);
+    }
+
+    // 2. パッケージ版の接尾辞（抽出バージョンの直後に続く部分）
+    const suffixRegex = /^[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i;
+    if (extractedVersion) {
+      const idx = headerValue.indexOf(extractedVersion);
+      if (idx !== -1) {
+        const sub = headerValue.slice(idx);
+        const pkgMatch = sub.match(suffixRegex);
+        if (pkgMatch) {
+          return this.resolveDistroHintFromSuffix(pkgMatch[1]);
+        }
+      }
+    } else {
+      const match = headerValue.match(/[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i);
+      if (match) {
+        return this.resolveDistroHintFromSuffix(match[1]);
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * OS名を標準表記に正規化する
+   */
+  private normalizeDistroName(name: string): string {
+    const lower = name.toLowerCase();
+    if (lower === 'ubuntu') return 'Ubuntu';
+    if (lower === 'debian') return 'Debian';
+    if (lower === 'centos') return 'CentOS';
+    if (lower.includes('red hat')) return 'Red Hat Enterprise Linux';
+    if (lower === 'rhel') return 'RHEL';
+    if (lower === 'fedora') return 'Fedora';
+    if (lower === 'almalinux') return 'AlmaLinux';
+    if (lower === 'rocky linux') return 'Rocky Linux';
+    if (lower === 'amazon linux') return 'Amazon Linux';
+    if (lower === 'suse') return 'SUSE';
+    if (lower === 'raspbian') return 'Raspbian';
+    return name;
+  }
+
+  /**
+   * パッケージ接尾辞のタグ名からディストリビューション名を推定する
+   */
+  private resolveDistroHintFromSuffix(tag: string): string {
+    const lower = tag.toLowerCase();
+    if (lower.startsWith('ubuntu')) return 'Ubuntu';
+    if (lower.startsWith('deb')) return 'Debian';
+    if (lower.startsWith('el')) return 'RHEL';
+    if (lower.startsWith('amzn')) return 'Amazon Linux';
+    if (lower.startsWith('fc')) return 'Fedora';
+    return `${tag}-package`;
   }
 }

@@ -145,18 +145,25 @@ export function calculateDbFreshness(generatedAt: string): {
   };
 }
 
+export interface MatchOfflineAdvisoriesOptions {
+  /** Linuxディストリビューション版ヒント (SPEC-02 / T04) */
+  distroHint?: string;
+}
+
 /**
  * 技術名とバージョンから、オフラインデータベースを照合してCVEおよびEOL情報を取得する (Rev.2.1 IMP-06)
  *
  * @param technology 技術名 (例: "jQuery", "PHP", "Bootstrap", "Apache")
  * @param version 検出されたバージョン文字列 (例: "3.4.1", "7.4.33", "2.4.52-1ubuntu4")
  * @param dbOverride テスト・オーバーライド用カスタムDB (任意)
+ * @param options 追加照合オプション (distroHintなど) (任意)
  * @returns OfflineAdvisoryResult
  */
 export function matchOfflineAdvisories(
   technology: string,
   version: string | null | undefined,
-  dbOverride?: Partial<AdvisoryDatabase>
+  dbOverride?: Partial<AdvisoryDatabase>,
+  options?: MatchOfflineAdvisoriesOptions
 ): OfflineAdvisoryResult {
   const activeDb: AdvisoryDatabase = {
     ...advisoryDb,
@@ -190,7 +197,29 @@ export function matchOfflineAdvisories(
       };
     }
 
-    // 2. Linuxパッケージ固有バージョンのバックポート考慮 (Rev.2.1 IMP-06 / 5.6 / D14)
+    // 2. Linuxパッケージ固有バージョンおよびディストリビューション版のバックポート考慮 (Rev.2.1 IMP-06 / 5.6 / D14 / SPEC-02)
+    if (options?.distroHint) {
+      const distroNote = `${options.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。`;
+      return {
+        technology,
+        version,
+        matchStatus: 'Needs Review',
+        offlineMatchStatus: 'Unknown Version',
+        isStale: freshnessInfo.isStale,
+        dbFreshness: freshnessInfo.freshness,
+        advisories: [],
+        maxCvss: null,
+        eolInfo: {
+          status: 'Unknown',
+          eolDate: null,
+          source: 'offline-db',
+          recommendation: distroNote,
+        },
+        updatedAt: now,
+        warning: distroNote,
+      };
+    }
+
     if (isLinuxPackageVersion(version)) {
       return {
         technology,

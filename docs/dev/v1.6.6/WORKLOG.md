@@ -171,3 +171,27 @@
   - `tests/detection.test.ts` に cdnjs / jsdelivr / ローカルスクリプトからの Lodash / Moment.js の検出・バージョン抽出テスト、および類似ファイル名（`my-lodash.js`, `momentary.js`）からの誤検出防止テストを追加した。
   - ルール数が68から70に増加したことに伴い、`tests/spec-integrity.test.ts` の登録技術数アサーションを70に更新した（外側スクリプトによる `npm run spec:generate` 実行後のカタログ同期と整合）。
 - 未解決: なし
+
+---
+
+## T08 innerHTML への未エスケープ出力の解消 (2026-10-31 12:20)
+- 変更ファイル:
+  - `src/shared/html.ts`
+  - `src/popup/render.ts`
+  - `src/popup/popup.ts`
+  - `src/dashboard/render.ts`
+  - `src/dashboard/dashboard.ts`
+  - `tests/ui-escaping.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `src/shared/html.ts` を新規作成し、`escapeHtml`（文字列以外も `String()` 変換、`null`/`undefined` は空文字化、`&, <, >, ", '` をエスケープ）を一元化した。popup / dashboard にあった重複実装をこれに置き換えた。
+  - 同ファイルに `safeHref(url: unknown): string | null` を新設し、URL をパースして `https:` プロトコルのみを許可、それ以外（`javascript:`, `data:`, `http:` 等）やパース不能な値は `null` を返すようにした。さらにリンク化可能な場合は `rel="noopener noreferrer"` を付与した安全な `<a>` タグを生成し、`null` の場合はエスケープ済みテキストの `<span>` にフォールバックする `renderSafeExternalLink()` を実装した（IMPL-03）。
+  - `src/popup/popup.ts` および `src/dashboard/dashboard.ts` の innerHTML 展開箇所を点検し、純粋な描画関数群を `src/popup/render.ts` および `src/dashboard/render.ts` に集約・抽出した。
+  - `popup.ts` / `popup/render.ts`: 調査エラーメッセージ `${escapeHtml(message)}`、`${escapeHtml(iconText)}`、EOL 出典 `eol.sourceUrl`、アドバイザリ参照 `adv.referenceUrls`、`tech.website`、セキュリティ詳細の `check.referenceUrls` を `renderSafeExternalLink` や `escapeHtml` 経由で出力するよう修正した。特にアドバイザリ参照URLは配列内の各URLを処理し、安全なURL（https:）のみ `<a>` タグとし不正なスキームはテキスト（`<span>`）として描画するようにした。
+  - `dashboard.ts` / `dashboard/render.ts`: `t.website`、`adv.title`、`c.referenceUrls`（href とリンク表示テキストの両方）、許容設定取得失敗時の `${escapeHtml(errMessage)}` を安全にエスケープ・リンク化するようにした。
+  - `tests/ui-escaping.test.ts` を新規作成し、`escapeHtml`、`safeHref`、`renderSafeExternalLink` の単体テスト（XSS ベクター文字列や `javascript:` URL、非文字列、null/undefined の挙動確認、属性クォートあり／なし双方のエスケープ確認）を実装した。
+  - さらに、悪意のある値（HTMLタグ、スクリプト、javascript: URL 等）を注入した技術データ・セキュリティチェック結果・Cookie データをポップアップおよびダッシュボードの各描画関数に渡し、生成された HTML を DOM に流し込んだ際に、実行可能な `img` や `script`、`svg`、`iframe` 等の要素および `javascript:` な href が一切生成されず、正当な `https:` URL のみが `rel="noopener noreferrer"` 付きでリンク化されることを検証するテストを実装した。
+- 未解決: なし
+

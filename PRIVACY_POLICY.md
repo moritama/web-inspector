@@ -1,6 +1,6 @@
 # Privacy Policy for Web Technology & Security Inspector
 
-Last updated: October 26, 2026
+Last updated: October 31, 2026
 
 **Web Technology & Security Inspector** (hereinafter referred to as "the Extension") is committed to protecting your privacy. This Privacy Policy explains our practices regarding user information and data collection.
 
@@ -18,20 +18,20 @@ The Extension performs all technology detection and security evaluations **local
 
 ## 2. Handling of Cookies and Sensitive Data (Cookieおよび機密情報の取り扱い)
 
-- **Cookie Values are NEVER read or stored**: The Extension only inspects the security **attributes** of Cookies (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`). Cookie values/contents are completely ignored and stripped immediately.
-- **Handling of Response Headers & URLs**:
+- **Handling of Cookie Values**: Due to browser API specifications (`chrome.cookies` and `document.cookie`), cookie values are temporarily read into memory when attributes are retrieved. However, all data except cookie names and security attributes (e.g., `Secure`, `HttpOnly`, `SameSite`, expiration date, and prefixes like `__Host-` or `__Secure-`) is immediately discarded and is never stored, displayed, or transmitted.
+- **Handling of Response Headers & URLs (webRequest)**:
   - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
-  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. Only an explicit allowlist of headers necessary for technology detection and security evaluation is retained in session storage. Stored URLs in the temporary header cache exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+  - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. For all visited pages, only response headers of the main frame that are included in the [allowlist](src/background/service-worker.ts) ([view on GitHub](https://github.com/moritama/web-inspector/blob/main/src/background/service-worker.ts)) are retained in session storage until the tab is closed or the browser is terminated. Stored URLs in the temporary header cache exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+- **Content Scripts & No Page Content Scraping**: Content scripts are deployed across all visited pages, but only analyze the DOM when the user initiates an inspection. The full HTML text and user input forms are never saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.
 - **Inspection history and exports**: The URL of each page you inspect is stored in your local inspection history and included in reports you export (query strings are included). History stays on your device and can be deleted at any time.
 - **No Passwords or Form Inputs**: Passwords and form inputs are never captured. HTTP `Authorization` headers are request headers and are outside the scope of response header observation.
-- **No Page Content Scraping**: The full HTML text and user input forms are not saved. Only technical signatures (meta tags, script URLs, CSS utility class names) are evaluated in memory.
 
-Cookieの**値（Value）そのものは一切取得・保存・ログ出力しません**。検査対象はSecure属性やHttpOnly属性などの設定フラグのみです。
-- **レスポンスヘッダーおよびURLの取り扱い**:
+- **Cookieの値の取り扱い**: ブラウザAPI（`chrome.cookies` および `document.cookie`）の仕様上、属性取得時に値も一時的にメモリへ読み込まれますが、名前と属性（Secure, HttpOnly, SameSite, 有効期限, `__Host-`/`__Secure-` プレフィックス等）以外は即座に破棄し、保存・表示・送信しません。
+- **レスポンスヘッダーおよびURLの取り扱い（webRequest）**:
   - **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
-  - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。技術検出およびセキュリティ診断に必要な固定の許可リストに含まれるヘッダーのみを保持します。ヘッダーの一時保持に使うURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
-- **ページ本文の非保存**: ページのHTML全文やユーザーの入力フォームは保存しません。技術的な特徴(metaタグ、スクリプトURL、CSSクラス名など)のみをメモリ上で評価します。
-- **調査履歴とエクスポート**: 調査したページのURLは、端末内の調査履歴に保存され、エクスポートしたレポートにも含まれます(クエリ文字列は含まれます)。履歴は端末内にのみ保存され、いつでも削除できます。
+  - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。閲覧中のすべてのページのメインフレームのレスポンスヘッダーのうち、[許可リスト（一覧）](src/background/service-worker.ts)（[GitHub](https://github.com/moritama/web-inspector/blob/main/src/background/service-worker.ts)）に含まれるもののみを、タブを閉じるかブラウザを終了するまでセッションストレージに保持します。ヘッダーの一時保持に使うURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
+- **コンテンツスクリプトとページ本文の非保存**: コンテンツスクリプトはすべてのページに配置されますが、ユーザーが調査を実行したときにのみ DOM を解析します。ページのHTML全文やユーザーの入力フォームは保存せず、技術的な特徴（metaタグ、スクリプトURL、CSSクラス名など）のみをメモリ上で受動的に評価します。
+- **調査履歴とエクスポート**: 調査したページのURLは、端末内の調査履歴に保存され、エクスポートしたレポートにも含まれます（クエリ文字列は含まれます）。履歴は端末内にのみ保存され、いつでも削除できます。
 - **パスワードおよび入力フォームの完全非取得**: パスワードやフォーム入力値を取得することは一切ありません。なお、HTTP `Authorization` ヘッダーはリクエストヘッダーであり、本拡張機能のレスポンスヘッダー観測の対象外です。
 
 ---
@@ -50,11 +50,11 @@ Cookieの**値（Value）そのものは一切取得・保存・ログ出力し�
 
 | Permission | Purpose / 用途 |
 |---|---|
-| `webRequest` | To inspect HTTP response headers (e.g., HSTS, CSP, X-Frame-Options) for security evaluation.<br>セキュリティ診断のためHTTPレスポンスヘッダーを受動的に観測します。 |
-| `cookies` | To evaluate Cookie security flags (Secure, HttpOnly, SameSite). Values are not read.<br>Cookieのセキュリティ属性を検査します（値は取得しません）。 |
-| `activeTab` / `scripting` | To analyze DOM signatures (meta tags, script URLs, mixed content) of the active tab upon user request.<br>ユーザーの操作時にアクティブなタブのDOM特徴や混在コンテンツを受動的に分析します。 |
+| `webRequest` | To inspect HTTP response headers for security evaluation. Passively observes response headers of the main frame across all visited pages, retaining only headers included in the [allowlist](src/background/service-worker.ts) in session storage until the tab is closed or the browser is terminated.<br>セキュリティ診断のためHTTPレスポンスヘッダーを受動的に観測します。閲覧中のすべてのページのメインフレームのレスポンスヘッダーのうち、[許可リスト（一覧）](src/background/service-worker.ts)に含まれるもののみを、タブを閉じるかブラウザを終了するまでセッションストレージに保持します。 |
+| `cookies` | To evaluate Cookie security attributes (Secure, HttpOnly, SameSite). Due to browser API specifications, values are temporarily read into memory when attributes are retrieved, but are immediately discarded and never stored, displayed, or transmitted.<br>Cookieのセキュリティ属性を検査します（ブラウザAPIの仕様上、属性取得時に値も一時的にメモリへ読み込まれますが、名前と属性以外は即座に破棄し、保存・表示・送信しません）。 |
+| `activeTab` / `scripting` | To analyze DOM signatures (meta tags, script URLs, mixed content) of the active tab. Content scripts are deployed to all visited pages, but only analyze the DOM when the user initiates an inspection.<br>アクティブなタブのDOM特徴や混在コンテンツを受動的に分析します。コンテンツスクリプトはすべてのページに配置されますが、ユーザーが調査を実行したときにのみ DOM を解析します。 |
 | `storage` | To store inspection history locally on your device.<br>調査履歴を端末内にローカル保存します。 |
-| `<all_urls>` | To allow inspecting web technologies on any public website visited by the user.<br>ユーザーが閲覧・調査するWebサイトで診断を実行できるようにします。 |
+| `<all_urls>` | To allow inspecting web technologies and observing response headers on visited websites.<br>閲覧・調査するWebサイトで技術検出の実行およびレスポンスヘッダーの受動的観測を行えるようにします。 |
 
 ---
 

@@ -101,18 +101,18 @@ describe('SPEC-07 / SPEC-08: CSP 評価', () => {
 });
 
 describe('SPEC-09: 誤検知の抑制', () => {
-  it.skip('Bootstrap のユーティリティクラス (d-flex justify-content-between) を Tailwind と判定しない', () => {
+  it('Bootstrap のユーティリティクラス (d-flex justify-content-between) を Tailwind と判定しない', () => {
     expect(techNames({ ...emptyDom(), htmlSnippets: ['d-flex justify-content-between align-items-center'] })).not.toContain('Tailwind CSS');
   });
-  it.skip('テーマの small.css / all.css を Font Awesome と判定しない', () => {
+  it('テーマの small.css / all.css を Font Awesome と判定しない', () => {
     expect(techNames({ ...emptyDom(), linkUrls: [{ rel: 'stylesheet', href: '/themes/t/css/small.css' }] })).not.toContain('Font Awesome');
   });
-  it.skip('orgchart.js / md3.js を Chart.js / D3.js と判定しない', () => {
+  it('orgchart.js / md3.js を Chart.js / D3.js と判定しない', () => {
     const names = techNames({ ...emptyDom(), scriptUrls: ['/js/orgchart.js', '/static/md3.js'] });
     expect(names).not.toContain('Chart.js');
     expect(names).not.toContain('D3.js');
   });
-  it.skip('X-Powered-By: Phusion Passenger 単独で Ruby on Rails を高確信度にしない', () => {
+  it('X-Powered-By: Phusion Passenger 単独で Ruby on Rails を高確信度にしない', () => {
     const r = engine.detect({ url: 'https://e.com/', dom: emptyDom(), network: net({ 'x-powered-by': ['Phusion Passenger(R) 6.0.17'] }) });
     expect(r.find((t) => t.technology === 'Ruby on Rails')?.confidenceLevel ?? 'low').not.toBe('high');
   });

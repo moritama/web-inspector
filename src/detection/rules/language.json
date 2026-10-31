@@ -200,7 +200,7 @@
         "type": "header",
         "target": "x-powered-by",
         "pattern": "Phusion Passenger",
-        "weight": 80
+        "weight": 40
       }
     ]
   },

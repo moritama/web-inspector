@@ -101,5 +101,26 @@
   - 受け入れテスト `SPEC-02` の skip を解除（期待値は無変更）。`tests/detection.test.ts` に `nginx/1.18.0 (Ubuntu)`（Needs Review）、`Apache/2.4.58 (Unix)`（通常照合）、`PHP/8.1.2-1ubuntu2.14`（Needs Review）のテストを追加した。さらに `tests/advisory.test.ts` および `tests/export.test.ts` にも単体テストを追加した。
 - 未解決: なし
 
+---
+
+## T05 誤検知する検出ルールの修正 (2026-10-31 11:06)
+- 変更ファイル:
+  - `src/detection/rules/frontend.json`
+  - `src/detection/rules/language.json`
+  - `tests/review-v1.6.5-acceptance.test.ts`
+  - `tests/detection.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `tailwind` の css シグナルについて、Bootstrap のクラス（`d-flex justify-content-between` 等）に誤一致する汎用パターンを廃止し、Tailwind 固有のバリアント接頭辞（`sm:`, `md:`, `lg:`, `xl:`, `2xl:`, `hover:`, `focus:`, `dark:` 等）、任意値（`-[...]`）、カラースケール（`-(50|[1-9]00|950)`）に限定した。重みを 80 から 70 に引き下げ、単独で medium、script シグナル等との組み合わせで高確信度（high）になるよう調整した（SPEC-09）。
+  - `fontawesome` の link シグナルについて、任意の `all.css` や `small.css` に部分一致していた `all(?:\.min)?\.css` を削除し、`font-?awesome`、`use.fontawesome.com`、`kit.fontawesome.com` を含むアセットに限定した。また、Font Awesome 公式 Kit（`https://kit.fontawesome.com/abc123.js`）の読み込みに対応するため、script シグナル（weight: 85）を追加した（SPEC-09）。
+  - `chartjs` の script シグナルについて、`orgchart.js` 等の無関係なライブラリに一致しないようファイル名先頭に `(?:^|/)` アンカーを付与し、さらに CDN 経由のパス形式（`/chart.js@`, `/npm/chart.js`）も許可するようにした（SPEC-09）。
+  - `d3` の script シグナルについて、`md3.js` 等に誤一致しないようファイル名先頭に `(?:^|/)` アンカーを付与し、さらに npm/CDN パス（`/d3@[0-9]`）を許可するようにした（SPEC-09）。
+  - `ruby-on-rails` の header シグナル（`X-Powered-By: Phusion Passenger`）について、Passenger は Node.js や Python 等も動作させるため単独で Rails と断定できない問題に対し、重みを 80 から 40 に引き下げた（単独では採用閾値 50 未満となり高確信度にならない）（SPEC-09）。
+  - 受け入れテスト `SPEC-09`（4件）の `it.skip` を解除（期待値は無変更）。`tests/detection.test.ts` に Bootstrap クラス群からの Tailwind 陰性判定、Tailwind 固有クラスからの陽性判定、テーマ css からの Font Awesome 陰性判定、cdnjs / kit からの Font Awesome 陽性判定、orgchart.js / md3.js の Chart.js / D3.js 陰性判定、正規 D3.js の陽性判定、Passenger 単独での Rails 抑制判定を網羅的に追加した。
+- 未解決: なし
+
+
 
 

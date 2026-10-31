@@ -1140,6 +1140,123 @@ describe('DetectionEngine', () => {
       expect(php?.offlineMatchStatus).toBe('Unknown Version');
     });
   });
+
+  describe('誤検知の抑制と検出精度 (SPEC-09 / T05)', () => {
+    describe('Tailwind CSS の陽性・陰性判定', () => {
+      it.each([
+        ['d-flex justify-content-between align-items-center'],
+        ['container-fluid py-4'],
+        ['col-md-6 mb-3 text-muted'],
+        ['btn btn-primary px-4'],
+      ])('Bootstrap クラス "%s" から Tailwind CSS を検出しないこと', (snippet) => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: { ...emptyDom, htmlSnippets: [snippet] },
+        });
+        expect(results.some((r) => r.technology === 'Tailwind CSS')).toBe(false);
+      });
+
+      it.each([
+        ['flex items-center justify-between bg-gray-100 px-4 md:px-8'],
+        ['text-slate-700 hover:text-slate-900'],
+      ])('Tailwind 固有クラス "%s" から Tailwind CSS を検出できること', (snippet) => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: { ...emptyDom, htmlSnippets: [snippet] },
+        });
+        const tailwind = results.find((r) => r.technology === 'Tailwind CSS');
+        expect(tailwind).toBeDefined();
+        expect(tailwind?.confidence).toBeGreaterThanOrEqual(50);
+      });
+    });
+
+    describe('Font Awesome の陽性・陰性判定', () => {
+      it('テーマの small.css / all.css から Font Awesome を検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              { rel: 'stylesheet', href: '/themes/t/css/small.css' },
+              { rel: 'stylesheet', href: '/themes/t/css/all.css' },
+            ],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Font Awesome')).toBe(false);
+      });
+
+      it('cdnjs の CSS URL から Font Awesome を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css' },
+            ],
+          },
+        });
+        const fa = results.find((r) => r.technology === 'Font Awesome');
+        expect(fa).toBeDefined();
+        expect(fa?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('kit.fontawesome.com の スクリプト URL から Font Awesome を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://kit.fontawesome.com/abc123.js'],
+          },
+        });
+        const fa = results.find((r) => r.technology === 'Font Awesome');
+        expect(fa).toBeDefined();
+        expect(fa?.confidence).toBeGreaterThanOrEqual(80);
+      });
+    });
+
+    describe('Chart.js / D3.js の誤検知防止', () => {
+      it('orgchart.js / md3.js から Chart.js / D3.js を検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/js/orgchart.js', '/static/md3.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Chart.js')).toBe(false);
+        expect(results.some((r) => r.technology === 'D3.js')).toBe(false);
+      });
+
+      it('正規の D3.js スクリプトから D3.js を検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://d3js.org/d3.v7.min.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'D3.js')).toBe(true);
+      });
+    });
+
+    describe('Ruby on Rails の Passenger 単独評価の抑制', () => {
+      it('X-Powered-By: Phusion Passenger 単独で Ruby on Rails を高確信度にしないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: emptyDom,
+          network: {
+            url: 'https://example.com/',
+            responseHeaders: {
+              'x-powered-by': ['Phusion Passenger(R) 6.0.17'],
+            },
+            cookies: [],
+          },
+        });
+        const rails = results.find((r) => r.technology === 'Ruby on Rails');
+        expect(rails?.confidenceLevel ?? 'low').not.toBe('high');
+      });
+    });
+  });
 });
 
 

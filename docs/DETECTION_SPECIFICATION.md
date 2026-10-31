@@ -128,7 +128,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `python` | **Python** | `header`: `server` | Python(?:/([0-9.]+))? | 85 |
 | `ruby` | **Ruby** | `header`: `x-powered-by` | Phusion Passenger.*Ruby | 85 |
 | `python-django` | **Django** | `cookie`: `csrftoken`<br>`dom`: `input[name='csrfmiddlewaretoken']` | ^csrftoken$<br>csrfmiddlewaretoken | 40<br>80 |
-| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | authenticity_token<br>Phusion Passenger | 70<br>80 |
+| `ruby-on-rails` | **Ruby on Rails** | `dom`: `meta[name='csrf-param']`<br>`header`: `x-powered-by` | authenticity_token<br>Phusion Passenger | 70<br>40 |
 | `laravel` | **Laravel** | `header`: `x-powered-by`<br>`cookie`: `laravel_session`<br>`cookie`: `app_session`<br>`cookie`: `XSRF-TOKEN` | Laravel(?:/([0-9.]+))?<br>^laravel_session$<br>^(?!_)(?!ci_)[a-zA-Z0-9_-]+_session$<br>^XSRF-TOKEN$ | 95<br>85<br>35<br>35 |
 | `nodejs` | **Node.js** | `header`: `x-powered-by`<br>`header`: `server`<br>`cookie`: `connect.sid`<br>`cookie`: `XSRF-TOKEN` | Node\.js(?:/([0-9.]+))?<br>Node\.js(?:/([0-9.]+))?<br>^connect\.sid$<br>^XSRF-TOKEN$ | 90<br>90<br>80<br>35 |
 | `dotnet` | **.NET** | `header`: `server` | Kestrel | 80 |
@@ -181,16 +181,16 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `svelte` | **Svelte** | `dom`: `[class*='svelte-']`<br>`script`: `src` | svelte-<br>/_app/immutable/ | 90<br>75 | - |
 | `jquery` | **jQuery** | `script`: `src`<br>`script`: `src` | jquery[.-\]\([0-9.]+)(?:\.min)?\.js<br>jquery(?:\.min)?\.js | 90<br>75 | - |
 | `bootstrap` | **Bootstrap** | `link`: `href`<br>`script`: `src`<br>`dom`: `.container, .row, .col-` | bootstrap(?:\.min)?\.css<br>bootstrap(?:\.bundle)?(?:\.min)?\.js<br>container | 85<br>80<br>40 | - |
-| `tailwind` | **Tailwind CSS** | `css`: `class`<br>`script`: `src` | (?:flex\|grid\|hidden\|block)\s+(?:items-\|justify-\|space-\|p-\|m-\|text-\|bg-)<br>tailwindcss\|cdn\.tailwindcss\.com | 80<br>90 | - |
+| `tailwind` | **Tailwind CSS** | `css`: `class`<br>`script`: `src` | (?:sm\|md\|lg\|xl\|2xl\|hover\|focus\|dark):[a-z0-9_-]+\|[a-z0-9_-]+-\[[^\]]+\]\|(?:text\|bg\|border\|ring\|from\|to\|via)-[a-z]+-(?:50\|[1-9]00\|950)<br>tailwindcss\|cdn\.tailwindcss\.com | 70<br>90 | - |
 | `alpine` | **Alpine.js** | `dom`: `[x-data], [x-init], [x-bind]`<br>`script`: `src` | x-data\|x-init\|x-bind<br>alpine(?:\.min)?\.js\|cdn\.jsdelivr\.net/npm/alpinejs | 90<br>85 | - |
 | `htmx` | **htmx** | `dom`: `[hx-get], [hx-post], [hx-target], [hx-swap]`<br>`script`: `src` | hx-get\|hx-post\|hx-target\|hx-swap\|hx-trigger<br>htmx(?:\.org)?(?:\.min)?\.js | 90<br>85 | - |
 | `datatables` | **DataTables** | `dom`: `table.dataTable, .dataTables_wrapper`<br>`script`: `src`<br>`link`: `href` | dataTable\|dataTables_wrapper<br>(?:jquery\.)?dataTables(?:\.min)?\.js<br>(?:jquery\.)?dataTables.*\.css | 85<br>90<br>80 | - |
-| `chartjs` | **Chart.js** | `script`: `src` | chart(?:\.umd)?(?:\.min)?\.js | 85 | - |
+| `chartjs` | **Chart.js** | `script`: `src` | (?:^\|/)chart(?:\.umd)?(?:\.min)?\.js\|/chart\.js@\|/npm/chart\.js | 85 | - |
 | `axios` | **Axios** | `script`: `src` | axios(?:\.min)?\.js | 85 | - |
-| `d3` | **D3.js** | `script`: `src` | d3(?:\.v[0-9]+)?(?:\.min)?\.js | 85 | - |
+| `d3` | **D3.js** | `script`: `src` | (?:^\|/)d3(?:\.v[0-9]+)?(?:\.min)?\.js\|/d3@[0-9] | 85 | - |
 | `tinymce` | **TinyMCE** | `dom`: `.tox-tinymce, .mce-tinymce`<br>`script`: `src` | tox-tinymce\|mce-tinymce<br>tinymce(?:\.min)?\.js | 90<br>85 | - |
 | `ckeditor` | **CKEditor** | `dom`: `.ck-editor, .cke`<br>`script`: `src` | ck-editor\|cke_<br>ckeditor(?:\.min)?\.js | 90<br>85 | - |
-| `fontawesome` | **Font Awesome** | `link`: `href`<br>`dom`: `i[class*='fa-'], [class*='fas '], [class*='fab ']` | font-awesome\|fontawesome\|all(?:\.min)?\.css<br>fa-\|fas \|fab  | 85<br>70 | - |
+| `fontawesome` | **Font Awesome** | `link`: `href`<br>`script`: `src`<br>`dom`: `i[class*='fa-'], [class*='fas '], [class*='fab ']` | font-?awesome\|use\.fontawesome\.com\|kit\.fontawesome\.com<br>kit\.fontawesome\.com\|font-?awesome<br>fa-\|fas \|fab  | 85<br>85<br>70 | - |
 | `material-ui` | **Material UI** | `dom`: `[class*='MuiButton-'], [class*='MuiBox-'], [class*='MuiTypography-']` | Mui[A-Z][a-zA-Z]+- | 85 | $\rightarrow$ **React** (`possible`) |
 | `astro` | **Astro** | `dom`: `[data-astro-cid-], astro-island`<br>`meta`: `generator` | data-astro-cid-\|astro-island<br>Astro(?:\s+v?([0-9.]+))? | 95<br>95 | - |
 | `sveltekit` | **SvelteKit** | `dom`: `script[data-sveltekit-], div#svelte, link[rel='modulepreload'][href*='_app/immutable/']` | data-sveltekit\|__sveltekit\|_app/immutable\|div#svelte | 95 | $\rightarrow$ **Svelte** (`possible`)<br>$\rightarrow$ **Node.js** (`unknown`) |

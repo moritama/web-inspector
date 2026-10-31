@@ -1,18 +1,18 @@
 # Privacy Policy for Web Technology & Security Inspector
 
-Last updated: October 31, 2026
+Last updated: November 1, 2026
 
 **Web Technology & Security Inspector** (hereinafter referred to as "the Extension") is committed to protecting your privacy. This Privacy Policy explains our practices regarding user information and data collection.
 
 ---
 
-## 1. No Data Collection or Transmission (データ非収集・外部送信ゼロ)
+## 1. No Data Transmission (外部送信ゼロ)
 
 The Extension performs all technology detection and security evaluations **locally on your device**. 
-- We do **not** collect, transmit, or sell any personal data, browsing history, IP addresses, or analytical data. Data you generate (e.g., inspection history) stays on your device. See Sections 2 and 3.
+- We do **not** transmit, share, or sell any personal data, browsing history, IP addresses, or analytical data, either to us or to any third party. Data the Extension handles to perform its inspections (e.g., the URLs of pages you inspect, kept in your inspection history) stays on your device. See Sections 2 and 3.
 - The Extension makes **no external network connections** to third-party tracking, analytics, or remote servers. All operations happen strictly within the browser environment.
 
-本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を収集・外部送信・販売することは一切ありません。外部の解析サーバー等への通信も一切行いません。
+本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を、開発者や第三者へ送信・共有・販売することは一切ありません。調査したページのURL（調査履歴）など、診断のために扱うデータは端末内にのみ保存します（第2章・第3章）。外部の解析サーバー等への通信も一切行いません。
 
 ---
 

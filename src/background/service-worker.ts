@@ -430,7 +430,11 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
           bootstrap4: w.jQuery?.fn?.modal?.Constructor?.VERSION ?? null,
           bootstrap5: w.bootstrap?.Modal?.VERSION ?? null,
           vue: w.Vue?.version ?? null,
-          lodash: w._?.VERSION ?? null,
+          // Underscore.js との誤認防止: window._.VERSION は Underscore にも存在するため、cloneDeep 関数の有無で判別 (T07 / DOC-02)
+          lodash:
+            typeof w._?.cloneDeep === 'function' && typeof w._?.VERSION === 'string'
+              ? w._.VERSION
+              : null,
           moment: w.moment?.version ?? null,
           angularjs: w.angular?.version?.full ?? null,
         };

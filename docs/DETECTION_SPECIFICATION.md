@@ -95,7 +95,7 @@ v1.6.0で導入されたImplication Engineでは、「検出方式（直接検�
 
 ---
 
-## 3. 全調査対象技術 判定基準カタログ (計68技術)
+## 3. 全調査対象技術 判定基準カタログ (計70技術)
 
 > [!NOTE]
 > **カタログの自動整合保証:**  
@@ -194,6 +194,8 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `material-ui` | **Material UI** | `dom`: `[class*='MuiButton-'], [class*='MuiBox-'], [class*='MuiTypography-']` | Mui[A-Z][a-zA-Z]+- | 85 | $\rightarrow$ **React** (`possible`) |
 | `astro` | **Astro** | `dom`: `[data-astro-cid-], astro-island`<br>`meta`: `generator` | data-astro-cid-\|astro-island<br>Astro(?:\s+v?([0-9.]+))? | 95<br>95 | - |
 | `sveltekit` | **SvelteKit** | `dom`: `script[data-sveltekit-], div#svelte, link[rel='modulepreload'][href*='_app/immutable/']` | data-sveltekit\|__sveltekit\|_app/immutable\|div#svelte | 95 | $\rightarrow$ **Svelte** (`possible`)<br>$\rightarrow$ **Node.js** (`unknown`) |
+| `lodash` | **Lodash** | `script`: `src` | (?:^\|/)lodash(?:[.-\]\(\d+(?:\.\d+)*))?(?:\.core)?(?:\.min)?\.js\|/lodash@(\d+(?:\.\d+)*)\|/lodash\.js/(\d+(?:\.\d+)*) | 85 | - |
+| `moment` | **Moment.js** | `script`: `src` | (?:^\|/)moment(?:-with-locales)?(?:[.-\]\(\d+(?:\.\d+)*))?(?:\.min)?\.js\|/moment@(\d+(?:\.\d+)*)\|/moment\.js/(\d+(?:\.\d+)*) | 85 | - |
 
 ---
 

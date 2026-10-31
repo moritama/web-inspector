@@ -151,7 +151,7 @@ describe('DOC-01: 仕様書に記載された DOM シグナルが実際に発火
 });
 
 describe('DOC-02: Lodash / Moment.js の検出', () => {
-  it.skip('実行時バージョン (window._.VERSION / window.moment.version) から検出し CVE 照合する', () => {
+  it('実行時バージョン (window._.VERSION / window.moment.version) から検出し CVE 照合する', () => {
     const r = engine.detect({ url: 'https://e.com/', dom: emptyDom(), runtimeVersions: { lodash: '4.17.15', moment: '2.29.1' } });
     expect(r.map((t) => t.technology)).toEqual(expect.arrayContaining(['Lodash', 'Moment.js']));
     expect(r.find((t) => t.technology === 'Lodash')?.advisoryMatchStatus).toBe('Potentially Affected');

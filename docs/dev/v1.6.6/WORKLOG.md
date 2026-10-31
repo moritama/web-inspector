@@ -149,3 +149,25 @@
   - `tests/rule-reachability.test.ts` を新規作成し、全26件の DOM シグナルに対応するフィクスチャが存在すること、および各フィクスチャを読み込んで `extractDomSignals()` → `DetectionEngine.detect()` することで該当技術が確実に検出されること（到達性）を検証した。なお、Bootstrap（weight: 40）は単独では採用閾値（50）未満で除外される設計のため、エビデンス（`domMarkers` に `.container`）が収集されていることを検証対象とした。また、happy-dom 環境で iframe 要素接続時に発生する page loading 抑制の console.error をテスト実行時に抑制した。
   - 受け入れテスト `tests/review-v1.6.5-acceptance.test.ts` の `DOC-01`（Alpine.js, htmx, Material UI, Spring Security, Ruby on Rails の5件）の `it.skip.each` を `it.each` に解除した（期待値は無変更）。
 - 未解決: なし
+
+---
+
+## T07 Lodash / Moment.js ルール追加 (2026-10-31 11:59)
+- 変更ファイル:
+  - `src/detection/rules/frontend.json`
+  - `src/background/service-worker.ts`
+  - `tests/review-v1.6.5-acceptance.test.ts`
+  - `tests/detection.test.ts`
+  - `tests/spec-integrity.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - `node scripts/dev/check-v1.6.6.mjs --static` → C03 (P0受け入れテスト) PASS, C06 (Lodash/Momentルール) PASS
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `src/detection/rules/frontend.json` に `id: 'lodash'`（Lodash）および `id: 'moment'`（Moment.js）の2ルールを `category: 'js-css-library'` として追加した。
+  - スクリプトURL検出シグナル（`type: 'script'`）において、cdnjs（`/lodash.js/<version>/`、`/moment.js/<version>/`）、npm / jsdelivr（`/lodash@<version>`、`/moment@<version>`）、およびファイル名（`lodash.min.js`, `moment-with-locales.min.js`, バージョン付きファイル名）を1つのシグナル定義で網羅する正規表現パターンとバージョン抽出用 `versionRegex` を設計し、URLからの重複エビデンス発生を防止した。
+  - `src/background/service-worker.ts` の `fetchRuntimeVersions` において、Underscore.js にも `window._.VERSION` が存在するため、`typeof w._?.cloneDeep === 'function'` かつ `typeof w._?.VERSION === 'string'` の場合のみ `w._.VERSION` を採用し、それ以外（Underscore.js等）は `null` とする誤認防止ガードを実装した（DOC-02）。
+  - 受け入れテスト `tests/review-v1.6.5-acceptance.test.ts` の `DOC-02` の `it.skip` を解除した（期待値は無変更）。
+  - `tests/detection.test.ts` に cdnjs / jsdelivr / ローカルスクリプトからの Lodash / Moment.js の検出・バージョン抽出テスト、および類似ファイル名（`my-lodash.js`, `momentary.js`）からの誤検出防止テストを追加した。
+  - ルール数が68から70に増加したことに伴い、`tests/spec-integrity.test.ts` の登録技術数アサーションを70に更新した（外側スクリプトによる `npm run spec:generate` 実行後のカタログ同期と整合）。
+- 未解決: なし

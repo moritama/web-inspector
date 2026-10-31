@@ -1256,6 +1256,102 @@ describe('DetectionEngine', () => {
         expect(rails?.confidenceLevel ?? 'low').not.toBe('high');
       });
     });
+
+    describe('DOC-02: Lodash / Moment.js のスクリプトURL検出 (T07)', () => {
+      it('cdnjs のスクリプトURLから Lodash およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBe('4.17.21');
+        expect(lodash?.category).toBe('js-css-library');
+        expect(lodash?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('jsdelivr のスクリプトURLから Lodash およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBe('4.17.21');
+      });
+
+      it('ローカルスクリプトURLから Lodash を検出できること（バージョンなし）', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/assets/js/lodash.min.js', '/assets/js/lodash.core.js'],
+          },
+        });
+        const lodash = results.find((r) => r.technology === 'Lodash');
+        expect(lodash).toBeDefined();
+        expect(lodash?.version).toBeNull();
+      });
+
+      it('cdnjs のスクリプトURLから Moment.js およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBe('2.29.4');
+        expect(moment?.category).toBe('js-css-library');
+        expect(moment?.confidence).toBeGreaterThanOrEqual(80);
+      });
+
+      it('jsdelivr のスクリプトURLから Moment.js およびバージョンを検出できること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBe('2.29.4');
+      });
+
+      it('ローカルスクリプトURLから Moment.js を検出できること（バージョンなし）', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/static/js/moment-with-locales.min.js'],
+          },
+        });
+        const moment = results.find((r) => r.technology === 'Moment.js');
+        expect(moment).toBeDefined();
+        expect(moment?.version).toBeNull();
+      });
+
+      it('類似名称の無関係なスクリプトから Lodash / Moment.js を誤検出しないこと', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['/js/my-lodash.js', '/static/momentary.js'],
+          },
+        });
+        expect(results.some((r) => r.technology === 'Lodash')).toBe(false);
+        expect(results.some((r) => r.technology === 'Moment.js')).toBe(false);
+      });
+    });
   });
 });
 

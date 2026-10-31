@@ -539,5 +539,39 @@
         "detail": "DOMマーカーおよびアセットパスからSvelteKitを検出"
       }
     ]
+  },
+  {
+    "id": "lodash",
+    "name": "Lodash",
+    "category": "js-css-library",
+    "website": "https://lodash.com/",
+    "description": "配列やオブジェクトの操作を容易にするモダンなJavaScriptユーティリティライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:^|/)lodash(?:[.-](\\d+(?:\\.\\d+)*))?(?:\\.core)?(?:\\.min)?\\.js|/lodash@(\\d+(?:\\.\\d+)*)|/lodash\\.js/(\\d+(?:\\.\\d+)*)",
+        "versionRegex": "(?:/lodash@|/lodash\\.js/|(?:^|/)lodash[.-])(\\d+(?:\\.\\d+)*)",
+        "weight": 85,
+        "detail": "スクリプトURLからLodashを検出"
+      }
+    ]
+  },
+  {
+    "id": "moment",
+    "name": "Moment.js",
+    "category": "js-css-library",
+    "website": "https://momentjs.com/",
+    "description": "日付と時刻の解析、検証、操作、表示を行うJavaScriptライブラリ",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:^|/)moment(?:-with-locales)?(?:[.-](\\d+(?:\\.\\d+)*))?(?:\\.min)?\\.js|/moment@(\\d+(?:\\.\\d+)*)|/moment\\.js/(\\d+(?:\\.\\d+)*)",
+        "versionRegex": "(?:/moment@|/moment\\.js/|(?:^|/)moment(?:-with-locales)?[.-])(\\d+(?:\\.\\d+)*)",
+        "weight": 85,
+        "detail": "スクリプトURLからMoment.jsを検出"
+      }
+    ]
   }
 ]

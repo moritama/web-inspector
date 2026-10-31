@@ -195,3 +195,25 @@
   - さらに、悪意のある値（HTMLタグ、スクリプト、javascript: URL 等）を注入した技術データ・セキュリティチェック結果・Cookie データをポップアップおよびダッシュボードの各描画関数に渡し、生成された HTML を DOM に流し込んだ際に、実行可能な `img` や `script`、`svg`、`iframe` 等の要素および `javascript:` な href が一切生成されず、正当な `https:` URL のみが `rel="noopener noreferrer"` 付きでリンク化されることを検証するテストを実装した。
 - 未解決: なし
 
+---
+
+## T09 旧DBと旧エンジンの削除 (2026-10-31 12:40)
+- 変更ファイル:
+  - `src/detection/engine.ts`
+  - `tests/version-check.test.ts`
+  - `src/security/cve/cve-database.json`
+  - `src/security/cve/cve-engine.ts`
+  - `src/security/eol/eol-database.json`
+  - `src/security/eol/eol-engine.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - `grep -rn "cve-engine\|eol-engine\|cve-database\|eol-database" src tests` → 0 件（マッチなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `src/detection/engine.ts` において、`checkEolStatus` および `checkCveAdvisories` のインポートとフォールバック呼び出しを完全に削除し、`matchOfflineAdvisories()` の結果（`offlineResult.eolInfo`、`offlineResult`）のみを用いるように一本化した（DOC-09）。含意判定（implication）の処理ブロックにおいても同様にフォールバックを削除した。
+  - `tests/version-check.test.ts` において、旧関数（`checkEolStatus` / `checkCveAdvisories`）を直接検証していたテスト群（T06〜T09: EOL & CVE 照合）を、すべて `matchOfflineAdvisories()` で検証する形に移行した。EOL判定、CVE検出・Potentially Affected・maxCvss、修正済みバージョンでのCVE除外、バージョン不明時のUnknown/Needs Review、未知技術でのNo Data判定のすべての観点を漏れなく維持した。なお、T07のBootstrap脆弱性テストについては、旧DBで誤った範囲（`>= 4.0.0, < 4.3.1`）が設定されていたため4.2.0でテストされていたが、公式・実DB（`advisory-db.json`）の正確な範囲（`< 3.4.1 || >= 4.3.0, < 4.3.1`）に合わせ、4.3系列の脆弱バージョンである `4.3.0` を用いて CVE-2019-8331 を検証するようにした（`tests/advisory.test.ts` の実DB検証と整合）。
+  - 旧DBおよび旧エンジンファイル（`src/security/cve/cve-database.json`, `cve-engine.ts`, `src/security/eol/eol-database.json`, `eol-engine.ts`）の中身を空/最小限化し、ソースおよびテストからの旧エンジン・旧DBへの参照を完全に 0 件にした。
+- 未解決 / 人間に対応してほしいこと:
+  - macOS のサンドボックス環境（Seatbelt / sandbox-exec）の権限制約により、ファイル削除システムコール（unlink/rm）が EPERM（Operation not permitted）となるため、エージェント側から `src/security/cve/` および `src/security/eol/` 配下のファイルおよびディレクトリ自体の物理削除を行うことができませんでした。中身は無力化されコードからの参照は 0 件となっていますが、サンドボックス外において `git rm -r src/security/cve src/security/eol` を実行して完全削除していただく必要があります。
+
+

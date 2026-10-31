@@ -4,8 +4,6 @@
  * JavaScript実行時バージョン、CSS解析、整合性確認、EOL・CVE照合を統合
  */
 
-import { checkCveAdvisories } from '../security/cve/cve-engine';
-import { checkEolStatus } from '../security/eol/eol-engine';
 import { matchOfflineAdvisories } from './advisory';
 import {
   DetectedTechnology,
@@ -448,14 +446,7 @@ export class DetectionEngine {
 
         // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05 / SPEC-02) ---
         const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion, undefined, { distroHint });
-        const eolInfo =
-          offlineResult.eolInfo.status !== 'Unknown'
-            ? offlineResult.eolInfo
-            : checkEolStatus(rule.name, detectedVersion);
-        const cveResult =
-          offlineResult.matchStatus !== 'No Data'
-            ? offlineResult
-            : checkCveAdvisories(rule.name, detectedVersion);
+        const eolInfo = offlineResult.eolInfo;
 
         results.push({
           technology: rule.name,
@@ -473,13 +464,13 @@ export class DetectionEngine {
           supportStatus: eolInfo.status,
           eolDate: eolInfo.eolDate,
           eolInfo,
-          advisoryMatchStatus: cveResult.matchStatus,
+          advisoryMatchStatus: offlineResult.matchStatus,
           offlineMatchStatus: offlineResult.offlineMatchStatus,
           isStale: offlineResult.isStale,
           dbFreshness: offlineResult.dbFreshness,
-          advisories: cveResult.advisories,
-          maxCvss: cveResult.maxCvss,
-          advisoryDataUpdatedAt: cveResult.updatedAt,
+          advisories: offlineResult.advisories,
+          maxCvss: offlineResult.maxCvss,
+          advisoryDataUpdatedAt: offlineResult.updatedAt,
           description: rule.description,
           website: rule.website,
           detectionMethod: 'direct',
@@ -743,14 +734,7 @@ export class DetectionEngine {
             // 存在しない場合：新規追加
             const { confidence, level } = calculateConfidence([impliedEvidence]);
             const offlineResult = matchOfflineAdvisories(impliedRule.name, null);
-            const eolInfo =
-              offlineResult.eolInfo.status !== 'Unknown'
-                ? offlineResult.eolInfo
-                : checkEolStatus(impliedRule.name, null);
-            const cveResult =
-              offlineResult.matchStatus !== 'No Data'
-                ? offlineResult
-                : checkCveAdvisories(impliedRule.name, null);
+            const eolInfo = offlineResult.eolInfo;
 
             results.push({
               technology: impliedRule.name,
@@ -764,13 +748,13 @@ export class DetectionEngine {
               supportStatus: eolInfo.status,
               eolDate: eolInfo.eolDate,
               eolInfo,
-              advisoryMatchStatus: cveResult.matchStatus,
+              advisoryMatchStatus: offlineResult.matchStatus,
               offlineMatchStatus: offlineResult.offlineMatchStatus,
               isStale: offlineResult.isStale,
               dbFreshness: offlineResult.dbFreshness,
-              advisories: cveResult.advisories,
-              maxCvss: cveResult.maxCvss,
-              advisoryDataUpdatedAt: cveResult.updatedAt,
+              advisories: offlineResult.advisories,
+              maxCvss: offlineResult.maxCvss,
+              advisoryDataUpdatedAt: offlineResult.updatedAt,
               description: impliedRule.description,
               website: impliedRule.website,
               detectionMethod: 'inferred',

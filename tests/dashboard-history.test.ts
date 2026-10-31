@@ -16,8 +16,8 @@ const createMockReport = (overrides: Partial<InspectionReport> = {}): Inspection
   url: 'https://example.com/',
   hostname: 'example.com',
   inspectedAt: '2026-10-31T09:00:00.000Z',
-  extensionVersion: '1.6.5',
-  rulesVersion: '1.6.5',
+  extensionVersion: '1.6.6',
+  rulesVersion: '1.6.6',
   technologies: [
     {
       technology: 'Nginx',
@@ -129,7 +129,7 @@ describe('IMPL-01: ダッシュボード初期化とイベント委譲による�
 
     (globalThis as any).chrome = {
       runtime: {
-        getManifest: () => ({ version: '1.6.5' }),
+        getManifest: () => ({ version: '1.6.6' }),
         sendMessage: sendMessageMock,
       },
     };

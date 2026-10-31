@@ -71,7 +71,7 @@ sequenceDiagram
 
     Dev->>Git: 上記チェックリストのファイルを新バージョンに更新
     Dev->>Test: npm test を実行 (全テスト合格確認)
-    Test-->>Dev: All Passed (125 tests)
+    Test-->>Dev: All Passed (320+ tests)
     Dev->>Pack: npm run package を実行
     Pack->>Pack: ① 脆弱性DBの整合性検証 (validate)
     Pack->>Pack: ② Vite本番バンドル (build)
@@ -252,12 +252,33 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 
 ---
 
-### 2.8 既知の制限と将来の課題 (v1.7.0 以降の検討項目)
+### 2.8 既知の制限と将来の課題 (v1.6.6 での解消と v1.7.0 以降の検討項目)
 
+#### ① v1.6.6 で解消した制限・不具合
+1. **履歴ボタンのインライン onclick 廃止 (IMPL-01)**:
+   - イベント委譲方式に刷新し、MV3 拡張ページの CSP 下でダッシュボード履歴の「表示」「削除」が確実に動作するように解消。
+2. **ヘッダー未取得時の誤警告とタブURL照合 (SPEC-01, IMPL-02, SPEC-16)**:
+   - ヘッダー未取得時は「未観測 (unknown / info)」として安全に扱い、タブ origin 不一致時の誤キャッシュ適用防止およびプリレンダリング（`tabs.onReplaced`）時のキャッシュ移行に対応。
+3. **EOL 既定値・解析不能バージョン・実行時値の検証 (SPEC-04, SPEC-06, IMPL-04)**:
+   - 「先頭が Supported なら Supported」とする既定動作を廃止し、古い系列は安全側に EOL 扱いとするよう是正。解析不能バージョンでの誤照合防止、MAIN world 戻り値の型・形式検証および DOM 走査上限（200要素）を導入。
+4. **ディストリビューション版パッケージにおけるバックポート誤判定の第1段階 (SPEC-02)**:
+   - `distroHint` を導入し、Ubuntu/Debian 等の OS 名やパッケージ接尾辞を検出して `Needs Review`（バックポートの可能性あり）として安全側に扱うように是正。
+5. **検出ルールの誤検知 (SPEC-09)**:
+   - Tailwind CSS（Bootstrap 混同解消）、Font Awesome（all.css 汎用一致解消）、Chart.js（orgchart.js 混同解消）、D3.js（md3.js 混同解消）、Ruby on Rails（Passenger 単独判定解消）を是正。
+6. **DOM シグナル収集の到達性確保 (DOC-01)**:
+   - ルール定義から DOM セレクタを自動抽出し（`dom-selectors.generated.ts`）、Alpine.js, htmx, Material UI 等の DOM シグナル到達性を全件確保。
+7. **主要 JS ライブラリの検出と誤認防止 (DOC-02)**:
+   - Lodash および Moment.js の検出ルールを追加し、Underscore.js との誤認防止ガードを実装。
+8. **innerHTML への未エスケープ出力解消 (IMPL-03)**:
+   - `escapeHtml` を共通化し、`safeHref` による URL プロトコル検証（https: のみ許可）を導入。
+9. **旧脆弱性/EOL データベース・エンジンの削除 (DOC-09)**:
+   - 旧DBおよび旧エンジンコードを廃止し、`matchOfflineAdvisories()` に一本化。
+10. **プライバシーポリシー記述の実装整合 (DOC-08)**:
+    - Cookie 値の一時読み込み後の即時破棄、content script の配置方針、webRequest ヘッダー許可リストの保持方針を実装と整合化。
+
+#### ② 残る既知の制限と将来の課題 (v1.7.0 以降の検討項目)
 1. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の挙動**:
-   - `src/detection/rules/backend.json:245` に定義されている `"target": "x-fastify-"` は、エンジン側（`src/detection/engine.ts:180`）が完全一致（Exact Key Lookup）でヘッダーマップを参照しているため、接頭辞ルールとして意図通りに発火していません（`x-fastify-` という完全一致キーのみを参照）。
-   - 他に「-」で終わるヘッダーターゲットが存在しないことは走査確認済みです（`git grep -nE '"target": *"[^"]*-"' -- src/detection/rules/` の出力は本件 1 件のみ）。
-   - これは以前からの既存仕様であり v1.6.5 の退行ではないため、エンジンの接頭辞マッチング対応は v1.7.0 以降の課題とします。
+   - `src/detection/rules/backend.json:245` に定義されている `"target": "x-fastify-"` は、エンジン側（`src/detection/engine.ts:180`）が完全一致（Exact Key Lookup）でヘッダーマップを参照しているため、接頭辞ルールとして意図通りに発火していません（`x-fastify-` という完全一致キーのみを参照）。エンジンの接頭辞マッチング対応は v1.7.0 以降の課題とします。
 2. **`data:` URL スキームのサニタイズ**:
    - `data:text/html,...` 等の URL はクエリとフラグメントが除去されますが、データ本体が保持 URL に残りうる仕様となっています。スキームのみ（`data:`）へ丸める改善は v1.7.0 にて検討します。
 3. **パス部分に埋め込まれた機密情報**:
@@ -265,7 +286,11 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 4. **弱い直接証拠と連動推論の合算時の detectionMethod 判定**:
    - 弱い直接証拠（例: `XSRF-TOKEN` 35点）が連動推論と合算されて採用閾値（50%）を超えた場合、`detectionMethod` が `direct` になります（`src/detection/engine.ts:707-710`）。E2E は、この影響を避けるため `/next-ssr-positive` の前に `/clear-cookies` を挟んでいます。
 5. **調査履歴・エクスポートにおけるクエリ文字列の保持**:
-   - 調査履歴（`chrome.storage.local`）および JSON・CSV エクスポートには、URL のクエリ文字列がそのまま含まれます（Markdown のみ、特定キーをマスク）。見直しは R06 として 1.6.6 以降に検討します。
+   - 調査履歴（`chrome.storage.local`）および JSON・CSV エクスポートには、URL のクエリ文字列がそのまま含まれます（Markdown のみ、特定キーをマスク）。見直しは R06 として 1.7.0 以降に検討します。
+6. **ディストリ版バックポート判定の第2段階**:
+   - 現在の第1段階（`Needs Review` 扱い）から、ディストリビューション別のセキュリティ修正情報を自動参照・判定する第2段階への拡張を検討します。
+7. **content script の動的注入化 (IMPL-08)**:
+   - 全ページ常駐から、調査実行時のみの動的スクリプト注入（`chrome.scripting.executeScript`）への移行を検討します。
 
 ---
 

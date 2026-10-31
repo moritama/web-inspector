@@ -235,5 +235,37 @@
 - 未解決 / 人間に対応してほしいこと:
   - プライバシーポリシーは法的文書であるため、本修正案について人間の承認が必要です（Chrome Web Store のプライバシー欄・データ開示との整合確認を含む）。
 
+---
+
+## T11 バージョン 1.6.6 への更新とドキュメント整合 (2026-10-31 12:49)
+- 変更ファイル:
+  - `public/manifest.json`
+  - `package.json`
+  - `package-lock.json`
+  - `src/detection/rules/index.ts`
+  - `src/background/service-worker.ts`
+  - `src/popup/popup.ts`
+  - `src/dashboard/dashboard.ts`
+  - `popup.html`
+  - `src/popup/popup.html`
+  - `dashboard.html`
+  - `src/dashboard/dashboard.html`
+  - `README.md`
+  - `docs/MAINTENANCE_GUIDE.md`
+  - `docs/DETECTION_SPECIFICATION.md`
+  - `tests/dashboard-history.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - `node scripts/check-links.mjs` → PASS（リンク切れなし）
+  - 静的アサーション検証（`tests/spec-integrity.test.ts` 相当） → PASS（全ファイルの一致を確認）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `docs/MAINTENANCE_GUIDE.md` §1.2 のチェックリストに従い、`public/manifest.json`, `package.json`, `package-lock.json` の自パッケージ version、`RULES_VERSION`、各コンポーネント（service-worker, popup, dashboard）のフォールバック文字列、HTML バッジ（ルートおよび `src/` 配下の `popup.html`, `dashboard.html`）、`README.md` のバージョンバッジを `1.6.6` に統一した。manifest は指示通り3要素（`1.6.6`）とした。
+  - `README.md` の単体テスト件数表記（旧: 全125テスト）を現在の実数に合わせて「全320テスト以上（Vitest）」に更新し、`docs/MAINTENANCE_GUIDE.md` §1.3 の Mermaid シーケンス図におけるテスト表記も「320+ tests」に整合させた。
+  - `docs/MAINTENANCE_GUIDE.md` §2.8「既知の制限」を改訂し、v1.6.6 で解消した 10 項目（IMPL-01〜03, SPEC-01/02/04/06/09/16, DOC-01/02/08/09）と、v1.7.0 以降に残る制限・将来課題（末尾ハイフンヘッダー、data: スキームサニタイズ、パス内機密情報、連動推論と直接証拠合算時の判定、エクスポートクエリ文字列見直し、ディストリ版第2段階、動的注入化等）を体系的に整理した。
+  - `docs/DETECTION_SPECIFICATION.md` §6.2 にバックポート考慮が「第1段階（Needs Review 扱い）」として実装されたこと（`distroHint` 検出、`matchOfflineAdvisories()` での安全処理、UI / エクスポート連携）を追記し、§4 の図の Next.js → React を表およびルール定義と同じ `possible` に修正した。また仕様書の対象バージョン表記を `v1.6.6`、更新日を `2026年10月31日` に更新した。
+  - `docs/REVIEW_v1.6.5.md` は変更禁止ルールおよびレビュー記録維持の原則に従い一切変更していない。
+- 未解決: なし
+
 
 

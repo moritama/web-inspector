@@ -1,7 +1,7 @@
 # Web Technology & Security Inspector 技術検出仕様および判定基準書
 
-**対象バージョン：** v1.6.0  
-**最終更新日：** 2026年10月24日  
+**対象バージョン：** v1.6.6  
+**最終更新日：** 2026年10月31日  
 **対象コンポーネント：** `src/detection/` (ルール定義・判定エンジン・推論エンジン)
 
 ---
@@ -235,7 +235,7 @@ Implication Engine は、親技術が直接検出された際に、依存関係�
 
 ```mermaid
 graph LR
-    Next["Next.js"] -->|"framework-dependency (confirmed)"| React["React"]
+    Next["Next.js"] -->|"framework-dependency (possible)"| React["React"]
     Next -->|"possible-runtime (unknown)"| Node["Node.js"]
     
     Nuxt["Nuxt"] -->|"framework-dependency (confirmed)"| Vue["Vue.js"]
@@ -314,3 +314,8 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **断定の回避**: バージョンが隠蔽されて特定できない場合は、「バージョン不明」として安全に扱い、**無関係なバージョンのCVEを誤報（False Positive）として出さない**安全機構（IMP-19）が働きます。
 - **Linuxディストリビューション版（バックポート修正）への配慮**:
   `Server: Apache/2.4.41 (Ubuntu)` のように OS パッケージ版が使用されている場合、バージョン番号上は古く見えても、セキュリティパッチがバックポート（逆移植）されている可能性があります。そのため、診断レポート上では「バージョン表記上は該当。Linuxディストリビューション版（Ubuntu/RHEL等）の場合はバックポート修正済みの可能性あり（要確認）」と確度を分けてガイダンスします。
+  - **v1.6.6 での実装（第1段階: Needs Review 扱い）**:
+    v1.6.6 では、バックポート考慮の第1段階として以下が実装されています（SPEC-02）。
+    1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、バージョンを抽出したヘッダー値全文から括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）およびパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1` 等）を自動検出し、`DetectedTechnology.distroHint` を設定します。
+    2. **オフライン脆弱性照合での安全処理**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、「{distro} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。」という注記を付与します。
+    3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジを表示し、JSON / CSV / Markdown エクスポートにも `distroHint` および注記文を出力します。

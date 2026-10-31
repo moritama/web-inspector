@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.6.5-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.6.6-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
@@ -252,7 +252,7 @@ npm run build
 # ファイル変更監視ビルド (開発用)
 npm run watch
 
-# 単体テスト実行 (Vitest / 全125テスト)
+# 単体テスト実行 (Vitest / 全320テスト以上)
 npm test
 
 # 検証用テストサーバー起動 (ポート 3000)

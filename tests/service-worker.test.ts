@@ -128,6 +128,44 @@ describe('Service Worker 調査統合テスト (executeInspection)', () => {
     expect(cveCheck?.observed).not.toContain('CVSS: 6');
     expect(cveCheck?.observed).toContain('重大度: MEDIUM');
   });
+
+  it('MAIN world から取得した不正な実行時バージョンおよび未知のフレームワークマーカーが無害化・除去されること (IMPL-04)', async () => {
+    let capturedDomSignals: any = null;
+    const deps = createMockDeps({
+      fetchDomSignals: vi.fn().mockImplementation(async (_tabId, _url) => {
+        const dom = createMockDomSignals();
+        capturedDomSignals = dom;
+        return dom;
+      }),
+      fetchRuntimeVersions: vi.fn().mockResolvedValue({
+        versions: {
+          jquery: 'custom-build', // 書式不一致 -> null
+          vue: '3.4.1', // 正常 -> '3.4.1'
+          react: 'A'.repeat(50), // 32文字超え -> null
+          malicious: '1.0.0<script>alert(1)</script>', // 不正文字 -> null
+          num: 123 as any, // string 以外 -> null
+        },
+        frameworkMarkers: [
+          '__reactContainer$', // 既知 -> 保持
+          '__evil_marker__', // 未知 -> 除外
+          '__vue_app__', // 既知 -> 保持
+        ],
+      }),
+    });
+
+    await executeInspection(deps);
+
+    expect(capturedDomSignals.runtimeVersions).toEqual({
+      jquery: null,
+      vue: '3.4.1',
+      react: null,
+      malicious: null,
+      num: null,
+    });
+    expect(capturedDomSignals.domMarkers).toContain('__reactContainer$');
+    expect(capturedDomSignals.domMarkers).toContain('__vue_app__');
+    expect(capturedDomSignals.domMarkers).not.toContain('__evil_marker__');
+  });
 });
 
 describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & URLサニタイズ', () => {

@@ -444,7 +444,7 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
             document.getElementById('app'),
             document.getElementById('__next'),
             document.body,
-            ...Array.from(document.querySelectorAll('div[id], main, #root > *, body > *')),
+            ...Array.from(document.querySelectorAll('div[id], main, #root > *, body > *')).slice(0, 200),
           ];
           for (const node of candidateNodes) {
             if (!node) continue;
@@ -465,7 +465,7 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
             document.getElementById('root'),
             document.getElementById('__nuxt'),
             document.body,
-            ...Array.from(document.querySelectorAll('div[id], main, [data-v-app]')),
+            ...Array.from(document.querySelectorAll('div[id], main, [data-v-app]')).slice(0, 200),
           ];
           for (const node of candidateNodes) {
             if (!node) continue;
@@ -533,9 +533,35 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
 
   // 2. JavaScript実行時バージョンおよび内部フレームワークマーカーの取得 (MAIN World)
   const runtimeInfo = await deps.fetchRuntimeVersions(currentTabId);
-  domSignals.runtimeVersions = runtimeInfo.versions;
-  if (runtimeInfo.frameworkMarkers.length > 0) {
-    domSignals.domMarkers = [...(domSignals.domMarkers || []), ...runtimeInfo.frameworkMarkers];
+
+  // IMPL-04: MAIN world から取得した実行時バージョンの検証（ページによる偽装や肥大化を防止）
+  const runtimeVersionPattern = /^\d+(\.\d+){0,3}([-+.][0-9A-Za-z.-]{1,16})?$/;
+  const validatedVersions: Record<string, string | null> = {};
+  if (runtimeInfo && runtimeInfo.versions && typeof runtimeInfo.versions === 'object') {
+    for (const [key, val] of Object.entries(runtimeInfo.versions)) {
+      if (
+        typeof val === 'string' &&
+        val.length >= 1 &&
+        val.length <= 32 &&
+        runtimeVersionPattern.test(val)
+      ) {
+        validatedVersions[key] = val;
+      } else {
+        validatedVersions[key] = null;
+      }
+    }
+  }
+  domSignals.runtimeVersions = validatedVersions;
+
+  // IMPL-04: 既知のフレームワークマーカーのみ許可
+  const ALLOWED_FRAMEWORK_MARKERS = new Set(['__reactContainer$', '__vue_app__']);
+  const validatedMarkers = Array.isArray(runtimeInfo?.frameworkMarkers)
+    ? runtimeInfo.frameworkMarkers.filter(
+        (m): m is string => typeof m === 'string' && ALLOWED_FRAMEWORK_MARKERS.has(m)
+      )
+    : [];
+  if (validatedMarkers.length > 0) {
+    domSignals.domMarkers = [...(domSignals.domMarkers || []), ...validatedMarkers];
   }
 
   // 3. HTTPヘッダー・Cookieの取得 (IMPL-02: URL照合)

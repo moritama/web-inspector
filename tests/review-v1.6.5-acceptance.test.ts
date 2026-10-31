@@ -61,7 +61,7 @@ describe('SPEC-02: Linux ディストリビューション版のバックポー�
 });
 
 describe('SPEC-04: EOL 判定で未知の旧サイクルを Supported としない', () => {
-  it.skip.each([
+  it.each([
     ['Angular', '8.2.14'],
     ['Laravel', '5.4.36'],
     ['Nginx', '0.8.55'],
@@ -74,7 +74,7 @@ describe('SPEC-04: EOL 判定で未知の旧サイクルを Supported としな�
 });
 
 describe('SPEC-06: 解析不能なバージョン文字列で CVE を該当させない', () => {
-  it.skip('jQuery "custom-build" は Unknown Version / Needs Review', () => {
+  it('jQuery "custom-build" は Unknown Version / Needs Review', () => {
     const r = matchOfflineAdvisories('jQuery', 'custom-build');
     expect(r.advisories).toHaveLength(0);
     expect(r.offlineMatchStatus).toBe('Unknown Version');

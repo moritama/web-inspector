@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { matchOfflineAdvisories } from '../src/detection/advisory';
 import { DetectionEngine } from '../src/detection/engine';
 import { checkCveAdvisories } from '../src/security/cve/cve-engine';
 import { checkEolStatus } from '../src/security/eol/eol-engine';
@@ -36,6 +37,18 @@ describe('Version Matcher Utility', () => {
     expect(satisfiesVersionRange('8.1.10', php2022Range)).toBe(true);
     expect(satisfiesVersionRange('8.1.11', php2022Range)).toBe(false);
     expect(satisfiesVersionRange('8.2.0', php2022Range)).toBe(false);
+  });
+
+  it('satisfiesVersionRange は解析できないバージョンに対して常に false を返すこと (SPEC-06)', () => {
+    expect(satisfiesVersionRange('abc', '< 3.0.0')).toBe(false);
+    expect(satisfiesVersionRange('custom-build', '>= 1.0.0')).toBe(false);
+  });
+
+  it("'1.x' サイクルが 10.2.0 に一致しないこと (SPEC-04)", () => {
+    // AngularJS のサイクルは '1.x' のみ。10.2.0 はこれに一致してはならず、未知系列として Unknown になる
+    const result = matchOfflineAdvisories('AngularJS', '10.2.0');
+    expect(result.eolInfo.status).not.toBe('EOL');
+    expect(result.eolInfo.status).toBe('Unknown');
   });
 });
 

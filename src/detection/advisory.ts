@@ -169,11 +169,11 @@ export function matchOfflineAdvisories(
   const freshnessInfo = calculateDbFreshness(activeDb.generatedAt);
 
   try {
-    // 1. バージョン不明時 (空またはnull) -> Unknown Version / Needs Review
-    if (!version || version.trim() === '') {
+    // 1. バージョン不明時 (空またはnull、あるいは解析不能文字列) -> Unknown Version / Needs Review (SPEC-06)
+    if (!version || version.trim() === '' || parseVersionParts(version) === null) {
       return {
         technology,
-        version: null,
+        version: version ? version : null,
         matchStatus: 'Needs Review',
         offlineMatchStatus: 'Unknown Version',
         isStale: freshnessInfo.isStale,
@@ -325,7 +325,7 @@ export function matchOfflineAdvisories(
 
 
 /**
- * バージョン文字列とEOLエントリリストを突合する
+ * バージョン文字列とEOLエントリリストを突合する (SPEC-04)
  */
 function matchEolPolicy(
   techName: string,
@@ -346,41 +346,90 @@ function matchEolPolicy(
   const minor = vParts ? vParts[1] : 0;
   const majorMinor = major !== null ? `${major}.${minor}` : '';
 
-  // サイクル文字列（例: "7.4", "8.0", "3.x", "3", "3.0 - 3.4"）と照合
-  for (const entry of eolEntries) {
-    const cycle = entry.cycle.toLowerCase();
-
-    // 1. 完全一致またはメジャー・マイナー一致 (例: cycle="7.4", version="7.4.33")
-    if (cycle === majorMinor || cycle === String(major)) {
-      return buildEolResult(techName, version, entry);
-    }
-
-    // 2. "3.x" のようなワイルドカード
-    if (cycle.includes('.x') && major !== null && cycle.startsWith(String(major))) {
-      return buildEolResult(techName, version, entry);
-    }
-
-    // 3. "3.5+" のような表記
-    if (cycle.endsWith('+') && major !== null) {
-      const baseCycle = cycle.replace('+', '');
-      const baseParts = parseVersionParts(baseCycle);
-      if (baseParts && major >= baseParts[0]) {
+  // 1. cycle === "major.minor" の完全一致
+  if (majorMinor) {
+    for (const entry of eolEntries) {
+      if (entry.cycle.toLowerCase() === majorMinor) {
         return buildEolResult(techName, version, entry);
       }
     }
   }
 
-  // デフォルトとして最新系列か判別
-  const firstEntry = eolEntries[0];
-  if (firstEntry && firstEntry.status === 'Supported') {
-    return {
-      status: 'Supported',
-      eolDate: null,
-      source: 'offline-db',
-      recommendation: `${techName} ${version} は現在サポート対象のバージョン系列です。`,
-    };
+  // 2. cycle === "major" の一致
+  if (major !== null) {
+    const majorStr = String(major);
+    for (const entry of eolEntries) {
+      if (entry.cycle.toLowerCase() === majorStr) {
+        return buildEolResult(techName, version, entry);
+      }
+    }
   }
 
+  // 3. "N.x" 形式は major の数値一致で判定する (1.x が 10 に一致する誤りを防止)
+  if (major !== null) {
+    for (const entry of eolEntries) {
+      const cycle = entry.cycle.toLowerCase();
+      const nxMatch = cycle.match(/^(\d+)\.x$/);
+      if (nxMatch) {
+        const cycleMajor = parseInt(nxMatch[1], 10);
+        if (cycleMajor === major) {
+          return buildEolResult(techName, version, entry);
+        }
+      }
+    }
+  }
+
+  // 4. "N+" 形式は現行どおり
+  if (major !== null) {
+    for (const entry of eolEntries) {
+      const cycle = entry.cycle.toLowerCase();
+      if (cycle.endsWith('+')) {
+        const baseCycle = cycle.replace('+', '');
+        const baseParts = parseVersionParts(baseCycle);
+        if (baseParts && major >= baseParts[0]) {
+          return buildEolResult(techName, version, entry);
+        }
+      }
+    }
+  }
+
+  // 5. どれにも一致しない場合:
+  // 検出バージョンが、エントリ中で最も古いサイクルより古い（major.minor で比較）なら EOL
+  let oldestMajor: number | null = null;
+  let oldestMinor: number | null = null;
+
+  for (const entry of eolEntries) {
+    const parts = parseVersionParts(entry.cycle);
+    if (!parts) continue;
+    const cMajor = parts[0];
+    const cMinor = parts[1];
+    if (
+      oldestMajor === null ||
+      cMajor < oldestMajor ||
+      (cMajor === oldestMajor && cMinor < (oldestMinor ?? 0))
+    ) {
+      oldestMajor = cMajor;
+      oldestMinor = cMinor;
+    }
+  }
+
+  if (major !== null && oldestMajor !== null) {
+    const isOlderThanOldest =
+      major < oldestMajor ||
+      (major === oldestMajor && minor < (oldestMinor ?? 0));
+
+    if (isOlderThanOldest) {
+      return {
+        status: 'EOL',
+        eolDate: null,
+        source: 'offline-db',
+        recommendation:
+          '公式のサポート表に掲載されていない古い系列です。サポート終了（EOL）とみなし、現行系列への移行を推奨します。',
+      };
+    }
+  }
+
+  // それ以外は Unknown (先頭エントリが Supported なら Supported とする既定動作は削除)
   return {
     status: 'Unknown',
     eolDate: null,

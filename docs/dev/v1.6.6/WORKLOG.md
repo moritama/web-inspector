@@ -50,4 +50,27 @@
   - 受け入れテスト `tests/review-v1.6.5-acceptance.test.ts` の `SPEC-01` の `it.skip` を解除し、`tests/service-worker.test.ts` に origin 不一致時の未観測化および同一 origin・別パス時の観測継続を検証するテストを追加した。なお、1回目のテスト実行失敗（`report.coverage?.headers` の期待値が型に存在しない `'unobserved'` になっていた点）について、既存の `coverage.ts` 仕様に合わせ `headers` は `'partial'`、`details.unobservedPreScan` は `true` を検証するように修正した。
 - 未解決: なし
 
+---
+
+## T03 EOL既定値の是正・解析不能バージョン・実行時値の検証 (2026-10-31 10:42)
+- 変更ファイル:
+  - `src/detection/advisory.ts`
+  - `src/security/version-matcher.ts`
+  - `src/background/service-worker.ts`
+  - `tests/review-v1.6.5-acceptance.test.ts`
+  - `tests/version-check.test.ts`
+  - `tests/service-worker.test.ts`
+- 実行したテスト:
+  - `npx tsc --noEmit` → PASS（型エラーなし）
+  - ※無人（夜間）モードのため、vitest/全テストは外側スクリプトが実行
+- 判断したこと:
+  - `matchEolPolicy()` における照合順序を (1) major.minor 完全一致、(2) major 一致、(3) N.x 形式（majorの数値一致）、(4) N+ 形式の優先順位で走査するように是正し、`1.x` サイクルが `10.2.0` などの誤った major に一致する不具合を解消した。
+  - どのサイクルにも一致しない場合、エントリ中の最も古いサイクル（major.minor で比較）より古い場合は `status: 'EOL'`、それ以外は `status: 'Unknown'` と判定するようにし、「先頭エントリが Supported なら Supported」とする危険な既定動作を削除した（SPEC-04）。
+  - `matchOfflineAdvisories()` 冒頭で `parseVersionParts(version)` が null となる解析不能バージョン（`custom-build` など）をバージョン不明と同様に `Unknown Version` / `Needs Review` / advisories 空として即座に返すようにした（SPEC-06）。
+  - `satisfiesVersionRange()` および `satisfiesSingleClause()` は、解析不能なバージョンに対して常に `false` を返すようにし、`< X` に誤って一致する副作用を防止した（SPEC-06）。
+  - MAIN world から取得した実行時バージョンについて、`executeInspection()` の直後に型（string）、長さ（1〜32文字）、正規表現（`/^\d+(\.\d+){0,3}([-+.][0-9A-Za-z.-]{1,16})?$/`）を検証し、満たさない値は null に無害化するようにした。また `frameworkMarkers` は既知のマーカー（`__reactContainer$`, `__vue_app__`）のみを許可リストで残すようにした（IMPL-04）。
+  - MAIN world 関数内の `querySelectorAll('div[id], main, ...')` の走査対象を `.slice(0, 200)` で先頭200要素までに制限し、重いページでの負荷を防止した（IMPL-04）。
+  - 受け入れテスト `SPEC-04` および `SPEC-06` の skip を解除（期待値は無変更）。`tests/version-check.test.ts` に解析不能バージョンの判定テストおよび `1.x` サイクル非一致テストを追加し、`tests/service-worker.test.ts` に実行時値およびマーカーの無害化テストを追加した。
+- 未解決: なし
+
 

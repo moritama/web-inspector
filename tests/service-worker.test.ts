@@ -126,7 +126,8 @@ describe('Service Worker 調査統合テスト (executeInspection)', () => {
     expect(cveCheck?.recommendation).toContain('Angularなどへの移行');
     // CVSSフォールバック値表示の検証: 不正確な「CVSS: 6」を含まず一次情報通りの「重大度: MEDIUM」を表示すること
     expect(cveCheck?.observed).not.toContain('CVSS: 6');
-    expect(cveCheck?.observed).toContain('重大度: MEDIUM');
+    // 重大度の値はDBの更新で変わるため、ラベルで表示されていることだけを確かめる
+    expect(cveCheck?.observed).toMatch(/重大度: (LOW|MEDIUM|HIGH|CRITICAL)/);
   });
 
   it('MAIN world から取得した不正な実行時バージョンおよび未知のフレームワークマーカーが無害化・除去されること (IMPL-04)', async () => {
@@ -351,6 +352,9 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
   it('IMPL-02: キャッシュの origin がタブと異なる場合に未観測扱いになること', async () => {
     const deps = createMockDeps({
       tab: { id: 101, url: 'https://example.com/page' },
+      // ライブラリの EOL・脆弱性はDBの更新で変わるため、ヘッダー以外の要因で要確認が増えないようにする
+      fetchDomSignals: vi.fn().mockResolvedValue(createMockDomSignals({ metaTags: [], scriptUrls: [] })),
+      fetchRuntimeVersions: vi.fn().mockResolvedValue({ versions: {}, frameworkMarkers: [] }),
       getCachedHeaders: vi.fn().mockResolvedValue({
         url: 'https://another-domain.com/page',
         headers: {

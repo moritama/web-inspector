@@ -1,0 +1,883 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "@angular/core"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-692r-grfm-v8x7",
+      "aliases": [
+        "CVE-2026-52725"
+      ],
+      "summary": "@angular/core: Angular Template and Dynamic Component Namespace Bypass leading to Cross-Site Scripting (XSS)",
+      "published": "2026-06-15T16:51:35Z",
+      "modified": "2026-09-10T03:50:48.470910954Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-692r-grfm-v8x7",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-52725",
+        "https://github.com/angular/angular/pull/68686",
+        "https://github.com/angular/angular/pull/68713",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.2.15"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0-next.0"
+                },
+                {
+                  "fixed": "22.0.0-rc.2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "19.0.0-next.0"
+                },
+                {
+                  "fixed": "19.2.23"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "18.2.14"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.22"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-c75v-2vq8-878f",
+      "aliases": [
+        "CVE-2021-4231"
+      ],
+      "summary": "Angular vulnerable to Cross-site Scripting",
+      "published": "2022-05-27T00:01:08Z",
+      "modified": "2026-09-10T03:49:21.863578485Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-4231",
+        "https://github.com/angular/angular/issues/40136",
+        "https://github.com/angular/angular/commit/0aa220bc0000fc4d1651ec388975bbf5baa1da36",
+        "https://github.com/angular/angular/commit/47d9b6d72dab9d60c96bc1c3604219f6385649ea",
+        "https://github.com/angular/angular/commit/ba8da742e3b243e8f43d4c63aa842b44e14f2b09",
+        "https://github.com/angular/angular",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULARCORE-1070902",
+        "https://vuldb.com/?id.181356"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "11.0.0"
+                },
+                {
+                  "fixed": "11.0.5"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "11.1.0-next.0"
+                },
+                {
+                  "fixed": "11.1.0-next.3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "10.2.5"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-f3m7-gqxr-g87x",
+      "aliases": [
+        "CVE-2026-50557"
+      ],
+      "summary": "Angular: Template and Attribute Namespace Sanitization Bypass (XSS)",
+      "published": "2026-06-15T17:21:58Z",
+      "modified": "2026-09-10T03:50:49.282552968Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-f3m7-gqxr-g87x",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-50557",
+        "https://github.com/angular/angular/pull/68689",
+        "https://github.com/angular/angular/pull/68868",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.2.15"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0-next.0"
+                },
+                {
+                  "fixed": "22.0.0-rc.2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.22"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "19.0.0-next.0"
+                },
+                {
+                  "fixed": "19.2.22"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "18.2.14"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-g93w-mfhg-p222",
+      "aliases": [
+        "CVE-2026-32635"
+      ],
+      "summary": "Angular vulnerable to XSS in i18n attribute bindings",
+      "published": "2026-03-13T20:56:18Z",
+      "modified": "2026-05-06T20:48:48.425804Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:H"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:P/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-g93w-mfhg-p222",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-32635",
+        "https://github.com/angular/angular/pull/67541",
+        "https://github.com/angular/angular/pull/67561",
+        "https://github.com/angular/angular/commit/224e60ecb1b90115baa702f1c06edc1d64d86187",
+        "https://github.com/angular/angular/commit/78dea55351fb305b33a919c43a6b363137eca166",
+        "https://github.com/angular/angular/commit/8630319f74c9575a21693d875cc7d5252516146d",
+        "https://github.com/angular/angular/commit/ed2d324f9cc12aab6cfa0569ef10b73243a62c65",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0-next.0"
+                },
+                {
+                  "fixed": "22.0.0-next.3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.2.4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0.0.0"
+                },
+                {
+                  "fixed": "20.3.18"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "19.0.0-next.0"
+                },
+                {
+                  "fixed": "19.2.20"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "17.0.0-next.0"
+                },
+                {
+                  "last_affected": "18.2.14"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-hh8m-fm6v-7cvg",
+      "aliases": [
+        "CVE-2026-88057"
+      ],
+      "summary": "Angular: Sanitization bypass via directive host bindings on concrete host elements in @angular/core and @angular/compiler",
+      "published": "2026-09-10T20:18:02Z",
+      "modified": "2026-09-10T20:30:04.438198416Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:N/VA:N/SC:L/SI:L/SA:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-hh8m-fm6v-7cvg",
+        "https://github.com/angular/angular/issues/69550",
+        "https://github.com/angular/angular/pull/69558",
+        "https://github.com/angular/angular/commit/2f96c8020f85ccb715a76de4b79a0c680c2c7264",
+        "https://github.com/angular/angular/commit/6afe6fa781c2f0931f0aedd729b9884a8fe212ee",
+        "https://github.com/angular/angular/commit/6caa298dee58319b2d674dc91364e26ffe3ecb2b",
+        "https://github.com/angular/angular",
+        "https://github.com/angular/angular/releases/tag/v20.3.28",
+        "https://github.com/angular/angular/releases/tag/v21.2.20",
+        "https://github.com/angular/angular/releases/tag/v22.1.0"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0"
+                },
+                {
+                  "fixed": "22.1.0"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0"
+                },
+                {
+                  "fixed": "21.2.20"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0"
+                },
+                {
+                  "fixed": "20.3.28"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "19.2.25"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-jj27-h5hq-8x99",
+      "aliases": [
+        "CVE-2026-69151"
+      ],
+      "summary": "Angular i18n: Cross-Site Scripting (XSS) via event-handler attributes",
+      "published": "2026-08-03T16:23:40Z",
+      "modified": "2026-08-03T16:41:45.314415Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-jj27-h5hq-8x99",
+        "https://github.com/angular/angular/pull/68821",
+        "https://github.com/angular/angular/pull/69306",
+        "https://github.com/angular/angular/commit/417a4071a776464d549509ed3aec121dbd2fda5e",
+        "https://github.com/angular/angular/commit/6c41f5ca01c0ae045fc7d929b72853a11eb55865",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0-next.0"
+                },
+                {
+                  "fixed": "22.0.1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.2.19"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.27"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "19.2.25"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-jrmj-c5cx-3cw6",
+      "aliases": [
+        "CVE-2026-22610"
+      ],
+      "summary": "Angular has XSS Vulnerability via Unsanitized SVG Script Attributes",
+      "published": "2026-01-09T18:52:14Z",
+      "modified": "2026-09-10T03:50:33.469090469Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:A/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-jrmj-c5cx-3cw6",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-22610",
+        "https://github.com/angular/angular/pull/66318",
+        "https://github.com/angular/angular/commit/91dc91bae4a1bbefc58bef6ef739d0e02ab44d56",
+        "https://cert-portal.siemens.com/productcert/html/ssa-253495.html",
+        "https://cert-portal.siemens.com/productcert/html/ssa-485750.html",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.1.0-next.0"
+                },
+                {
+                  "fixed": "21.1.0-rc.0"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.0.7"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.16"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "19.0.0-next.0"
+                },
+                {
+                  "fixed": "19.2.18"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "18.2.14"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-prjf-86w9-mfqv",
+      "aliases": [
+        "CVE-2026-27970"
+      ],
+      "summary": "Angular i18n vulnerable to Cross-Site Scripting",
+      "published": "2026-02-27T18:33:16Z",
+      "modified": "2026-09-10T03:50:59.526027948Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:L/AC:L/AT:N/PR:H/UI:A/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-prjf-86w9-mfqv",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-27970",
+        "https://github.com/angular/angular/pull/67183",
+        "https://github.com/angular/angular/commit/306f367899dfc2e04238fecd3455547b5d54075d",
+        "https://github.com/angular/angular/commit/7d58b798c626bb0e4e5f89ca8affdce4f352b232",
+        "https://github.com/angular/angular/commit/b85830953281ff3a1a77bbfe69019d352d509c93",
+        "https://angular.dev/best-practices/security#enforcing-trusted-types",
+        "https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API",
+        "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP",
+        "https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/XSS"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.2.0-next.0"
+                },
+                {
+                  "fixed": "21.2.0"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.1.6"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.17"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "19.0.0-next.0"
+                },
+                {
+                  "fixed": "19.2.19"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "18.2.14"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-rgjc-h3x7-9mwg",
+      "aliases": [
+        "CVE-2026-54267"
+      ],
+      "summary": "Angular Client Hydration DOM Clobbering & Response-Cache Poisoning",
+      "published": "2026-06-15T15:16:18Z",
+      "modified": "2026-09-10T03:50:50.394914511Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://github.com/angular/angular/security/advisories/GHSA-rgjc-h3x7-9mwg",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-54267",
+        "https://github.com/angular/angular/pull/69064",
+        "https://github.com/angular/angular/commit/6bde84fa8e6a5770b54040fbbc9bf10d5d0386fa",
+        "https://github.com/angular/angular"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "22.0.0-next.0"
+                },
+                {
+                  "fixed": "22.0.1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "21.0.0-next.0"
+                },
+                {
+                  "fixed": "21.2.17"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "20.0.0-next.0"
+                },
+                {
+                  "fixed": "20.3.25"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "19.2.25"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

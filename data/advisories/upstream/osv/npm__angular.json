@@ -1,0 +1,668 @@
+{
+  "package": {
+    "ecosystem": "npm",
+    "name": "angular"
+  },
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "vulns": [
+    {
+      "id": "GHSA-28hp-fgcr-2r4h",
+      "aliases": [],
+      "summary": "Cross-Site Scripting via JSONP",
+      "published": "2019-06-27T17:25:42Z",
+      "modified": "2021-02-24T18:32:36Z",
+      "withdrawn": null,
+      "severity": [],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/angular/angular.js/commit/6476af83cd0418c84e034a955b12a842794385c4",
+        "https://www.npmjs.com/advisories/1630"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.6.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-2qqx-w9hr-q5gx",
+      "aliases": [
+        "CVE-2023-26117"
+      ],
+      "summary": "angular vulnerable to regular expression denial of service via the $resource service",
+      "published": "2023-03-30T06:30:26Z",
+      "modified": "2026-09-10T03:49:52.313664587Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-26117",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OQWJLE5WE33WNMA54XSJIDXBRK2KL3XJ",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/UDKFLKJ6VZKL52AFVW2OVZRMJWHMW55K",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-5406323",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBANGULAR-5406325",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-5406324",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULAR-3373045",
+        "https://stackblitz.com/edit/angularjs-vulnerability-resource-trailing-slashes-redos"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-2vrf-hf26-jrp5",
+      "aliases": [
+        "CVE-2023-26116"
+      ],
+      "summary": "angular vulnerable to regular expression denial of service via the angular.copy() utility",
+      "published": "2023-03-30T06:30:26Z",
+      "modified": "2026-09-10T03:49:52.298608293Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-26116",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OQWJLE5WE33WNMA54XSJIDXBRK2KL3XJ",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/UDKFLKJ6VZKL52AFVW2OVZRMJWHMW55K",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-5406320",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBANGULAR-5406322",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-5406321",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULAR-3373044",
+        "https://stackblitz.com/edit/angularjs-vulnerability-angular-copy-redos"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-4w4v-5hc9-xrr2",
+      "aliases": [
+        "CVE-2024-21490"
+      ],
+      "summary": "angular vulnerable to super-linear runtime due to backtracking",
+      "published": "2024-02-10T06:30:19Z",
+      "modified": "2026-09-10T03:50:09.714122064Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-21490",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-6241746",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-6241747",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULAR-6091113",
+        "https://stackblitz.com/edit/angularjs-vulnerability-ng-srcset-redos",
+        "https://support.herodevs.com/hc/en-us/articles/25715686953485-CVE-2024-21490-AngularJS-Regular-Expression-Denial-of-Service-ReDoS"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.3.0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-5cp4-xmrw-59wf",
+      "aliases": [],
+      "summary": "XSS via JQLite DOM manipulation functions in AngularJS",
+      "published": "2020-08-05T21:47:02Z",
+      "modified": "2021-10-08T21:25:58Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://github.com/google/security-research/security/advisories/GHSA-5cp4-xmrw-59wf",
+        "https://github.com/jquery/jquery/security/advisories/GHSA-gxr4-xjj5-5px2",
+        "https://github.com/jquery/jquery/security/advisories/GHSA-jpcq-cgw6-v4j6",
+        "https://blog.jquery.com/2020/04/10/jquery-3-5-0-released",
+        "https://github.com/advisories/GHSA-mhp6-pxh8-r675",
+        "https://github.com/angular/angular.js",
+        "https://snyk.io/vuln/SNYK-JS-ANGULAR-570058"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.8.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-7x27-g8rg-x87w",
+      "aliases": [
+        "CVE-2026-11998"
+      ],
+      "summary": "Angular's deprecated package has a Cross-Site Scripting issue",
+      "published": "2026-06-24T21:30:44Z",
+      "modified": "2026-07-17T22:11:38.961033Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:L"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-11998",
+        "https://access.redhat.com/security/cve/CVE-2026-11998",
+        "https://bugzilla.redhat.com/show_bug.cgi?id=2492579",
+        "https://codepen.io/herodevs/pen/JobQdmz/5b3896f56fab66f20cd25e698cf3faa8",
+        "https://github.com/angular/angular.js",
+        "https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-11998.json",
+        "https://www.herodevs.com/vulnerability-directory/cve-2026-11998",
+        "https://www.herodevs.com/vulnerability-directory/cve-2026-11998?nes-for-angularjs"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.2.0-rc.3"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-89mq-4x47-5v83",
+      "aliases": [
+        "CVE-2019-10768",
+        "SNYK-JS-ANGULAR-534884"
+      ],
+      "summary": "angular Prototype Pollution vulnerability",
+      "published": "2019-11-20T15:29:43Z",
+      "modified": "2026-07-08T05:56:32.951320191Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+        }
+      ],
+      "databaseSeverity": "HIGH",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-10768",
+        "https://github.com/angular/angular.js/pull/16913",
+        "https://github.com/angular/angular.js/commit/add78e62004e80bb1e16ab2dfe224afa8e513bc3",
+        "https://github.com/angular/angular.js",
+        "https://lists.apache.org/thread.html/rca37935d661f4689cb4119f1b3b224413b22be161b678e6e6ce0c69b%40%3Ccommits.nifi.apache.org%3E",
+        "https://lists.apache.org/thread.html/rca37935d661f4689cb4119f1b3b224413b22be161b678e6e6ce0c69b@%3Ccommits.nifi.apache.org%3E",
+        "https://snyk.io/vuln/SNYK-JS-ANGULAR-534884"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.7.9"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-j58c-ww9w-pwp5",
+      "aliases": [
+        "CVE-2025-0716"
+      ],
+      "summary": "AngularJS improperly sanitizes SVG elements",
+      "published": "2025-04-29T18:30:59Z",
+      "modified": "2026-09-10T03:50:57.256861531Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:N/VI:L/VA:L/SC:N/SI:N/SA:N/E:P"
+        }
+      ],
+      "databaseSeverity": "LOW",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-0716",
+        "https://codepen.io/herodevs/pen/qEWQmpd/a86a0d29310e12c7a3756768e6c7b915",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://www.herodevs.com/vulnerability-directory/cve-2025-0716"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-m2h2-264f-f486",
+      "aliases": [
+        "CVE-2022-25844"
+      ],
+      "summary": "angular vulnerable to regular expression denial of service (ReDoS)",
+      "published": "2022-05-03T00:00:44Z",
+      "modified": "2026-09-10T03:49:34.413714388Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-25844",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/2WUSPYOTOMAZPDEFPWPSCSPMNODRDKK3",
+        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/7LNAKCNTVBIHWAUT3FKWV5N67PQXSZOO",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/2WUSPYOTOMAZPDEFPWPSCSPMNODRDKK3",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/7LNAKCNTVBIHWAUT3FKWV5N67PQXSZOO",
+        "https://security.netapp.com/advisory/ntap-20220629-0009",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-2772736",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBANGULAR-2772738"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.7.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-m9gf-397r-hwpg",
+      "aliases": [
+        "CVE-2024-8372"
+      ],
+      "summary": "AngularJS allows attackers to bypass common image source restrictions",
+      "published": "2024-09-09T15:30:41Z",
+      "modified": "2026-09-10T03:50:18.198620721Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N/E:P"
+        }
+      ],
+      "databaseSeverity": "LOW",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-8372",
+        "https://codepen.io/herodevs/full/xxoQRNL/0072e627abe03e9cda373bc75b4c1017",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://security.netapp.com/advisory/ntap-20241122-0002",
+        "https://www.herodevs.com/vulnerability-directory/cve-2024-8372"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "1.3.0-rc.4"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-mhp6-pxh8-r675",
+      "aliases": [
+        "CVE-2020-7676",
+        "SNYK-JS-ANGULAR-570058"
+      ],
+      "summary": "Angular vulnerable to Cross-site Scripting",
+      "published": "2020-06-18T14:19:58Z",
+      "modified": "2026-09-10T03:49:25.301643259Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-7676",
+        "https://github.com/angular/angular.js/pull/17028",
+        "https://github.com/angular/angular.js/commit/2df43c07779137d1bddf7f3b282a1287a8634acd",
+        "https://snyk.io/vuln/SNYK-JS-ANGULAR-570058",
+        "https://lists.apache.org/thread.html/rfa2b19d01d10a8637dc319a7d5994c3dbdb88c0a8f9a21533403577a@%3Cozone-issues.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/rfa2b19d01d10a8637dc319a7d5994c3dbdb88c0a8f9a21533403577a%40%3Cozone-issues.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/rda99599896c3667f2cc9e9d34c7b6ef5d2bbed1f4801e1d75a2b0679@%3Ccommits.nifi.apache.org%3E",
+        "https://lists.apache.org/thread.html/rda99599896c3667f2cc9e9d34c7b6ef5d2bbed1f4801e1d75a2b0679%40%3Ccommits.nifi.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb6423268b25db0f800359986867648e11dbd38e133b9383e85067f02@%3Cozone-issues.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb6423268b25db0f800359986867648e11dbd38e133b9383e85067f02%40%3Cozone-issues.hadoop.apache.org%3E"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.8.0"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-mqm9-c95h-x2p6",
+      "aliases": [
+        "CVE-2024-8373"
+      ],
+      "summary": "AngularJS allows attackers to bypass common image source restrictions",
+      "published": "2024-09-09T15:30:41Z",
+      "modified": "2026-09-10T03:50:18.929311007Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L"
+        },
+        {
+          "type": "CVSS_V4",
+          "score": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N/E:P"
+        }
+      ],
+      "databaseSeverity": "LOW",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-8373",
+        "https://codepen.io/herodevs/full/bGPQgMp/8da9ce87e99403ee13a295c305ebfa0b",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://security.netapp.com/advisory/ntap-20241122-0003",
+        "https://www.herodevs.com/vulnerability-directory/cve-2024-8373"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-prc3-vjfx-vhm9",
+      "aliases": [
+        "CVE-2022-25869"
+      ],
+      "summary": "Angular (deprecated package) Cross-site Scripting",
+      "published": "2022-07-16T00:00:20Z",
+      "modified": "2026-09-10T03:49:55.291770163Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-25869",
+        "https://glitch.com/edit/%23%21/angular-repro-textarea-xss",
+        "https://neverendingsupport.github.io/angularjs-poc-cve-2022-25869",
+        "https://security.snyk.io/vuln/SNYK-DOTNET-ANGULARJS-10771617",
+        "https://security.snyk.io/vuln/SNYK-DOTNET-ANGULARJSCORE-6084031",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-2949783",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBANGULAR-2949784",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-2949782",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULAR-2949781",
+        "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-2949783"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-qwqh-hm9m-p5hr",
+      "aliases": [
+        "CVE-2023-26118"
+      ],
+      "summary": "angular vulnerable to regular expression denial of service via the <input type=\"url\"> element",
+      "published": "2023-03-30T06:30:25Z",
+      "modified": "2026-09-10T03:49:52.909648280Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-26118",
+        "https://github.com/angular/angular.js",
+        "https://lists.debian.org/debian-lts-announce/2025/07/msg00005.html",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OQWJLE5WE33WNMA54XSJIDXBRK2KL3XJ",
+        "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/UDKFLKJ6VZKL52AFVW2OVZRMJWHMW55K",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-5406326",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBANGULAR-5406328",
+        "https://security.snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-5406327",
+        "https://security.snyk.io/vuln/SNYK-JS-ANGULAR-3373046",
+        "https://stackblitz.com/edit/angularjs-vulnerability-inpur-url-validation-redos"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "last_affected": "1.8.3"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GHSA-r5fx-8r73-v86c",
+      "aliases": [
+        "CVE-2019-14863"
+      ],
+      "summary": "AngularJS Cross-site Scripting due to failure to sanitize `xlink.href` attributes",
+      "published": "2020-02-14T23:08:49Z",
+      "modified": "2025-11-20T19:30:06Z",
+      "withdrawn": null,
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+        }
+      ],
+      "databaseSeverity": "MODERATE",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2019-14863",
+        "https://github.com/angular/angular.js/pull/12524",
+        "https://github.com/angular/angular.js/commit/35a21532b73d5bd84b4325211c563e6a3e2dde82",
+        "https://github.com/angular/angular.js/commit/f33ce173c90736e349cf594df717ae3ee41e0f7a",
+        "https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2019-14863",
+        "https://github.com/angular/angular.js",
+        "https://snyk.io/vuln/npm:angular:20150807",
+        "https://www.npmjs.com/advisories/1453"
+      ],
+      "affected": [
+        {
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {
+                  "introduced": "0"
+                },
+                {
+                  "fixed": "1.5.0-beta.1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

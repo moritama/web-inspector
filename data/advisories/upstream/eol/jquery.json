@@ -1,0 +1,34 @@
+{
+  "slug": "jquery",
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "cycles": [
+    {
+      "cycle": "4",
+      "releaseDate": "2026-01-17",
+      "eol": false,
+      "support": true,
+      "latest": "4.0.0"
+    },
+    {
+      "cycle": "3",
+      "releaseDate": "2016-06-09",
+      "eol": false,
+      "support": "2026-01-17",
+      "latest": "3.7.1"
+    },
+    {
+      "cycle": "2",
+      "releaseDate": "2013-04-18",
+      "eol": true,
+      "support": false,
+      "latest": "2.2.4"
+    },
+    {
+      "cycle": "1",
+      "releaseDate": "2006-08-31",
+      "eol": true,
+      "support": false,
+      "latest": "1.12.4"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "react",
+  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "cycles": [
+    {
+      "cycle": "19",
+      "releaseDate": "2024-12-05",
+      "eol": false,
+      "support": true,
+      "latest": "19.3.1"
+    },
+    {
+      "cycle": "18",
+      "releaseDate": "2022-03-29",
+      "eol": false,
+      "support": "2024-12-05",
+      "latest": "18.3.1"
+    },
+    {
+      "cycle": "17",
+      "releaseDate": "2020-10-20",
+      "eol": false,
+      "support": "2022-03-29",
+      "latest": "17.0.2"
+    },
+    {
+      "cycle": "16",
+      "releaseDate": "2017-09-26",
+      "eol": false,
+      "support": "2020-10-20",
+      "latest": "16.14.0"
+    },
+    {
+      "cycle": "15",
+      "releaseDate": "2016-04-07",
+      "eol": false,
+      "support": "2020-10-14",
+      "latest": "15.7.0"
+    }
+  ]
+}

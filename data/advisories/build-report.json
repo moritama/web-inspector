@@ -1,0 +1,288 @@
+{
+  "asOf": "2026-10-31",
+  "products": {
+    "jquery": {
+      "curated": 4,
+      "auto": 3,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {
+        "unscored": 1
+      }
+    },
+    "bootstrap": {
+      "curated": 3,
+      "auto": 6,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "react": {
+      "curated": 1,
+      "auto": 1,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {
+        "unscored": 1
+      }
+    },
+    "vue": {
+      "curated": 0,
+      "auto": 1,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "angular": {
+      "curated": 0,
+      "auto": 9,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "angularjs": {
+      "curated": 2,
+      "auto": 12,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "curated",
+      "skipped": {
+        "unscored": 1
+      }
+    },
+    "lodash": {
+      "curated": 2,
+      "auto": 8,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "curated",
+      "skipped": {}
+    },
+    "moment": {
+      "curated": 0,
+      "auto": 5,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "curated",
+      "skipped": {}
+    },
+    "wordpress": {
+      "curated": 1,
+      "auto": 0,
+      "nvdCandidates": 35,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "php": {
+      "curated": 2,
+      "auto": 0,
+      "nvdCandidates": 100,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "nginx": {
+      "curated": 2,
+      "auto": 0,
+      "nvdCandidates": 10,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "apache": {
+      "curated": 3,
+      "auto": 0,
+      "nvdCandidates": 103,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    },
+    "laravel": {
+      "curated": 2,
+      "auto": 18,
+      "nvdCandidates": 0,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {
+        "unscored": 9
+      }
+    },
+    "nodejs": {
+      "curated": 2,
+      "auto": 0,
+      "nvdCandidates": 90,
+      "nvdAutoIngest": false,
+      "eolSource": "endoflife.date",
+      "skipped": {}
+    }
+  },
+  "drift": [
+    {
+      "product": "jquery",
+      "id": "CVE-2019-11358",
+      "curated": {
+        "range": "< 3.4.0",
+        "cvssScore": 6.1
+      },
+      "upstream": {
+        "range": ">= 1.1.4, < 3.4.0",
+        "cvssScore": 6.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "jquery",
+      "id": "CVE-2020-11022",
+      "curated": {
+        "range": ">= 1.2.0, < 3.5.0",
+        "cvssScore": 6.1
+      },
+      "upstream": {
+        "range": ">= 1.12.0, < 3.5.0",
+        "cvssScore": 6.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "jquery",
+      "id": "CVE-2015-9251",
+      "curated": {
+        "range": "< 3.0.0",
+        "cvssScore": 6.1
+      },
+      "upstream": {
+        "range": "< 1.12.2 || >= 1.12.3, < 3.0.0",
+        "cvssScore": 6.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "bootstrap",
+      "id": "CVE-2016-10735",
+      "curated": {
+        "range": ">= 3.0.0, < 3.4.0",
+        "cvssScore": 6.1
+      },
+      "upstream": {
+        "range": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
+        "cvssScore": 6.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "bootstrap",
+      "id": "CVE-2019-8331",
+      "curated": {
+        "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
+        "cvssScore": 6.1
+      },
+      "upstream": {
+        "range": ">= 3.0.0, < 3.4.1 || >= 4.0.0, < 4.3.1",
+        "cvssScore": 6.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "lodash",
+      "id": "CVE-2020-8203",
+      "curated": {
+        "range": "< 4.17.20",
+        "cvssScore": 7.4
+      },
+      "upstream": {
+        "range": ">= 3.7.0, < 4.17.19",
+        "cvssScore": 7.4,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "php",
+      "id": "CVE-2024-4577",
+      "curated": {
+        "range": "< 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
+        "cvssScore": 9.8
+      },
+      "upstream": {
+        "range": ">= 8.1.0, < 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
+        "cvssScore": 9.8,
+        "source": "nvd"
+      }
+    },
+    {
+      "product": "nginx",
+      "id": "CVE-2023-44487",
+      "curated": {
+        "range": ">= 1.9.5, < 1.25.3",
+        "cvssScore": 7.5
+      },
+      "upstream": {
+        "range": ">= 1.9.5, <= 1.25.2",
+        "cvssScore": 7.5,
+        "source": "nvd"
+      }
+    },
+    {
+      "product": "apache",
+      "id": "CVE-2021-42013",
+      "curated": {
+        "range": ">= 2.4.49, <= 2.4.50",
+        "cvssScore": 9.8
+      },
+      "upstream": {
+        "range": "= 2.4.49 || = 2.4.50",
+        "cvssScore": 9.8,
+        "source": "nvd"
+      }
+    },
+    {
+      "product": "laravel",
+      "id": "CVE-2018-15133",
+      "curated": {
+        "range": "< 5.5.41 || >= 5.6.0, < 5.6.30",
+        "cvssScore": 8.1
+      },
+      "upstream": {
+        "range": "<= 5.5.40 || >= 5.6.0, < 5.6.30",
+        "cvssScore": 8.1,
+        "source": "osv"
+      }
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-39332",
+      "curated": {
+        "range": ">= 20.0.0, < 20.8.1",
+        "cvssScore": 9.8
+      },
+      "upstream": {
+        "range": ">= 20.0.0, < 20.8.0",
+        "cvssScore": 9.8,
+        "source": "nvd"
+      }
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-23918",
+      "curated": {
+        "range": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
+        "cvssScore": 7.5
+      },
+      "upstream": {
+        "range": ">= 14.0.0, <= 14.14.0 || >= 14.0.0, < 14.21.3 || >= 16.0.0, <= 16.12.0 || >= 16.0.0, < 16.19.1 || >= 18.0.0, <= 18.11.0 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
+        "cvssScore": 7.5,
+        "source": "nvd"
+      }
+    }
+  ],
+  "excluded": [],
+  "skippedSummary": {
+    "unscored": 12
+  },
+  "staleSources": []
+}

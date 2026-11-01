@@ -26,3 +26,4 @@ scratch/
 # Review Packages (GitHub登録対象外)
 review/
 review-packages/
+docs/*.local.md

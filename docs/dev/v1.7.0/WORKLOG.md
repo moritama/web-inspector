@@ -48,3 +48,11 @@
   - ディストリビューションパッケージ版（`2.4.52-1ubuntu4` のようなハイフン表記に加え、`2.4.41 (Ubuntu)` や `Apache/2.4.41 (Ubuntu)` のような括弧表記）を `isLinuxPackageVersion` で検出し、`Needs Review` を維持したまま上流バージョンとして照合した場合の該当件数を `countUpstreamAdvisories` で算出し、「参考: 上流版では N 件該当」を添えるようにした。固定 DB（Apache 収録 3 件のうち `< 2.4.52` が 1 件、残りは `>= 2.4.49`）における `2.4.41 (Ubuntu)` の上流版該当件数は 1 件であることをテストで確認した。
 - 未解決: なし
 
+## T14 判断の反映  (2026-11-03 15:14)
+- 変更ファイル: `data/advisories/catalog.json`, `data/advisories/curated.json`, `scripts/advisories/lib/eol.mjs`, `scripts/validate-advisories.mjs`, `scripts/verify-advisories-nvd.mjs`, `src/shared/types.ts`, `src/detection/advisory.ts`, `src/popup/render.ts`, `src/popup/popup.ts`, `src/dashboard/render.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-pipeline.test.mjs`, `tests/advisory.test.ts`, `tests/version-check.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - D1（React 18 の表示と `cycleOverrides`）: `data/advisories/catalog.json` の `products.react.eol` に `cycleOverrides["18"]`（`status`, `label`, `note`）を追加し、`scripts/advisories/lib/eol.mjs` の `normalizeEol` で上書きを適用するようにした。また、`scripts/validate-advisories.mjs` で EOL エントリの `label`（120 文字以内）および `note`（300 文字以内）に HTML 特殊文字（`UNSAFE_TEXT`）が含まれないことを検証するようにした。
+  - `src/shared/types.ts` の `EolInfo` および `src/detection/advisory.ts` の `LibraryEolEntry` に任意の `label` と `note` を追加し、`buildEolResult` で `entry.note` を推奨文（`recommendation`）に反映するとともに、Popup・Dashboard・CSV・Markdown エクスポートの各出力で `label`（`status` の具体的な説明）と `note` を表示・出力し、UI 描画時には必ず `escapeHtml()` を通すようにした。
+  - D2（Bootstrap CVE-2019-8331 の範囲修正）: `data/advisories/curated.json` の `bootstrap` における `CVE-2019-8331` の `range` を `"< 3.4.1 || >= 4.0.0, < 4.3.1"` に修正して判断理由と参照先を `notes` に明記し、`scripts/verify-advisories-nvd.mjs` の `KNOWN_DEVIATIONS` に登録した。
+  - D5（Angular 暫定対応 7 件の撤去）: T01 のプレリリース・ワイルドカード比較対応により OSV 由来の範囲式がそのまま評価可能になったため、`data/advisories/curated.json` の `angular.advisories` から暫定対応 7 件を撤去して空配列 `[]` とし、`scripts/verify-advisories-nvd.mjs` の `KNOWN_DEVIATIONS` からも該当 7 件を削除した。あわせてテスト用固定 DB（`tests/fixtures/advisory-db.fixture.json`）も D1・D2・D5 の内容に合わせて更新した。
+- 未解決: なし

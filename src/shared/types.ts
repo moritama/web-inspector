@@ -117,6 +117,10 @@ export interface EolInfo {
   source: string;               // 公式ポリシーまたはendoflife.date
   sourceUrl?: string;
   recommendation: string;       // 推奨対応
+  /** 表示用カスタムラベル (v1.7.0 T14 / D1) */
+  label?: string;
+  /** カスタム補足説明・推奨文 (v1.7.0 T14 / D1) */
+  note?: string;
 }
 
 /**

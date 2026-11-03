@@ -486,4 +486,97 @@ describe('IMPL-03: 悪意のある値を含むレポート描画時の XSS / 不
       }
     });
   });
+
+  describe('T14 (D1): React 18 の Limited Support (Maintenance) 表示と note / label の HTML エスケープ', () => {
+    it('固定 DB で React 18.3.1 を照合したとき、ポップアップとダッシュボードに Limited Support (Maintenance) と補足文が表示される', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const rawFixtureDb = (await import('./fixtures/advisory-db.fixture.json')).default;
+      const match = matchOfflineAdvisories('React', '18.3.1', rawFixtureDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+
+      const reactTech: DetectedTechnology = {
+        technology: 'React',
+        category: 'js-framework',
+        detected: true,
+        confidence: 100,
+        confidenceLevel: 'high',
+        version: '18.3.1',
+        evidence: [],
+        supportStatus: match.eolInfo.status,
+        eolDate: match.eolInfo.eolDate,
+        eolInfo: match.eolInfo,
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+        productAdvisoryCount: match.productAdvisoryCount,
+        productSources: match.productSources,
+        advisoryDataVersion: match.advisoryDataVersion,
+        advisoryStatusLabel: match.advisoryStatusLabel,
+      };
+
+      const popupHtml = renderTechModalHtml(reactTech);
+      const dashTableHtml = renderLibrarySecurityTableHtml([reactTech]);
+      const dashFullHtml = renderFullTechnologiesHtml([reactTech]);
+
+      for (const html of [popupHtml, dashTableHtml, dashFullHtml]) {
+        expect(html).toContain('Limited Support (Maintenance)');
+        expect(html).toContain('React 18 の通常の機能サポートは終了しています。');
+        expect(html).toContain('原則として React 19 への移行を推奨します。');
+      }
+    });
+
+    it('note や label に <script> を入れた固定データでも、画面にはエスケープされて出力される', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const maliciousEolDb = {
+        dataVersion: '20261031',
+        generatedAt: '2026-10-31T00:00:00Z',
+        coverage: {
+          technologies: ['react'],
+          byProduct: { react: { count: 1, sources: ['curated'] } },
+        },
+        libraries: {
+          react: {
+            aliases: ['react'],
+            versions: [],
+            eol: [
+              {
+                cycle: '18',
+                eolDate: null,
+                status: 'Maintenance' as const,
+                label: '<script>alert("label")</script>Limited Support',
+                note: '<script>alert("note")</script><img src=x onerror=alert(1)>カスタム補足文',
+              },
+            ],
+          },
+        },
+      };
+
+      const match = matchOfflineAdvisories('React', '18.3.1', maliciousEolDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+      const tech: DetectedTechnology = {
+        technology: 'React',
+        category: 'js-framework',
+        detected: true,
+        confidence: 100,
+        confidenceLevel: 'high',
+        version: '18.3.1',
+        evidence: [],
+        supportStatus: match.eolInfo.status,
+        eolDate: match.eolInfo.eolDate,
+        eolInfo: match.eolInfo,
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+      };
+
+      const popupHtml = renderTechModalHtml(tech);
+      const dashTableHtml = renderLibrarySecurityTableHtml([tech]);
+      const dashFullHtml = renderFullTechnologiesHtml([tech]);
+
+      for (const html of [popupHtml, dashTableHtml, dashFullHtml]) {
+        const container = document.createElement('div');
+        container.innerHTML = html;
+        expect(container.querySelectorAll('script')).toHaveLength(0);
+        expect(container.querySelectorAll('img')).toHaveLength(0);
+        expect(html).toContain('&lt;script&gt;alert(&quot;note&quot;)&lt;/script&gt;');
+        expect(html).toContain('&lt;script&gt;alert(&quot;label&quot;)&lt;/script&gt;');
+      }
+    });
+  });
 });

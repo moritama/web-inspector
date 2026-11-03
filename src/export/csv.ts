@@ -119,6 +119,8 @@ export function exportReportToCsv(report: InspectionReport): string {
             isEol: tech.supportStatus === 'EOL',
             technologyName: tech.technology,
           })
+        : tech.eolInfo?.note
+        ? tech.eolInfo.note
         : tech.supportStatus === 'EOL'
         ? 'EOLのため移行・更新推奨'
         : displayInfo.isDistro
@@ -157,7 +159,7 @@ export function exportReportToCsv(report: InspectionReport): string {
           tech.cssVersion || '-',
           tech.jsVersion || '-',
           mismatchStatusText,
-          tech.supportStatus || 'Unknown',
+          tech.eolInfo?.label || tech.supportStatus || 'Unknown',
           tech.eolDate || '-',
           displayInfo.statusLabel,
           advisoryIds,

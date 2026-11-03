@@ -28,6 +28,13 @@
       "eol": {
         "slug": "react",
         "supportedLatestCycles": 1,
+        "cycleOverrides": {
+          "18": {
+            "status": "Maintenance",
+            "label": "Limited Support (Maintenance)",
+            "note": "React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。"
+          }
+        },
         "_note": "React 公式は最新メジャーのみ修正を提供。endoflife.date 上で eol=false のまま残る旧サイクルを EOL とみなす (レビュー指摘 DB-EOL-1)"
       }
     },

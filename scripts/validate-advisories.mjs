@@ -192,6 +192,16 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
       if (db.schemaVersion === '2.2' && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
         throw new Error(`[${key}] eol.eolDate は YYYY-MM-DD または null である必要があります: ${JSON.stringify(e)}`);
       }
+      if (e.label !== undefined) {
+        if (typeof e.label !== 'string' || !e.label || e.label.length > 120 || UNSAFE_TEXT.test(e.label)) {
+          throw new Error(`[${key} / eol ${e.cycle}] eol.label が不正（120文字超・空・HTML特殊文字・制御文字）です: ${JSON.stringify(e.label)}`);
+        }
+      }
+      if (e.note !== undefined) {
+        if (typeof e.note !== 'string' || !e.note || e.note.length > 300 || UNSAFE_TEXT.test(e.note)) {
+          throw new Error(`[${key} / eol ${e.cycle}] eol.note が不正（300文字超・空・HTML特殊文字・制御文字）です: ${JSON.stringify(e.note)}`);
+        }
+      }
     }
   }
 

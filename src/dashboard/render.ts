@@ -204,14 +204,15 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
 
   const rows = techs
     .map((t) => {
+      const eolLabel = t.eolInfo?.label;
       const eolBadge =
         t.supportStatus === 'EOL'
-          ? '<span class="badge badge-eol">EOL</span>'
+          ? `<span class="badge badge-eol">${escapeHtml(eolLabel || 'EOL')}</span>`
           : t.supportStatus === 'Maintenance'
-          ? '<span class="badge badge-medium">保守</span>'
+          ? `<span class="badge badge-medium">${escapeHtml(eolLabel || '保守')}</span>`
           : t.supportStatus === 'Supported'
-          ? '<span class="badge badge-high">Supported</span>'
-          : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
+          ? `<span class="badge badge-high">${escapeHtml(eolLabel || 'Supported')}</span>`
+          : `<span class="badge" style="background:var(--bg-hover);">${escapeHtml(eolLabel || 'Unknown')}</span>`;
 
       const displayInfo = resolveTechAdvisoryDisplayInfo(t);
       let cveBadge = '';
@@ -272,6 +273,8 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           isEol: t.supportStatus === 'EOL',
           technologyName: t.technology,
         });
+      } else if (t.eolInfo?.note) {
+        recommendation = t.eolInfo.note;
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
       } else if (displayInfo.isDistro) {
@@ -441,7 +444,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${t.distroHint ? `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>` : ''}
-          ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
+          ${t.supportStatus === 'EOL' ? `<span class="badge badge-eol">${escapeHtml(t.eolInfo?.label || 'EOL')}</span>` : t.eolInfo?.label ? `<span class="badge badge-medium">${escapeHtml(t.eolInfo.label)}</span>` : ''}
           ${t.advisories && t.advisories.some((a) => a.kev === true) ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : ''}
           ${t.advisories && t.advisories.length > 0 ? `<span class="badge badge-cve">CVE ${t.advisories.length}件</span>` : ''}
           <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
@@ -482,6 +485,17 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             <strong>CSS / JS バージョン整合性:</strong>
             <div>JavaScript: ${escapeHtml(t.versionIntegrity.jsVersion || '未検出')} / CSS: ${escapeHtml(t.versionIntegrity.cssVersion || '未検出')}</div>
             <div style="color:${t.versionIntegrity.status === 'match' ? 'var(--success-color)' : 'var(--warning-color)'};">${escapeHtml(t.versionIntegrity.detail)}</div>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          t.eolInfo && (t.supportStatus === 'EOL' || t.eolInfo.label || t.eolInfo.note)
+            ? `
+          <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>サポート状況 (EOL):</strong> ${escapeHtml(t.eolInfo.label || t.eolInfo.status)}${t.eolInfo.eolDate ? ` (${escapeHtml(t.eolInfo.eolDate)})` : ''}
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${escapeHtml(t.eolInfo.note || t.eolInfo.recommendation)}</div>
           </div>
         `
             : ''

@@ -358,4 +358,24 @@ describe('T06 - T09: EOL & CVE 照合', () => {
     const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0', fixtureDb);
     expect(result.matchStatus).toBe('No Data');
   });
+
+  it('T14 (D2): Bootstrap 4.2.1 を照合すると CVE-2019-8331 (< 3.4.1 || >= 4.0.0, < 4.3.1) に該当すること', () => {
+    const result = matchOfflineAdvisories('Bootstrap', '4.2.1', fixtureDb);
+    expect(result.matchStatus).toBe('Potentially Affected');
+    const cve = result.advisories.find((a) => a.id === 'CVE-2019-8331');
+    expect(cve).toBeDefined();
+    expect(cve?.affectedRange).toBe('< 3.4.1 || >= 4.0.0, < 4.3.1');
+  });
+
+  it('T14 (D1): React 18.3.1 を照合すると状態が Maintenance・表示名が Limited Support (Maintenance) になり、React 17.0.2 は EOL のままになること', () => {
+    const r18 = matchOfflineAdvisories('React', '18.3.1', fixtureDb);
+    expect(r18.eolInfo.status).toBe('Maintenance');
+    expect(r18.eolInfo.label).toBe('Limited Support (Maintenance)');
+    expect(r18.eolInfo.recommendation).toBe(
+      'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。'
+    );
+
+    const r17 = matchOfflineAdvisories('React', '17.0.2', fixtureDb);
+    expect(r17.eolInfo.status).toBe('EOL');
+  });
 });

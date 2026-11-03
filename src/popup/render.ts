@@ -120,6 +120,8 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
   if (tech.eolInfo) {
     const eol = tech.eolInfo;
     const statusColor = eol.status === 'EOL' ? 'var(--danger-color)' : eol.status === 'Maintenance' ? 'var(--warning-color)' : 'var(--success-color)';
+    const statusLabel = eol.label || eol.status;
+    const recommendationText = eol.note || eol.recommendation;
     const sourceLink = eol.sourceUrl
       ? `<div>出典: ${renderSafeExternalLink(eol.sourceUrl, eol.sourceUrl, { className: 'ref-link' })}</div>`
       : '';
@@ -127,8 +129,8 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     eolHtml = `
       <div>
         <div class="detail-section-title">サポート状況 (EOL)</div>
-        <div>ステータス: <strong style="color:${statusColor};">${escapeHtml(eol.status)}</strong> ${eol.eolDate ? `(EOL日: ${escapeHtml(eol.eolDate)})` : ''}</div>
-        <div style="font-size:11px;color:var(--accent-color);">${escapeHtml(eol.recommendation)}</div>
+        <div>ステータス: <strong style="color:${statusColor};">${escapeHtml(statusLabel)}</strong> ${eol.eolDate ? `(EOL日: ${escapeHtml(eol.eolDate)})` : ''}</div>
+        <div style="font-size:11px;color:var(--accent-color);">${escapeHtml(recommendationText)}</div>
         ${sourceLink}
       </div>
     `;

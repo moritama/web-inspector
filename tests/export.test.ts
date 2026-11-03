@@ -252,4 +252,56 @@ describe('Export Functions', () => {
     expect(mdStr).toContain('Needs Review（参考: 上流版では 3 件該当）');
     expect(mdStr).not.toContain('| Not Affected |');
   });
+
+  it('T14 (D1): eolInfo.label と eolInfo.note がある技術（React 18.3.1）でエクスポート 3 形式に Limited Support (Maintenance) と補足文が出力される', () => {
+    const reactNote =
+      'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。';
+    const reportD1: InspectionReport = {
+      ...dummyReport,
+      technologies: [
+        {
+          technology: 'React',
+          category: 'js-framework',
+          detected: true,
+          confidence: 100,
+          confidenceLevel: 'high',
+          version: '18.3.1',
+          evidence: [],
+          supportStatus: 'Maintenance',
+          eolDate: null,
+          eolInfo: {
+            status: 'Maintenance',
+            eolDate: null,
+            source: 'offline-db (endoflife.date snapshot)',
+            sourceUrl: 'https://endoflife.date/react',
+            label: 'Limited Support (Maintenance)',
+            note: reactNote,
+            recommendation: reactNote,
+          },
+          advisoryMatchStatus: 'Not Affected',
+          productAdvisoryCount: 2,
+          productSources: ['curated', 'OSV', 'NVD'],
+          advisoryDataVersion: '20261031',
+          advisories: [],
+        },
+      ],
+    };
+
+    // 1. JSON
+    const jsonStr = exportReportToJson(reportD1);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.technologies[0].eolInfo.status).toBe('Maintenance');
+    expect(parsed.technologies[0].eolInfo.label).toBe('Limited Support (Maintenance)');
+    expect(parsed.technologies[0].eolInfo.recommendation).toBe(reactNote);
+
+    // 2. CSV
+    const csvStr = exportReportToCsv(reportD1);
+    expect(csvStr).toContain('"Limited Support (Maintenance)"');
+    expect(csvStr).toContain(reactNote);
+
+    // 3. Markdown
+    const mdStr = generateMarkdownReport(reportD1);
+    expect(mdStr).toContain('Limited Support (Maintenance)');
+    expect(mdStr).toContain(reactNote);
+  });
 });

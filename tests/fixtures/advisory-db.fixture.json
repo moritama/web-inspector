@@ -34,7 +34,7 @@
       "bootstrap": { "count": 9, "sources": ["curated", "OSV", "NVD"] },
       "react": { "count": 2, "sources": ["curated", "OSV", "NVD"] },
       "vue": { "count": 1, "sources": ["OSV", "NVD"] },
-      "angular": { "count": 9, "sources": ["curated", "OSV", "NVD"] },
+      "angular": { "count": 9, "sources": ["OSV", "NVD"] },
       "angularjs": { "count": 14, "sources": ["curated", "OSV", "NVD"] },
       "lodash": { "count": 10, "sources": ["curated", "OSV", "NVD"] },
       "moment": { "count": 5, "sources": ["OSV", "NVD"] },
@@ -220,7 +220,7 @@
           ]
         },
         {
-          "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
+          "range": "< 3.4.1 || >= 4.0.0, < 4.3.1",
           "cve": "CVE-2019-8331",
           "cvssScore": 6.1,
           "severity": "medium",
@@ -230,6 +230,7 @@
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2019-8331",
           "verifiedAt": "2026-10-25",
           "scoreSource": "nvd@nist.gov (Primary)",
+          "notes": "判断 D2 (2026-11-03): NVD CPE は 4.x 側の範囲を 4.3.0 以上 4.3.1 未満としているが、GitHub Advisory (GHSA-9v3m-8fp8-mj99) および Snyk / Debian Security Tracker に従い 4.0.0 以上 4.3.1 未満の全 4.x 系列を対象とする。",
           "origin": "curated"
         },
         {
@@ -425,7 +426,9 @@
         {
           "cycle": "18",
           "eolDate": null,
-          "status": "EOL"
+          "status": "Maintenance",
+          "label": "Limited Support (Maintenance)",
+          "note": "React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。"
         },
         {
           "cycle": "17",
@@ -556,18 +559,20 @@
       ],
       "versions": [
         {
-          "range": ">= 17.0.0, <= 18.2.14 || >= 19.0.0, < 19.2.20 || >= 20.0.0, < 20.3.18 || >= 21.0.0, < 21.2.4",
+          "range": ">= 17.0.0-next.0, <= 18.2.14 || >= 19.0.0-next.0, < 19.2.20 || >= 20.0.0-next.0.0.0, < 20.3.18 || >= 21.0.0-next.0, < 21.2.4 || >= 22.0.0-next.0, < 22.0.0-next.3",
           "cve": "CVE-2026-32635",
           "cvssScore": 9,
           "severity": "critical",
           "title": "Angular vulnerable to XSS in i18n attribute bindings",
-          "fixedVersion": "19.2.20 / 20.3.18 / 21.2.4",
+          "fixedVersion": "19.2.20 / 20.3.18 / 21.2.4 / 22.0.0-next.3",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-32635",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "<= 19.2.25 || >= 20.0.0, < 20.3.28 || >= 21.0.0, < 21.2.20 || >= 22.0.0, < 22.1.0",
@@ -589,7 +594,7 @@
           ]
         },
         {
-          "range": "<= 19.2.25 || >= 20.0.0, < 20.3.27 || >= 21.0.0, < 21.2.19 || >= 22.0.0, < 22.0.1",
+          "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.27 || >= 21.0.0-next.0, < 21.2.19 || >= 22.0.0-next.0, < 22.0.1",
           "cve": "CVE-2026-69151",
           "cvssScore": 6.1,
           "severity": "medium",
@@ -597,13 +602,15 @@
           "fixedVersion": "20.3.27 / 21.2.19 / 22.0.1",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-69151",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
-          "range": "<= 19.2.25 || >= 20.0.0, < 20.3.25 || >= 21.0.0, < 21.2.17 || >= 22.0.0, < 22.0.1",
+          "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.25 || >= 21.0.0-next.0, < 21.2.17 || >= 22.0.0-next.0, < 22.0.1",
           "cve": "CVE-2026-54267",
           "cvssScore": 6.1,
           "severity": "medium",
@@ -611,66 +618,76 @@
           "fixedVersion": "20.3.25 / 21.2.17 / 22.0.1",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-54267",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
-          "range": "<= 18.2.14 || >= 19.0.0, < 19.2.23 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15",
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.23 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
           "cve": "CVE-2026-52725",
           "cvssScore": 6.1,
           "severity": "medium",
           "title": "@angular/core: Angular Template and Dynamic Component Namespace Bypass leading to Cross-Site Scripting (XSS)",
-          "fixedVersion": "19.2.23 / 20.3.22 / 21.2.15",
+          "fixedVersion": "19.2.23 / 20.3.22 / 21.2.15 / 22.0.0-rc.2",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-52725",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
-          "range": "<= 18.2.14 || >= 19.0.0, < 19.2.22 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15",
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.22 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
           "cve": "CVE-2026-50557",
           "cvssScore": 6.1,
           "severity": "medium",
           "title": "Angular: Template and Attribute Namespace Sanitization Bypass (XSS)",
-          "fixedVersion": "19.2.22 / 20.3.22 / 21.2.15",
+          "fixedVersion": "19.2.22 / 20.3.22 / 21.2.15 / 22.0.0-rc.2",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-50557",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
-          "range": "<= 18.2.14 || >= 19.0.0, < 19.2.19 || >= 20.0.0, < 20.3.17 || >= 21.0.0, < 21.1.6",
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.19 || >= 20.0.0-next.0, < 20.3.17 || >= 21.0.0-next.0, < 21.1.6 || >= 21.2.0-next.0, < 21.2.0",
           "cve": "CVE-2026-27970",
           "cvssScore": 6.1,
           "severity": "medium",
           "title": "Angular i18n vulnerable to Cross-Site Scripting",
-          "fixedVersion": "19.2.19 / 20.3.17 / 21.1.6",
+          "fixedVersion": "19.2.19 / 20.3.17 / 21.1.6 / 21.2.0",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-27970",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
-          "range": "<= 18.2.14 || >= 19.0.0, < 19.2.18 || >= 20.0.0, < 20.3.16 || >= 21.0.0, < 21.0.7",
+          "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.18 || >= 20.0.0-next.0, < 20.3.16 || >= 21.0.0-next.0, < 21.0.7 || >= 21.1.0-next.0, < 21.1.0-rc.0",
           "cve": "CVE-2026-22610",
           "cvssScore": 6.1,
           "severity": "medium",
           "title": "Angular has XSS Vulnerability via Unsanitized SVG Script Attributes",
-          "fixedVersion": "19.2.18 / 20.3.16 / 21.0.7",
+          "fixedVersion": "19.2.18 / 20.3.16 / 21.0.7 / 21.1.0-rc.0",
           "fixStatus": "partial",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-22610",
-          "verifiedAt": "2026-11-01",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "notes": "暫定対応 (2026-11-01): 上流の範囲の -next 表記を v1.6.x の version-matcher がワイルドカードと誤判定し、19〜22 系の照合が漏れるため、正式版のみの範囲で登録。プレリリース版は対象外。v1.7.0 (T01) の取り込み後に削除する。",
-          "origin": "curated"
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "< 10.2.5 || >= 11.0.0, < 11.0.5 || >= 11.1.0-next.0, < 11.1.0-next.3",

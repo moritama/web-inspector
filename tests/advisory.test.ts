@@ -493,4 +493,64 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
       expect(formatAdvisoryRecommendation('1.0.0', res.advisories)).toContain('1.9.9');
     });
   });
+
+  // --- T14 (D1 / D2 / D5): 判断の反映 ---
+  describe('T14 (D1 / D2 / D5): 判断の反映（React 18 cycleOverrides・Bootstrap CVE-2019-8331・Angular 暫定対応撤去）', () => {
+    it('D1: React 18.3.1 を照合すると Maintenance / Limited Support (Maintenance) / 指定補足文になり、React 17.0.2 は EOL のままで、他製品の EOL は変わらないこと', () => {
+      const expectedNote =
+        'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。';
+
+      const r18 = matchOfflineAdvisories('React', '18.3.1', fixtureDb);
+      expect(r18.eolInfo.status).toBe('Maintenance');
+      expect(r18.eolInfo.label).toBe('Limited Support (Maintenance)');
+      expect(r18.eolInfo.note).toBe(expectedNote);
+      expect(r18.eolInfo.recommendation).toBe(expectedNote);
+
+      const r17 = matchOfflineAdvisories('React', '17.0.2', fixtureDb);
+      expect(r17.eolInfo.status).toBe('EOL');
+      expect(r17.eolInfo.label).toBeUndefined();
+
+      const r19 = matchOfflineAdvisories('React', '19.0.0', fixtureDb);
+      expect(r19.eolInfo.status).toBe('Supported');
+      expect(r19.eolInfo.label).toBeUndefined();
+
+      // cycleOverrides のない製品の EOL は変わらない
+      const bs4 = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
+      expect(bs4.eolInfo.status).toBe('EOL');
+      expect(bs4.eolInfo.label).toBeUndefined();
+    });
+
+    it('D2: Bootstrap 4.2.1 が CVE-2019-8331 (< 3.4.1 || >= 4.0.0, < 4.3.1) に該当すること', () => {
+      const res421 = matchOfflineAdvisories('Bootstrap', '4.2.1', fixtureDb);
+      expect(res421.matchStatus).toBe('Potentially Affected');
+      const cve8331 = res421.advisories.find((a) => a.id === 'CVE-2019-8331');
+      expect(cve8331).toBeDefined();
+      expect(cve8331?.affectedRange).toBe('< 3.4.1 || >= 4.0.0, < 4.3.1');
+
+      const res400 = matchOfflineAdvisories('Bootstrap', '4.0.0', fixtureDb);
+      expect(res400.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
+
+      const res431 = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
+      expect(res431.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(false);
+    });
+
+    it('D5: Angular の暫定対応 7 件撤去後の OSV auto 範囲でも T01 の受け入れ条件 (Angular 20.3.17 で 6 件該当・3 件非該当) を満たすこと', () => {
+      const res = matchOfflineAdvisories('Angular', '20.3.17', fixtureDb);
+      const ids = res.advisories.map((a) => a.id);
+      expect(ids).toEqual(
+        expect.arrayContaining([
+          'CVE-2026-32635',
+          'CVE-2026-88057',
+          'CVE-2026-69151',
+          'CVE-2026-54267',
+          'CVE-2026-52725',
+          'CVE-2026-50557',
+        ])
+      );
+      expect(ids).toHaveLength(6);
+      expect(ids).not.toContain('CVE-2026-27970');
+      expect(ids).not.toContain('CVE-2026-22610');
+      expect(ids).not.toContain('CVE-2021-4231');
+    });
+  });
 });

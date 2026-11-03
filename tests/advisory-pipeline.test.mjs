@@ -173,6 +173,30 @@ describe('EOL 正規化', () => {
     const nginx = normalizeEol(fixtureUpstream.eol.nginx.cycles, { asOf: '2026-10-26' });
     expect(nginx.find((e) => e.cycle === '1.29')).toMatchObject({ status: 'EOL', eolDate: '2026-05-13' });
   });
+
+  it('T14 (D1): cycleOverrides により React 18 が Maintenance / Limited Support (Maintenance) / note に上書きされ、17 は EOL のままになる', () => {
+    const reactNote = 'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。';
+    const eol = normalizeEol(fixtureUpstream.eol.react.cycles, {
+      asOf: '2026-10-26',
+      supportedLatestCycles: 1,
+      cycleOverrides: {
+        '18': {
+          status: 'Maintenance',
+          label: 'Limited Support (Maintenance)',
+          note: reactNote,
+        },
+      },
+    });
+    expect(eol.find((e) => e.cycle === '19')).toEqual({ cycle: '19', eolDate: null, status: 'Supported' });
+    expect(eol.find((e) => e.cycle === '18')).toEqual({
+      cycle: '18',
+      eolDate: null,
+      status: 'Maintenance',
+      label: 'Limited Support (Maintenance)',
+      note: reactNote,
+    });
+    expect(eol.find((e) => e.cycle === '17')).toEqual({ cycle: '17', eolDate: null, status: 'EOL' });
+  });
 });
 
 describe('DB 生成 (build-db)', () => {
@@ -296,6 +320,68 @@ describe('DB 生成 (build-db)', () => {
       count: 0,
       sources: [],
     });
+  });
+
+  it('T14 (D1 / D2 / D5): validateDb は EOL の note が 300 文字超または HTML 特殊文字を含む場合に拒否し、本番 catalog.json / curated.json の設定が反映されている', () => {
+    const { db } = build();
+    const baseDb = { ...db, integrity: undefined, libraries: { ...db.libraries, ...padProducts() } };
+
+    // 正常な label と note は合格する
+    const validCustomEolDb = structuredClone(baseDb);
+    validCustomEolDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        label: 'Limited Support (Maintenance)',
+        note: 'React 18 の通常の機能サポートは終了しています。',
+      },
+    ];
+    expect(() => validateDb(validCustomEolDb)).not.toThrow();
+
+    // 300 文字を超える note は拒否される
+    const tooLongNoteDb = structuredClone(baseDb);
+    tooLongNoteDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        note: 'あ'.repeat(301),
+      },
+    ];
+    expect(() => validateDb(tooLongNoteDb)).toThrow(/eol\.note/);
+
+    // HTML 特殊文字を含む note は拒否される
+    const unsafeNoteDb = structuredClone(baseDb);
+    unsafeNoteDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        note: '<script>alert(1)</script>',
+      },
+    ];
+    expect(() => validateDb(unsafeNoteDb)).toThrow(/eol\.note/);
+
+    // 本番の catalog.json と curated.json の検証
+    const realCatalog = JSON.parse(fs.readFileSync(new URL('../data/advisories/catalog.json', import.meta.url), 'utf-8'));
+    const realCurated = JSON.parse(fs.readFileSync(new URL('../data/advisories/curated.json', import.meta.url), 'utf-8'));
+
+    // D1: catalog.json の react.eol.cycleOverrides["18"]
+    expect(realCatalog.products.react.eol.cycleOverrides?.['18']).toEqual({
+      status: 'Maintenance',
+      label: 'Limited Support (Maintenance)',
+      note: 'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。',
+    });
+
+    // D2: curated.json の bootstrap CVE-2019-8331
+    const bs8331 = realCurated.products.bootstrap.advisories.find((a) => a.cve === 'CVE-2019-8331');
+    expect(bs8331).toBeDefined();
+    expect(bs8331.range).toBe('< 3.4.1 || >= 4.0.0, < 4.3.1');
+    expect(bs8331.notes).toContain('GHSA-9v3m-8fp8-mj99');
+
+    // D5: curated.json の angular 暫定対応 7 件が撤去されていること
+    expect(realCurated.products.angular.advisories).toEqual([]);
   });
 });
 

@@ -173,7 +173,11 @@ ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
 |---|:---:|:---:|:---:|:---:|---|---|:---:|---|
 ${report.technologies.map((t) => {
   const displayInfo = resolveTechAdvisoryDisplayInfo(t);
-  const eol = t.supportStatus === 'EOL' ? `**EOL (${t.eolDate || '終了'})**` : t.supportStatus || 'Unknown';
+  const eol = t.eolInfo?.label
+    ? escapeMarkdown(t.eolInfo.label)
+    : t.supportStatus === 'EOL'
+    ? `**EOL (${t.eolDate || '終了'})**`
+    : t.supportStatus || 'Unknown';
   const matchStatus = escapeMarkdown(displayInfo.statusLabel);
   const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
   const cveList = t.advisories && t.advisories.length > 0
@@ -206,6 +210,8 @@ ${report.technologies.map((t) => {
           technologyName: t.technology,
         })
       )
+    : t.eolInfo?.note
+    ? escapeMarkdown(t.eolInfo.note)
     : t.supportStatus === 'EOL'
     ? '最新LTS系列への移行'
     : displayInfo.isDistro

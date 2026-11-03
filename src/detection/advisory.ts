@@ -46,10 +46,12 @@ export interface LibraryVersionAdvisory {
   sources?: string[];
 }
 
-interface LibraryEolEntry {
+export interface LibraryEolEntry {
   cycle: string;
   eolDate: string | null;
   status: SupportStatus;
+  label?: string;
+  note?: string;
 }
 
 interface LibraryEntry {
@@ -842,7 +844,9 @@ function matchEolPolicy(
 
 function buildEolResult(techName: string, version: string, entry: LibraryEolEntry): EolInfo {
   let recommendation = '';
-  if (entry.status === 'EOL') {
+  if (entry.note && entry.note.trim() !== '') {
+    recommendation = entry.note.trim();
+  } else if (entry.status === 'EOL') {
     if (techName.toLowerCase().includes('angularjs')) {
       recommendation = `AngularJS ${version}は2022年1月に公式サポート終了（EOL）となりました。後継の修正版は提供されないため、Angularや他のモダンフレームワークへの移行を強く推奨します。`;
     } else {
@@ -860,6 +864,8 @@ function buildEolResult(techName: string, version: string, entry: LibraryEolEntr
     source: 'offline-db (endoflife.date snapshot)',
     sourceUrl: `https://endoflife.date/${techName.toLowerCase()}`,
     recommendation,
+    ...(entry.label ? { label: entry.label } : {}),
+    ...(entry.note ? { note: entry.note } : {}),
   };
 }
 

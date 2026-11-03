@@ -224,9 +224,11 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
     // EOLバッジ
     let eolBadgeHtml = '';
     if (t.supportStatus === 'EOL') {
-      eolBadgeHtml = '<span class="badge badge-eol">EOL</span>';
+      eolBadgeHtml = `<span class="badge badge-eol">${escapeHtml(t.eolInfo?.label || 'EOL')}</span>`;
     } else if (t.supportStatus === 'Maintenance') {
-      eolBadgeHtml = '<span class="badge badge-medium">保守</span>';
+      eolBadgeHtml = `<span class="badge badge-medium">${escapeHtml(t.eolInfo?.label || '保守')}</span>`;
+    } else if (t.eolInfo?.label) {
+      eolBadgeHtml = `<span class="badge badge-high">${escapeHtml(t.eolInfo.label)}</span>`;
     }
 
     // CVEバッジ・KEVバッジ (T03 / SPEC-13)

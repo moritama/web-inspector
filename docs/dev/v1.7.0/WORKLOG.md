@@ -98,3 +98,12 @@
   - 履歴差分（`src/storage/diff.ts`）では、`instances` 内の確定バージョン集合の追加・削除も `Changed`（`site-change`）として検出し、`oldVersion` / `newVersion` にスラッシュ区切りのバージョン一覧を記録するようにした。
   - E2E テスト用サーバー（`test-server/server.mjs`）に `/jquery-multi`（`jquery-1.12.4.min.js` と `jquery-3.7.1.min.js` を同梱）を追加し、`scripts/test-e2e-smoke.mjs` で複数バージョン検出と脆弱性照合を検証するようにした。
 - 未解決: なし
+
+## T12 DB 更新ワークフローの改善、E2E サーバーの自動起動  (2026-11-03 20:05)
+- 変更ファイル: `scripts/advisories/pr-plan.mjs`, `.github/workflows/advisory-db-update.yml`, `scripts/test-e2e-smoke.mjs`, `tests/advisory-pipeline.test.mjs`
+- 判断したこと:
+  - `scripts/advisories/pr-plan.mjs` を新設し、diff-db の分類結果（`none | minor | major`）、テスト成否（`testsPassed`）、テスト出力からの失敗テスト名抽出（`extractFailedTests`：Vitest JSON レポート、標準出力の `FAIL` サマリー行、ツリー出力の `×` 行、TypeScript 型エラーに対応）、`ADVISORY_AUTO_MERGE`、GitHub App トークンの有無から、PR 作成要否・付与ラベル・除去ラベル・PR 本文・自動マージ可否・ジョブ失敗フラグを算出する `planPullRequest` 関数および CLI を実装した。
+  - `.github/workflows/advisory-db-update.yml` では、`Test & build` ステップで `npm test` または `npm run build` が失敗しても後続ステップへ進むようにし、`pr-plan.mjs` で `db:tests-failing` ラベルと失敗したテスト名一覧を含む PR 本文を生成して PR を作成・更新した上で、`db:tests-failing` がある場合は `ADVISORY_AUTO_MERGE=true` でも自動マージを無効化し、最後に `exit 1` でジョブの最終結果を失敗にするようにした。アクションはすべて既存の SHA 固定を維持し、`actionlint` で警告・エラーが出ないことを確認した。
+  - `scripts/test-e2e-smoke.mjs` に `checkServerResponding`、`ensureTestServer`、`stopTestServer` を追加し、ポート 3000 で既にテスト用サーバーが応答している場合はそれを再利用し、未起動の場合は `test-server/server.mjs` を子プロセスで起動して HTTP 応答を待ってから E2E を実行し、`finally` ブロック（成功時・失敗時の双方）で子プロセスを停止してポート 3000 が閉じるまで待機するようにした。
+  - `tests/advisory-pipeline.test.mjs` に `pr-plan.mjs` の単体テストを追加し、「テスト失敗・minor・auto-merge 有効」で「PR 作成・`db:tests-failing` ラベル付与・失敗テスト名の本文記載・自動マージしない・ジョブ失敗」となること、およびテスト成功時・major 時・App トークンなし時の分岐を検証した。
+- 未解決: 実際の GitHub Actions（`workflow_dispatch`）での動作確認は完了報告書の「人の確認事項」に含める。

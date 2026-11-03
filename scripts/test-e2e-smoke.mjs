@@ -14,15 +14,148 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_PATH = path.join(ROOT_DIR, 'dist');
+const TEST_SERVER_PORT = 3000;
+const TEST_SERVER_URL = `http://localhost:${TEST_SERVER_PORT}/`;
+const TEST_SERVER_SCRIPT = path.join(ROOT_DIR, 'test-server', 'server.mjs');
 
-async function runSmokeTest() {
+/**
+ * 指定 URL (既定は http://localhost:3000/) が HTTP 応答を返すか確認する
+ *
+ * @param {string} [url=TEST_SERVER_URL] - 確認先 URL
+ * @param {number} [timeoutMs=1000] - タイムアウトミリ秒
+ * @returns {Promise<boolean>} 応答があれば true
+ */
+export function checkServerResponding(url = TEST_SERVER_URL, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const req = http.get(url, { timeout: timeoutMs }, (res) => {
+      res.resume();
+      resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 500);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * テスト用サーバーが未起動であれば子プロセスで起動し、ポート 3000 の応答を待つ。
+ * すでに起動中であれば既存のサーバーをそのまま利用する。
+ *
+ * @param {object} [options] - 起動オプション
+ * @param {string} [options.url=TEST_SERVER_URL] - 応答確認 URL
+ * @param {string} [options.scriptPath=TEST_SERVER_SCRIPT] - サーバースクリプトのパス
+ * @param {number} [options.timeoutMs=15000] - 起動待機タイムアウトミリ秒
+ * @param {number} [options.pollIntervalMs=150] - ポーリング間隔ミリ秒
+ * @returns {Promise<{ child: import('node:child_process').ChildProcess | null, reused: boolean, url: string, onExitCleanup?: () => void }>}
+ */
+export async function ensureTestServer({
+  url = TEST_SERVER_URL,
+  scriptPath = TEST_SERVER_SCRIPT,
+  timeoutMs = 15000,
+  pollIntervalMs = 150,
+} = {}) {
+  if (await checkServerResponding(url)) {
+    console.log(`[e2e-smoke] 既存のテスト用サーバー (${url}) が起動中のためそのまま使用します。`);
+    return { child: null, reused: true, url };
+  }
+
+  console.log(`[e2e-smoke] テスト用サーバーを子プロセスで起動します (${scriptPath})...`);
+  const child = spawn(process.execPath, [scriptPath], {
+    cwd: ROOT_DIR,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let stderrBuf = '';
+  child.stdout?.on('data', () => {
+    // バッファ詰まりを防ぐため読み捨てる
+  });
+  child.stderr?.on('data', (chunk) => {
+    stderrBuf += String(chunk);
+  });
+
+  const onExitCleanup = () => {
+    if (child.exitCode === null && !child.killed) {
+      try {
+        child.kill('SIGTERM');
+      } catch {}
+    }
+  };
+  process.once('exit', onExitCleanup);
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (child.exitCode !== null) {
+      process.removeListener('exit', onExitCleanup);
+      throw new Error(`テスト用サーバーが応答待機中に終了しました (code=${child.exitCode}): ${stderrBuf.trim()}`);
+    }
+    if (await checkServerResponding(url)) {
+      console.log(`[e2e-smoke] テスト用サーバーの応答を確認しました (${url})。`);
+      return { child, reused: false, url, onExitCleanup };
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+
+  await stopTestServer({ child, reused: false, url, onExitCleanup });
+  throw new Error(`テスト用サーバーの起動がタイムアウトしました (${timeoutMs}ms): ${stderrBuf.trim()}`);
+}
+
+/**
+ * 子プロセスで起動したテスト用サーバーを停止し、ポートが閉じるまで待機する。
+ * 既存サーバーを再利用した場合 (reused: true) は何もしない。
+ *
+ * @param {{ child?: import('node:child_process').ChildProcess | null, reused?: boolean, url?: string, onExitCleanup?: () => void } | null | undefined} serverHandle
+ */
+export async function stopTestServer(serverHandle) {
+  if (!serverHandle || !serverHandle.child) return;
+  const { child, url = TEST_SERVER_URL, onExitCleanup } = serverHandle;
+  if (onExitCleanup) {
+    process.removeListener('exit', onExitCleanup);
+  }
+
+  if (child.exitCode === null && !child.killed) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {}
+        resolve();
+      }, 3000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  }
+
+  // ポートが完全に解放されるまで待機
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 3000) {
+    if (!(await checkServerResponding(url, 300))) {
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  console.log('[e2e-smoke] 子プロセスのテスト用サーバーを停止しました。');
+}
+
+export async function runSmokeTest() {
   console.log('[e2e-smoke] 拡張機能 包括的スモークE2Eテストを開始します...');
 
   if (!fs.existsSync(DIST_PATH)) {
@@ -31,8 +164,10 @@ async function runSmokeTest() {
 
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-smoke-'));
 
+  let serverHandle = null;
   let context;
   try {
+    serverHandle = await ensureTestServer();
     context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       acceptDownloads: true,
@@ -499,15 +634,20 @@ async function runSmokeTest() {
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {
-      await context.close();
+      try {
+        await context.close();
+      } catch {}
     }
     try {
       fs.rmSync(userDataDir, { recursive: true, force: true });
     } catch {}
+    await stopTestServer(serverHandle);
   }
 }
 
-runSmokeTest().catch((err) => {
-  console.error('[e2e-smoke] ❌ スモークテスト失敗:', err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runSmokeTest().catch((err) => {
+    console.error('[e2e-smoke] ❌ スモークテスト失敗:', err);
+    process.exit(1);
+  });
+}

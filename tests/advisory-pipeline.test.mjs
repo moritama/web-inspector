@@ -18,6 +18,7 @@ import { createFetchJson } from '../scripts/advisories/lib/http.mjs';
 import { buildDatabase, loadUpstream } from '../scripts/advisories/build-db.mjs';
 import { diffDatabases, renderMarkdown } from '../scripts/advisories/diff-db.mjs';
 import { nextDbRevision } from '../scripts/advisories/bump-db-revision.mjs';
+import { FAILING_TESTS_LABEL, extractFailedTests, planPullRequest, renderPrBody } from '../scripts/advisories/pr-plan.mjs';
 import { fetchUpstream } from '../scripts/advisories/fetch-upstream.mjs';
 import { validateDb } from '../scripts/validate-advisories.mjs';
 import { createClient } from '../scripts/cws-publish.mjs';
@@ -436,6 +437,117 @@ describe('DB リビジョン採番', () => {
     expect(() => nextDbRevision('1.6')).toThrow();
     expect(() => nextDbRevision('1.6.5.65535')).toThrow();
     expect(() => nextDbRevision('1.6.5-beta')).toThrow();
+  });
+});
+
+describe('PR 作成・自動マージ計画 (pr-plan)', () => {
+  it('T12: テスト失敗・minor・auto-merge 有効のとき、PR を作成し db:tests-failing ラベルと失敗テスト名を付与して自動マージしない', () => {
+    const plan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: false,
+      autoMerge: true,
+      hasAppToken: true,
+      diffMarkdown: '## 脆弱性DB 自動更新\n- 分類: **🟢 minor (自動マージ可)**\n',
+      testOutput: [
+        ' ❯ tests/advisory-db-invariants.test.ts (2)',
+        '   × 同梱 DB の全範囲が構文チェックに合格する',
+        ' FAIL  tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する',
+        'AssertionError: expected false to be true',
+      ].join('\n'),
+    });
+
+    expect(plan.shouldCreatePr).toBe(true);
+    expect(plan.createPr).toBe(true);
+    expect(plan.labels).toContain('advisory-db');
+    expect(plan.labels).toContain('db:minor');
+    expect(plan.labels).toContain(FAILING_TESTS_LABEL);
+    expect(plan.shouldAutoMerge).toBe(false);
+    expect(plan.autoMerge).toBe(false);
+    expect(plan.shouldFailJob).toBe(true);
+    expect(plan.failedTests).toEqual([
+      'tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する',
+    ]);
+    expect(plan.body).toContain(FAILING_TESTS_LABEL);
+    expect(plan.body).toContain(
+      'tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する'
+    );
+  });
+
+  it('テスト成功・minor・auto-merge 有効・App トークンありのとき、PR を作成し自動マージする', () => {
+    const plan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: 'true',
+      hasAppToken: true,
+      diffMarkdown: '## 脆弱性DB 自動更新\n',
+    });
+
+    expect(plan.shouldCreatePr).toBe(true);
+    expect(plan.labels).toEqual(['advisory-db', 'db:minor']);
+    expect(plan.removeLabels).toContain(FAILING_TESTS_LABEL);
+    expect(plan.shouldAutoMerge).toBe(true);
+    expect(plan.shouldFailJob).toBe(false);
+    expect(plan.body).not.toContain(FAILING_TESTS_LABEL);
+  });
+
+  it('major または App トークンなしのときは自動マージしない', () => {
+    const majorPlan = planPullRequest({
+      classification: 'major',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: true,
+      hasAppToken: true,
+    });
+    expect(majorPlan.shouldCreatePr).toBe(true);
+    expect(majorPlan.labels).toEqual(['advisory-db', 'db:major']);
+    expect(majorPlan.shouldAutoMerge).toBe(false);
+
+    const noTokenPlan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: true,
+      hasAppToken: false,
+    });
+    expect(noTokenPlan.shouldCreatePr).toBe(true);
+    expect(noTokenPlan.shouldAutoMerge).toBe(false);
+    expect(noTokenPlan.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('classification=none のときは PR を作成しない', () => {
+    const nonePlan = planPullRequest({
+      classification: 'none',
+      testsPassed: true,
+      autoMerge: true,
+    });
+    expect(nonePlan.shouldCreatePr).toBe(false);
+    expect(nonePlan.shouldAutoMerge).toBe(false);
+    expect(nonePlan.labels).toEqual([]);
+  });
+
+  it('extractFailedTests と renderPrBody が Vitest JSON・ツリー出力の双方を扱える', () => {
+    const fromJson = extractFailedTests({
+      testResults: [
+        {
+          name: 'tests/sample.test.ts',
+          status: 'failed',
+          assertionResults: [
+            { fullName: 'suite > passing test', status: 'passed' },
+            { fullName: 'suite > failing test 1', status: 'failed' },
+          ],
+        },
+      ],
+    });
+    expect(fromJson).toEqual(['suite > failing test 1']);
+
+    const fromTree = extractFailedTests('  × suite > failing test 2 12ms\n');
+    expect(fromTree).toEqual(['suite > failing test 2']);
+
+    const body = renderPrBody('## Diff', { testsPassed: false, failedTests: fromJson });
+    expect(body).toContain('## Diff');
+    expect(body).toContain('`suite > failing test 1`');
   });
 });
 

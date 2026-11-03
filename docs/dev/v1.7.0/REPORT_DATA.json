@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-03T17:09:42.255Z",
+  "generatedAt": "2026-11-03T18:49:29.083Z",
   "vitest": {
     "success": true,
     "numTotalTests": 431,
@@ -11,8 +11,8 @@
   },
   "build": {
     "contentScriptKB": 6.85,
-    "serviceWorkerKB": 125.16,
-    "distTotalKB": 617.72
+    "serviceWorkerKB": 283.19,
+    "distTotalKB": 775.91
   },
   "advisoryDb": {
     "schemaVersion": "2.2",
@@ -25,7 +25,7 @@
       "partial": 9,
       "unknown": 96
     },
-    "sizeKB": 451.63
+    "sizeKB": 451.88
   },
   "advisoryDrift": [
     {
@@ -51,15 +51,6 @@
       "id": "CVE-2015-9251",
       "curatedRange": "< 3.0.0",
       "upstreamRange": "< 1.12.2 || >= 1.12.3, < 3.0.0",
-      "curatedScore": 6.1,
-      "upstreamScore": 6.1,
-      "source": "osv"
-    },
-    {
-      "product": "bootstrap",
-      "id": "CVE-2016-10735",
-      "curatedRange": ">= 3.0.0, < 3.4.0",
-      "upstreamRange": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
       "curatedScore": 6.1,
       "upstreamScore": 6.1,
       "source": "osv"

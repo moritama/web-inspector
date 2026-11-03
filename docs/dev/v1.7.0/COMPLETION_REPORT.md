@@ -226,3 +226,12 @@
 - **ディストリビューション版バックポート判定の第 2 段階**: 現在はディストリビューション版（Ubuntu / Debian 等）を `Needs Review` として安全側に留め、上流版の該当件数を参考表示しているが、OS ベンダーのセキュリティアドバイザリ（USN / DSA 等）やパッケージリビジョン番号を用いた照合の高度化を検討する余地がある。
 - **DetectionEngine 単体テストにおけるデフォルト DB 依存の防止**: `engine.detect()` は内部で `matchOfflineAdvisories()` を呼び出す際、テスト用 DB が設定されていなければ同梱 `advisory-db.json` を使用する。特定 CVE ID をアサートするテストでは `setTestAdvisoryDatabase(fixtureDb)` の使用を徹底するか、テスト共通セットアップで固定 DB を既定化する仕組みを導入すると、DB 更新や半減テスト（C04c）に対する耐性がさらに高まる。
 - **Public Suffix List (PSL) の定期更新運用**: `npm run advisories:fetch`（週次ジョブ）で `data/psl/public_suffix_list.dat` と `src/security/psl-rules.generated.ts` が更新されるようになったため、新設 gTLD や地域ドメインの追加に伴う差分確認を週次 DB 更新運用とあわせて継続する。
+
+## 11. 夜間実行後の対応（2026-11-04、人）
+
+- C13b: `.github/workflows/release.yml` の `*.sha256` を `./*.sha256` に修正（ffed2dd）。actionlint は合格。
+- C04c: 総合チェックの設計を修正した。自動取得（origin: auto）のエントリだけを半分にし、invariants テストを対象外にした。SPEC-10 の 2 テストが参照する jQuery の CVE は curated（人のレビュー済みで、週次更新では変わらない）のため、問題なしと判断した。§10 の「テストで固定 DB を既定にする」改善は v1.8 で行う。
+- 上記により、T02・T16 は「完了」とする。
+- curated と上流の乖離（12 件）: bootstrap CVE-2016-10735 は、上流（GHSA-4p24-vmcr-4gqj）の範囲（2.0.4 以上 3.4.0 未満、および 4.0.0-beta 以上 4.0.0-beta.2 未満）が正しいと判断した。curated のエントリを削除して、自動取得の値を採用した（b9942e2）。T01 でプレリリースを比較できるようになったため、4.0.0-beta 系も正しく判定できる。残る 11 件は、これまでのレビューで決めた curated の値を変える根拠がないため、そのまま残す。
+- PSL: T13 で追加された `data/psl/public_suffix_list.dat`（148 行）は、上流から取得したものではなかった。`fetch-upstream.mjs --only psl` で publicsuffix.org の本物（16,559 行、8,942 ルール）に差し替え、`src/security/psl-rules.generated.ts` を作り直した。取得の際に `data/advisories/upstream/manifest.json` も更新されたが、ここは週次更新だけが変更する領域のため、元に戻した（PSL の取得記録は、次の週次更新で manifest に記録される）。テスト 1 件が、本物の PSL にない例外ルール metro.tokyo.jp を前提にしていたため、本物にある city.kawasaki.jp に修正した。ビルド後のサイズは、service-worker.js が 271 KB、history チャンクが 361 KB（gzip で 67 KB）。
+- 上記の対応後、E2E を含む総合チェック（`--e2e`）を再実行した: 24 PASS / 0 FAIL / 0 WARN。

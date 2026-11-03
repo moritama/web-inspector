@@ -85,19 +85,19 @@ describe('SPEC-06: 解析不能なバージョン文字列で CVE を該当さ�
 });
 
 describe('SPEC-07 / SPEC-08: CSP 評価', () => {
-  it.skip('複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)', () => {
+  it('複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)', () => {
     const p1 = parseCSPPolicy("script-src 'self' 'unsafe-inline'", 'response-header', 'enforce');
     const p2 = parseCSPPolicy("script-src 'nonce-abc' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     const { results } = analyzeCSPPolicies([p1, p2], 'https://e.com/');
     expect(results.find((c) => c.checkId.startsWith('SEC-CSP'))?.severity).not.toBe('high');
   });
 
-  it.skip('scheme-source (https:) は任意ホスト許可として検出する', () => {
+  it('scheme-source (https:) は任意ホスト許可として検出する', () => {
     const p = parseCSPPolicy("script-src https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     expect(analyzeCSPPolicies([p], 'https://e.com/').issues.map((i) => i.id)).toContain('CSP-SCRIPT-WILDCARD');
   });
 
-  it.skip('nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)', () => {
+  it('nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)', () => {
     const p = parseCSPPolicy("script-src 'nonce-r4nd0m' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     expect(analyzeCSPPolicies([p], 'https://e.com/').results[0].status).toBe('pass');
   });

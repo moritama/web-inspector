@@ -4,7 +4,7 @@
  */
 
 import { SecurityCheckResult } from '../shared/types';
-import { analyzeCSPHeader } from './csp-parser';
+import { analyzeCSPPolicies, parseCSPHeaderValues } from './csp-parser';
 
 /**
  * セキュリティ診断 (checkHttpHeaders) で評価・参照されるHTTPヘッダー名一覧（小文字）
@@ -103,11 +103,17 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 2. CSP (Content-Security-Policy) ---
-  const csp = getHeader('content-security-policy');
-  const cspReportOnly = getHeader('content-security-policy-report-only');
+  // --- 2. CSP (Content-Security-Policy) (v1.7.0 T06 / SPEC-07: 配列要素・カンマ区切りごとに別ポリシーとして解析) ---
+  const cspPolicies = [
+    ...parseCSPHeaderValues(headers['content-security-policy'], 'response-header', 'enforce'),
+    ...parseCSPHeaderValues(
+      headers['content-security-policy-report-only'],
+      'response-header',
+      'report-only'
+    ),
+  ];
 
-  if (!csp && !cspReportOnly) {
+  if (cspPolicies.length === 0) {
     results.push({
       checkId: 'SEC-CSP-01',
       category: 'http-headers',
@@ -122,29 +128,19 @@ export function checkHttpHeaders(
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/CSP'],
       scope: url,
     });
-  } else if (!csp && cspReportOnly) {
-    results.push({
-      checkId: 'SEC-CSP-02',
-      category: 'http-headers',
-      name: 'CSP (Content-Security-Policy)',
-      status: 'info',
-      severity: 'low',
-      observed: `Report-Only設定中: ${cspReportOnly}`,
-      description:
-        'CSPはReport-Onlyモードでのみ動作しており、悪意あるスクリプトの実行は遮断されません（レポート収集段階）。',
-      recommendation:
-        '動作検証が完了した後、本番のContent-Security-Policyヘッダーとして適用し実行をブロックしてください。',
-      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Content-Security-Policy-Report-Only'],
-      scope: url,
-    });
-  } else if (csp) {
+  } else {
     const hasXfo = !!getHeader('x-frame-options');
-    results.push(...analyzeCSPHeader(csp, url, hasXfo));
+    results.push(...analyzeCSPPolicies(cspPolicies, url, hasXfo).results);
   }
 
   // --- 3. X-Frame-Options (クリックジャッキング対策) ---
   const xfo = getHeader('x-frame-options');
-  const hasCspFrameAncestors = csp && /frame-ancestors/i.test(csp);
+  const hasCspFrameAncestors = cspPolicies.some(
+    (p) =>
+      p.mode === 'enforce' &&
+      p.source === 'response-header' &&
+      Boolean(p.directives['frame-ancestors']?.length)
+  );
 
   if (!xfo && !hasCspFrameAncestors) {
     results.push({

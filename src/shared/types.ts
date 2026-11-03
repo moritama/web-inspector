@@ -660,6 +660,8 @@ export interface DomSignals {
   runtimeVersions?: Record<string, string | null>; // window.jQuery, window.bootstrap等
   // Rev.2.1 追加
   metaCsp?: string[];
+  // v1.7.0 T06 (SPEC-07): meta 要素の Content-Security-Policy-Report-Only（仕様上無効な指定）
+  metaCspReportOnly?: string[];
   // T06 / DOC-01 追加: 特定DOM要素のテキスト先頭200文字 (例: Spring Boot Whitelabel Error Page)
   elementTexts?: string[];
 }

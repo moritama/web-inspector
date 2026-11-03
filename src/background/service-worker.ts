@@ -24,7 +24,7 @@ import {
   matchFindingException,
 } from '../storage/exceptions';
 import { generateFindingIdFromCheck } from '../shared/identity';
-import { analyzeCSPPolicies, parseCSPPolicy } from '../security/csp-parser';
+import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
 import { analyzeExternalConnections } from '../security/domain-analyzer';
 import { assessInspectionCoverage } from '../shared/coverage';
 import {
@@ -609,25 +609,20 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     network: networkSignals,
   });
 
-  // 5.1 複数CSPポリシーの独立保持と詳細評価 (Rev.2.1 IMP-05)
-  const cspPolicies: CSPPolicy[] = [];
-  const rawCspHeader = responseHeaders['content-security-policy']?.[0];
-  const rawCspReportOnly = responseHeaders['content-security-policy-report-only']?.[0];
-
-  if (rawCspHeader) {
-    cspPolicies.push(parseCSPPolicy(rawCspHeader, 'response-header', 'enforce'));
-  }
-  if (rawCspReportOnly) {
-    cspPolicies.push(parseCSPPolicy(rawCspReportOnly, 'response-header', 'report-only'));
-  }
-  if (domSignals.metaCsp && domSignals.metaCsp.length > 0) {
-    for (const metaVal of domSignals.metaCsp) {
-      cspPolicies.push(parseCSPPolicy(metaVal, 'meta', 'enforce'));
-    }
-  }
+  // 5.1 複数CSPポリシーの独立保持と詳細評価 (Rev.2.1 IMP-05 / v1.7.0 T06: 配列要素・カンマ区切り・meta Report-Only 分離)
+  const cspPolicies: CSPPolicy[] = [
+    ...parseCSPHeaderValues(responseHeaders['content-security-policy'], 'response-header', 'enforce'),
+    ...parseCSPHeaderValues(
+      responseHeaders['content-security-policy-report-only'],
+      'response-header',
+      'report-only'
+    ),
+    ...parseCSPHeaderValues(domSignals.metaCsp, 'meta', 'enforce'),
+    ...parseCSPHeaderValues(domSignals.metaCspReportOnly, 'meta', 'report-only'),
+  ];
 
   if (cspPolicies.length > 0) {
-    const hasXfo = Boolean(responseHeaders['x-frame-options']);
+    const hasXfo = Boolean(responseHeaders['x-frame-options']?.length);
     const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo);
     // 既存のCSP項目 (SEC-CSP-*) を詳細解析結果に置き換え
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
@@ -643,8 +638,8 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         c.checkId.startsWith(prefix)
       );
       if (isHeaderDependent) {
-        // meta CSP が存在する場合の CSP 解析結果は meta 由来として維持
-        if (c.checkId.startsWith('SEC-CSP-') && hasMetaCsp) {
+        // meta CSP が存在する場合の CSP 解析結果、または meta Report-Only の info 注記は meta 由来として維持
+        if (c.checkId.startsWith('SEC-CSP-') && (hasMetaCsp || c.checkId === 'SEC-CSP-META-RO')) {
           continue;
         }
         c.status = 'unknown';

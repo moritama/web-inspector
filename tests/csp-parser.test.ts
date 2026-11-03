@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Web Technology & Security Inspector
  * CSPディレクティブ構文解析・診断エンジン単体テスト (tests/csp-parser.test.ts) - IMP-02 & IMP-05 (Rev.2.1)
@@ -9,8 +10,13 @@ import {
   analyzeCSPPolicies,
   evaluateCSPDirectives,
   parseCSP,
+  parseCSPHeaderValues,
   parseCSPPolicy,
 } from '../src/security/csp-parser';
+import { checkHttpHeaders } from '../src/security/headers';
+import { executeInspection } from '../src/background/service-worker';
+import { extractDomSignals } from '../src/content/content-script';
+import { DomSignals } from '../src/shared/types';
 
 describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-05)', () => {
   it('セミコロン区切り・空白混在のCSPが正常にディレクティブ辞書にパースされること', () => {
@@ -152,5 +158,188 @@ describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-0
     expect(results.length).toBe(1);
     expect(results[0].status).toBe('pass');
     expect(results[0].checkId).toBe('SEC-CSP-00');
+  });
+
+  // --- v1.7.0 T06 (SPEC-07, SPEC-08): 積集合評価・ヘッダー分割・任意ホスト・meta Report-Only ---
+  it("T06: 'unsafe-inline' ポリシーと nonce+strict-dynamic ポリシーを (a) 2ヘッダー行、(b) 1行カンマ区切りで送っても headers.ts と SW の両方で同じ判定になること", async () => {
+    const policyLoose = "default-src 'self'; script-src 'self' 'unsafe-inline'";
+    const policyStrict =
+      "script-src 'nonce-abc123' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+
+    const twoHeaderLines = [policyLoose, policyStrict];
+    const commaJoinedLine = [`${policyLoose}, ${policyStrict}`];
+
+    // 1. headers.ts (checkHttpHeaders) 経由の検証
+    const resHeadersTwo = checkHttpHeaders(
+      { 'content-security-policy': twoHeaderLines },
+      'https://example.com/',
+      true
+    );
+    const resHeadersComma = checkHttpHeaders(
+      { 'content-security-policy': commaJoinedLine },
+      'https://example.com/',
+      true
+    );
+    const cspCheckHeadersTwo = resHeadersTwo.filter((c) => c.checkId.startsWith('SEC-CSP-'));
+    const cspCheckHeadersComma = resHeadersComma.filter((c) => c.checkId.startsWith('SEC-CSP-'));
+
+    expect(cspCheckHeadersTwo).toHaveLength(1);
+    expect(cspCheckHeadersComma).toHaveLength(1);
+    expect(cspCheckHeadersTwo[0].checkId).toBe('SEC-CSP-00');
+    expect(cspCheckHeadersTwo[0].status).toBe('pass');
+    expect(cspCheckHeadersComma[0]).toEqual(cspCheckHeadersTwo[0]);
+
+    // 2. Service Worker (executeInspection) 経由の検証
+    const emptyDom: DomSignals = {
+      url: 'https://example.com/',
+      title: 'Test',
+      metaTags: [],
+      scriptUrls: [],
+      linkUrls: [],
+      domMarkers: [],
+      htmlSnippets: [],
+      mixedContent: [],
+      cookiesFromDocument: [],
+      cssAssets: [],
+      metaCsp: [],
+      metaCspReportOnly: [],
+    };
+
+    const swReportTwo = await executeInspection({
+      tab: { id: 1, url: 'https://example.com/' },
+      fetchDomSignals: async () => emptyDom,
+      fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+      getCachedHeaders: async () => ({
+        url: 'https://example.com/',
+        headers: { 'content-security-policy': twoHeaderLines },
+        observed: true,
+      }),
+      getInspectedCookies: async () => [],
+      getAllFindingExceptions: async () => [],
+    });
+
+    const swReportComma = await executeInspection({
+      tab: { id: 1, url: 'https://example.com/' },
+      fetchDomSignals: async () => emptyDom,
+      fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+      getCachedHeaders: async () => ({
+        url: 'https://example.com/',
+        headers: { 'content-security-policy': commaJoinedLine },
+        observed: true,
+      }),
+      getInspectedCookies: async () => [],
+      getAllFindingExceptions: async () => [],
+    });
+
+    const swCspTwo = swReportTwo.securityChecks.filter((c) => c.checkId.startsWith('SEC-CSP-'));
+    const swCspComma = swReportComma.securityChecks.filter((c) => c.checkId.startsWith('SEC-CSP-'));
+
+    expect(swReportTwo.cspPolicies).toHaveLength(2);
+    expect(swReportComma.cspPolicies).toHaveLength(2);
+    expect(swCspTwo).toHaveLength(1);
+    expect(swCspComma).toHaveLength(1);
+    expect(swCspTwo[0].checkId).toBe('SEC-CSP-00');
+    expect(swCspTwo[0].status).toBe('pass');
+    expect(swCspComma[0]).toEqual(swCspTwo[0]);
+  });
+
+  it("T06: script-src 'self' *.cdn.example は medium、script-src https: は high として検出されること", () => {
+    const subdomainPolicy = parseCSPPolicy(
+      "script-src 'self' *.cdn.example; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      'response-header',
+      'enforce'
+    );
+    const subEval = analyzeCSPPolicies([subdomainPolicy], 'https://example.com/');
+    const subIssue = subEval.issues.find((i) => i.id === 'CSP-SCRIPT-WILDCARD');
+    expect(subIssue).toBeDefined();
+    expect(subIssue?.severity).toBe('medium');
+    expect(subEval.results[0].checkId).toBe('SEC-CSP-03');
+    expect(subEval.results[0].severity).toBe('medium');
+
+    const httpsPolicy = parseCSPPolicy(
+      "script-src https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      'response-header',
+      'enforce'
+    );
+    const httpsEval = analyzeCSPPolicies([httpsPolicy], 'https://example.com/');
+    const httpsIssue = httpsEval.issues.find((i) => i.id === 'CSP-SCRIPT-WILDCARD');
+    expect(httpsIssue).toBeDefined();
+    expect(httpsIssue?.severity).toBe('high');
+    expect(httpsEval.results[0].checkId).toBe('SEC-CSP-03');
+    expect(httpsEval.results[0].severity).toBe('high');
+  });
+
+  it("T06: nonce・hash と 'strict-dynamic' がある場合はホスト許可 (*, https:, *.example.com) と 'unsafe-inline' が無視され警告にならないこと", () => {
+    const p = parseCSPPolicy(
+      "script-src 'nonce-xyz987' 'strict-dynamic' https: * *.cdn.example 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'response-header',
+      'enforce'
+    );
+    const { issues, results } = analyzeCSPPolicies([p], 'https://example.com/');
+
+    expect(issues.find((i) => i.id === 'CSP-SCRIPT-WILDCARD')).toBeUndefined();
+    expect(issues.filter((i) => i.severity !== 'info')).toHaveLength(0);
+    expect(results).toHaveLength(1);
+    expect(results[0].checkId).toBe('SEC-CSP-00');
+    expect(results[0].status).toBe('pass');
+  });
+
+  it('T06: 能力単位の積集合評価で eval / object-src / base-uri / frame-ancestors が片方のポリシーで遮断されていれば防御済みと判定されること', () => {
+    const p1 = parseCSPHeaderValues(
+      "script-src 'self' 'unsafe-eval', script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      'response-header',
+      'enforce'
+    );
+    const { issues, results } = analyzeCSPPolicies(p1, 'https://example.com/');
+
+    expect(issues.filter((i) => i.severity !== 'info')).toHaveLength(0);
+    expect(results[0].checkId).toBe('SEC-CSP-00');
+    expect(results[0].status).toBe('pass');
+  });
+
+  it('T06: meta の Report-Only だけがあるページでは CSP は「未設定」扱いになり、info の注記が 1 件出ること', async () => {
+    // 1. analyzeCSPPolicies 直接呼び出しでの検証
+    const metaRoPolicy = parseCSPPolicy("default-src 'self'", 'meta', 'report-only');
+    const { results } = analyzeCSPPolicies([metaRoPolicy], 'https://example.com/');
+
+    const missingCheck = results.find((r) => r.checkId === 'SEC-CSP-01');
+    const infoNotes = results.filter((r) => r.status === 'info' && r.severity === 'info');
+
+    expect(missingCheck).toBeDefined();
+    expect(missingCheck?.status).toBe('warning');
+    expect(missingCheck?.observed).toContain('未設定');
+    expect(infoNotes).toHaveLength(1);
+    expect(infoNotes[0].checkId).toBe('SEC-CSP-META-RO');
+
+    // 2. DOM 抽出 (extractDomSignals) + Service Worker (executeInspection) 経由での検証
+    document.head.innerHTML =
+      '<meta http-equiv="Content-Security-Policy-Report-Only" content="default-src \'self\'">';
+    document.body.innerHTML = '';
+    const dom = extractDomSignals();
+
+    expect(dom.metaCsp).toEqual([]);
+    expect(dom.metaCspReportOnly).toEqual(["default-src 'self'"]);
+
+    const report = await executeInspection({
+      tab: { id: 1, url: 'https://example.com/' },
+      fetchDomSignals: async () => dom,
+      fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+      getCachedHeaders: async () => ({
+        url: 'https://example.com/',
+        headers: { 'strict-transport-security': ['max-age=31536000'] },
+        observed: true,
+      }),
+      getInspectedCookies: async () => [],
+      getAllFindingExceptions: async () => [],
+    });
+
+    const cspChecks = report.securityChecks.filter((c) => c.checkId.startsWith('SEC-CSP-'));
+    const swMissing = cspChecks.find((c) => c.checkId === 'SEC-CSP-01');
+    const swInfoNotes = cspChecks.filter((c) => c.status === 'info' && c.severity === 'info');
+
+    expect(swMissing).toBeDefined();
+    expect(swMissing?.status).toBe('warning');
+    expect(swInfoNotes).toHaveLength(1);
+    expect(swInfoNotes[0].checkId).toBe('SEC-CSP-META-RO');
   });
 });

@@ -64,3 +64,14 @@
   - `data/advisories/catalog.json` において NVD 対象の 5 製品（`wordpress`, `php`, `nginx`, `apache`, `nodejs`）の `nvd.autoIngest` をすべて `true` に変更した（`data/advisories/curated.json` は指示どおり変更しない）。
   - `tests/advisory-db-invariants.test.ts` および `tests/advisory-pipeline.test.mjs` に T05 の検証を追加し、`minExtensionVersion` が `'1.7.0'` であること、未改変の本物の DB では総収録件数が 350 件以上（400 件前後）であること、Apache `2.4.52` を照合すると `CVE-2023-25690` が該当し `Apache/2.4.41 (Ubuntu)` は `Needs Review` のままであることを確認できるようにした（エントリ半減テスト `C04c` 時にも落ちないよう `versions.length === coverage.byProduct.apache.count` で未改変判定を併用）。
 - 未解決: なし
+
+## T06 CSP を積集合で評価  (2026-11-03 17:54)
+- 変更ファイル: `src/security/csp-parser.ts`, `src/security/headers.ts`, `src/background/service-worker.ts`, `src/content/content-script.ts`, `src/shared/types.ts`, `tests/csp-parser.test.ts`, `tests/review-v1.6.5-acceptance.test.ts`
+- 判断したこと:
+  - `src/security/csp-parser.ts` に `parseCSPHeaderValues` を追加し、HTTP レスポンスヘッダーの配列要素ごと、およびカンマ（`,`）区切りごとに別々の `CSPPolicy` オブジェクトとして分割・解析するようにした。`src/security/headers.ts`（`checkHttpHeaders`）と `src/background/service-worker.ts`（`executeInspection`）の双方でこの関数を用いることで、複数ヘッダー行とカンマ区切り 1 行のどちらで送信されても同一の判定になるよう統一した。
+  - 複数の強制ポリシー（`mode === 'enforce'`）の評価を能力（インライン実行、eval、任意ホストからのスクリプト、`object-src`、`base-uri`、`frame-ancestors`）単位の積集合（AND）に変更した。各能力についてすべての強制ポリシーが許容している場合のみ指摘を残し、1 つでも遮断している強制ポリシーがあれば防御済みとして扱うようにした。
+  - スクリプトの任意ホスト許可（`CSP-SCRIPT-WILDCARD`）の対象を拡大し、`*`、`https:`、`http:`（および `https://*` 等）を `high`、サブドメインワイルドカード（`*.example.com` 等）を `medium` として検出するようにした。また `nonce-*` / `sha256|384|512-*` と `'strict-dynamic'` がある場合は、CSP Level 3 仕様に従いホスト許可と `'unsafe-inline'` が無視されることを反映した。
+  - `severity: 'info'` の注記（`CSP-SCRIPT-STRICT-DYNAMIC-NOTE` や nonce/hash 共存時の `'unsafe-inline'` 実効的無効化注記）は `SEC-CSP-03` の指摘件数（`actionableEnforceIssues`）に含めず、他に警告事項がなければ `SEC-CSP-00`（`status: 'pass'`）になるようにした。
+  - `src/content/content-script.ts` で `<meta http-equiv="Content-Security-Policy-Report-Only">` を `metaCspReportOnly`（`DomSignals` の任意フィールド）として分離収集し、`analyzeCSPPolicies` では meta の Report-Only をポリシー評価から外した上で「無効な指定」として `info` の注記（`SEC-CSP-META-RO`, `status: 'info'`, `severity: 'info'`）を 1 件出力するようにした。meta の Report-Only のみがあるページでは CSP は「未設定」（`SEC-CSP-01`）扱いとなり、あわせて `info` 注記が 1 件出力される。
+  - 既存の `tests/csp-parser.test.ts` のテストは期待値を 1 件も変更せずにそのまま維持し、DOM 抽出を含む新規テストを追加するとともにファイル先頭に `// @vitest-environment happy-dom` を付与した。
+- 未解決: なし

@@ -100,4 +100,79 @@ describe('Export Functions', () => {
     const mdStr = generateMarkdownReport(reportWithDistro);
     expect(mdStr).toContain('`Ubuntu`');
   });
+
+  it('T03 (SPEC-13): JSON・CSV・Markdown の 3 形式すべてに fixStatus と kev が出力され、GHSA のみの ID に GitHub Advisories リンクが使われること', () => {
+    const reportWithAdvisories: InspectionReport = {
+      ...dummyReport,
+      summary: {
+        ...dummyReport.summary,
+        securityFindings: { critical: 1, high: 0, medium: 1, low: 0, info: 0, unknown: 0 },
+        librarySecurity: { eolCount: 0, vulnerableLibraryCount: 1, mismatchCount: 0 },
+      },
+      technologies: [
+        {
+          ...dummyReport.technologies[0],
+          technology: 'jQuery',
+          version: '3.4.1',
+          advisoryMatchStatus: 'Potentially Affected',
+          offlineMatchStatus: 'Matched',
+          maxCvss: 6.1,
+          advisories: [
+            {
+              id: 'CVE-2020-11023',
+              title: 'XSS in jQuery.htmlPrefilter',
+              severity: 'medium',
+              cvssScore: 6.1,
+              affectedRange: '>= 1.0.3, < 3.5.0',
+              fixedVersion: '3.5.0',
+              fixStatus: 'fixed',
+              kev: true,
+              kevDateAdded: '2025-01-23',
+              summary: 'XSS in jQuery.htmlPrefilter',
+              referenceUrls: ['https://nvd.nist.gov/vuln/detail/CVE-2020-11023'],
+            },
+            {
+              id: 'GHSA-5cp4-xmrw-59wf',
+              title: 'GHSA only vulnerability',
+              severity: 'low',
+              cvssScore: 3.1,
+              affectedRange: '>= 3.0.0, < 3.5.0',
+              fixedVersion: null,
+              fixStatus: 'unknown',
+              kev: false,
+              kevDateAdded: null,
+              summary: 'GHSA only vulnerability',
+              referenceUrls: ['https://github.com/advisories/GHSA-5cp4-xmrw-59wf'],
+            },
+          ],
+        },
+      ],
+    };
+
+    // 1. JSON
+    const jsonStr = exportReportToJson(reportWithAdvisories);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.technologies[0].advisories[0].fixStatus).toBe('fixed');
+    expect(parsed.technologies[0].advisories[0].kev).toBe(true);
+    expect(parsed.technologies[0].advisories[0].kevDateAdded).toBe('2025-01-23');
+    expect(parsed.technologies[0].advisories[1].fixStatus).toBe('unknown');
+
+    // 2. CSV
+    const csvStr = exportReportToCsv(reportWithAdvisories);
+    expect(csvStr).toContain('"修正状況 (fixStatus)"');
+    expect(csvStr).toContain('"CISA KEV"');
+    expect(csvStr).toContain('"fixed; unknown"');
+    expect(csvStr).toContain('"true (悪用確認済み（CISA KEV）)"');
+
+    // 3. Markdown
+    const mdStr = generateMarkdownReport(reportWithAdvisories);
+    expect(mdStr).toContain('**CRITICAL (緊急)**');
+    expect(mdStr).toContain('修正状況 (fixStatus)');
+    expect(mdStr).toContain('CISA KEV');
+    expect(mdStr).toContain('`fixed`');
+    expect(mdStr).toContain('`unknown`');
+    expect(mdStr).toContain('**悪用確認済み（CISA KEV）**');
+    expect(mdStr).toContain('https://github.com/advisories/GHSA-5cp4-xmrw-59wf');
+    expect(mdStr).not.toContain('nvd.nist.gov/vuln/detail/GHSA-');
+  });
 });

@@ -170,16 +170,41 @@ export type AdvisoryMatchStatus =
   | 'Lookup Failed';        // 情報取得に失敗 (Lookup Error)
 
 /**
+ * 脆弱性修正版提供ステータス (v1.7.0 T03 / SPEC-13)
+ * - fixed: 全影響系列に修正版あり
+ * - partial: 一部の系列のみ修正版あり（古い系列には修正版なし）
+ * - none: 公式の修正版なし（全バージョン影響またはEOL）
+ * - unknown: 修正版の情報がDBになし
+ */
+export type AdvisoryFixStatus = 'fixed' | 'partial' | 'none' | 'unknown';
+
+/**
  * 脆弱性 (CVE / GHSA) 詳細アイテム
  */
 export interface SecurityAdvisory {
   id: string;               // 例: "CVE-2019-8331", "GHSA-xxxx"
   aliases?: string[];       // 関連CVE/GHSA ID
   title: string;
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+  severity:
+    | 'critical'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'unknown'
+    | 'CRITICAL'
+    | 'HIGH'
+    | 'MEDIUM'
+    | 'LOW'
+    | 'UNKNOWN';
   cvssScore?: number | null;
   affectedRange: string;    // 例: "< 4.3.1", ">= 4.0.0, < 4.3.1"
   fixedVersion: string | null; // 例: "4.3.1"
+  /** 修正版の提供状態 (v1.7.0 T03 / SPEC-13) */
+  fixStatus?: AdvisoryFixStatus;
+  /** CISA KEV（悪用確認済み脆弱性カタログ）掲載フラグ (v1.7.0 T03 / SPEC-13) */
+  kev?: boolean;
+  /** CISA KEV 掲載日 (YYYY-MM-DD) (v1.7.0 T03 / SPEC-13) */
+  kevDateAdded?: string | null;
   summary: string;
   publishedDate?: string;
   referenceUrls: string[];
@@ -299,7 +324,7 @@ export type SecurityStatus = 'pass' | 'warning' | 'fail' | 'info' | 'unknown';
 /**
  * セキュリティ診断重大度
  */
-export type SecuritySeverity = 'high' | 'medium' | 'low' | 'info' | 'unknown';
+export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low' | 'info' | 'unknown';
 
 /**
  * セキュリティ診断チェック結果
@@ -682,6 +707,7 @@ export interface InspectionReport {
     totalTechnologies: number;
     requiresAttentionCount: number;
     securityFindings: {
+      critical?: number;
       high: number;
       medium: number;
       low: number;

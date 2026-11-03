@@ -263,4 +263,35 @@ describe('IMPL-03: 悪意のある値を含むレポート描画時の XSS / 不
     expect(container.querySelectorAll('svg')).toHaveLength(0);
     expect(container.querySelectorAll('b')).toHaveLength(0);
   });
+
+  it('T03 (SPEC-13): 新しいバッジ (fixStatus・KEV・重大度) に悪意ある文字列を入れたときにエスケープされること', () => {
+    const tech = createMaliciousTech();
+    tech.advisories = [
+      {
+        id: 'CVE-2020-11023',
+        title: 'Test Adv',
+        severity: '<img src=x onerror=alert("sev")>' as unknown as 'critical',
+        cvssScore: 9.8,
+        affectedRange: '< 3.5.0',
+        fixedVersion: '3.5.0',
+        fixStatus: '<img src=x onerror=alert("fix")>' as unknown as 'fixed',
+        kev: true,
+        kevDateAdded: '<img src=x onerror=alert("kev")>',
+        summary: 'Summary',
+        referenceUrls: ['https://nvd.nist.gov/vuln/detail/CVE-2020-11023'],
+      },
+    ];
+
+    const popupHtml = renderTechModalHtml(tech);
+    const dashboardFullHtml = renderFullTechnologiesHtml([tech]);
+    const dashboardLibTableHtml = renderLibrarySecurityTableHtml([tech]);
+
+    for (const html of [popupHtml, dashboardFullHtml, dashboardLibTableHtml]) {
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      expect(container.querySelectorAll('img')).toHaveLength(0);
+      expect(container.querySelectorAll('script')).toHaveLength(0);
+      expect(html).toContain('悪用確認済み（CISA KEV）');
+    }
+  });
 });

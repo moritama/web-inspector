@@ -480,6 +480,18 @@ body {
   color: var(--danger-color);
 }
 
+.sev-critical, .badge-kev {
+  background: rgba(220, 38, 38, 0.28);
+  color: #FCA5A5;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+}
+
+.badge-fix-status {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-sub);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
 .badge-cve {
   background: rgba(245, 158, 11, 0.2);
   color: var(--warning-color);

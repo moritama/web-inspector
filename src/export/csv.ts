@@ -4,6 +4,7 @@
  * Excel文字化け防止 UTF-8 BOM付き、数式インジェクション対策、Version 1.1 新規フィールド対応
  */
 
+import { formatAdvisoryRecommendation, getEffectiveFixStatus } from '../detection/advisory';
 import { InspectionReport } from '../shared/types';
 
 /**
@@ -67,13 +68,15 @@ export function exportReportToCsv(report: InspectionReport): string {
       '脆弱性照合状態',
       '該当CVE/GHSA識別子',
       '最大CVSS',
+      '修正状況 (fixStatus)',
+      'CISA KEV',
       '判定根拠の概要',
       '推奨対応',
     ].map(escapeCsv).join(',')
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     for (const tech of report.technologies) {
       const evidenceSummary = tech.evidence
@@ -84,6 +87,16 @@ export function exportReportToCsv(report: InspectionReport): string {
         ? tech.advisories.map((a) => a.id).join('; ')
         : 'なし';
 
+      const fixStatusText = tech.advisories && tech.advisories.length > 0
+        ? Array.from(new Set(tech.advisories.map((a) => getEffectiveFixStatus(a)))).join('; ')
+        : '-';
+
+      const kevText = tech.advisories && tech.advisories.length > 0
+        ? tech.advisories.some((a) => a.kev === true)
+          ? 'true (悪用確認済み（CISA KEV）)'
+          : 'false'
+        : '-';
+
       const mismatchStatusText = tech.versionIntegrity
         ? tech.versionIntegrity.status === 'match'
           ? '一致'
@@ -93,7 +106,10 @@ export function exportReportToCsv(report: InspectionReport): string {
         : '-';
 
       const recommendation = tech.advisories && tech.advisories.length > 0
-        ? `脆弱性あり: ${tech.advisories[0].fixedVersion ? `v${tech.advisories[0].fixedVersion}以上へ更新` : '更新検討'}`
+        ? formatAdvisoryRecommendation(tech.version, tech.advisories, {
+            isEol: tech.supportStatus === 'EOL',
+            technologyName: tech.technology,
+          })
         : tech.supportStatus === 'EOL'
         ? 'EOLのため移行・更新推奨'
         : '現状維持';
@@ -135,6 +151,8 @@ export function exportReportToCsv(report: InspectionReport): string {
           tech.advisoryMatchStatus || 'No Data',
           advisoryIds,
           tech.maxCvss ?? '-',
+          fixStatusText,
+          kevText,
           evidenceSummary,
           recommendation,
         ].map(escapeCsv).join(',')

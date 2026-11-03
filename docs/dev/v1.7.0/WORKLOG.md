@@ -28,4 +28,15 @@
   - エントリ半減テスト等で `libraries` のみ差し替えられた場合でも構造・範囲の不変条件を検証できるよう、`validateDb` 呼び出し時には `integrity` を除外して検証するようにした。
 - 未解決: なし
 
+## T03 fixStatus・KEV・重大度 4 段階の表示  (2026-11-03 13:35)
+- 変更ファイル: `src/shared/types.ts`, `src/detection/advisory.ts`, `src/background/service-worker.ts`, `src/popup/render.ts`, `src/popup/popup.ts`, `src/popup/popup.css`, `src/dashboard/render.ts`, `src/dashboard/dashboard.css`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/advisory.test.ts`, `tests/service-worker.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - `SecurityAdvisory` 型および `advisory.ts` の照合結果に `fixStatus` (`fixed | partial | none | unknown`)、`kev` (`boolean`)、`kevDateAdded` (`string | null`)、4 段階の `severity` (`critical | high | medium | low`) を追加した。過去の保存済み履歴（大文字の重大度や `fixStatus` 未定義データ）との互換性を保つため、新規フィールドは任意（`?`）とし、`getEffectiveFixStatus` でフォールバック判定を行うようにした。
+  - `formatAdvisoryRecommendation` と `resolveRecommendedVersion` を `fixStatus` ごとに分岐し、「公式の修正版はありません」は `fixStatus: 'none'` のときのみ出力し、`unknown` のときは「修正版の情報が DB にありません。ベンダーの情報を確認してください」、`partial` のときは「一部の系列には修正版がありません」を案内するようにした。
+  - `service-worker.ts` の CVE 指摘生成（`SEC-CVE-*`）で重大度を 2 値に丸めず、ヒットした脆弱性の最大重大度（4 段階）を採用し、`kev: true` を含む場合は `critical` に引き上げるとともに、`observed` と `description` の双方に「悪用確認済み（CISA KEV）」の注記を含めるようにした。あわせて `SecuritySeverity` に `'critical'`、`securityFindings` に `critical?: number` を追加した。
+  - 参照リンク生成（`advisory.ts` および `markdown.ts`）では、CVE ID がある場合は NVD リンク、GHSA のみの場合は `https://github.com/advisories/<GHSA>` を使用し、NVD に GHSA ID を結合した無効な URL を生成しないようにした。
+  - Popup・Dashboard・エクスポート 3 形式（JSON / CSV / Markdown）すべてに `fixStatus`、`kev`（「悪用確認済み（CISA KEV）」）、4 段階重大度を表示・出力し、UI 描画時にはすべて `escapeHtml()` を通すようにした。
+- 未解決: なし
+
+
 

@@ -67,6 +67,29 @@ export function formatRuntimeStatus(status?: string): string {
   }
 }
 
+export function formatFixStatus(fixStatus?: string): string {
+  switch (fixStatus) {
+    case 'fixed':
+      return '修正版あり (fixed)';
+    case 'partial':
+      return '一部系列のみ修正 (partial)';
+    case 'none':
+      return '公式修正版なし (none)';
+    case 'unknown':
+      return '修正版情報なし (unknown)';
+    default:
+      return fixStatus || '';
+  }
+}
+
+export function getAdvisorySeverityBadgeClass(severity?: string): string {
+  const s = String(severity || '').toLowerCase();
+  if (s === 'critical') return 'sev-critical';
+  if (s === 'high') return 'sev-high';
+  if (s === 'low') return 'sev-low';
+  return 'sev-medium';
+}
+
 /**
  * 技術詳細モーダルのHTML文字列を生成する
  */
@@ -116,18 +139,31 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
         <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">照合ステータス: <strong>${escapeHtml(statusLabel)}</strong></div>
         ${tech.advisories
-          .map(
-            (adv) => `
+          .map((adv) => {
+            const sevClass = getAdvisorySeverityBadgeClass(adv.severity);
+            const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+            const kevBadge = adv.kev
+              ? `<span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+              : '';
+            const fixStatusHtml = adv.fixStatus
+              ? `<span class="badge badge-fix-status" style="margin-left:8px;">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+              : '';
+            return `
           <div class="advisory-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
               <strong>${escapeHtml(adv.id)}</strong>
-              ${adv.cvssScore ? `<span class="badge sev-high">CVSS ${escapeHtml(adv.cvssScore)}</span>` : ''}
+              <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                ${kevBadge}
+                <span class="badge ${sevClass}">${sevText}</span>
+                ${adv.cvssScore ? `<span class="badge ${sevClass}">CVSS ${escapeHtml(adv.cvssScore)}</span>` : ''}
+              </div>
             </div>
             <div style="font-weight:600;margin-top:2px;">${escapeHtml(adv.title)}</div>
             <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(adv.summary)}</div>
             <div style="font-size:11px;margin-top:4px;">
               <span>影響範囲: <code>${escapeHtml(adv.affectedRange)}</code></span>
               ${adv.fixedVersion ? `<span style="margin-left:8px;color:var(--success-color);">修正版: <strong>v${escapeHtml(adv.fixedVersion)}</strong></span>` : ''}
+              ${fixStatusHtml}
             </div>
             ${
               adv.referenceUrls && adv.referenceUrls.length > 0
@@ -145,8 +181,8 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
                 : ''
             }
           </div>
-        `
-          )
+        `;
+          })
           .join('')}
       </div>
     `;

@@ -229,10 +229,12 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
       eolBadgeHtml = '<span class="badge badge-medium">保守</span>';
     }
 
-    // CVEバッジ
+    // CVEバッジ・KEVバッジ (T03 / SPEC-13)
     let cveBadgeHtml = '';
     if (t.advisories && t.advisories.length > 0) {
-      cveBadgeHtml = `<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
+      const hasKev = t.advisories.some((a) => a.kev === true);
+      const kevBadge = hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : '';
+      cveBadgeHtml = `${kevBadge}<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
     }
 
     // 不一致バッジ
@@ -308,6 +310,9 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
     } else if (c.status === 'pass') {
       sevClass = 'sev-pass';
       sevLabel = '適正';
+    } else if (c.severity === 'critical') {
+      sevClass = 'sev-critical';
+      sevLabel = '緊急';
     } else if (c.severity === 'high') {
       sevClass = 'sev-high';
       sevLabel = '危険';

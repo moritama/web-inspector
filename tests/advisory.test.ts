@@ -264,4 +264,143 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
       expect(recText).not.toContain('3.4.1 / 4.3.1');
     });
   });
+
+  describe('T03 (SPEC-13): fixStatus・KEV・重大度4段階・GHSA参照URLの検証', () => {
+    const spec13TestDb: Partial<AdvisoryDatabase> = {
+      version: '2026.10-test',
+      generatedAt: new Date().toISOString(),
+      libraries: {
+        'test-lib': {
+          aliases: ['test-lib'],
+          versions: [
+            {
+              range: '>= 1.0.0, < 1.1.0',
+              cve: 'CVE-2026-0001',
+              cvssScore: 9.0,
+              severity: 'critical',
+              title: 'Fixed critical vulnerability',
+              fixedVersion: '1.1.0',
+              fixStatus: 'fixed',
+              kev: false,
+            },
+            {
+              range: '>= 2.0.0, < 3.0.0',
+              cve: 'CVE-2026-0002',
+              cvssScore: 7.5,
+              severity: 'high',
+              title: 'Partial fix vulnerability',
+              fixedVersion: '2.5.1 / 3.1.0',
+              fixStatus: 'partial',
+              kev: false,
+            },
+            {
+              range: '>= 3.0.0, < 3.5.0',
+              cve: 'CVE-2026-0003',
+              cvssScore: 5.3,
+              severity: 'medium',
+              title: 'No fix vulnerability',
+              fixedVersion: null,
+              fixStatus: 'none',
+              kev: false,
+            },
+            {
+              range: '>= 4.0.0, < 4.5.0',
+              cve: 'CVE-2026-0004',
+              cvssScore: 3.1,
+              severity: 'low',
+              title: 'Unknown fix vulnerability',
+              fixedVersion: null,
+              fixStatus: 'unknown',
+              kev: false,
+            },
+            {
+              range: '>= 5.0.0, < 5.1.0',
+              cve: 'GHSA-5cp4-xmrw-59wf',
+              ghsa: 'GHSA-5cp4-xmrw-59wf',
+              cvssScore: 6.1,
+              severity: 'medium',
+              title: 'GHSA-only advisory',
+              fixedVersion: '5.1.0',
+              fixStatus: 'fixed',
+              kev: true,
+              kevDateAdded: '2025-01-23',
+            },
+          ],
+          eol: [],
+        },
+      },
+    };
+
+    it('fixStatus の 4 値 (fixed / partial / none / unknown) で推奨文言が 4 パターンに分かれ、unknown のみのヒット時に「公式の修正版はありません」が出ないこと', () => {
+      // 1. fixed
+      const resFixed = matchOfflineAdvisories('test-lib', '1.0.5', spec13TestDb);
+      expect(resFixed.advisories[0].fixStatus).toBe('fixed');
+      expect(resFixed.advisories[0].severity).toBe('critical');
+      const recFixed = formatAdvisoryRecommendation('1.0.5', resFixed.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recFixed).toContain('v1.1.0 以上');
+      expect(recFixed).not.toContain('公式の修正版はありません');
+
+      // 2. partial
+      const resPartial = matchOfflineAdvisories('test-lib', '2.1.0', spec13TestDb);
+      expect(resPartial.advisories[0].fixStatus).toBe('partial');
+      expect(resPartial.advisories[0].severity).toBe('high');
+      const recPartial = formatAdvisoryRecommendation('2.1.0', resPartial.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recPartial).toContain('一部の系列には修正版がありません');
+      expect(recPartial).not.toContain('公式の修正版はありません');
+
+      // 3. none
+      const resNone = matchOfflineAdvisories('test-lib', '3.1.0', spec13TestDb);
+      expect(resNone.advisories[0].fixStatus).toBe('none');
+      expect(resNone.advisories[0].severity).toBe('medium');
+      const recNone = formatAdvisoryRecommendation('3.1.0', resNone.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recNone).toContain('公式の修正版はありません');
+
+      // 4. unknown (isEol: false および isEol: true の両方で「公式の修正版はありません」が出ないこと)
+      const resUnknown = matchOfflineAdvisories('test-lib', '4.1.0', spec13TestDb);
+      expect(resUnknown.advisories[0].fixStatus).toBe('unknown');
+      expect(resUnknown.advisories[0].severity).toBe('low');
+      const recUnknownNonEol = formatAdvisoryRecommendation('4.1.0', resUnknown.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recUnknownNonEol).toContain('修正版の情報が DB にありません。ベンダーの情報を確認してください');
+      expect(recUnknownNonEol).not.toContain('公式の修正版はありません');
+
+      const recUnknownEol = formatAdvisoryRecommendation('4.1.0', resUnknown.advisories, {
+        isEol: true,
+        technologyName: 'test-lib',
+      });
+      expect(recUnknownEol).toContain('修正版の情報が DB にありません。ベンダーの情報を確認してください');
+      expect(recUnknownEol).not.toContain('公式の修正版はありません');
+    });
+
+    it('GHSA のみの ID にヒットしたとき、referenceUrls に GitHub Advisories の URL が入り NVD+GHSA の URL が入らないこと', () => {
+      const resGhsa = matchOfflineAdvisories('test-lib', '5.0.2', spec13TestDb);
+      expect(resGhsa.advisories).toHaveLength(1);
+      const adv = resGhsa.advisories[0];
+      expect(adv.id).toBe('GHSA-5cp4-xmrw-59wf');
+      expect(adv.kev).toBe(true);
+      expect(adv.kevDateAdded).toBe('2025-01-23');
+      expect(adv.referenceUrls).toContain('https://github.com/advisories/GHSA-5cp4-xmrw-59wf');
+      expect(adv.referenceUrls.some((u) => u.includes('nvd.nist.gov/vuln/detail/GHSA-'))).toBe(false);
+    });
+
+    it('固定 DB の jQuery 3.4.1 で CVE-2020-11023 の kev: true と kevDateAdded が保持されること', () => {
+      const res = matchOfflineAdvisories('jQuery', '3.4.1', fixtureDb);
+      const kevAdv = res.advisories.find((a) => a.id === 'CVE-2020-11023');
+      expect(kevAdv).toBeDefined();
+      expect(kevAdv?.kev).toBe(true);
+      expect(kevAdv?.kevDateAdded).toBe('2025-01-23');
+      expect(kevAdv?.fixStatus).toBe('fixed');
+    });
+  });
 });

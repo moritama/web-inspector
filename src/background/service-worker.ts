@@ -681,12 +681,39 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
       });
     }
 
-    // CVE該当判定のセキュリティチェック追加
+    // CVE該当判定のセキュリティチェック追加 (v1.7.0 T03 / SPEC-13: 4段階重大度・CISA KEV最優先)
     if (tech.advisoryMatchStatus === 'Potentially Affected' && tech.advisories && tech.advisories.length > 0) {
       vulnerableLibraryCount++;
       const topAdvisory = tech.advisories[0];
-      const maxScore = tech.maxCvss ?? 6.1;
-      const severity = maxScore >= 7.0 ? 'high' : 'medium';
+      const severityRank: Record<string, number> = {
+        critical: 4,
+        high: 3,
+        medium: 2,
+        low: 1,
+      };
+      let highestSeverity: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+      let highestRank = 0;
+      const hasKev = tech.advisories.some((a) => a.kev === true);
+
+      for (const adv of tech.advisories) {
+        const s = String(adv.severity || '').toLowerCase();
+        const r = severityRank[s] ?? 0;
+        if (r > highestRank) {
+          highestRank = r;
+          highestSeverity = s as 'critical' | 'high' | 'medium' | 'low';
+        }
+      }
+
+      if (highestRank === 0 && typeof tech.maxCvss === 'number') {
+        if (tech.maxCvss >= 9.0) highestSeverity = 'critical';
+        else if (tech.maxCvss >= 7.0) highestSeverity = 'high';
+        else if (tech.maxCvss >= 4.0) highestSeverity = 'medium';
+        else highestSeverity = 'low';
+      }
+
+      const severity: 'critical' | 'high' | 'medium' | 'low' = hasKev
+        ? 'critical'
+        : highestSeverity;
 
       const isEol = tech.supportStatus === 'EOL';
 
@@ -695,14 +722,17 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         technologyName: tech.technology,
       });
 
+      const kevNote = hasKev ? ' / 悪用確認済み（CISA KEV）' : '';
+      const kevDescSuffix = hasKev ? '（悪用確認済み（CISA KEV）の脆弱性を含みます）' : '';
+
       librarySecurityChecks.push({
         checkId: `SEC-CVE-${tech.technology.toUpperCase()}`,
         category: 'library-security',
         name: `${tech.technology} 既知脆弱性 (${tech.advisories.map((a) => a.id).join(', ')})`,
         status: 'fail',
         severity,
-        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (重大度: ${severity.toUpperCase()})`,
-        description: topAdvisory.summary,
+        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (重大度: ${severity.toUpperCase()}${kevNote})`,
+        description: `${topAdvisory.summary}${kevDescSuffix}`,
         recommendation: cveRecommendation,
         referenceUrls: topAdvisory.referenceUrls,
         scope: url,
@@ -753,6 +783,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   }).length;
 
   const securityFindings = {
+    critical: allSecurityChecks.filter((c) => c.severity === 'critical').length,
     high: allSecurityChecks.filter((c) => c.severity === 'high').length,
     medium: allSecurityChecks.filter((c) => c.severity === 'medium').length,
     low: allSecurityChecks.filter((c) => c.severity === 'low').length,

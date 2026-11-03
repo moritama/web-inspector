@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { executeInspection, InspectionDependencies } from '../src/background/service-worker';
+import { AdvisoryDatabase, setTestAdvisoryDatabase } from '../src/detection/advisory';
 import { DomSignals, FindingException, InspectedCookieInfo } from '../src/shared/types';
+import rawFixtureDb from './fixtures/advisory-db.fixture.json';
+
+const fixtureDb = rawFixtureDb as unknown as AdvisoryDatabase;
 
 const createMockDomSignals = (overrides: Partial<DomSignals> = {}): DomSignals => ({
   url: 'https://example.com/',
@@ -394,5 +398,140 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
     expect(hstsCheck).toBeDefined();
     expect(hstsCheck?.status).toBe('pass');
     expect(report.coverage?.headers).toBe('complete');
+  });
+
+  describe('T03 (SPEC-13): 脆弱性チェック (SEC-CVE-*) の 4 段階重大度と KEV 昇格', () => {
+    afterEach(() => {
+      setTestAdvisoryDatabase(null);
+    });
+
+    it('KEV エントリ (CVE-2020-11023) にヒットしたときに、セキュリティ診断の重大度が critical になり critical 件数が集計されること', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+
+      const deps = createMockDeps({
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            metaTags: [],
+            scriptUrls: ['https://code.jquery.com/jquery-3.4.1.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.4.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://example.com/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-JQUERY');
+      expect(cveCheck).toBeDefined();
+      expect(cveCheck?.severity).toBe('critical');
+      expect(cveCheck?.description).toContain('悪用確認済み（CISA KEV）');
+      expect(report.summary.securityFindings.critical).toBeGreaterThanOrEqual(1);
+    });
+
+    it('CVSS 9.0 (critical、KEV でない) のエントリだけにヒットしたときに、重大度が critical になること', async () => {
+      setTestAdvisoryDatabase({
+        version: '2026.10-test',
+        generatedAt: new Date().toISOString(),
+        libraries: {
+          jquery: {
+            aliases: ['jquery'],
+            versions: [
+              {
+                range: '>= 3.4.0, < 3.5.0',
+                cve: 'CVE-2026-9000',
+                cvssScore: 9.0,
+                severity: 'critical',
+                title: 'Critical non-KEV vulnerability in jQuery',
+                fixedVersion: '3.5.0',
+                fixStatus: 'fixed',
+                kev: false,
+              },
+            ],
+            eol: [],
+          },
+        },
+      });
+
+      const deps = createMockDeps({
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            metaTags: [],
+            scriptUrls: ['https://code.jquery.com/jquery-3.4.1.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.4.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://example.com/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-JQUERY');
+      expect(cveCheck).toBeDefined();
+      expect(cveCheck?.severity).toBe('critical');
+      expect(report.summary.securityFindings.critical).toBe(1);
+    });
+
+    it('CVSS 3.1 (low、KEV でない) のエントリだけにヒットしたときに、重大度が low になること', async () => {
+      setTestAdvisoryDatabase({
+        version: '2026.10-test',
+        generatedAt: new Date().toISOString(),
+        libraries: {
+          jquery: {
+            aliases: ['jquery'],
+            versions: [
+              {
+                range: '>= 3.4.0, < 3.5.0',
+                cve: 'CVE-2026-3100',
+                cvssScore: 3.1,
+                severity: 'low',
+                title: 'Low severity non-KEV vulnerability in jQuery',
+                fixedVersion: '3.5.0',
+                fixStatus: 'fixed',
+                kev: false,
+              },
+            ],
+            eol: [],
+          },
+        },
+      });
+
+      const deps = createMockDeps({
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            metaTags: [],
+            scriptUrls: ['https://code.jquery.com/jquery-3.4.1.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.4.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://example.com/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-JQUERY');
+      expect(cveCheck).toBeDefined();
+      expect(cveCheck?.severity).toBe('low');
+    });
   });
 });

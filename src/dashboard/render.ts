@@ -3,7 +3,7 @@
  * ダッシュボード描画純粋関数 (src/dashboard/render.ts) - IMPL-01, IMPL-03
  */
 
-import { resolveRecommendedVersion } from '../detection/advisory';
+import { formatAdvisoryRecommendation } from '../detection/advisory';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
   DetectedTechnology,
@@ -68,6 +68,31 @@ export function formatRuntimeStatus(status?: string): string {
   }
 }
 
+export function formatFixStatus(fixStatus?: string): string {
+  switch (fixStatus) {
+    case 'fixed':
+      return '修正版あり (fixed)';
+    case 'partial':
+      return '一部系列のみ修正 (partial)';
+    case 'none':
+      return '公式修正版なし (none)';
+    case 'unknown':
+      return '修正版情報なし (unknown)';
+    default:
+      return fixStatus || '';
+  }
+}
+
+export function getSeverityBadgeClass(severity?: string): string {
+  const s = String(severity || '').toLowerCase();
+  if (s === 'critical') return 'sev-critical';
+  if (s === 'high') return 'sev-high';
+  if (s === 'low') return 'sev-low';
+  if (s === 'info') return 'sev-info';
+  if (s === 'unknown') return 'sev-unknown';
+  return 'sev-medium';
+}
+
 
 /**
  * 調査履歴一覧のHTML文字列を生成する (IMPL-01)
@@ -118,6 +143,8 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
       const issues: string[] = [];
       if (t.supportStatus === 'EOL') issues.push(`EOL (${t.eolDate || 'サポート終了'})`);
       if (t.advisories && t.advisories.length > 0) issues.push(`CVE ${t.advisories.length}件`);
+      const hasKev = t.advisories?.some((a) => a.kev === true) ?? false;
+      if (hasKev) issues.push('悪用確認済み（CISA KEV）');
       if (t.versionIntegrity?.status === 'mismatch') issues.push('CSS/JS不一致');
 
       return `
@@ -127,7 +154,10 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
             <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${t.version ? `v${escapeHtml(t.version)}` : ''}</span>
             <div style="font-size:11px;color:var(--text-sub);">${escapeHtml(issues.join(' / '))}</div>
           </div>
-          <span class="badge ${t.supportStatus === 'EOL' ? 'badge-eol' : 'badge-cve'}">要確認</span>
+          <div style="display:flex;gap:4px;align-items:center;">
+            ${hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : ''}
+            <span class="badge ${t.supportStatus === 'EOL' ? 'badge-eol' : 'badge-cve'}">要確認</span>
+          </div>
         </div>
       `;
     })
@@ -150,7 +180,7 @@ export function renderOverviewSecurityHtml(checks: SecurityCheckResult[]): strin
     <div style="padding:8px 0;border-bottom:1px solid var(--border-color);">
       <div style="display:flex;justify-content:space-between;">
         <strong>${escapeHtml(c.name)}</strong>
-        <span class="badge ${c.severity === 'high' ? 'sev-high' : 'sev-medium'}">${escapeHtml(c.severity.toUpperCase())}</span>
+        <span class="badge ${getSeverityBadgeClass(c.severity)}">${escapeHtml(c.severity.toUpperCase())}</span>
       </div>
       <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${escapeHtml(c.description)}</div>
     </div>
@@ -182,7 +212,18 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
       if (t.distroHint) {
         cveBadge = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
       } else if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
-        cveBadge = `<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>`;
+        const hasKev = t.advisories?.some((a) => a.kev === true) ?? false;
+        const kevBadge = hasKev
+          ? '<span class="badge badge-kev" style="margin-right:4px;">悪用確認済み（CISA KEV）</span>'
+          : '';
+        const fixStatuses = Array.from(
+          new Set((t.advisories || []).map((a) => a.fixStatus).filter(Boolean))
+        );
+        const fixBadge =
+          fixStatuses.length > 0
+            ? ` <span class="badge badge-fix-status">${escapeHtml(fixStatuses.join('/'))}</span>`
+            : '';
+        cveBadge = `${kevBadge}<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>${fixBadge}`;
       } else if (t.offlineMatchStatus === 'Not Covered') {
         cveBadge = '<span style="color:var(--text-muted);font-size:11px;">未登録</span>';
       } else if (t.offlineMatchStatus === 'Unknown Version') {
@@ -205,8 +246,10 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
       if (t.isCandidateGroup) {
         recommendation = '稼働しているバックエンド環境の特定を推奨';
       } else if (t.advisories && t.advisories.length > 0) {
-        const recVer = resolveRecommendedVersion(t.version, t.advisories);
-        recommendation = recVer ? `脆弱性修正版（v${recVer}以上）への更新推奨` : '脆弱性修正版への更新推奨';
+        recommendation = formatAdvisoryRecommendation(t.version, t.advisories, {
+          isEol: t.supportStatus === 'EOL',
+          technologyName: t.technology,
+        });
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
       } else if (t.distroHint) {
@@ -316,6 +359,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         <div style="display:flex;gap:6px;align-items:center;">
           ${t.distroHint ? `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>` : ''}
           ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
+          ${t.advisories && t.advisories.some((a) => a.kev === true) ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : ''}
           ${t.advisories && t.advisories.length > 0 ? `<span class="badge badge-cve">CVE ${t.advisories.length}件</span>` : ''}
           <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
         </div>
@@ -367,14 +411,22 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA):</strong>
             <ul style="padding-left:18px;margin-top:4px;">
               ${t.advisories
-                .map(
-                  (adv) => `
+                .map((adv) => {
+                  const sevClass = getSeverityBadgeClass(adv.severity);
+                  const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+                  const kevBadge = adv.kev
+                    ? ` <span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+                    : '';
+                  const fixBadge = adv.fixStatus
+                    ? ` <span class="badge badge-fix-status">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+                    : '';
+                  return `
                 <li style="margin-bottom:6px;">
-                  <strong>${escapeHtml(adv.id)}</strong> (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
-                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}
+                  <strong>${escapeHtml(adv.id)}</strong> <span class="badge ${sevClass}">${sevText}</span>${kevBadge} (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
+                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}${fixBadge}
                 </li>
-              `
-                )
+              `;
+                })
                 .join('')}
             </ul>
           </div>
@@ -429,6 +481,9 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
         } else if (c.status === 'pass') {
           badgeClass = 'sev-pass';
           badgeText = 'PASS';
+        } else if (c.severity === 'critical') {
+          badgeClass = 'sev-critical';
+          badgeText = 'CRITICAL';
         } else if (c.severity === 'high') {
           badgeClass = 'sev-high';
           badgeText = 'HIGH';

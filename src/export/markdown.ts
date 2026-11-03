@@ -6,6 +6,7 @@
  * Cookie値・機密ヘッダーは一切含めず、エビデンス保持・受動的解析の原則を堅持します。
  */
 
+import { formatAdvisoryRecommendation, getEffectiveFixStatus } from '../detection/advisory';
 import {
   DetailedDiffItem,
   FindingException,
@@ -120,6 +121,7 @@ ${
 ### セキュリティ指摘レベル内訳
 | 重大度 | 指摘件数 | 説明 |
 |:---:|:---:|---|
+| **CRITICAL (緊急)** | **${report.summary.securityFindings.critical ?? 0}** | 悪用確認済み脆弱性（CISA KEV）または緊急度の高い深刻な脆弱性 |
 | **HIGH (危険)** | **${report.summary.securityFindings.high}** | 直ちに対応・修正が推奨される設定不備・脆弱性 |
 | **MEDIUM (警告)** | **${report.summary.securityFindings.medium}** | セキュリティ基準に抵触、またはサポート終了の技術 |
 | **LOW (注意)** | **${report.summary.securityFindings.low}** | 改善が望ましい設定上の軽微な不備 |
@@ -157,27 +159,48 @@ ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
 }).join('\n') : '| なし | - | - | - | - |'}
 `);
 
-  // 6. EOL・既知脆弱性情報 (IMP-06)
+  // 6. EOL・既知脆弱性情報 (IMP-06 / SPEC-13)
   sections.push(`## 6. EOL・既知脆弱性情報 (ライブラリセキュリティ)
 
 > [!IMPORTANT]
 > オフライン脆弱性DBスナップショット (Rev.2.1) とのローカル突合結果です。未登録の技術は「安全」を意味するものではありません。
 
-| 対象技術 | バージョン | ディストリ版 | サポート状況 (EOL) | 照合ステータス | 該当CVE | 推奨対応 |
-|---|:---:|:---:|:---:|:---:|---|---|
+| 対象技術 | バージョン | ディストリ版 | サポート状況 (EOL) | 照合ステータス | 該当CVE/GHSA | 修正状況 (fixStatus) | CISA KEV | 推奨対応 |
+|---|:---:|:---:|:---:|:---:|---|---|:---:|---|
 ${report.technologies.map((t) => {
   const eol = t.supportStatus === 'EOL' ? `**EOL (${t.eolDate || '終了'})**` : t.supportStatus || 'Unknown';
   const matchStatus = t.offlineMatchStatus || 'Not Covered';
   const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
   const cveList = t.advisories && t.advisories.length > 0
-    ? t.advisories.map((a) => `[${a.id}](https://nvd.nist.gov/vuln/detail/${a.id}) (${a.severity})`).join(', ')
+    ? t.advisories.map((a) => {
+        const advUrl = /^CVE-\d{4}-\d+$/i.test(a.id)
+          ? `https://nvd.nist.gov/vuln/detail/${a.id}`
+          : /^GHSA-[a-z0-9-]+$/i.test(a.id)
+            ? `https://github.com/advisories/${a.id}`
+            : a.referenceUrls?.find((u) => !(u.includes('nvd.nist.gov') && /\/GHSA-/i.test(u))) || '';
+        const linkPart = advUrl ? `[${escapeMarkdown(a.id)}](${advUrl})` : escapeMarkdown(a.id);
+        return `${linkPart} (${escapeMarkdown(String(a.severity).toLowerCase())})`;
+      }).join(', ')
     : '該当なし';
+  const fixStatusCol = t.advisories && t.advisories.length > 0
+    ? Array.from(new Set(t.advisories.map((a) => getEffectiveFixStatus(a)))).map((s) => `\`${escapeMarkdown(s)}\``).join(', ')
+    : '-';
+  const kevCol = t.advisories && t.advisories.length > 0
+    ? t.advisories.some((a) => a.kev === true)
+      ? '**悪用確認済み（CISA KEV）**'
+      : 'なし'
+    : '-';
   const rec = t.advisories && t.advisories.length > 0
-    ? `修正版 (v${t.advisories[0].fixedVersion || '最新'}) への更新`
+    ? escapeMarkdown(
+        formatAdvisoryRecommendation(t.version, t.advisories, {
+          isEol: t.supportStatus === 'EOL',
+          technologyName: t.technology,
+        })
+      )
     : t.supportStatus === 'EOL'
     ? '最新LTS系列への移行'
     : '現状維持';
-  return `| **${escapeMarkdown(t.technology)}** | \`${escapeMarkdown(t.version || '不明')}\` | ${distro} | ${eol} | \`${matchStatus}\` | ${cveList} | ${rec} |`;
+  return `| **${escapeMarkdown(t.technology)}** | \`${escapeMarkdown(t.version || '不明')}\` | ${distro} | ${eol} | \`${matchStatus}\` | ${cveList} | ${fixStatusCol} | ${kevCol} | ${rec} |`;
 }).join('\n')}
 `);
 

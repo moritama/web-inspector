@@ -3,12 +3,19 @@
  * 外部通信先・ドメイン解析単体テスト (tests/domain-analyzer.test.ts)
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   analyzeExternalConnections,
   determinePartyType,
   guessServiceCategory,
+  parsePslText,
   parsePublicSuffixAndRegistrableDomain,
+  parseRegistrableDomain,
+  PUBLIC_SUFFIX_EXCEPTIONS,
+  PUBLIC_SUFFIX_LIST,
+  PUBLIC_SUFFIX_WILDCARDS,
 } from '../src/security/domain-analyzer';
 
 describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
@@ -55,6 +62,76 @@ describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
       const resIp = parsePublicSuffixAndRegistrableDomain('192.168.1.100');
       expect(resIp.registrableDomain).toBe('192.168.1.100');
       expect(resIp.publicSuffix).toBe('');
+    });
+
+    it('日本の地域型JPドメイン (foo.tokyo.jp) と属性型JPドメイン (a.b.example.co.jp) の登録可能ドメインを正しく判定できること (T13 / DOC-12)', () => {
+      const resTokyo = parseRegistrableDomain('foo.tokyo.jp');
+      expect(resTokyo.registrableDomain).toBe('foo.tokyo.jp');
+      expect(resTokyo.publicSuffix).toBe('tokyo.jp');
+
+      const resTokyoSub = parseRegistrableDomain('www.foo.tokyo.jp');
+      expect(resTokyoSub.registrableDomain).toBe('foo.tokyo.jp');
+      expect(resTokyoSub.publicSuffix).toBe('tokyo.jp');
+
+      const resCoJp = parseRegistrableDomain('a.b.example.co.jp');
+      expect(resCoJp.registrableDomain).toBe('example.co.jp');
+      expect(resCoJp.publicSuffix).toBe('co.jp');
+
+      // 都道府県・政令指定都市の例外ルール (!metro.tokyo.jp, *.kawasaki.jp, !city.kawasaki.jp)
+      const resMetro = parseRegistrableDomain('www.metro.tokyo.jp');
+      expect(resMetro.registrableDomain).toBe('metro.tokyo.jp');
+      expect(resMetro.publicSuffix).toBe('tokyo.jp');
+
+      const resKawasakiWard = parseRegistrableDomain('sub.nakahara.kawasaki.jp');
+      expect(resKawasakiWard.registrableDomain).toBe('sub.nakahara.kawasaki.jp');
+      expect(resKawasakiWard.publicSuffix).toBe('nakahara.kawasaki.jp');
+
+      const resKawasakiCity = parseRegistrableDomain('www.city.kawasaki.jp');
+      expect(resKawasakiCity.registrableDomain).toBe('city.kawasaki.jp');
+      expect(resKawasakiCity.publicSuffix).toBe('kawasaki.jp');
+    });
+
+    it('小さな PSL フィクスチャ (tests/fixtures/psl.fixture.dat) を読み込んで PSL ルールを正しく解釈できること (T13 / DOC-12)', () => {
+      const fixturePath = path.resolve(__dirname, 'fixtures', 'psl.fixture.dat');
+      const fixtureText = fs.readFileSync(fixturePath, 'utf-8');
+      const parsed = parsePslText(fixtureText);
+
+      expect(parsed.suffixes).toContain('tokyo.jp');
+      expect(parsed.suffixes).toContain('co.jp');
+      expect(parsed.wildcards).toContain('kawasaki.jp');
+      expect(parsed.exceptions).toContain('metro.tokyo.jp');
+      expect(parsed.exceptions).toContain('city.kawasaki.jp');
+
+      expect(parseRegistrableDomain('foo.tokyo.jp', fixtureText)).toEqual({
+        isIpOrLocal: false,
+        publicSuffix: 'tokyo.jp',
+        registrableDomain: 'foo.tokyo.jp',
+      });
+      expect(parseRegistrableDomain('a.b.example.co.jp', fixtureText)).toEqual({
+        isIpOrLocal: false,
+        publicSuffix: 'co.jp',
+        registrableDomain: 'example.co.jp',
+      });
+      expect(parseRegistrableDomain('www.metro.tokyo.jp', fixtureText)).toEqual({
+        isIpOrLocal: false,
+        publicSuffix: 'tokyo.jp',
+        registrableDomain: 'metro.tokyo.jp',
+      });
+      expect(parseRegistrableDomain('portal.ward.kawasaki.jp', fixtureText)).toEqual({
+        isIpOrLocal: false,
+        publicSuffix: 'ward.kawasaki.jp',
+        registrableDomain: 'portal.ward.kawasaki.jp',
+      });
+      expect(parseRegistrableDomain('www.city.kawasaki.jp', fixtureText)).toEqual({
+        isIpOrLocal: false,
+        publicSuffix: 'kawasaki.jp',
+        registrableDomain: 'city.kawasaki.jp',
+      });
+
+      // 生成済みモジュールにも主要ルールが含まれていること
+      expect(PUBLIC_SUFFIX_LIST).toContain('tokyo.jp');
+      expect(PUBLIC_SUFFIX_WILDCARDS).toContain('kawasaki.jp');
+      expect(PUBLIC_SUFFIX_EXCEPTIONS).toContain('metro.tokyo.jp');
     });
   });
 

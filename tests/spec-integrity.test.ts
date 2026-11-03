@@ -129,22 +129,19 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     expect(mBase).toBe(version);
     if (mRev !== undefined) expect(mRev).toMatch(/^\d+$/);
 
-    // 2. HTMLファイルのバージョンバッジ表示一致
+    // 2. HTMLファイルのバージョンバッジ表示一致（ルート直下の popup.html / dashboard.html に一本化）
     const htmlFiles = [
       path.join(rootDir, 'popup.html'),
       path.join(rootDir, 'dashboard.html'),
-      path.join(rootDir, 'src', 'popup', 'popup.html'),
-      path.join(rootDir, 'src', 'dashboard', 'dashboard.html'),
     ];
 
     for (const htmlPath of htmlFiles) {
-      if (fs.existsSync(htmlPath)) {
-        const content = fs.readFileSync(htmlPath, 'utf-8');
-        expect(
-          content.includes(`v${version}`),
-          `${htmlPath} にバージョン "v${version}" が含まれていません`
-        ).toBe(true);
-      }
+      expect(fs.existsSync(htmlPath), `${htmlPath} が存在しません`).toBe(true);
+      const content = fs.readFileSync(htmlPath, 'utf-8');
+      expect(
+        content.includes(`v${version}`),
+        `${htmlPath} にバージョン "v${version}" が含まれていません`
+      ).toBe(true);
     }
 
     // 3. README.md のバッジ一致
@@ -309,6 +306,145 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
 
     expect(sortedTable).toEqual(sortedRules);
     expect(sortedDiagram).toEqual(sortedRules);
+  });
+
+  it('README.md のカバレッジ表がルール定義（generate-spec-catalog.mjs の生成結果）と完全に一致していること (T13 / DOC-07)', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const readmeContent = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf-8');
+    const catalogJson = JSON.parse(
+      fs.readFileSync(path.join(rootDir, 'data', 'advisories', 'catalog.json'), 'utf-8')
+    ) as {
+      products?: Record<string, { eol?: unknown; osv?: unknown; nvd?: unknown }>;
+    };
+
+    const startMarker = '## 対応技術スタック & 診断カバレッジ (Coverage)';
+    const endMarker = '\n## システムアーキテクチャ';
+    const startIdx = readmeContent.indexOf(startMarker);
+    const endIdx = readmeContent.indexOf(endMarker);
+    expect(startIdx).toBeGreaterThan(-1);
+    expect(endIdx).toBeGreaterThan(startIdx);
+
+    const coverageSection = readmeContent.slice(startIdx, endIdx);
+
+    // 実行時バージョン取得 (MAIN world) 対応の技術ID一覧 (scripts/generate-spec-catalog.mjs と同一)
+    const runtimeVersionTechIds = new Set([
+      'jquery',
+      'bootstrap',
+      'vue',
+      'lodash',
+      'moment',
+      'angularjs',
+    ]);
+
+    const escapePipeForReadme = (str: string): string => {
+      if (!str) return '-';
+      return str.replace(/\|/g, '\\|').replace(/\]\(/g, '\\]\\(');
+    };
+
+    const summarizeRuleSignalsForReadme = (rule: TechnologyRule): string => {
+      const seen = new Set<string>();
+      const parts: string[] = [];
+      for (const s of rule.signals || []) {
+        const label = s.target ? `${s.type} (${s.target})` : s.type;
+        if (!seen.has(label)) {
+          seen.add(label);
+          parts.push(escapePipeForReadme(label));
+        }
+      }
+      if (runtimeVersionTechIds.has(rule.id)) {
+        parts.push('実行時バージョン取得 (MAIN world)');
+      }
+      return parts.join(', ');
+    };
+
+    // README の表から各技術行を抽出して検証
+    const tableRowMap = new Map<
+      string,
+      {
+        groupCol: string;
+        name: string;
+        verCol: string;
+        eolCol: string;
+        cveCol: string;
+        methods: string;
+      }
+    >();
+
+    for (const rawLine of coverageSection.split('\n')) {
+      const trimmed = rawLine.trim();
+      if (!trimmed.startsWith('|')) continue;
+      if (trimmed.startsWith('| 分類') || trimmed.startsWith('|---')) continue;
+
+      const cols = trimmed.split(/(?<!\\)\|/).map((c) => c.trim());
+      if (cols.length < 7) continue;
+
+      const nameCell = cols[2];
+      const nameMatch = nameCell.match(/^(?:\*\*(.+?)\*\*|(.+?))\s*\(`([^`]+)`\)$/);
+      if (!nameMatch) continue;
+
+      const techName = (nameMatch[1] || nameMatch[2]).trim();
+      const techId = nameMatch[3].trim();
+
+      tableRowMap.set(techId, {
+        groupCol: cols[1],
+        name: techName,
+        verCol: cols[3],
+        eolCol: cols[4],
+        cveCol: cols[5],
+        methods: cols[6],
+      });
+    }
+
+    // 全ルール数と表の行数が一致すること
+    expect(tableRowMap.size).toBe(allRules.length);
+
+    for (const rule of allRules) {
+      const row = tableRowMap.get(rule.id);
+      expect(
+        row,
+        `README.md のカバレッジ表に ${rule.name} (${rule.id}) が存在しません`
+      ).toBeDefined();
+      if (!row) continue;
+
+      expect(row.name).toBe(rule.name);
+
+      // バージョン特定列: versionRegex または実行時バージョン取得がある技術のみ ✅
+      const hasVer =
+        rule.signals.some((s) => Boolean(s.versionRegex)) || runtimeVersionTechIds.has(rule.id);
+      expect(
+        row.verCol,
+        `${rule.name} (${rule.id}) の「バージョン特定」列が不正です`
+      ).toBe(hasVer ? '✅' : '-');
+
+      // EOL判定・既知脆弱性 (CVE) 列の一致確認
+      const prod = catalogJson.products?.[rule.id];
+      const expectedEol = prod?.eol ? '✅' : '-';
+      const expectedCve = prod?.osv || prod?.nvd ? '✅' : '-';
+      expect(
+        row.eolCol,
+        `${rule.name} (${rule.id}) の「EOL判定」列が catalog.json と一致しません`
+      ).toBe(expectedEol);
+      expect(
+        row.cveCol,
+        `${rule.name} (${rule.id}) の「既知脆弱性 (CVE)」列が catalog.json と一致しません`
+      ).toBe(expectedCve);
+
+      // 主な検出手法列の一致確認
+      const expectedMethods = summarizeRuleSignalsForReadme(rule);
+      expect(
+        row.methods,
+        `${rule.name} (${rule.id}) の「主な検出手法」列がルール定義と一致しません`
+      ).toBe(expectedMethods);
+    }
+  });
+
+  it('README.md に古い記載（「全125テスト」「v1.6.0」「siteChecker/」）が残っていないこと (T13 / DOC-07)', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const readmeContent = fs.readFileSync(path.join(rootDir, 'README.md'), 'utf-8');
+
+    expect(readmeContent).not.toContain('全125テスト');
+    expect(readmeContent).not.toContain('v1.6.0');
+    expect(readmeContent).not.toContain('siteChecker/');
   });
 });
 

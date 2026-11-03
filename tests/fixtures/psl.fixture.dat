@@ -1,0 +1,61 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Test fixture for Web Technology & Security Inspector (v1.7.0 T13 / DOC-12)
+
+// ===BEGIN ICANN DOMAINS===
+
+// com
+com
+org
+net
+
+// jp : https://en.wikipedia.org/wiki/.jp
+jp
+ac.jp
+ad.jp
+co.jp
+ed.jp
+go.jp
+gr.jp
+lg.jp
+ne.jp
+or.jp
+
+// jp geographic type domains (prefectures)
+hokkaido.jp
+tokyo.jp
+osaka.jp
+kyoto.jp
+aichi.jp
+fukuoka.jp
+!metro.tokyo.jp
+
+// jp ordinance-designated city domains (wildcard + exception)
+*.kawasaki.jp
+*.yokohama.jp
+!city.kawasaki.jp
+!city.yokohama.jp
+
+// uk
+uk
+co.uk
+gov.uk
+org.uk
+
+// au
+au
+com.au
+net.au
+org.au
+
+// ===END ICANN DOMAINS===
+
+// ===BEGIN PRIVATE DOMAINS===
+
+github.io
+cloudfront.net
+vercel.app
+
+// ===END PRIVATE DOMAINS===

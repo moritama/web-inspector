@@ -35,25 +35,25 @@ flowchart TD
     MasterSources -.->|整合性維持| SyncNeeded
 ```
 
-- **画面バッジの自動取得**: ポップアップ画面やダッシュボード画面のバージョンバッジ（`v1.6.0` 等）は、実行時に `chrome.runtime.getManifest().version` から動的に読み込まれます。
+- **画面バッジの自動取得**: ポップアップ画面やダッシュボード画面のバージョンバッジ（`v1.7.0` 等）は、実行時に `chrome.runtime.getManifest().version` から動的に読み込まれます。
 - **ZIPファイル名の自動連動**: `npm run package` 実行時、`scripts/package.mjs` が `package.json` の `version` を読み取り、自動的に `release/web-inspector-v{version}.zip` を出力します。
 
 ---
 
 ### 1.2 バージョン変更時の更新対象ファイル・チェックリスト
 
-バージョン（例: `1.6.0` $\rightarrow$ `1.7.0`）を変更する際は、以下のファイルを更新します。
+バージョン（例: `1.6.6` $\rightarrow$ `1.7.0`）を変更する際は、以下のファイルを更新します（※ `src/popup/popup.html` および `src/dashboard/dashboard.html` は v1.7.0 で廃止され、ルート直下の `popup.html` / `dashboard.html` に一本化されました）。
 
 | No | ファイルパス | 役割・更新内容 | 必須区分 |
 |:---:|---|---|:---:|
 | 1 | [`public/manifest.json`](../public/manifest.json) | `"version": "X.X.X"`（Chrome Web Store認識用） | **【必須】** |
-| 2 | [`package.json`](../package.json) | `"version": "X.X.X"`（ZIP出力スクリプト用） | **【必須】** |
+| 2 | [`package.json`](../package.json) / [`package-lock.json`](../package-lock.json) | `"version": "X.X.X"`（ZIP出力スクリプト・npm管理用） | **【必須】** |
 | 3 | [`src/detection/rules/index.ts`](../src/detection/rules/index.ts) | `export const RULES_VERSION = 'X.X.X';`（レポート記録用） | **【必須】** |
 | 4 | [`src/background/service-worker.ts`](../src/background/service-worker.ts) | `EXTENSION_VERSION` のフォールバック文字列 | 推奨 |
 | 5 | [`src/popup/popup.ts`](../src/popup/popup.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
 | 6 | [`src/dashboard/dashboard.ts`](../src/dashboard/dashboard.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
-| 7 | [`src/popup/popup.html`](../src/popup/popup.html) / `popup.html` | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
-| 8 | [`src/dashboard/dashboard.html`](../src/dashboard/dashboard.html) / `dashboard.html` | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
+| 7 | [`popup.html`](../popup.html) | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト（ルート直下に一本化） | 推奨 |
+| 8 | [`dashboard.html`](../dashboard.html) | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト（ルート直下に一本化） | 推奨 |
 | 9 | [`README.md`](../README.md) | バッジ（`version-X.X.X-blue.svg`）および機能一覧見出し | 推奨 |
 
 ---
@@ -133,21 +133,24 @@ Primary 評価と Secondary（CISA-ADP 等）評価の間で重大度レベル�
 
 ---
 
-### 2.3 脆弱性DBの更新手順（ステップ・バイ・ステップ）
+### 2.3 脆弱性DBおよびPublic Suffix List (PSL) の更新手順（ステップ・バイ・ステップ）
 
-> **v1.6.6 以降の更新方式 (自動化):** 脆弱性DBは GitHub Actions `Advisory DB Update` (毎週月曜 05:23 JST) が
-> 上流 (OSV / NVD / endoflife.date / CISA KEV) から自動取得・生成し、PR を作成します。手作業は PR のレビューのみです。
-> 設計・必要な設定・段階的な有効化は [レビュー結果・開発指示書 第5章](./REVIEW_v1.6.5.md) を参照してください。
-> `src/detection/advisory-db.json` は手編集禁止です (CI の `build-db.mjs --check` で検出されます)。
-> 人手で管理するデータは `data/advisories/catalog.json` (対象製品・取得元) と `data/advisories/curated.json` (レビュー済みエントリ・除外・静的EOL) です。
+> **v1.6.6 / v1.7.0 以降の更新方式 (自動化):** 脆弱性DBは GitHub Actions `Advisory DB Update` (毎週月曜 05:23 JST) が
+> 上流 (OSV / NVD / endoflife.date / CISA KEV) および Public Suffix List (`publicsuffix.org`) から自動取得・生成し、PR を作成します。
+> v1.7.0 からは `wordpress`, `php`, `nginx`, `apache`, `nodejs` の NVD CPE 自動取り込み (`autoIngest: true`) が有効化され、5つの安全ガード（サードパーティプラグインCPE除外、上限なし`*`のみのcriteria除外、Rejected/Disputed除外、対象年フィルタ、製品あたり件数上限）を経て `minExtensionVersion: "1.7.0"`・`fixStatus`（`'fixed' | 'unfixed' | 'unknown'`）・`kev` フラグ付きで生成されます。
+> 設計・必要な設定・段階的な有効化は [レビュー結果・開発指示書 第5章](./REVIEW_v1.6.5.md) および本ガイド第3.2節を参照してください。
+> `src/detection/advisory-db.json`、`data/advisories/build-report.json`、`src/security/psl-rules.generated.ts` は手編集禁止です (CI の `build-db.mjs --check` および `spec-integrity.test.ts` で検出されます)。
+> 人手で管理するデータは `data/advisories/catalog.json` (対象製品・取得元・`autoIngest`設定) と `data/advisories/curated.json` (レビュー済みエントリ・除外・静的EOL) です。
 
-#### ステップ 1: 最新アドバイザリの同期 (ローカルで手動実行する場合)
+#### ステップ 1: 最新アドバイザリおよび PSL の同期 (ローカルで手動実行する場合)
 ```bash
-npm run advisories:fetch   # 上流スナップショット取得 (要ネットワーク, 任意で NVD_API_KEY)
+npm run advisories:fetch   # 上流スナップショット + PSL (data/psl/public_suffix_list.dat) 取得 (要ネットワーク)
 npm run advisories:build   # スナップショットから advisory-db.json を決定的に生成
+npm run spec:generate      # 仕様書カタログ・README表・DOMセレクタ・PSL定義 (psl-rules.generated.ts) を再生成
 npm run advisories:diff    # origin/main との差分と分類 (none / minor / major)
 ```
 - `advisories:sync` は上記 fetch → build → validate を連続実行します。
+- `data/psl/public_suffix_list.dat` が未取得の環境では、`npm run spec:generate` は警告を出力した上でフォールバック PSL 一覧（日本の47都道府県・政令指定都市JPドメインを含む）を使用し、ビルドを止めません。
 
 #### ステップ 2: DBの整合性・サイズ検証
 ```bash
@@ -276,21 +279,32 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 10. **プライバシーポリシー記述の実装整合 (DOC-08)**:
     - Cookie 値の一時読み込み後の即時破棄、content script の配置方針、webRequest ヘッダー許可リストの保持方針を実装と整合化。
 
-#### ② 残る既知の制限と将来の課題 (v1.7.0 以降の検討項目)
-1. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の挙動**:
-   - `src/detection/rules/backend.json:245` に定義されている `"target": "x-fastify-"` は、エンジン側（`src/detection/engine.ts:180`）が完全一致（Exact Key Lookup）でヘッダーマップを参照しているため、接頭辞ルールとして意図通りに発火していません（`x-fastify-` という完全一致キーのみを参照）。エンジンの接頭辞マッチング対応は v1.7.0 以降の課題とします。
-2. **`data:` URL スキームのサニタイズ**:
-   - `data:text/html,...` 等の URL はクエリとフラグメントが除去されますが、データ本体が保持 URL に残りうる仕様となっています。スキームのみ（`data:`）へ丸める改善は v1.7.0 にて検討します。
-3. **パス部分に埋め込まれた機密情報**:
-   - 保持する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は除去されません。
-4. **弱い直接証拠と連動推論の合算時の detectionMethod 判定**:
-   - 弱い直接証拠（例: `XSRF-TOKEN` 35点）が連動推論と合算されて採用閾値（50%）を超えた場合、`detectionMethod` が `direct` になります（`src/detection/engine.ts:707-710`）。E2E は、この影響を避けるため `/next-ssr-positive` の前に `/clear-cookies` を挟んでいます。
-5. **調査履歴・エクスポートにおけるクエリ文字列の保持**:
-   - 調査履歴（`chrome.storage.local`）および JSON・CSV エクスポートには、URL のクエリ文字列がそのまま含まれます（Markdown のみ、特定キーをマスク）。見直しは R06 として 1.7.0 以降に検討します。
-6. **ディストリ版バックポート判定の第2段階**:
-   - 現在の第1段階（`Needs Review` 扱い）から、ディストリビューション別のセキュリティ修正情報を自動参照・判定する第2段階への拡張を検討します。
-7. **content script の動的注入化 (IMPL-08)**:
-   - 全ページ常駐から、調査実行時のみの動的スクリプト注入（`chrome.scripting.executeScript`）への移行を検討します。
+#### ② v1.7.0 で解消した制限・機能強化
+1. **SemVer・プレリリース・複数ブランチ範囲の厳密比較と Angular 暫定対応の撤去 (SPEC-03, SPEC-05 / T01, T14)**:
+   - 4要素以上のバージョンやプレリリース識別子（`-alpha.1`, `-next.1` 等）の比較規則を刷新し、別メジャーのプレリリース版が過去ブランチの上限条件（`< 19.2.15` 等）に誤一致しないよう是正。これに伴い `curated.json` および `verify-advisories-nvd.mjs` の Angular 暫定対応を撤去。
+2. **NVD 自動取り込みの有効化と `fixStatus`・CISA KEV・重大度4段階の表示 (SPEC-12, SPEC-13, SPEC-15, IMPL-09 / T03, T04, T05)**:
+   - `wordpress`, `php`, `nginx`, `apache`, `nodejs` の NVD CPE 自動取り込みを有効化し、`minExtensionVersion: "1.7.0"` に更新。
+   - `fixStatus`（`fixed` / `unfixed` / `unknown`）、CISA KEV 悪用警告バッジ、重大度4段階（`critical` / `high` / `medium` / `low`）のフィルタ・集計・エクスポート対応、および GHSA 単体エントリの GitHub Advisory リンク生成を実装。
+3. **同一技術の複数バージョン保持と全件照合 (SPEC-14 / T06)**:
+   - 同一ページ内で複数バージョンが検出された場合に `detectedVersions` として全件保持し、代表 `version` に最小 SemVer を設定して全バージョンを脆弱性・EOL照合する仕様へ強化。
+4. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の前方一致対応と連動推論の厳密分離 (SPEC-11 / T07)**:
+   - `target` が `-` で終わるヘッダーシグナルを前方一致（`startsWith`）で照合するよう修正し、弱い直接証拠（35点等）と連動推論の合算時に `detectionMethod` が誤って `direct` にならないよう分離。
+5. **CSP 複数ヘッダー積集合評価・`<meta>` CSP・ヘッダー値妥当性検証・混在コンテンツ拡大 (SPEC-07, SPEC-08, SPEC-10 / T08, T09)**:
+   - 複数 CSP ヘッダーの積集合評価、`<meta http-equiv="Content-Security-Policy">` 対応、`script-src-elem` フォールバック、`nonce-`/`sha*` による `'unsafe-inline'` 無効化、HSTS/XCTO/XFO/Referrer-Policy の値妥当性検証、および `srcset`/`object`/`form`/`style` 等の混在コンテンツ検出に対応。
+6. **履歴保存の直列化・URLクエリ/ハッシュ除去・`data:`/`blob:` 丸め・許容リスト移行 (IMPL-05, IMPL-06, IMPL-07, IMPL-10 / T10)**:
+   - 同時調査時の履歴上書きを防ぐ直列化ロック、履歴・JSON/CSV/Markdown出力からのクエリ文字列・フラグメント除去、`data:`/`blob:`/`javascript:` URL のスキーム丸め、および正規化URLによる許容設定キー移行を実装。
+7. **Content Script のオンデマンド動的注入・CHIPS Cookie・重複除去 (IMPL-08, IMPL-11, IMPL-12 / T11)**:
+   - `manifest.json` の常時 `content_scripts` を廃止して調査実行時のみの `chrome.scripting.executeScript` 注入に移行し、CHIPS（`Partitioned`）Cookie の取得・評価および Cookie 重複除去を実装。
+8. **README カバレッジ表の自動生成・HTML 一本化・PSL のビルド時生成 (DOC-03〜07, DOC-10〜12 / T13)**:
+   - `npm run spec:generate` による README カバレッジ表・PSL ルール定義（`src/security/psl-rules.generated.ts`）の自動生成、および `src/` 配下の古い HTML コピー廃止によるルート `popup.html` / `dashboard.html` への一本化を完了。
+
+#### ③ 残る既知の制限と将来の課題 (v1.8.0 以降の検討項目)
+1. **パス部分に埋め込まれた機密情報**:
+   - 保持・出力する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は自動判別できないため除去されません。
+2. **ディストリ版バックポート判定の第2段階**:
+   - 現在の第1段階（`distroHint` による `Needs Review` 扱い）から、ディストリビューション別のセキュリティ修正情報（OVAL / OSV Ubuntu・Debian エコシステム等）を参照・判定する第2段階への拡張は今後の検討課題です。
+3. **Laravel CVE-2021-3129 の Ignition 連動マッピング制約**:
+   - §2.4 に記載のとおり、デバッグページライブラリ `facade/ignition` の脆弱性を本体バージョン `< 8.4.3` にマッピングしているため、Ignition デバッグページの直接検出等への精緻化は今後の検討課題とします。
 
 ---
 

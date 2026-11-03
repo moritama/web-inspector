@@ -12,66 +12,94 @@ import {
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
 } from '../shared/types';
+import {
+  PSL_SOURCE,
+  PUBLIC_SUFFIX_EXCEPTIONS,
+  PUBLIC_SUFFIX_LIST,
+  PUBLIC_SUFFIX_WILDCARDS,
+} from './psl-rules.generated';
+
+export {
+  PSL_SOURCE,
+  PUBLIC_SUFFIX_EXCEPTIONS,
+  PUBLIC_SUFFIX_LIST,
+  PUBLIC_SUFFIX_WILDCARDS,
+};
 
 /**
- * 主要な複合Public Suffixリスト (ccTLD派生および主要Private Suffix)
- * 最長一致（longest match）で安全に評価します。
+ * Public Suffix List (PSL) ルールセット型定義 (v1.7.0 T13 / DOC-12)
  */
-const PUBLIC_SUFFIX_LIST: string[] = [
-  // 日本 (JP)
-  'co.jp',
-  'ne.jp',
-  'ac.jp',
-  'go.jp',
-  'or.jp',
-  'ed.jp',
-  'lg.jp',
-  'gr.jp',
+export interface PslRuleSet {
+  suffixes: readonly string[];
+  wildcards?: readonly string[];
+  exceptions?: readonly string[];
+  tlds?: readonly string[];
+}
 
-  // 英国 (UK)
-  'co.uk',
-  'org.uk',
-  'me.uk',
-  'ltd.uk',
-  'plc.uk',
-  'net.uk',
-  'ac.uk',
-  'gov.uk',
+/**
+ * サフィックス配列を文字数降順・辞書順で決定的にソートし重複を排除する
+ */
+function sortSuffixes(list: readonly string[]): string[] {
+  return Array.from(new Set(list.map((s) => String(s).trim().toLowerCase()).filter(Boolean))).sort(
+    (a, b) => b.length - a.length || a.localeCompare(b)
+  );
+}
 
-  // オセアニア (AU / NZ)
-  'com.au',
-  'net.au',
-  'org.au',
-  'edu.au',
-  'gov.au',
-  'co.nz',
-  'net.nz',
-  'org.nz',
+/**
+ * Public Suffix List (public_suffix_list.dat) 形式のテキストを解析し、ルールセットを生成する (v1.7.0 T13 / DOC-12)
+ *
+ * @param rawText PSL形式の文字列
+ * @returns PslRuleSet
+ */
+export function parsePslText(rawText: string): PslRuleSet {
+  const suffixes: string[] = [];
+  const wildcards: string[] = [];
+  const exceptions: string[] = [];
+  const tlds: string[] = [];
 
-  // アジア・南米・その他複合ccTLD
-  'com.tw',
-  'co.kr',
-  'com.sg',
-  'com.hk',
-  'com.br',
-  'com.cn',
-  'co.in',
-  'com.my',
-  'com.mx',
-  'com.ar',
+  if (typeof rawText !== 'string' || !rawText.trim()) {
+    return { suffixes: [], wildcards: [], exceptions: [], tlds: [] };
+  }
 
-  // 代表的なクラウド / ホスティング Private Suffix
-  'github.io',
-  'gitlab.io',
-  'vercel.app',
-  'pages.dev',
-  'web.app',
-  'firebaseapp.com',
-  'cloudfront.net',
-  'azurewebsites.net',
-  's3.amazonaws.com',
-  'herokuapp.com',
-];
+  const lines = rawText.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('//')) continue;
+
+    const token = trimmed.split(/\s+/)[0].toLowerCase().replace(/^\.+|\.+$/g, '');
+    if (!token) continue;
+
+    if (token.startsWith('!')) {
+      const exc = token.slice(1).replace(/^\.+/, '');
+      if (exc) exceptions.push(exc);
+      continue;
+    }
+
+    if (token.startsWith('*.')) {
+      const base = token.slice(2).replace(/^\.+/, '');
+      if (base) {
+        wildcards.push(base);
+        if (base.includes('.')) {
+          suffixes.push(base);
+        }
+      }
+      continue;
+    }
+
+    if (token.includes('.')) {
+      suffixes.push(token);
+    } else {
+      tlds.push(token);
+    }
+  }
+
+  return {
+    suffixes: sortSuffixes(suffixes),
+    wildcards: sortSuffixes(wildcards),
+    exceptions: sortSuffixes(exceptions),
+    tlds: sortSuffixes(tlds),
+  };
+}
 
 // ホスト名判定結果のインメモリキャッシュ (高速化)
 const domainCache = new Map<
@@ -99,59 +127,135 @@ export function isIpOrLocalHost(hostname: string): boolean {
 }
 
 /**
- * ホスト名から Public Suffix List に基づく登録可能ドメイン (eTLD+1) を抽出する (Rev.2.1 IMP-11 / 10.2)
+ * カスタムPSL指定を正規化された PslRuleSet に変換する
+ */
+function normalizePslRules(customPsl?: PslRuleSet | readonly string[] | string): PslRuleSet {
+  if (!customPsl) {
+    return {
+      suffixes: PUBLIC_SUFFIX_LIST,
+      wildcards: PUBLIC_SUFFIX_WILDCARDS,
+      exceptions: PUBLIC_SUFFIX_EXCEPTIONS,
+    };
+  }
+  if (typeof customPsl === 'string') {
+    return parsePslText(customPsl);
+  }
+  if (Array.isArray(customPsl)) {
+    return {
+      suffixes: sortSuffixes(customPsl as readonly string[]),
+      wildcards: [],
+      exceptions: [],
+    };
+  }
+  const ruleSet = customPsl as PslRuleSet;
+  return {
+    suffixes: sortSuffixes(ruleSet.suffixes || []),
+    wildcards: sortSuffixes(ruleSet.wildcards || []),
+    exceptions: sortSuffixes(ruleSet.exceptions || []),
+    tlds: ruleSet.tlds ? sortSuffixes(ruleSet.tlds) : undefined,
+  };
+}
+
+/**
+ * ホスト名から Public Suffix List に基づく登録可能ドメイン (eTLD+1) を抽出する (Rev.2.1 IMP-11 / v1.7.0 DOC-12)
  *
- * @param rawHostname 入力ホスト名 (例: "api.sub.example.co.jp")
+ * @param rawHostname 入力ホスト名 (例: "api.sub.example.co.jp", "foo.tokyo.jp")
+ * @param customPsl テスト等で使用するカスタムPSLルールセット・PSLテキスト・サフィックス配列 (省略時はビルド時生成のPSLを使用)
  * @returns { registrableDomain: "example.co.jp", publicSuffix: "co.jp", isIpOrLocal: false }
  */
-export function parseRegistrableDomain(rawHostname: string): {
+export function parseRegistrableDomain(
+  rawHostname: string,
+  customPsl?: PslRuleSet | readonly string[] | string
+): {
   registrableDomain: string;
   publicSuffix: string;
   isIpOrLocal: boolean;
 } {
   const hostname = rawHostname.trim().toLowerCase().replace(/\.$/, '');
+  const useCache = customPsl === undefined;
 
-  if (domainCache.has(hostname)) {
+  if (useCache && domainCache.has(hostname)) {
     return domainCache.get(hostname)!;
   }
 
   // 1. IPアドレスまたはローカルホストの場合
   if (isIpOrLocalHost(hostname)) {
     const result = { registrableDomain: hostname, publicSuffix: '', isIpOrLocal: true };
-    domainCache.set(hostname, result);
+    if (useCache) domainCache.set(hostname, result);
     return result;
   }
 
   const parts = hostname.split('.');
   if (parts.length <= 1) {
     const result = { registrableDomain: hostname, publicSuffix: '', isIpOrLocal: true };
-    domainCache.set(hostname, result);
+    if (useCache) domainCache.set(hostname, result);
     return result;
   }
 
-  // 2. 複合Public Suffix（.co.jp, .com.au等）との最長一致判定
-  for (const suffix of PUBLIC_SUFFIX_LIST) {
+  const rules = normalizePslRules(customPsl);
+  const exceptions = rules.exceptions || [];
+  const wildcards = rules.wildcards || [];
+  const suffixes = rules.suffixes || [];
+
+  // 2. 例外ルール (!city.kawasaki.jp, !metro.tokyo.jp 等) の判定
+  for (const exc of exceptions) {
+    if (hostname === exc || hostname.endsWith(`.${exc}`)) {
+      const excParts = exc.split('.');
+      const suffixParts = excParts.slice(1);
+      const publicSuffix = suffixParts.join('.');
+      const registrablePartsCount = suffixParts.length + 1;
+      const registrableDomain =
+        parts.length >= registrablePartsCount
+          ? parts.slice(parts.length - registrablePartsCount).join('.')
+          : hostname;
+      const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
+      if (useCache) domainCache.set(hostname, result);
+      return result;
+    }
+  }
+
+  // 3. ワイルドカードルール (*.kawasaki.jp 等) の判定
+  for (const wc of wildcards) {
+    if (hostname.endsWith(`.${wc}`)) {
+      const wcParts = wc.split('.');
+      const suffixPartsCount = wcParts.length + 1;
+      if (parts.length >= suffixPartsCount) {
+        const publicSuffix = parts.slice(parts.length - suffixPartsCount).join('.');
+        const registrablePartsCount = suffixPartsCount + 1;
+        const registrableDomain =
+          parts.length >= registrablePartsCount
+            ? parts.slice(parts.length - registrablePartsCount).join('.')
+            : hostname;
+        const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
+        if (useCache) domainCache.set(hostname, result);
+        return result;
+      }
+    }
+  }
+
+  // 4. 複合Public Suffix（.co.jp, .tokyo.jp, .com.au等）との最長一致判定
+  for (const suffix of suffixes) {
     if (hostname === suffix || hostname.endsWith(`.${suffix}`)) {
       const suffixParts = suffix.split('.');
       const domainIndex = parts.length - suffixParts.length - 1;
       if (domainIndex >= 0) {
         const registrableDomain = parts.slice(domainIndex).join('.');
         const result = { registrableDomain, publicSuffix: suffix, isIpOrLocal: false };
-        domainCache.set(hostname, result);
+        if (useCache) domainCache.set(hostname, result);
         return result;
       }
-      // サフィックスそのもの（例: co.jp）
+      // サフィックスそのもの（例: co.jp, tokyo.jp）
       const result = { registrableDomain: hostname, publicSuffix: suffix, isIpOrLocal: false };
-      domainCache.set(hostname, result);
+      if (useCache) domainCache.set(hostname, result);
       return result;
     }
   }
 
-  // 3. 一般的な単一TLD（.com, .jp, .org等）の場合: 末尾2ラベルがeTLD+1
+  // 5. 一般的な単一TLD（.com, .jp, .org等）の場合: 末尾2ラベルがeTLD+1
   const publicSuffix = parts[parts.length - 1];
   const registrableDomain = parts.slice(-2).join('.');
   const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
-  domainCache.set(hostname, result);
+  if (useCache) domainCache.set(hostname, result);
   return result;
 }
 

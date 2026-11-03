@@ -26,6 +26,7 @@ import { compactEolCycles, eolApiUrl } from './lib/eol.mjs';
 import { compactKev, KEV_URL } from './lib/kev.mjs';
 import { compactNvdCve, fetchNvdByCpe, fetchNvdCve, pickNvdCvss } from './lib/nvd.mjs';
 import { compactOsvVuln, fetchOsvPackage, pickIds } from './lib/osv.mjs';
+import { PSL_SNAPSHOT_PATH, PSL_UPSTREAM_URL, fetchPslSnapshot } from './lib/psl.mjs';
 import { PATHS, readJson, safeFileKey, writeJson } from './lib/util.mjs';
 
 function parseArgs(argv) {
@@ -39,7 +40,18 @@ function parseArgs(argv) {
   return args;
 }
 
-export async function fetchUpstream({ catalog, curated, upstreamDir, fetchJson, now = new Date(), args = {}, log = console.log }) {
+export async function fetchUpstream({
+  catalog,
+  curated,
+  upstreamDir,
+  fetchJson,
+  now = new Date(),
+  args = {},
+  log = console.log,
+  includePsl = false,
+  pslSnapshotPath = PSL_SNAPSHOT_PATH,
+  fetchText,
+}) {
   const fetchedAt = now.toISOString();
   const manifestPath = path.join(upstreamDir, 'manifest.json');
   const prevManifest = readJson(manifestPath, { sources: {} });
@@ -138,6 +150,39 @@ export async function fetchUpstream({ catalog, curated, upstreamDir, fetchJson, 
     manifest.sources['nvd-scores'] = { status: errors === 0 ? 'ok' : 'partial', count: Object.keys(sorted).length, fetchedAt, errors };
   }
 
+  // Public Suffix List (PSL) 上流スナップショットの取得 (v1.7.0 T13 / DOC-12)
+  const shouldFetchPsl = Boolean(
+    includePsl ||
+      args.includePsl ||
+      (args.only instanceof Set && args.only.has('psl'))
+  );
+  if (shouldFetchPsl) {
+    try {
+      const pslRes = await fetchPslSnapshot({
+        snapshotPath: pslSnapshotPath,
+        fetchText,
+        url: PSL_UPSTREAM_URL,
+      });
+      manifest.sources['psl:public_suffix_list'] = {
+        status: 'ok',
+        count: pslRes.suffixCount,
+        fetchedAt,
+      };
+      okCount++;
+      log(`  [ok] psl:public_suffix_list (${pslRes.suffixCount})`);
+    } catch (err) {
+      failCount++;
+      const prev = prevManifest.sources?.['psl:public_suffix_list'];
+      manifest.sources['psl:public_suffix_list'] = {
+        status: fs.existsSync(pslSnapshotPath) ? 'stale' : 'failed',
+        count: prev?.count ?? 0,
+        fetchedAt: prev?.fetchedAt ?? null,
+        error: String(err.message || err).slice(0, 300),
+      };
+      log(`  [NG] psl:public_suffix_list: ${err.message}`);
+    }
+  }
+
   // 今回取得対象外 (--only 指定時) のソースは前回の状態を引き継ぐ
   for (const [k, v] of Object.entries(prevManifest.sources || {})) {
     if (!manifest.sources[k]) manifest.sources[k] = v;
@@ -160,7 +205,15 @@ async function main() {
     },
     log: console.log,
   });
-  const { okCount, failCount } = await fetchUpstream({ catalog, curated, upstreamDir: PATHS.upstreamDir, fetchJson, args });
+  const includePsl = !args.only || args.only.has('psl');
+  const { okCount, failCount } = await fetchUpstream({
+    catalog,
+    curated,
+    upstreamDir: PATHS.upstreamDir,
+    fetchJson,
+    args,
+    includePsl,
+  });
   console.log(`[fetch] 完了: 成功 ${okCount} / 失敗 ${failCount}`);
   if (okCount === 0) process.exit(1);
   if (failCount > 0) process.exitCode = 2; // 部分失敗 (ワークフロー側で警告扱い)

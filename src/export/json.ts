@@ -26,6 +26,7 @@ export function exportReportToJson(report: InspectionReport): string {
 
     return {
       ...tech,
+      ...(tech.instances ? { instances: tech.instances } : {}),
       advisoryMatchStatus: exportMatchStatus,
       ...(exportOfflineStatus ? { offlineMatchStatus: exportOfflineStatus } : {}),
       productAdvisoryCount: displayInfo.count,

@@ -35,6 +35,7 @@ import {
   InspectionReport,
   NetworkSignals,
   SecurityCheckResult,
+  TechnologyInstance,
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
@@ -652,86 +653,158 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     }
   }
 
-  // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致)
+  // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致) (v1.7.0 T08 / SPEC-10: インスタンス単位)
   const librarySecurityChecks: SecurityCheckResult[] = [];
   let eolCount = 0;
   let vulnerableLibraryCount = 0;
   let mismatchCount = 0;
 
   for (const tech of technologies) {
-    // EOL判定のセキュリティチェック追加
-    if (tech.supportStatus === 'EOL') {
-      eolCount++;
-      librarySecurityChecks.push({
-        checkId: `SEC-EOL-${tech.technology.toUpperCase()}`,
-        category: 'library-security',
-        name: `${tech.technology} サポート終了 (EOL)`,
-        status: 'warning',
-        severity: 'medium',
-        observed: `検出バージョン: ${tech.version || '不明'} (EOL日: ${tech.eolDate || '過去'})`,
-        description: `${tech.technology} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`,
-        recommendation: tech.eolInfo?.recommendation || '現行のサポート対象バージョンへの移行を検討してください。',
-        referenceUrls: tech.eolInfo?.sourceUrl ? [tech.eolInfo.sourceUrl] : [],
-        scope: url,
-      });
-    }
+    const instances: TechnologyInstance[] =
+      tech.instances && tech.instances.length > 0
+        ? tech.instances
+        : [
+            {
+              version: tech.version,
+              evidence: tech.evidence,
+              advisories: tech.advisories || [],
+              eol: tech.eolInfo || {
+                status: tech.supportStatus || 'Unknown',
+                eolDate: tech.eolDate ?? null,
+                source: 'Internal Policy',
+                recommendation: '現行のサポート対象バージョンへの移行を検討してください。',
+              },
+              eolInfo: tech.eolInfo,
+              supportStatus: tech.supportStatus,
+              eolDate: tech.eolDate,
+              advisoryMatchStatus: tech.advisoryMatchStatus,
+              maxCvss: tech.maxCvss,
+            },
+          ];
 
-    // CVE該当判定のセキュリティチェック追加 (v1.7.0 T03 / SPEC-13: 4段階重大度・CISA KEV最優先)
-    if (tech.advisoryMatchStatus === 'Potentially Affected' && tech.advisories && tech.advisories.length > 0) {
-      vulnerableLibraryCount++;
-      const topAdvisory = tech.advisories[0];
-      const severityRank: Record<string, number> = {
-        critical: 4,
-        high: 3,
-        medium: 2,
-        low: 1,
-      };
-      let highestSeverity: 'critical' | 'high' | 'medium' | 'low' = 'medium';
-      let highestRank = 0;
-      const hasKev = tech.advisories.some((a) => a.kev === true);
+    let techEolCheckIdx = 0;
+    let techCveCheckIdx = 0;
 
-      for (const adv of tech.advisories) {
-        const s = String(adv.severity || '').toLowerCase();
-        const r = severityRank[s] ?? 0;
-        if (r > highestRank) {
-          highestRank = r;
-          highestSeverity = s as 'critical' | 'high' | 'medium' | 'low';
+    for (const inst of instances) {
+      const instSupportStatus = inst.supportStatus ?? inst.eol?.status ?? tech.supportStatus;
+      const instEolInfo = inst.eol ?? inst.eolInfo ?? tech.eolInfo;
+      const instEolDate = inst.eolDate ?? instEolInfo?.eolDate ?? tech.eolDate;
+      const instVersion = inst.version;
+
+      // EOL判定のセキュリティチェック追加 (インスタンスごと)
+      if (instSupportStatus === 'EOL') {
+        eolCount++;
+        const eolCheckId =
+          techEolCheckIdx === 0
+            ? `SEC-EOL-${tech.technology.toUpperCase()}`
+            : `SEC-EOL-${tech.technology.toUpperCase()}-${instVersion || techEolCheckIdx + 1}`;
+        techEolCheckIdx++;
+
+        const eolName =
+          instances.length > 1 && instVersion
+            ? `${tech.technology} (${instVersion}) サポート終了 (EOL)`
+            : `${tech.technology} サポート終了 (EOL)`;
+        const eolFindingId = `${generateFindingIdFromCheck(
+          eolCheckId,
+          url,
+          `${tech.technology}:${instVersion || 'unknown'}:eol`
+        )}${instVersion ? `_${instVersion}` : ''}`;
+
+        librarySecurityChecks.push({
+          checkId: eolCheckId,
+          category: 'library-security',
+          name: eolName,
+          status: 'warning',
+          severity: 'medium',
+          observed: `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`,
+          description: `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`,
+          recommendation: instEolInfo?.recommendation || '現行のサポート対象バージョンへの移行を検討してください。',
+          referenceUrls: instEolInfo?.sourceUrl ? [instEolInfo.sourceUrl] : [],
+          scope: url,
+          findingId: eolFindingId,
+        });
+      }
+
+      // CVE該当判定のセキュリティチェック追加 (v1.7.0 T03 / SPEC-13 & T08 / SPEC-10: インスタンスごと)
+      const instAdvisories = inst.advisories || [];
+      const instMatchStatus =
+        inst.advisoryMatchStatus ??
+        (instAdvisories.length > 0 ? 'Potentially Affected' : tech.advisoryMatchStatus);
+
+      if (instMatchStatus === 'Potentially Affected' && instAdvisories.length > 0) {
+        vulnerableLibraryCount++;
+        const topAdvisory = instAdvisories[0];
+        const severityRank: Record<string, number> = {
+          critical: 4,
+          high: 3,
+          medium: 2,
+          low: 1,
+        };
+        let highestSeverity: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+        let highestRank = 0;
+        const hasKev = instAdvisories.some((a) => a.kev === true);
+
+        for (const adv of instAdvisories) {
+          const s = String(adv.severity || '').toLowerCase();
+          const r = severityRank[s] ?? 0;
+          if (r > highestRank) {
+            highestRank = r;
+            highestSeverity = s as 'critical' | 'high' | 'medium' | 'low';
+          }
         }
+
+        const instMaxCvss = inst.maxCvss ?? tech.maxCvss;
+        if (highestRank === 0 && typeof instMaxCvss === 'number') {
+          if (instMaxCvss >= 9.0) highestSeverity = 'critical';
+          else if (instMaxCvss >= 7.0) highestSeverity = 'high';
+          else if (instMaxCvss >= 4.0) highestSeverity = 'medium';
+          else highestSeverity = 'low';
+        }
+
+        const severity: 'critical' | 'high' | 'medium' | 'low' = hasKev
+          ? 'critical'
+          : highestSeverity;
+
+        const isEol = instSupportStatus === 'EOL';
+
+        const cveRecommendation = formatAdvisoryRecommendation(instVersion, instAdvisories, {
+          isEol,
+          technologyName: tech.technology,
+        });
+
+        const kevNote = hasKev ? ' / 悪用確認済み（CISA KEV）' : '';
+        const kevDescSuffix = hasKev ? '（悪用確認済み（CISA KEV）の脆弱性を含みます）' : '';
+
+        const cveCheckId =
+          techCveCheckIdx === 0
+            ? `SEC-CVE-${tech.technology.toUpperCase()}`
+            : `SEC-CVE-${tech.technology.toUpperCase()}-${instVersion || techCveCheckIdx + 1}`;
+        techCveCheckIdx++;
+
+        const cveName =
+          instances.length > 1 && instVersion
+            ? `${tech.technology} (${instVersion}) 既知脆弱性 (${instAdvisories.map((a) => a.id).join(', ')})`
+            : `${tech.technology} 既知脆弱性 (${instAdvisories.map((a) => a.id).join(', ')})`;
+        const cveFindingId = `${generateFindingIdFromCheck(
+          cveCheckId,
+          url,
+          `${tech.technology}:${instVersion || 'unknown'}:cve`
+        )}${instVersion ? `_${instVersion}` : ''}`;
+
+        librarySecurityChecks.push({
+          checkId: cveCheckId,
+          category: 'library-security',
+          name: cveName,
+          status: 'fail',
+          severity,
+          observed: `バージョン ${instVersion} に該当する既知脆弱性 ${instAdvisories.length} 件 (重大度: ${severity.toUpperCase()}${kevNote})`,
+          description: `${topAdvisory.summary}${kevDescSuffix}`,
+          recommendation: cveRecommendation,
+          referenceUrls: topAdvisory.referenceUrls,
+          scope: url,
+          findingId: cveFindingId,
+        });
       }
-
-      if (highestRank === 0 && typeof tech.maxCvss === 'number') {
-        if (tech.maxCvss >= 9.0) highestSeverity = 'critical';
-        else if (tech.maxCvss >= 7.0) highestSeverity = 'high';
-        else if (tech.maxCvss >= 4.0) highestSeverity = 'medium';
-        else highestSeverity = 'low';
-      }
-
-      const severity: 'critical' | 'high' | 'medium' | 'low' = hasKev
-        ? 'critical'
-        : highestSeverity;
-
-      const isEol = tech.supportStatus === 'EOL';
-
-      const cveRecommendation = formatAdvisoryRecommendation(tech.version, tech.advisories, {
-        isEol,
-        technologyName: tech.technology,
-      });
-
-      const kevNote = hasKev ? ' / 悪用確認済み（CISA KEV）' : '';
-      const kevDescSuffix = hasKev ? '（悪用確認済み（CISA KEV）の脆弱性を含みます）' : '';
-
-      librarySecurityChecks.push({
-        checkId: `SEC-CVE-${tech.technology.toUpperCase()}`,
-        category: 'library-security',
-        name: `${tech.technology} 既知脆弱性 (${tech.advisories.map((a) => a.id).join(', ')})`,
-        status: 'fail',
-        severity,
-        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (重大度: ${severity.toUpperCase()}${kevNote})`,
-        description: `${topAdvisory.summary}${kevDescSuffix}`,
-        recommendation: cveRecommendation,
-        referenceUrls: topAdvisory.referenceUrls,
-        scope: url,
-      });
     }
 
     // バージョン不一致判定のセキュリティチェック追加
@@ -757,7 +830,9 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10)
   const exceptions = await deps.getAllFindingExceptions();
   for (const c of allSecurityChecks) {
-    c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
+    if (!c.findingId) {
+      c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
+    }
     const exMatch = matchFindingException(c.findingId, url, exceptions);
     c.exceptionStatus = exMatch.status;
     if (exMatch.exception) {

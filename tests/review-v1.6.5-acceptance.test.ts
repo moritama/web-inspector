@@ -122,7 +122,7 @@ describe('SPEC-09: 誤検知の抑制', () => {
 });
 
 describe('SPEC-10: 同一ライブラリの複数バージョン同居', () => {
-  it.skip('jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する', () => {
+  it('jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する', () => {
     const r = engine.detect({ url: 'https://e.com/', dom: { ...emptyDom(), scriptUrls: ['/js/jquery-1.12.4.min.js', '/js/jquery-3.7.1.min.js'] }, runtimeVersions: { jquery: '3.7.1' } });
     const ids = r.filter((t) => t.technology === 'jQuery').flatMap((t) => (t.advisories || []).map((a) => a.id));
     expect(ids).toContain('CVE-2020-11022');

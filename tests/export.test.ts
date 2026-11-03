@@ -304,4 +304,141 @@ describe('Export Functions', () => {
     expect(mdStr).toContain('Limited Support (Maintenance)');
     expect(mdStr).toContain(reactNote);
   });
+
+  it('T08 (SPEC-10): 複数バージョンインスタンスを持つ技術について、JSON は instances をそのまま出力し、CSV はインスタンスごとに 1 行、Markdown は表の行をインスタンスごとに展開すること', () => {
+    const multiInstanceReport: InspectionReport = {
+      ...dummyReport,
+      technologies: [
+        {
+          technology: 'jQuery',
+          category: 'js-css-library',
+          detected: true,
+          version: '1.12.4',
+          versionSource: 'pattern',
+          confidence: 95,
+          confidenceLevel: 'high',
+          supportStatus: 'EOL',
+          eolDate: '2016-06',
+          advisoryMatchStatus: 'Potentially Affected',
+          offlineMatchStatus: 'Matched',
+          advisories: [
+            {
+              id: 'CVE-2020-11022',
+              title: 'XSS in jQuery.htmlPrefilter',
+              severity: 'medium',
+              cvssScore: 6.1,
+              affectedRange: '< 3.5.0',
+              fixedVersion: '3.5.0',
+              fixStatus: 'fixed',
+              summary: 'XSS in jQuery.htmlPrefilter',
+              referenceUrls: ['https://nvd.nist.gov/vuln/detail/CVE-2020-11022'],
+            },
+          ],
+          evidence: [
+            {
+              type: 'script-url',
+              name: 'Script URL (jQuery)',
+              value: '/js/jquery-1.12.4.min.js',
+              source: 'https://example.com/',
+              weight: 90,
+            },
+            {
+              type: 'script-url',
+              name: 'Script URL (jQuery)',
+              value: '/js/jquery-3.7.1.min.js',
+              source: 'https://example.com/',
+              weight: 90,
+            },
+          ],
+          instances: [
+            {
+              version: '1.12.4',
+              versionSource: 'pattern',
+              evidence: [
+                {
+                  type: 'script-url',
+                  name: 'Script URL (jQuery)',
+                  value: '/js/jquery-1.12.4.min.js',
+                  source: 'https://example.com/',
+                  weight: 90,
+                },
+              ],
+              advisories: [
+                {
+                  id: 'CVE-2020-11022',
+                  title: 'XSS in jQuery.htmlPrefilter',
+                  severity: 'medium',
+                  cvssScore: 6.1,
+                  affectedRange: '< 3.5.0',
+                  fixedVersion: '3.5.0',
+                  fixStatus: 'fixed',
+                  summary: 'XSS in jQuery.htmlPrefilter',
+                  referenceUrls: ['https://nvd.nist.gov/vuln/detail/CVE-2020-11022'],
+                },
+              ],
+              eol: {
+                status: 'EOL',
+                eolDate: '2016-06',
+                source: 'Internal Policy',
+                recommendation: '現行バージョンへ更新推奨',
+              },
+              supportStatus: 'EOL',
+              eolDate: '2016-06',
+              advisoryMatchStatus: 'Potentially Affected',
+              offlineMatchStatus: 'Matched',
+              maxCvss: 6.1,
+            },
+            {
+              version: '3.7.1',
+              versionSource: 'runtime',
+              evidence: [
+                {
+                  type: 'script-url',
+                  name: 'Script URL (jQuery)',
+                  value: '/js/jquery-3.7.1.min.js',
+                  source: 'https://example.com/',
+                  weight: 90,
+                },
+              ],
+              advisories: [],
+              eol: {
+                status: 'Supported',
+                eolDate: null,
+                source: 'Internal Policy',
+                recommendation: 'サポート継続中',
+              },
+              supportStatus: 'Supported',
+              eolDate: null,
+              advisoryMatchStatus: 'Not Affected',
+              offlineMatchStatus: 'No Match',
+            },
+          ],
+        },
+      ],
+    };
+
+    // 1. JSON: instances 配列がそのまま出力されること
+    const jsonStr = exportReportToJson(multiInstanceReport);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.technologies[0].instances).toBeDefined();
+    expect(parsed.technologies[0].instances.length).toBe(2);
+    expect(parsed.technologies[0].instances[0].version).toBe('1.12.4');
+    expect(parsed.technologies[0].instances[1].version).toBe('3.7.1');
+
+    // 2. CSV: インスタンスごとに 1 行出力されること
+    const csvStr = exportReportToCsv(multiInstanceReport);
+    const csvLines = csvStr.split('\r\n');
+    const jqLines = csvLines.filter((l) => l.startsWith('"jQuery",'));
+    expect(jqLines.length).toBe(2);
+    expect(jqLines[0]).toContain('"1.12.4"');
+    expect(jqLines[0]).toContain('CVE-2020-11022');
+    expect(jqLines[1]).toContain('"3.7.1"');
+
+    // 3. Markdown: 検出技術スタック表・ライブラリセキュリティ表でインスタンスごとに行が展開されること
+    const mdStr = generateMarkdownReport(multiInstanceReport);
+    expect(mdStr).toContain('| **jQuery** | js-css-library | `v1.12.4` |');
+    expect(mdStr).toContain('| **jQuery** | js-css-library | `v3.7.1` |');
+    expect(mdStr).toContain('| **jQuery** | `1.12.4` |');
+    expect(mdStr).toContain('| **jQuery** | `3.7.1` |');
+  });
 });

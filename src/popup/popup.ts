@@ -14,6 +14,7 @@ import {
 import {
   escapeHtml,
   formatCategory,
+  formatMultiVersionSummary,
   renderCookieModalHtml,
   renderSecurityModalHtml,
   renderTechModalHtml,
@@ -251,13 +252,17 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
       distroBadgeHtml = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
     }
 
-    // バージョン表示
+    // バージョン表示 (v1.7.0 T08 / SPEC-10: 複数バージョン検出時は「jQuery 1.12.4 / 3.7.1（2 つのバージョン）」形式で表示)
+    const multiVerSummary = formatMultiVersionSummary(t);
+    const displayName = multiVerSummary ? `${t.technology} ${multiVerSummary}` : t.technology;
     let verLabel = t.isCandidateGroup
       ? 'いずれかの可能性あり'
+      : multiVerSummary
+      ? multiVerSummary
       : t.version
-      ? `v${escapeHtml(t.version)}`
+      ? `v${t.version}`
       : 'バージョン不明';
-    if (t.versionSource === 'runtime') {
+    if (!multiVerSummary && t.versionSource === 'runtime') {
       verLabel += ' (実行時)';
     }
 
@@ -269,7 +274,7 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
         <div class="tech-icon-badge">${escapeHtml(iconText)}</div>
         <div class="item-texts">
           <div style="display:flex;align-items:center;gap:6px;">
-            <span class="item-name">${escapeHtml(t.technology)}</span>
+            <span class="item-name">${escapeHtml(displayName)}</span>
             ${methodBadgeHtml}
             ${runtimeBadgeHtml}
           </div>

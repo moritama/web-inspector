@@ -149,6 +149,26 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ Apache 2.4.41 (Server: Apache/2.4.41 (Ubuntu)) が Needs Review (distroHint: ${distroApacheTech.distroHint}) として正常判定されました`);
 
+    // 2-3 実機E2E: /jquery-multi (同一ライブラリの複数バージョン照合: SPEC-10 / T08)
+    console.log('[e2e-smoke] [2-3] 複数バージョン照合: /jquery-multi を検証中...');
+    const jqMultiReport = await inspectUrl('http://localhost:3000/jquery-multi');
+    const jqMultiTech = jqMultiReport.technologies.find((t) => t.technology === 'jQuery');
+    if (!jqMultiTech || !Array.isArray(jqMultiTech.instances) || jqMultiTech.instances.length < 2) {
+      throw new Error(`/jquery-multi: jQuery の 2 インスタンスが検出されませんでした (実際: ${JSON.stringify(jqMultiTech)})`);
+    }
+    const instVersions = jqMultiTech.instances.map((i) => i.version);
+    if (!instVersions.includes('1.12.4') || !instVersions.includes('3.7.1')) {
+      throw new Error(`/jquery-multi: jQuery インスタンスに 1.12.4 と 3.7.1 が含まれていません (実際: ${JSON.stringify(instVersions)})`);
+    }
+    if (jqMultiTech.version !== '1.12.4') {
+      throw new Error(`/jquery-multi: 代表バージョン (version) が古い方の '1.12.4' になっていません (実際: ${jqMultiTech.version})`);
+    }
+    const inst1124 = jqMultiTech.instances.find((i) => i.version === '1.12.4');
+    if (!inst1124 || !Array.isArray(inst1124.advisories) || !inst1124.advisories.some((a) => a.id === 'CVE-2020-11022')) {
+      throw new Error(`/jquery-multi: 1.12.4 インスタンスで CVE-2020-11022 が検出されませんでした (実際: ${JSON.stringify(inst1124)})`);
+    }
+    console.log(`  ✓ jQuery 複数バージョン (${instVersions.join(' / ')}) 検出 & 1.12.4 の CVE-2020-11022 照合を確認`);
+
     // -------------------------------------------------------------
     // 検証 3: 否定コントロール & エッジケース (/edge-cases, /rails-session, /negative-angular)
     // -------------------------------------------------------------

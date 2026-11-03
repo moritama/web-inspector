@@ -86,3 +86,15 @@
   - D7 に従い、ブラウザがそもそも保存しない Cookie を対象にしたチェック（Cookie プレフィックス違反 `SEC-COOKIE-PREFIX`、`SameSite=None` で `Secure` なし、`Partitioned` で `Secure` なし）を `src/security/cookies.ts` から削除し、`docs/DETECTION_SPECIFICATION.md` の図表文言からもプレフィックス表記を外した。ファイル自体の削除は不要であった。
   - 混在コンテンツ（SPEC-15）について、`src/content/content-script.ts` の収集対象に `img[srcset]`、`video[src]`、`audio[src]`、`source[src]` / `source[srcset]`、`object[data]`、`embed[src]`、`form[action]` を追加した。`src/security/https.ts` ではパッシブ混在（`image`, `video`, `audio`, `other`）をブラウザの HTTPS 自動昇格を考慮して `severity: 'low'` とし、アクティブ混在（`script`, `stylesheet`, `iframe`, `object`, `embed`, `fetch`）および平文 HTTP の `form[action]`（`form`）を `severity: 'high'` として説明文にも反映した。
 - 未解決: なし
+
+## T08 同じライブラリの複数バージョンを照合  (2026-11-03 19:55)
+- 変更ファイル: `src/shared/types.ts`, `src/detection/engine.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/popup/render.ts`, `src/dashboard/render.ts`, `src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `src/storage/diff.ts`, `test-server/server.mjs`, `scripts/test-e2e-smoke.mjs`, `tests/review-v1.6.5-acceptance.test.ts`, `tests/detection.test.ts`, `tests/service-worker.test.ts`, `tests/export.test.ts`, `tests/diff.test.ts`, `tests/dashboard-history.test.ts`
+- 判断したこと:
+  - `src/shared/types.ts` に `TechnologyInstance`（`version`, `versionConfidence`, `evidences`, `advisories`, `advisoryMatchMode`, `advisoryNote`, `eol`）と `DetectedTechnology.instances?: TechnologyInstance[]` を追加した。後方互換のため任意フィールドとし、`instances` がない v1.6.6 形式の保存済みレポートも従来の `version` / `advisories` / `eol` から安全に表示・処理できるようにした。
+  - `src/detection/engine.ts` では、エビデンスごとの抽出バージョン（`evidence.version`）でグループ化して `instances` 配列を構築するようにした。バージョンは `compareVersions` による昇順（古い順）、バージョン不明（`undefined`）は末尾に並べ、最大 5 件に制限した。各インスタンスに対して個別にオフライン脆弱性照合と EOL 判定を実行し、`tech.version` には最も古い確定バージョン（`instances[0]?.version`）を設定、`tech.advisories` には全インスタンスの脆弱性の和集合（ID 重複排除・CVSS 降順）、`tech.eol` には EOL 該当インスタンスがあれば優先して保持するようにした。
+  - `src/background/service-worker.ts` の `executeInspection` では、`tech.instances`（未定義時は単一要素にフォールバック）を走査してインスタンスごとに `SEC-EOL-*` と `SEC-CVE-*` を生成し、`findingId` にバージョン文字列を含めることで複数バージョンの Finding が衝突しないようにした。
+  - ポップアップ（`src/popup/render.ts`, `src/popup/popup.ts`）とダッシュボード（`src/dashboard/render.ts`）では、確定バージョンが 2 個以上ある場合に `"1.12.4 / 3.7.1（2 つのバージョン）"` の形式で併記し、モーダルや詳細セクション・ライブラリセキュリティ診断表でインスタンスごとの脆弱性・EOL・エビデンスを表示するようにした。
+  - エクスポート（`src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`）では、JSON に `instances` をそのまま含め、CSV と Markdown の技術一覧表では確定バージョンを持つインスタンスが複数ある場合に 1 インスタンス 1 行で展開して出力するようにした。
+  - 履歴差分（`src/storage/diff.ts`）では、`instances` 内の確定バージョン集合の追加・削除も `Changed`（`site-change`）として検出し、`oldVersion` / `newVersion` にスラッシュ区切りのバージョン一覧を記録するようにした。
+  - E2E テスト用サーバー（`test-server/server.mjs`）に `/jquery-multi`（`jquery-1.12.4.min.js` と `jquery-3.7.1.min.js` を同梱）を追加し、`scripts/test-e2e-smoke.mjs` で複数バージョン検出と脆弱性照合を検証するようにした。
+- 未解決: なし

@@ -98,6 +98,16 @@ export function getSeverityBadgeClass(severity?: string): string {
   return 'sev-medium';
 }
 
+/**
+ * 複数バージョン検出時の表示文字列を生成する (v1.7.0 T08 / SPEC-10)
+ * 例: "1.12.4 / 3.7.1（2 つのバージョン）"
+ */
+export function formatMultiVersionSummary(tech: DetectedTechnology): string | null {
+  if (!tech.instances || tech.instances.length < 2) return null;
+  const vers = tech.instances.map((i) => i.version || '不明').join(' / ');
+  return `${vers}（${tech.instances.length} つのバージョン）`;
+}
+
 
 /**
  * 調査履歴一覧のHTML文字列を生成する (IMPL-01)
@@ -115,7 +125,7 @@ export function renderHistoryListHtml(reports: InspectionReport[]): string {
         <strong>${escapeHtml(r.hostname)}</strong>
         <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${new Date(r.inspectedAt).toLocaleString('ja-JP')}</span>
         <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
-          技術: ${r.technologies.length}件 / 要確認: ${r.summary.requiresAttentionCount}件 / EOL: ${r.summary.librarySecurity?.eolCount ?? 0}件 / ${r.summary.isHttps ? 'HTTPS' : 'HTTP'}
+          技術: ${(r.technologies || []).length}件 / 要確認: ${r.summary?.requiresAttentionCount ?? 0}件 / EOL: ${r.summary?.librarySecurity?.eolCount ?? 0}件 / ${r.summary?.isHttps ? 'HTTPS' : 'HTTP'}
         </div>
       </div>
       <div style="display:flex;gap:6px;">
@@ -151,12 +161,13 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
       const hasKev = t.advisories?.some((a) => a.kev === true) ?? false;
       if (hasKev) issues.push('悪用確認済み（CISA KEV）');
       if (t.versionIntegrity?.status === 'mismatch') issues.push('CSS/JS不一致');
+      const multiVerSummary = formatMultiVersionSummary(t);
 
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-color);">
           <div>
-            <strong>${escapeHtml(t.technology)}</strong>
-            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${t.version ? `v${escapeHtml(t.version)}` : ''}</span>
+            <strong>${escapeHtml(t.technology)}${multiVerSummary ? ` ${escapeHtml(multiVerSummary)}` : ''}</strong>
+            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${multiVerSummary ? escapeHtml(multiVerSummary) : t.version ? `v${escapeHtml(t.version)}` : ''}</span>
             <div style="font-size:11px;color:var(--text-sub);">${escapeHtml(issues.join(' / '))}</div>
           </div>
           <div style="display:flex;gap:4px;align-items:center;">
@@ -202,8 +213,38 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
     return '<div class="empty-state">技術情報がありません</div>';
   }
 
-  const rows = techs
-    .map((t) => {
+  const expandedRows: Array<{ tech: DetectedTechnology; multiVerSummary: string | null }> = [];
+  for (const rawTech of techs) {
+    const multiVerSummary = formatMultiVersionSummary(rawTech);
+    if (rawTech.instances && rawTech.instances.length >= 2) {
+      for (const inst of rawTech.instances) {
+        expandedRows.push({
+          tech: {
+            ...rawTech,
+            version: inst.version,
+            versionSource: inst.versionSource || rawTech.versionSource,
+            distroHint: inst.distroHint ?? rawTech.distroHint,
+            evidence: inst.evidence || rawTech.evidence || [],
+            advisories: inst.advisories,
+            eolInfo: inst.eolInfo,
+            supportStatus: inst.supportStatus,
+            eolDate: inst.eolDate,
+            advisoryMatchStatus: inst.advisoryMatchStatus,
+            offlineMatchStatus: inst.offlineMatchStatus,
+            advisoryStatusLabel: inst.advisoryStatusLabel,
+            upstreamAdvisoriesCount: inst.upstreamAdvisoriesCount,
+            maxCvss: inst.maxCvss,
+          },
+          multiVerSummary,
+        });
+      }
+    } else {
+      expandedRows.push({ tech: rawTech, multiVerSummary: null });
+    }
+  }
+
+  const rows = expandedRows
+    .map(({ tech: t, multiVerSummary }) => {
       const eolLabel = t.eolInfo?.label;
       const eolBadge =
         t.supportStatus === 'EOL'
@@ -295,7 +336,10 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
 
       return `
         <tr>
-          <td><strong>${escapeHtml(t.technology)}</strong></td>
+          <td>
+            <strong>${escapeHtml(t.technology)}</strong>
+            ${multiVerSummary ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t.technology)} ${escapeHtml(multiVerSummary)}</div>` : ''}
+          </td>
           <td>${verDisplay}</td>
           <td>${escapeHtml(t.isCandidateGroup ? '推定候補' : (t.versionSource || '-'))}</td>
           <td>${integrityBadge}</td>
@@ -426,16 +470,51 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         `;
         }
 
+        const multiVerSummary = formatMultiVersionSummary(t);
+        const instancesHtml =
+          t.instances && t.instances.length >= 2
+            ? `
+          <div class="multi-version-instances" style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>検出されたバージョン別インスタンス (${t.instances.length} 件):</strong>
+            ${t.instances
+              .map((inst) => {
+                const instAdvs = inst.advisories || [];
+                const instEolObj = inst.eolInfo ?? inst.eol;
+                const instEol = instEolObj?.label || inst.supportStatus || instEolObj?.status || 'Unknown';
+                const instCveText =
+                  instAdvs.length > 0
+                    ? `CVE ${instAdvs.length}件 (${instAdvs.map((a) => escapeHtml(a.id)).join(', ')})`
+                    : escapeHtml(inst.advisoryStatusLabel || '該当脆弱性なし');
+                const instEvHtml = (inst.evidence || [])
+                  .map(
+                    (e) =>
+                      `<li><code>[${escapeHtml(e.type)}] ${escapeHtml(e.name)}: ${escapeHtml(e.value)}</code></li>`
+                  )
+                  .join('');
+                return `
+                  <div class="instance-item" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border-color);">
+                    <div><strong>v${escapeHtml(inst.version)}</strong> — EOL: ${escapeHtml(instEol)} / 脆弱性: ${instCveText}</div>
+                    ${instEvHtml ? `<ul style="margin:4px 0 0 0;padding-left:18px;font-size:11px;">${instEvHtml}</ul>` : ''}
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        `
+            : '';
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
         <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}</span>
+          <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}${multiVerSummary ? ` ${escapeHtml(multiVerSummary)}` : ''}</span>
           ${methodBadgeHtml}
           ${runtimeBadgeHtml}
           ${
             t.isCandidateGroup
               ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
+              : multiVerSummary
+              ? `<span class="badge" style="background:var(--bg-hover);">${escapeHtml(multiVerSummary)}</span>`
               : t.version
               ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>`
               : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'
@@ -477,6 +556,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         }
         <div>${escapeHtml(t.description || '')}</div>
         ${websiteHtml}
+        ${instancesHtml}
         
         ${
           t.versionIntegrity
@@ -505,7 +585,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
 
         <div style="font-weight:700;margin-top:8px;">判定根拠 (Evidence):</div>
         <ul style="padding-left:18px;">
-          ${t.evidence
+          ${(t.evidence || [])
             .map(
               (e) => `
             <li>

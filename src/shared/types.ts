@@ -245,6 +245,40 @@ export interface VersionIntegrityInfo {
 }
 
 /**
+ * 同一技術のバージョン別検出インスタンス (v1.7.0 T08 / SPEC-10)
+ */
+export interface TechnologyInstance {
+  /** 検出されたバージョン（不明な場合は null） */
+  version: string | null;
+  /** バージョン取得元 */
+  versionSource?: string;
+  /** Linuxディストリビューション版ヒント */
+  distroHint?: string;
+  /** このインスタンスの検出根拠リスト */
+  evidence: Evidence[];
+  /** 該当する既知脆弱性一覧 */
+  advisories: SecurityAdvisory[];
+  /** EOL詳細情報 */
+  eol: EolInfo;
+  /** EOL詳細情報（DetectedTechnology互換エイリアス） */
+  eolInfo?: EolInfo;
+  /** EOLサポート状況 */
+  supportStatus?: SupportStatus;
+  /** EOL日 */
+  eolDate?: string | null;
+  /** 脆弱性照合ステータス */
+  advisoryMatchStatus?: AdvisoryMatchStatus;
+  /** オフライン照合ステータス */
+  offlineMatchStatus?: OfflineMatchStatus;
+  /** ユーザー向け脆弱性照合ステータス表示ラベル */
+  advisoryStatusLabel?: string;
+  /** ディストリビューション版のときの上流版での参考該当件数 */
+  upstreamAdvisoriesCount?: number;
+  /** 最大CVSSスコア */
+  maxCvss?: number | null;
+}
+
+/**
  * 検出されたWeb技術 (Version 1.1 拡張)
  */
 export interface DetectedTechnology {
@@ -254,7 +288,7 @@ export interface DetectedTechnology {
   category: TechnologyCategory;
   /** 検出フラグ */
   detected: boolean;
-  /** 特定された代表バージョン */
+  /** 特定された代表バージョン（複数バージョン検出時は最も古いバージョン） */
   version: string | null;
   /** バージョン取得元 ('runtime' | 'css-url' | 'css-comment' | 'script-url' | 'header' | 'meta' | 'pattern') */
   versionSource?: string;
@@ -266,6 +300,8 @@ export interface DetectedTechnology {
   confidenceLevel: ConfidenceLevel;
   /** 判定根拠リスト */
   evidence: Evidence[];
+  /** 同一技術のバージョン別インスタンス一覧（最大5件、古いバージョン順） (v1.7.0 T08 / SPEC-10) */
+  instances?: TechnologyInstance[];
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */

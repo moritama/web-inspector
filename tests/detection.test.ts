@@ -1352,6 +1352,75 @@ describe('DetectionEngine', () => {
         expect(results.some((r) => r.technology === 'Moment.js')).toBe(false);
       });
     });
+
+    describe('SPEC-10: 同一ライブラリの複数バージョン照合 (T08)', () => {
+      it('異なるバージョンの jQuery が同居する場合、instances に昇順で保持され、version に最も古いバージョンが設定され、全インスタンスが脆弱性・EOL照合されること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://example.com/js/jquery-3.7.1.min.js',
+              'https://example.com/js/jquery-1.12.4.min.js',
+            ],
+          },
+          runtimeVersions: { jquery: '3.7.1' },
+        });
+
+        const jq = results.find((r) => r.technology === 'jQuery');
+        expect(jq).toBeDefined();
+        // 古い方（リスクが高い方）が version に入る
+        expect(jq?.version).toBe('1.12.4');
+        expect(jq?.instances).toBeDefined();
+        expect(jq?.instances?.length).toBe(2);
+        // バージョン昇順で並ぶ
+        expect(jq?.instances?.[0].version).toBe('1.12.4');
+        expect(jq?.instances?.[1].version).toBe('3.7.1');
+
+        // 1.12.4 は EOL かつ CVE-2020-11022 が該当する
+        expect(jq?.instances?.[0].eol.status).toBe('EOL');
+        expect(jq?.instances?.[0].supportStatus).toBe('EOL');
+        expect(jq?.instances?.[0].advisories.some((a) => a.id === 'CVE-2020-11022')).toBe(true);
+
+        // 3.7.1 は 1.12.4 向けの CVE-2020-11022 に該当せず、同一バージョンエビデンス（script + runtime）が1インスタンスに集約される
+        expect(jq?.instances?.[1].advisories.some((a) => a.id === 'CVE-2020-11022')).toBe(false);
+        expect(jq?.instances?.[1].evidence.length).toBeGreaterThanOrEqual(2);
+
+        // 技術全体の advisories にも 1.12.4 の CVE が集約されている
+        expect(jq?.advisories?.some((a) => a.id === 'CVE-2020-11022')).toBe(true);
+      });
+
+      it('同一バージョンの複数エビデンスは 1 つのインスタンスにまとめられ、インスタンス数は最大 5 件に制限されること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://cdn.example.com/jquery-3.7.1.min.js',
+              'https://sub.example.com/jquery-3.7.1.js',
+              'https://cdn.example.com/jquery-3.6.0.min.js',
+              'https://cdn.example.com/jquery-3.5.1.min.js',
+              'https://cdn.example.com/jquery-3.4.1.min.js',
+              'https://cdn.example.com/jquery-2.2.4.min.js',
+              'https://cdn.example.com/jquery-1.12.4.min.js',
+            ],
+          },
+        });
+
+        const jq = results.find((r) => r.technology === 'jQuery');
+        expect(jq).toBeDefined();
+        // 最大 5 インスタンスに制限され、古い順から 5 件残る
+        expect(jq?.instances?.length).toBe(5);
+        expect(jq?.instances?.map((i) => i.version)).toEqual([
+          '1.12.4',
+          '2.2.4',
+          '3.4.1',
+          '3.5.1',
+          '3.6.0',
+        ]);
+        expect(jq?.version).toBe('1.12.4');
+      });
+    });
   });
 });
 

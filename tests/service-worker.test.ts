@@ -533,5 +533,47 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       expect(cveCheck).toBeDefined();
       expect(cveCheck?.severity).toBe('low');
     });
+
+    it('同一ライブラリの複数バージョンが検出された場合、インスタンスごとに SEC-CVE-* / SEC-EOL-* が生成され、例外 ID (findingId) にバージョンが含まれること (T08 / SPEC-10)', async () => {
+      const deps = createMockDeps({
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            metaTags: [],
+            scriptUrls: [
+              'https://example.com/js/jquery-1.12.4.min.js',
+              'https://example.com/js/jquery-2.2.4.min.js',
+              'https://example.com/js/jquery-3.7.1.min.js',
+            ],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.7.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://example.com/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const jqCveChecks = report.securityChecks.filter((c) => c.checkId.startsWith('SEC-CVE-JQUERY'));
+      const jqEolChecks = report.securityChecks.filter((c) => c.checkId.startsWith('SEC-EOL-JQUERY'));
+
+      // 1.12.4 と 2.2.4 の 2 インスタンスそれぞれに対して CVE と EOL の診断結果が生成されること
+      expect(jqCveChecks.length).toBe(2);
+      expect(jqEolChecks.length).toBe(2);
+
+      // 各診断結果の findingId にバージョン番号が含まれ、かつ異なる findingId であること
+      expect(jqCveChecks[0].findingId).toContain('1.12.4');
+      expect(jqCveChecks[1].findingId).toContain('2.2.4');
+      expect(jqCveChecks[0].findingId).not.toBe(jqCveChecks[1].findingId);
+
+      expect(jqEolChecks[0].findingId).toContain('1.12.4');
+      expect(jqEolChecks[1].findingId).toContain('2.2.4');
+      expect(jqEolChecks[0].findingId).not.toBe(jqEolChecks[1].findingId);
+    });
   });
 });

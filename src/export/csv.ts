@@ -9,7 +9,39 @@ import {
   getEffectiveFixStatus,
   resolveTechAdvisoryDisplayInfo,
 } from '../detection/advisory';
-import { InspectionReport } from '../shared/types';
+import { DetectedTechnology, InspectionReport } from '../shared/types';
+
+/**
+ * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
+ */
+function expandTechnologyInstances(technologies: DetectedTechnology[]): DetectedTechnology[] {
+  const expanded: DetectedTechnology[] = [];
+  for (const rawTech of technologies) {
+    if (rawTech.instances && rawTech.instances.length > 0) {
+      for (const inst of rawTech.instances) {
+        expanded.push({
+          ...rawTech,
+          version: inst.version,
+          versionSource: inst.versionSource || rawTech.versionSource,
+          distroHint: inst.distroHint ?? rawTech.distroHint,
+          evidence: inst.evidence && inst.evidence.length > 0 ? inst.evidence : rawTech.evidence || [],
+          advisories: inst.advisories,
+          eolInfo: inst.eolInfo,
+          supportStatus: inst.supportStatus,
+          eolDate: inst.eolDate,
+          advisoryMatchStatus: inst.advisoryMatchStatus,
+          offlineMatchStatus: inst.offlineMatchStatus,
+          advisoryStatusLabel: inst.advisoryStatusLabel,
+          upstreamAdvisoriesCount: inst.upstreamAdvisoriesCount,
+          maxCvss: inst.maxCvss,
+        });
+      }
+    } else {
+      expanded.push(rawTech);
+    }
+  }
+  return expanded;
+}
 
 /**
  * CSVセルのエスケープ処理
@@ -82,9 +114,10 @@ export function exportReportToCsv(report: InspectionReport): string {
   if (report.technologies.length === 0) {
     rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
-    for (const tech of report.technologies) {
+    const expandedTechnologies = expandTechnologyInstances(report.technologies);
+    for (const tech of expandedTechnologies) {
       const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
-      const evidenceSummary = tech.evidence
+      const evidenceSummary = (tech.evidence || [])
         .map((e) => `[${e.type}] ${e.name}: ${e.value}`)
         .join('; ');
 

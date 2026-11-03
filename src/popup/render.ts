@@ -97,6 +97,16 @@ export function getAdvisorySeverityBadgeClass(severity?: string): string {
 }
 
 /**
+ * 複数バージョン検出時の表示文字列を生成する (v1.7.0 T08 / SPEC-10)
+ * 例: "1.12.4 / 3.7.1（2 つのバージョン）"
+ */
+export function formatMultiVersionSummary(tech: DetectedTechnology): string | null {
+  if (!tech.instances || tech.instances.length < 2) return null;
+  const vers = tech.instances.map((i) => i.version || '不明').join(' / ');
+  return `${vers}（${tech.instances.length} つのバージョン）`;
+}
+
+/**
  * 技術詳細モーダルのHTML文字列を生成する
  */
 export function renderTechModalHtml(tech: DetectedTechnology): string {
@@ -263,11 +273,40 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     ? `<div>公式サイト: ${renderSafeExternalLink(tech.website, tech.website, { className: 'ref-link' })}</div>`
     : '';
 
+  const multiVerSummary = formatMultiVersionSummary(tech);
+  const instancesDetailHtml =
+    multiVerSummary && tech.instances
+      ? `
+      <div>
+        <div class="detail-section-title">バージョン別インスタンス (${escapeHtml(tech.technology)} ${escapeHtml(multiVerSummary)})</div>
+        ${tech.instances
+          .map((inst) => {
+            const instEol = inst.eol ?? inst.eolInfo;
+            const instEolStatus = inst.supportStatus ?? instEol?.status ?? 'Unknown';
+            const instEolLabel = instEol?.label || instEolStatus;
+            const instAdvs = inst.advisories || [];
+            const advIds = instAdvs.map((a) => escapeHtml(a.id)).join(', ');
+            const evList = (inst.evidence || [])
+              .map((e) => `<li><code>[${escapeHtml(e.type)}]</code> ${escapeHtml(e.value)}</li>`)
+              .join('');
+            return `
+          <div class="evidence-item" style="margin-bottom:6px;">
+            <div><strong>v${escapeHtml(inst.version || '不明')}</strong> — EOL: <strong>${escapeHtml(instEolLabel)}</strong> / CVE: <strong>${instAdvs.length}件</strong>${advIds ? ` (${advIds})` : ''}</div>
+            ${evList ? `<ul style="margin:4px 0 0 16px;padding:0;font-size:11px;">${evList}</ul>` : ''}
+          </div>
+        `;
+          })
+          .join('')}
+      </div>
+    `
+      : '';
+
   return `
     ${candidateHtml}
     <div>
       <div class="detail-section-title">基本情報</div>
       <div>確信度スコア: <strong>${tech.confidence}</strong> (${escapeHtml(tech.confidenceLevel.toUpperCase())})</div>
+      ${multiVerSummary ? `<div>検出バージョン一覧: <strong>${escapeHtml(tech.technology)} ${escapeHtml(multiVerSummary)}</strong></div>` : ''}
       <div>代表バージョン: <strong>${tech.isCandidateGroup ? 'いずれかの可能性あり' : escapeHtml(tech.version || '不明')}</strong> ${tech.versionSource ? `[取得元: ${escapeHtml(tech.versionSource)}]` : ''}</div>
       <div>カテゴリ: ${escapeHtml(tech.isCandidateGroup ? '言語・フレームワーク候補' : formatCategory(tech.category))}</div>
       <div>検出方式: <strong>${escapeHtml(formatDetectionMethod(tech.detectionMethod, tech.isCandidateGroup))}</strong></div>
@@ -278,6 +317,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
       ${websiteHtml}
     </div>
 
+    ${tech.isCandidateGroup ? '' : instancesDetailHtml}
     ${tech.isCandidateGroup ? '' : integrityHtml}
     ${tech.isCandidateGroup ? '' : eolHtml}
     ${tech.isCandidateGroup ? '' : cveHtml}

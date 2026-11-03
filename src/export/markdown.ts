@@ -13,10 +13,43 @@ import {
 } from '../detection/advisory';
 import {
   DetailedDiffItem,
+  DetectedTechnology,
   FindingException,
   InspectionReport,
 } from '../shared/types';
 import { compareReportsEnhanced } from '../storage/diff';
+
+/**
+ * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
+ */
+function expandTechnologyInstances(technologies: DetectedTechnology[]): DetectedTechnology[] {
+  const expanded: DetectedTechnology[] = [];
+  for (const rawTech of technologies) {
+    if (rawTech.instances && rawTech.instances.length > 0) {
+      for (const inst of rawTech.instances) {
+        expanded.push({
+          ...rawTech,
+          version: inst.version,
+          versionSource: inst.versionSource || rawTech.versionSource,
+          distroHint: inst.distroHint ?? rawTech.distroHint,
+          evidence: inst.evidence && inst.evidence.length > 0 ? inst.evidence : rawTech.evidence || [],
+          advisories: inst.advisories,
+          eolInfo: inst.eolInfo,
+          supportStatus: inst.supportStatus,
+          eolDate: inst.eolDate,
+          advisoryMatchStatus: inst.advisoryMatchStatus,
+          offlineMatchStatus: inst.offlineMatchStatus,
+          advisoryStatusLabel: inst.advisoryStatusLabel,
+          upstreamAdvisoriesCount: inst.upstreamAdvisoriesCount,
+          maxCvss: inst.maxCvss,
+        });
+      }
+    } else {
+      expanded.push(rawTech);
+    }
+  }
+  return expanded;
+}
 
 /**
  * URLから機密クエリパラメータ（token, secret, key, password等）を除去・マスクする
@@ -132,6 +165,8 @@ ${
 | **INFO (情報)** | **${report.summary.securityFindings.info}** | 参考情報・セキュリティ良好な項目 |
 `);
 
+  const expandedTechnologies = expandTechnologyInstances(report.technologies || []);
+
   // 4. 検出技術スタック
   sections.push(`## 4. 検出技術スタック
 
@@ -140,7 +175,7 @@ ${
 
 | 技術名 | カテゴリ | バージョン | ディストリ版 | 検出方式 | 連動元 / 種別 | ランタイム状態 | 確信度 | 整合性 |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-${report.technologies.length > 0 ? report.technologies.map((t) => {
+${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const ver = t.isCandidateGroup ? 'いずれかの可能性' : t.version ? `v${t.version}` : '不明';
   const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
   const method = t.isCandidateGroup || t.detectionMethod === 'associated' ? '候補・関連' : t.detectionMethod === 'inferred' ? '連動検知' : '直接検出';
@@ -171,7 +206,7 @@ ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
 
 | 対象技術 | バージョン | ディストリ版 | サポート状況 (EOL) | 照合ステータス | 該当CVE/GHSA | 修正状況 (fixStatus) | CISA KEV | 推奨対応 |
 |---|:---:|:---:|:---:|:---:|---|---|:---:|---|
-${report.technologies.map((t) => {
+${expandedTechnologies.map((t) => {
   const displayInfo = resolveTechAdvisoryDisplayInfo(t);
   const eol = t.eolInfo?.label
     ? escapeMarkdown(t.eolInfo.label)

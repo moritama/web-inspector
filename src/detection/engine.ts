@@ -10,11 +10,24 @@ import {
   DomSignals,
   Evidence,
   NetworkSignals,
+  SecurityAdvisory,
+  TechnologyInstance,
   VersionIntegrityInfo,
   VersionMismatchStatus,
 } from '../shared/types';
+import { compareVersions } from '../security/version-matcher';
 import { calculateConfidence } from './confidence';
 import { ALL_TECHNOLOGY_RULES, TechnologyRule } from './rules';
+
+/** 1技術あたりのインスタンス保持上限 (v1.7.0 T08 / SPEC-10) */
+const MAX_TECHNOLOGY_INSTANCES = 5;
+
+interface EvidenceEntry {
+  evidence: Evidence;
+  version: string | null;
+  versionSource?: string;
+  distroHint?: string;
+}
 
 export interface DetectionInput {
   url: string;
@@ -40,26 +53,46 @@ export class DetectionEngine {
 
     for (const rule of this.rules) {
       const evidences: Evidence[] = [];
+      const evidenceEntries: EvidenceEntry[] = [];
       let detectedVersion: string | null = null;
       let versionSource: string | undefined = undefined;
       let jsVersion: string | null = null;
       let cssVersion: string | null = null;
       let distroHint: string | undefined = undefined;
 
+      const addEvidence = (
+        evidence: Evidence,
+        version: string | null = null,
+        source?: string,
+        hint?: string
+      ): void => {
+        evidences.push(evidence);
+        evidenceEntries.push({
+          evidence,
+          version,
+          versionSource: source,
+          distroHint: hint,
+        });
+      };
+
       // --- A. JavaScript 実行時バージョンのチェック (ADD-01) ---
       if (rule.id === 'jquery' && runtime.jquery) {
         jsVersion = runtime.jquery;
         detectedVersion = runtime.jquery;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.jQuery.fn.jquery',
-          value: runtime.jquery,
-          source: 'window.jQuery.fn.jquery',
-          detail: `JavaScript実行環境からjQuery ${runtime.jquery} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.jQuery.fn.jquery',
+            value: runtime.jquery,
+            source: 'window.jQuery.fn.jquery',
+            detail: `JavaScript実行環境からjQuery ${runtime.jquery} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.jquery,
+          'runtime'
+        );
       }
 
       if (rule.id === 'bootstrap') {
@@ -69,15 +102,19 @@ export class DetectionEngine {
           detectedVersion = bsVer;
           versionSource = 'runtime';
           const srcName = runtime.bootstrap5 ? 'window.bootstrap.Modal.VERSION' : 'jQuery.fn.modal.Constructor.VERSION';
-          evidences.push({
-            type: 'runtime',
-            name: srcName,
-            value: bsVer,
-            source: srcName,
-            detail: `JavaScript実行環境からBootstrap JS ${bsVer} を直接検出`,
-            confidence: 'high',
-            weight: 100,
-          });
+          addEvidence(
+            {
+              type: 'runtime',
+              name: srcName,
+              value: bsVer,
+              source: srcName,
+              detail: `JavaScript実行環境からBootstrap JS ${bsVer} を直接検出`,
+              confidence: 'high',
+              weight: 100,
+            },
+            bsVer,
+            'runtime'
+          );
         }
       }
 
@@ -85,60 +122,76 @@ export class DetectionEngine {
         jsVersion = runtime.vue;
         detectedVersion = runtime.vue;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.Vue.version',
-          value: runtime.vue,
-          source: 'window.Vue.version',
-          detail: `JavaScript実行環境からVue ${runtime.vue} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.Vue.version',
+            value: runtime.vue,
+            source: 'window.Vue.version',
+            detail: `JavaScript実行環境からVue ${runtime.vue} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.vue,
+          'runtime'
+        );
       }
 
       if (rule.id === 'lodash' && runtime.lodash) {
         jsVersion = runtime.lodash;
         detectedVersion = runtime.lodash;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window._.VERSION',
-          value: runtime.lodash,
-          source: 'window._.VERSION',
-          detail: `JavaScript実行環境からLodash ${runtime.lodash} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window._.VERSION',
+            value: runtime.lodash,
+            source: 'window._.VERSION',
+            detail: `JavaScript実行環境からLodash ${runtime.lodash} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.lodash,
+          'runtime'
+        );
       }
 
       if (rule.id === 'moment' && runtime.moment) {
         jsVersion = runtime.moment;
         detectedVersion = runtime.moment;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.moment.version',
-          value: runtime.moment,
-          source: 'window.moment.version',
-          detail: `JavaScript実行環境からMoment.js ${runtime.moment} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.moment.version',
+            value: runtime.moment,
+            source: 'window.moment.version',
+            detail: `JavaScript実行環境からMoment.js ${runtime.moment} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.moment,
+          'runtime'
+        );
       }
 
       if (rule.id === 'angularjs' && runtime.angularjs) {
         jsVersion = runtime.angularjs;
         detectedVersion = runtime.angularjs;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.angular.version.full',
-          value: runtime.angularjs,
-          source: 'window.angular.version.full',
-          detail: `JavaScript実行環境からAngularJS ${runtime.angularjs} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.angular.version.full',
+            value: runtime.angularjs,
+            source: 'window.angular.version.full',
+            detail: `JavaScript実行環境からAngularJS ${runtime.angularjs} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.angularjs,
+          'runtime'
+        );
       }
 
       // --- B. CSSアセット解析 (ADD-02) ---
@@ -157,15 +210,19 @@ export class DetectionEngine {
               }
             }
 
-            evidences.push({
-              type: css.evidenceType,
-              name: css.evidenceType === 'css-comment' ? 'CSSファイルコメント' : 'CSSファイルURL',
-              value: css.inferredVersion ? `${css.filename} (v${css.inferredVersion})` : css.filename,
-              source: css.href,
-              detail: `読み込まれたCSSアセットから${rule.name}の特徴を検出`,
-              confidence: css.confidence,
-              weight: css.confidence === 'high' ? 95 : 80,
-            });
+            addEvidence(
+              {
+                type: css.evidenceType,
+                name: css.evidenceType === 'css-comment' ? 'CSSファイルコメント' : 'CSSファイルURL',
+                value: css.inferredVersion ? `${css.filename} (v${css.inferredVersion})` : css.filename,
+                source: css.href,
+                detail: `読み込まれたCSSアセットから${rule.name}の特徴を検出`,
+                confidence: css.confidence,
+                weight: css.confidence === 'high' ? 95 : 80,
+              },
+              css.inferredVersion || null,
+              css.inferredVersion ? css.evidenceType : undefined
+            );
           }
         }
       }
@@ -179,30 +236,37 @@ export class DetectionEngine {
               const headerValues = input.network.responseHeaders[headerKey] || [];
               for (const val of headerValues) {
                 if (this.matchPattern(val, signal.pattern)) {
-                  evidences.push({
-                    type: 'response-header',
-                    name: signal.target,
-                    value: val,
-                    source: input.url,
-                    detail: signal.detail || `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
-                    weight: signal.weight,
-                  });
-
-                  if (signal.versionRegex && !detectedVersion) {
+                  let headerVer: string | null = null;
+                  if (signal.versionRegex) {
                     const v = this.extractVersion(val, signal.versionRegex);
                     if (v) {
-                      detectedVersion = v;
-                      versionSource = 'response-header';
+                      headerVer = v;
+                      if (!detectedVersion) {
+                        detectedVersion = v;
+                        versionSource = 'response-header';
+                      }
                     }
                   }
 
                   // ディストリビューション版ヒントの判定 (T04 / SPEC-02)
-                  if (!distroHint) {
-                    const hint = this.detectDistroHint(val, detectedVersion);
-                    if (hint) {
-                      distroHint = hint;
-                    }
+                  const hint = this.detectDistroHint(val, headerVer || detectedVersion);
+                  if (!distroHint && hint) {
+                    distroHint = hint;
                   }
+
+                  addEvidence(
+                    {
+                      type: 'response-header',
+                      name: signal.target,
+                      value: val,
+                      source: input.url,
+                      detail: signal.detail || `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
+                      weight: signal.weight,
+                    },
+                    headerVer,
+                    headerVer ? 'response-header' : undefined,
+                    hint
+                  );
                 }
               }
             }
@@ -220,7 +284,7 @@ export class DetectionEngine {
 
             for (const name of cookieNames) {
               if (this.matchPattern(name, signal.pattern || signal.target)) {
-                evidences.push({
+                addEvidence({
                   type: 'cookie-name',
                   name,
                   value: name,
@@ -236,7 +300,7 @@ export class DetectionEngine {
           case 'url': {
             const pathAndQuery = urlObj ? `${urlObj.pathname}${urlObj.search}` : '';
             if (this.matchPattern(pathAndQuery, signal.pattern)) {
-              evidences.push({
+              addEvidence({
                 type: 'url-pattern',
                 name: 'URLパス',
                 value: pathAndQuery,
@@ -254,22 +318,30 @@ export class DetectionEngine {
                 const targetName = (meta.name || meta.property || '').toLowerCase();
                 if (targetName === signal.target.toLowerCase()) {
                   if (this.matchPattern(meta.content, signal.pattern)) {
-                    evidences.push({
-                      type: 'html',
-                      name: `meta[${targetName}]`,
-                      value: meta.content,
-                      source: input.url,
-                      detail: signal.detail || `metaタグ「${targetName}」にシグネチャを検出`,
-                      weight: signal.weight,
-                    });
-
-                    if (signal.versionRegex && !detectedVersion) {
+                    let metaVer: string | null = null;
+                    if (signal.versionRegex) {
                       const v = this.extractVersion(meta.content, signal.versionRegex);
                       if (v) {
-                        detectedVersion = v;
-                        versionSource = 'html';
+                        metaVer = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'html';
+                        }
                       }
                     }
+
+                    addEvidence(
+                      {
+                        type: 'html',
+                        name: `meta[${targetName}]`,
+                        value: meta.content,
+                        source: input.url,
+                        detail: signal.detail || `metaタグ「${targetName}」にシグネチャを検出`,
+                        weight: signal.weight,
+                      },
+                      metaVer,
+                      metaVer ? 'html' : undefined
+                    );
                   }
                 }
               }
@@ -296,14 +368,18 @@ export class DetectionEngine {
                     }
                   }
 
-                  evidences.push({
-                    type: 'script-url',
-                    name: 'script[src]',
-                    value: scriptVersion ? `${this.truncateUrl(scriptSrc)} (v${scriptVersion})` : this.truncateUrl(scriptSrc),
-                    source: scriptSrc,
-                    detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
-                    weight: signal.weight,
-                  });
+                  addEvidence(
+                    {
+                      type: 'script-url',
+                      name: 'script[src]',
+                      value: scriptVersion ? `${this.truncateUrl(scriptSrc)} (v${scriptVersion})` : this.truncateUrl(scriptSrc),
+                      source: scriptSrc,
+                      detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
+                      weight: signal.weight,
+                    },
+                    scriptVersion,
+                    scriptVersion ? 'script-url' : undefined
+                  );
                 }
               }
             }
@@ -326,14 +402,18 @@ export class DetectionEngine {
                     }
                   }
 
-                  evidences.push({
-                    type: 'css-url',
-                    name: `link[rel="${link.rel}"]`,
-                    value: linkVersion ? `${this.truncateUrl(link.href)} (v${linkVersion})` : this.truncateUrl(link.href),
-                    source: link.href,
-                    detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
-                    weight: signal.weight,
-                  });
+                  addEvidence(
+                    {
+                      type: 'css-url',
+                      name: `link[rel="${link.rel}"]`,
+                      value: linkVersion ? `${this.truncateUrl(link.href)} (v${linkVersion})` : this.truncateUrl(link.href),
+                      source: link.href,
+                      detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
+                      weight: signal.weight,
+                    },
+                    linkVersion,
+                    linkVersion ? 'html' : undefined
+                  );
                 }
               }
             }
@@ -344,7 +424,7 @@ export class DetectionEngine {
             // ページタイトルの検査 (例: FastAPI Swagger UI)
             if (signal.target === 'title' && input.dom?.title) {
               if (this.matchPattern(input.dom.title, signal.pattern)) {
-                evidences.push({
+                addEvidence({
                   type: 'html',
                   name: 'ページタイトル',
                   value: input.dom.title,
@@ -359,22 +439,30 @@ export class DetectionEngine {
             if (input.dom?.domMarkers) {
               for (const marker of input.dom.domMarkers) {
                 if (this.matchPattern(marker, signal.pattern)) {
-                  evidences.push({
-                    type: 'html',
-                    name: 'DOMマーカー',
-                    value: marker,
-                    source: input.url,
-                    detail: signal.detail || `DOM構造に特有の属性または要素を検出`,
-                    weight: signal.weight,
-                  });
-
-                  if (signal.versionRegex && !detectedVersion) {
+                  let domVer: string | null = null;
+                  if (signal.versionRegex) {
                     const v = this.extractVersion(marker, signal.versionRegex);
                     if (v) {
-                      detectedVersion = v;
-                      versionSource = 'html';
+                      domVer = v;
+                      if (!detectedVersion) {
+                        detectedVersion = v;
+                        versionSource = 'html';
+                      }
                     }
                   }
+
+                  addEvidence(
+                    {
+                      type: 'html',
+                      name: 'DOMマーカー',
+                      value: marker,
+                      source: input.url,
+                      detail: signal.detail || `DOM構造に特有の属性または要素を検出`,
+                      weight: signal.weight,
+                    },
+                    domVer,
+                    domVer ? 'html' : undefined
+                  );
                 }
               }
             }
@@ -383,7 +471,7 @@ export class DetectionEngine {
             if (input.dom?.elementTexts && signal.pattern) {
               for (const text of input.dom.elementTexts) {
                 if (this.matchPattern(text, signal.pattern)) {
-                  evidences.push({
+                  addEvidence({
                     type: 'html',
                     name: `要素テキスト (${signal.target})`,
                     value: text.substring(0, 50),
@@ -400,7 +488,7 @@ export class DetectionEngine {
             if (input.dom?.htmlSnippets && signal.target !== 'title' && !isAttrSelector) {
               for (const snippet of input.dom.htmlSnippets) {
                 if (this.matchPattern(snippet, signal.pattern)) {
-                  evidences.push({
+                  addEvidence({
                     type: 'html',
                     name: 'HTMLコンテンツ',
                     value: snippet.substring(0, 50),
@@ -418,7 +506,7 @@ export class DetectionEngine {
             if (input.dom?.htmlSnippets) {
               for (const snippet of input.dom.htmlSnippets) {
                 if (this.matchPattern(snippet, signal.pattern)) {
-                  evidences.push({
+                  addEvidence({
                     type: 'pattern',
                     name: 'CSSクラスパターン',
                     value: snippet.substring(0, 100),
@@ -444,38 +532,78 @@ export class DetectionEngine {
           versionIntegrity = this.evaluateVersionIntegrity(jsVersion, cssVersion);
         }
 
-        // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05 / SPEC-02) ---
-        const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion, undefined, { distroHint });
-        const eolInfo = offlineResult.eolInfo;
+        // --- E/F. バージョン別インスタンス構築 & オフラインEOL・既知脆弱性 (CVE) 照合 (T08 / SPEC-10) ---
+        const instances = this.buildInstances(rule.name, evidenceEntries, distroHint);
+        const primaryInstance = instances[0];
+        const primaryVersion = primaryInstance ? primaryInstance.version : detectedVersion;
+        const primaryVersionSource = primaryInstance?.versionSource || versionSource;
+        const primaryDistroHint = primaryInstance?.distroHint || distroHint;
+
+        const offlineResult = matchOfflineAdvisories(rule.name, primaryVersion, undefined, {
+          distroHint: primaryDistroHint,
+        });
+        const eolInfo = primaryInstance ? primaryInstance.eol : offlineResult.eolInfo;
+
+        // 全インスタンスの該当CVEを重複排除して集約
+        const mergedAdvisories: SecurityAdvisory[] = [];
+        const seenAdvIds = new Set<string>();
+        for (const inst of instances) {
+          for (const adv of inst.advisories) {
+            if (!seenAdvIds.has(adv.id)) {
+              seenAdvIds.add(adv.id);
+              mergedAdvisories.push(adv);
+            }
+          }
+        }
+
+        let aggregatedMaxCvss: number | null = offlineResult.maxCvss;
+        for (const inst of instances) {
+          if (typeof inst.maxCvss === 'number') {
+            aggregatedMaxCvss =
+              aggregatedMaxCvss === null ? inst.maxCvss : Math.max(aggregatedMaxCvss, inst.maxCvss);
+          }
+        }
+
+        const affectedInstance = instances.find((i) => i.advisoryMatchStatus === 'Potentially Affected');
+        const effectiveMatchStatus = affectedInstance
+          ? 'Potentially Affected'
+          : (primaryInstance?.advisoryMatchStatus ?? offlineResult.matchStatus);
+        const effectiveOfflineStatus = affectedInstance
+          ? 'Matched'
+          : (primaryInstance?.offlineMatchStatus ?? offlineResult.offlineMatchStatus);
+        const effectiveStatusLabel = affectedInstance
+          ? affectedInstance.advisoryStatusLabel
+          : (primaryInstance?.advisoryStatusLabel ?? offlineResult.advisoryStatusLabel);
 
         results.push({
           technology: rule.name,
           category: rule.category,
           detected: true,
-          version: detectedVersion,
-          versionSource,
-          distroHint,
+          version: primaryVersion,
+          versionSource: primaryVersionSource,
+          distroHint: primaryDistroHint,
           confidence,
           confidenceLevel: level,
           evidence: evidences,
+          instances,
           cssVersion,
           jsVersion,
           versionIntegrity,
           supportStatus: eolInfo.status,
           eolDate: eolInfo.eolDate,
           eolInfo,
-          advisoryMatchStatus: offlineResult.matchStatus,
-          offlineMatchStatus: offlineResult.offlineMatchStatus,
+          advisoryMatchStatus: effectiveMatchStatus,
+          offlineMatchStatus: effectiveOfflineStatus,
           isStale: offlineResult.isStale,
           dbFreshness: offlineResult.dbFreshness,
-          advisories: offlineResult.advisories,
-          maxCvss: offlineResult.maxCvss,
+          advisories: mergedAdvisories,
+          maxCvss: aggregatedMaxCvss,
           advisoryDataUpdatedAt: offlineResult.updatedAt,
           productAdvisoryCount: offlineResult.productAdvisoryCount,
           productSources: offlineResult.productSources,
           advisoryDataVersion: offlineResult.advisoryDataVersion,
-          upstreamAdvisoriesCount: offlineResult.upstreamAdvisoriesCount,
-          advisoryStatusLabel: offlineResult.advisoryStatusLabel,
+          upstreamAdvisoriesCount: primaryInstance?.upstreamAdvisoriesCount ?? offlineResult.upstreamAdvisoriesCount,
+          advisoryStatusLabel: effectiveStatusLabel,
           description: rule.description,
           website: rule.website,
           detectionMethod: 'direct',
@@ -724,6 +852,9 @@ export class DetectionEngine {
             );
             if (!alreadyHasThisImplication) {
               existing.evidence.push(impliedEvidence);
+              if (existing.instances && existing.instances.length === 1) {
+                existing.instances[0].evidence.push(impliedEvidence);
+              }
               const recalculated = calculateConfidence(existing.evidence);
               existing.confidence = Math.max(existing.confidence, recalculated.confidence);
               existing.confidenceLevel = recalculated.level;
@@ -750,6 +881,23 @@ export class DetectionEngine {
               confidence,
               confidenceLevel: level,
               evidence: [impliedEvidence],
+              instances: [
+                {
+                  version: null,
+                  versionSource: 'implication',
+                  evidence: [impliedEvidence],
+                  advisories: offlineResult.advisories,
+                  eol: eolInfo,
+                  eolInfo,
+                  supportStatus: eolInfo.status,
+                  eolDate: eolInfo.eolDate,
+                  advisoryMatchStatus: offlineResult.matchStatus,
+                  offlineMatchStatus: offlineResult.offlineMatchStatus,
+                  advisoryStatusLabel: offlineResult.advisoryStatusLabel,
+                  upstreamAdvisoriesCount: offlineResult.upstreamAdvisoriesCount,
+                  maxCvss: offlineResult.maxCvss,
+                },
+              ],
               supportStatus: eolInfo.status,
               eolDate: eolInfo.eolDate,
               eolInfo,
@@ -782,6 +930,115 @@ export class DetectionEngine {
         break;
       }
     }
+  }
+
+  /**
+   * エビデンス一覧からバージョン別の TechnologyInstance を構築する (v1.7.0 T08 / SPEC-10)
+   * - 同一バージョンのエビデンスは 1 つのインスタンスに統合
+   * - 複数バージョンが存在する場合は古いバージョン順（昇順）にソート
+   * - 最大 MAX_TECHNOLOGY_INSTANCES (5) インスタンスまで保持
+   */
+  private buildInstances(
+    technologyName: string,
+    entries: EvidenceEntry[],
+    fallbackDistroHint?: string
+  ): TechnologyInstance[] {
+    const versionGroups = new Map<
+      string,
+      {
+        version: string;
+        evidences: Evidence[];
+        versionSource?: string;
+        distroHint?: string;
+      }
+    >();
+    const unversionedEvidences: Evidence[] = [];
+
+    for (const entry of entries) {
+      if (entry.version && entry.version.trim() !== '') {
+        const ver = entry.version.trim();
+        const existing = versionGroups.get(ver);
+        if (existing) {
+          existing.evidences.push(entry.evidence);
+          if (!existing.versionSource && entry.versionSource) {
+            existing.versionSource = entry.versionSource;
+          }
+          if (!existing.distroHint && entry.distroHint) {
+            existing.distroHint = entry.distroHint;
+          }
+        } else {
+          versionGroups.set(ver, {
+            version: ver,
+            evidences: [entry.evidence],
+            versionSource: entry.versionSource,
+            distroHint: entry.distroHint,
+          });
+        }
+      } else {
+        unversionedEvidences.push(entry.evidence);
+      }
+    }
+
+    if (versionGroups.size > 0) {
+      const groups = Array.from(versionGroups.values());
+      // 単一バージョン検出時はバージョンなしのエビデンスもそのインスタンスに含める
+      if (groups.length === 1 && unversionedEvidences.length > 0) {
+        groups[0].evidences.push(...unversionedEvidences);
+      }
+
+      // 古いバージョン（リスクが高い方）が先頭になるよう昇順ソート
+      groups.sort((a, b) => {
+        const cmp = compareVersions(a.version, b.version);
+        if (cmp !== null) return cmp;
+        return a.version.localeCompare(b.version, undefined, { numeric: true });
+      });
+
+      const capped = groups.slice(0, MAX_TECHNOLOGY_INSTANCES);
+      return capped.map((grp) => {
+        const effectiveDistroHint = grp.distroHint || fallbackDistroHint;
+        const advRes = matchOfflineAdvisories(technologyName, grp.version, undefined, {
+          distroHint: effectiveDistroHint,
+        });
+        return {
+          version: grp.version,
+          versionSource: grp.versionSource,
+          distroHint: effectiveDistroHint,
+          evidence: grp.evidences,
+          advisories: advRes.advisories,
+          eol: advRes.eolInfo,
+          eolInfo: advRes.eolInfo,
+          supportStatus: advRes.eolInfo.status,
+          eolDate: advRes.eolInfo.eolDate,
+          advisoryMatchStatus: advRes.matchStatus,
+          offlineMatchStatus: advRes.offlineMatchStatus,
+          advisoryStatusLabel: advRes.advisoryStatusLabel,
+          upstreamAdvisoriesCount: advRes.upstreamAdvisoriesCount,
+          maxCvss: advRes.maxCvss,
+        };
+      });
+    }
+
+    // バージョンが一切特定できなかった場合は version: null の単一インスタンスを生成
+    const advRes = matchOfflineAdvisories(technologyName, null, undefined, {
+      distroHint: fallbackDistroHint,
+    });
+    return [
+      {
+        version: null,
+        distroHint: fallbackDistroHint,
+        evidence: unversionedEvidences,
+        advisories: advRes.advisories,
+        eol: advRes.eolInfo,
+        eolInfo: advRes.eolInfo,
+        supportStatus: advRes.eolInfo.status,
+        eolDate: advRes.eolInfo.eolDate,
+        advisoryMatchStatus: advRes.matchStatus,
+        offlineMatchStatus: advRes.offlineMatchStatus,
+        advisoryStatusLabel: advRes.advisoryStatusLabel,
+        upstreamAdvisoriesCount: advRes.upstreamAdvisoriesCount,
+        maxCvss: advRes.maxCvss,
+      },
+    ];
   }
 
   /**

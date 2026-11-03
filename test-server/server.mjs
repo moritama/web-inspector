@@ -46,6 +46,7 @@ function createLayout(title, content) {
       <a href="/vue3-app">/vue3-app (Vue 3)</a>
       <a href="/bootstrap-only">/bootstrap-only (Bootstrapのみ)</a>
       <a href="/distro-apache">/distro-apache (Distro Apache)</a>
+      <a href="/jquery-multi">/jquery-multi (複数jQuery)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -555,6 +556,39 @@ const server = http.createServer((req, res) => {
             <li><strong>脆弱性照合 (advisoryMatchStatus)</strong>: <code>Needs Review</code>（ディストリビューション版 Ubuntu のためバックポートを考慮）</li>
           </ul>
         </div>`
+      )
+    );
+  }
+
+  // --- 15. /jquery-multi (同一ライブラリの複数バージョン検証: SPEC-10 / T08) ---
+  if (pathname === '/js/jquery-1.12.4.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v1.12.4 */ window.__jq1 = "1.12.4";');
+  }
+  if (pathname === '/js/jquery-3.7.1.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v3.7.1 */ window.jQuery = function() {}; window.jQuery.fn = { jquery: "3.7.1" }; window.$ = window.jQuery;');
+  }
+  if (pathname === '/jquery-multi') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        '複数バージョン jQuery 検証',
+        `<h1>複数バージョン jQuery 検証 (/jquery-multi)</h1>
+        <p>このページでは <code>jquery-1.12.4.min.js</code> と <code>jquery-3.7.1.min.js</code> の 2 つのバージョンを同時に読み込んでいます。</p>
+        <div class="card">
+          <h3>期待される検出結果:</h3>
+          <ul>
+            <li><strong>jQuery</strong>: <code>instances</code> に <code>1.12.4</code> と <code>3.7.1</code> の 2 件が昇順で保持されること</li>
+            <li><strong>代表バージョン (version)</strong>: 古い方の <code>1.12.4</code> が設定されること</li>
+            <li><strong>脆弱性照合</strong>: <code>1.12.4</code> インスタンスに対して <code>CVE-2020-11022</code> 等が検出されること</li>
+          </ul>
+        </div>
+        <script src="/js/jquery-1.12.4.min.js"></script>
+        <script src="/js/jquery-3.7.1.min.js"></script>`
       )
     );
   }

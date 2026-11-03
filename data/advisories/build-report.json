@@ -12,8 +12,8 @@
       }
     },
     "bootstrap": {
-      "curated": 3,
-      "auto": 6,
+      "curated": 2,
+      "auto": 7,
       "nvdCandidates": 0,
       "nvdAutoIngest": false,
       "eolSource": "endoflife.date",
@@ -177,19 +177,6 @@
       },
       "upstream": {
         "range": "< 1.12.2 || >= 1.12.3, < 3.0.0",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "bootstrap",
-      "id": "CVE-2016-10735",
-      "curated": {
-        "range": ">= 3.0.0, < 3.4.0",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
         "cvssScore": 6.1,
         "source": "osv"
       }

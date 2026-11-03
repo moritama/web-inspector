@@ -131,7 +131,7 @@
   "integrity": {
     "algorithm": "sha256",
     "target": "libraries",
-    "digest": "4ee935b3552079dff472904cf34bc9ced4306085b56e828a473b0469bbdfa38e"
+    "digest": "6232e4404b188523a367bb3811bc1a2ee67181abcdadebed810e9a3eb2b343bb"
   },
   "libraries": {
     "jquery": {
@@ -404,17 +404,23 @@
           ]
         },
         {
-          "range": ">= 3.0.0, < 3.4.0",
+          "range": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
           "cve": "CVE-2016-10735",
+          "ghsa": "GHSA-4p24-vmcr-4gqj",
           "cvssScore": 6.1,
           "severity": "medium",
-          "title": "XSS in data-target attribute for Bootstrap 3",
-          "fixedVersion": "3.4.0",
+          "title": "Bootstrap Cross-site Scripting vulnerability",
+          "fixedVersion": "3.4.0 / 4.0.0-beta.2",
           "fixStatus": "fixed",
           "advisoryUrl": "https://nvd.nist.gov/vuln/detail/CVE-2016-10735",
-          "verifiedAt": "2026-10-25",
+          "verifiedAt": "2026-10-31",
           "scoreSource": "nvd@nist.gov (Primary)",
-          "origin": "curated"
+          "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+          "published": "2019-01-17",
+          "origin": "auto",
+          "sources": [
+            "osv"
+          ]
         },
         {
           "range": "= 3.4.1",

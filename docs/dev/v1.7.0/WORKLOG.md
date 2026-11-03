@@ -57,10 +57,10 @@
   - D5（Angular 暫定対応 7 件の撤去）: T01 のプレリリース・ワイルドカード比較対応により OSV 由来の範囲式がそのまま評価可能になったため、`data/advisories/curated.json` の `angular.advisories` から暫定対応 7 件を撤去して空配列 `[]` とし、`scripts/verify-advisories-nvd.mjs` の `KNOWN_DEVIATIONS` からも該当 7 件を削除した。あわせてテスト用固定 DB（`tests/fixtures/advisory-db.fixture.json`）も D1・D2・D5 の内容に合わせて更新した。
 - 未解決: なし
 
-## T05 NVD 自動取り込みの有効化、版を 1.7.0 に  (2026-11-03 15:35)
+## T05 NVD 自動取り込みの有効化、版を 1.7.0 に  (2026-11-03 17:29)
 - 変更ファイル: `scripts/advisories/build-db.mjs`, `data/advisories/catalog.json`, `public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `src/popup/popup.html`, `src/dashboard/dashboard.html`, `README.md`, `tests/advisory-db-invariants.test.ts`, `tests/advisory-pipeline.test.mjs`
 - 判断したこと:
   - `scripts/advisories/build-db.mjs` の `MIN_EXTENSION_VERSION` を `'1.7.0'` に引き上げ、保守手順書 §1.2 および整合性テストの対象箇所（`public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `src/popup/popup.html`, `src/dashboard/dashboard.html`, `README.md`）のバージョン表記をすべて `1.7.0`（HTML は `v1.7.0`）に統一した。
   - `data/advisories/catalog.json` において NVD 対象の 5 製品（`wordpress`, `php`, `nginx`, `apache`, `nodejs`）の `nvd.autoIngest` をすべて `true` に変更した（`data/advisories/curated.json` は指示どおり変更しない）。
-  - `tests/advisory-db-invariants.test.ts` および `tests/advisory-pipeline.test.mjs` に T05 の検証を追加し、`minExtensionVersion` が `'1.7.0'` であること、総収録件数が 350 件以上（400 件前後）であること、本物の DB で Apache `2.4.52` を照合すると `CVE-2023-25690` が該当し `Apache/2.4.41 (Ubuntu)` は `Needs Review` のままであることを確認できるようにした（エントリ半減テスト時にも落ちないよう `versions.length === coverage.byProduct.apache.count` で未改変判定を併用）。
+  - `tests/advisory-db-invariants.test.ts` および `tests/advisory-pipeline.test.mjs` に T05 の検証を追加し、`minExtensionVersion` が `'1.7.0'` であること、未改変の本物の DB では総収録件数が 350 件以上（400 件前後）であること、Apache `2.4.52` を照合すると `CVE-2023-25690` が該当し `Apache/2.4.41 (Ubuntu)` は `Needs Review` のままであることを確認できるようにした（エントリ半減テスト `C04c` 時にも落ちないよう `versions.length === coverage.byProduct.apache.count` で未改変判定を併用）。
 - 未解決: なし

@@ -8,6 +8,38 @@ import { DomSignals, InspectedCssAsset, MixedContentItem } from '../shared/types
 import { DOM_MARKER_SELECTORS } from './dom-selectors.generated';
 
 /**
+ * 二重注入を防ぐための実行済みフラグ名 (v1.7.0 T11 / IMPL-08)
+ */
+export const CONTENT_SCRIPT_GUARD_KEY = '__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__';
+
+/**
+ * Content Script のメッセージリスナーを初期化する。
+ * 二重注入を防ぐため、先頭で実行済みの印を確かめ、既に初期化済みの場合は二重登録せず false を返す (IMPL-08)。
+ */
+export function initContentScript(): boolean {
+  const globalScope = globalThis as Record<string, unknown>;
+  if (globalScope[CONTENT_SCRIPT_GUARD_KEY] === true) {
+    return false;
+  }
+  globalScope[CONTENT_SCRIPT_GUARD_KEY] = true;
+
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message && message.type === 'EXTRACT_DOM_SIGNALS') {
+        const signals = extractDomSignals();
+        sendResponse(signals);
+        return true;
+      }
+      return false;
+    });
+  }
+  return true;
+}
+
+// オンデマンド注入時、先頭で実行済みの印を確かめてメッセージリスナーを登録する (IMPL-08)
+initContentScript();
+
+/**
  * CSSファイル参照（linkタグ）を解析し、ライブラリ名とバージョンを推定する (ADD-02)
  */
 function inspectCssAssets(): InspectedCssAsset[] {
@@ -412,15 +444,4 @@ export function extractDomSignals(): DomSignals {
     metaCspReportOnly,
     elementTexts,
   };
-}
-
-// Service WorkerまたはPopupからの要求に応答
-if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'EXTRACT_DOM_SIGNALS') {
-      const signals = extractDomSignals();
-      sendResponse(signals);
-    }
-    return true;
-  });
 }

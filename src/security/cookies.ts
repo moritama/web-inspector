@@ -222,12 +222,18 @@ export function evaluateCookie(
   }
 
   // 安定IDの発行 (IMP-07)
+  const normalizedPartitionKey =
+    typeof cookie.partitionKey === 'object' && cookie.partitionKey !== null
+      ? cookie.partitionKey.topLevelSite || null
+      : typeof cookie.partitionKey === 'string'
+        ? cookie.partitionKey
+        : null;
   const resourceKey = buildCookieResourceKey(
     cookie.name,
     cookie.domain || '',
     cookie.path || '/',
     isHostOnly,
-    cookie.partitionKey
+    normalizedPartitionKey
   );
   const stableId = generateFindingId({
     ruleId: 'COOKIE-ATTRIBUTE-ISSUE',
@@ -293,6 +299,13 @@ export function checkCookies(
     const isDomainPrefix = rawCookie.domain ? rawCookie.domain.startsWith('.') : false;
     const isHostOnly = 'hostOnly' in rawCookie ? Boolean(rawCookie.hostOnly) : !isDomainPrefix;
 
+    const normalizedPartitionKey =
+      typeof rawCookie.partitionKey === 'object' && rawCookie.partitionKey !== null
+        ? rawCookie.partitionKey.topLevelSite || null
+        : typeof rawCookie.partitionKey === 'string'
+          ? rawCookie.partitionKey
+          : null;
+
     // クリーンな Cookie オブジェクト（値は一切含めない）
     const cleanCookie: InspectedCookieInfo = {
       name: rawCookie.name,
@@ -305,7 +318,7 @@ export function checkCookies(
       session: Boolean(rawCookie.session),
       hostOnly: isHostOnly,
       partitioned: Boolean(rawCookie.partitioned || rawCookie.partitionKey),
-      partitionKey: rawCookie.partitionKey || null,
+      partitionKey: normalizedPartitionKey,
       expirationDate: rawCookie.expirationDate,
       category: classification.category,
       classification,

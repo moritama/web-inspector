@@ -1,8 +1,13 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   executeInspection,
+  fetchDomSignals,
+  getInspectedCookies,
   handleRuntimeMessage,
   InspectionDependencies,
+  resolveTopLevelSite,
 } from '../src/background/service-worker';
 import { AdvisoryDatabase, setTestAdvisoryDatabase } from '../src/detection/advisory';
 import {
@@ -879,6 +884,149 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
         generateFindingIdFromCheck('SEC-HSTS-01', 'https://example.com')
       );
       expect(migratedExceptions[0].targetUrl).toBe('https://example.com/a');
+    });
+  });
+
+  describe('T11: 必要なときだけ注入、CHIPS、Cookie の重複除去 (IMPL-08, IMPL-11, IMPL-12, DOC-08, D6)', () => {
+    it('IMPL-08 / D6: public/manifest.json に content_scripts が無く、permissions と host_permissions は v1.6.6.1 と同じであること', () => {
+      const manifestPath = path.resolve(__dirname, '../public/manifest.json');
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+
+      expect('content_scripts' in manifest).toBe(false);
+      expect(new Set(manifest.permissions)).toEqual(
+        new Set(['activeTab', 'storage', 'scripting', 'webRequest', 'cookies'])
+      );
+      expect(manifest.host_permissions).toEqual(['<all_urls>']);
+    });
+
+    it('DOC-08: PRIVACY_POLICY.md に「常時」「全ページに注入・配置」に当たる記述が残っておらず、オンデマンド注入とクエリマスクが反映されていること', () => {
+      const ppPath = path.resolve(__dirname, '../PRIVACY_POLICY.md');
+      const ppContent = fs.readFileSync(ppPath, 'utf-8');
+
+      expect(ppContent).not.toContain('Content scripts are deployed across all visited pages');
+      expect(ppContent).not.toContain('Content scripts are deployed to all visited pages');
+      expect(ppContent).not.toContain('コンテンツスクリプトはすべてのページに配置されますが');
+      expect(ppContent).not.toContain('クエリ文字列は含まれます');
+      expect(ppContent).not.toContain('query strings are included');
+
+      expect(ppContent).toContain('chrome.scripting.executeScript');
+      expect(ppContent).toContain('オンデマンド');
+    });
+
+    it('IMPL-08: fetchDomSignals が調査時に chrome.scripting.executeScript で content-script.js を注入し、同じページを2回調査しても evidence が重複しないこと', async () => {
+      const mockSignals = createMockDomSignals({
+        cookiesFromDocument: ['laravel_session'],
+      });
+      const executeScriptMock = vi.fn().mockResolvedValue([{ result: undefined }]);
+      const sendMessageMock = vi.fn().mockResolvedValue(mockSignals);
+
+      (globalThis as any).chrome = {
+        scripting: {
+          executeScript: executeScriptMock,
+        },
+        tabs: {
+          sendMessage: sendMessageMock,
+        },
+      };
+
+      const signals1 = await fetchDomSignals(101, 'https://example.com/');
+      expect(executeScriptMock).toHaveBeenCalledTimes(1);
+      expect(executeScriptMock).toHaveBeenCalledWith({
+        target: { tabId: 101 },
+        files: ['content/content-script.js'],
+      });
+      expect(sendMessageMock).toHaveBeenCalledWith(101, { type: 'EXTRACT_DOM_SIGNALS' });
+      expect(signals1.title).toBe('Example Domain');
+
+      // 同じページを2回調査しても evidence が重複しないことを確認
+      const deps = createMockDeps({
+        fetchDomSignals: () => fetchDomSignals(101, 'https://example.com/'),
+      });
+      const report1 = await executeInspection(deps);
+      const report2 = await executeInspection(deps);
+
+      const laravel1 = report1.technologies.find((t) => t.technology === 'Laravel');
+      const laravel2 = report2.technologies.find((t) => t.technology === 'Laravel');
+      expect(laravel1).toBeDefined();
+      expect(laravel2).toBeDefined();
+      expect(laravel1?.evidence.length).toBe(1);
+      expect(laravel2?.evidence.length).toBe(1);
+    });
+
+    it('IMPL-11: getInspectedCookies が通常の取得に加えて partitionKey: { topLevelSite } 付きでも getAll を呼び出し、Partitioned 属性付きの Cookie (CHIPS) を評価すること', async () => {
+      expect(resolveTopLevelSite('https://app.sub.example.co.jp/dashboard')).toBe(
+        'https://example.co.jp'
+      );
+      expect(resolveTopLevelSite('https://sub.example.com/login')).toBe('https://example.com');
+
+      const getAllMock = vi.fn(async (details: { url: string; partitionKey?: { topLevelSite: string } }) => {
+        if (details.partitionKey) {
+          return [
+            {
+              name: '__Host-chips_session',
+              value: 'secret-chips-val',
+              domain: 'sub.example.com',
+              path: '/',
+              secure: true,
+              httpOnly: false, // 認証系 CHIPS Cookie で HttpOnly 未設定 -> SEC-COOKIE-HTTPONLY 検出対象
+              sameSite: 'no_restriction',
+              session: true,
+              hostOnly: true,
+              partitionKey: { topLevelSite: details.partitionKey.topLevelSite },
+            },
+          ];
+        }
+        return [
+          {
+            name: 'normal_pref',
+            value: 'dark',
+            domain: 'sub.example.com',
+            path: '/',
+            secure: true,
+            httpOnly: true,
+            sameSite: 'lax',
+            session: false,
+            hostOnly: true,
+          },
+        ];
+      });
+
+      (globalThis as any).chrome = {
+        cookies: {
+          getAll: getAllMock,
+        },
+      };
+
+      const targetUrl = 'https://sub.example.com/app';
+      const cookies = await getInspectedCookies(targetUrl);
+
+      expect(getAllMock).toHaveBeenCalledTimes(2);
+      expect(getAllMock).toHaveBeenNthCalledWith(1, { url: targetUrl });
+      expect(getAllMock).toHaveBeenNthCalledWith(2, {
+        url: targetUrl,
+        partitionKey: { topLevelSite: 'https://example.com' },
+      });
+
+      expect(cookies).toHaveLength(2);
+      const chipsCookie = cookies.find((c) => c.name === '__Host-chips_session');
+      expect(chipsCookie).toBeDefined();
+      expect(chipsCookie?.partitioned).toBe(true);
+      expect(chipsCookie?.partitionKey).toBe('https://example.com');
+
+      // executeInspection で Partitioned (CHIPS) Cookie のセキュリティ評価が行われることを確認
+      const deps = createMockDeps({
+        tab: { id: 101, url: targetUrl },
+        getInspectedCookies: () => getInspectedCookies(targetUrl),
+      });
+      const report = await executeInspection(deps);
+      const evaluatedChips = report.cookies.find((c) => c.name === '__Host-chips_session');
+      expect(evaluatedChips).toBeDefined();
+      expect(evaluatedChips?.partitioned).toBe(true);
+      expect(evaluatedChips?.partitionKey).toBe('https://example.com');
+
+      const httpOnlyCheck = report.securityChecks.find((c) => c.checkId === 'SEC-COOKIE-HTTPONLY');
+      expect(httpOnlyCheck).toBeDefined();
+      expect(httpOnlyCheck?.observed).toContain('__Host-chips_session');
     });
   });
 });

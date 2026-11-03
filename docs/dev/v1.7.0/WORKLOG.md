@@ -125,3 +125,26 @@
   - IMPL-07（URL のクエリ・フラグメント除去マスク）: `src/shared/identity.ts` に `stripUrlQueryAndFragment`、`src/storage/history.ts` に `sanitizeReportUrls` を追加し、履歴保存時ならびに JSON（`exportReportToJson`）・CSV（`exportReportToCsv`）エクスポート時に URL のクエリパラメータ（`?token=x` 等）とフラグメント（`#y` 等）および認証情報を既定で除去するようにした。
   - IMPL-09（許容設定の安定 ID と旧形式からの移行）: `generateFindingIdFromCheck` を URL のパスやクエリに依存しない `origin + checkId (+ resourceKey)` ベースの算出に変更し、`SEC-CSP-03` も指摘ディレクティブ集合に依存しない `generateFindingIdFromCheck('SEC-CSP-03', url)` に統一した。`src/storage/exceptions.ts` に `migrateFindingException` / `migrateFindingExceptions` を実装し、`getAllFindingExceptions()` の読み込み時および `matchFindingException()` の照合時に v1.6.6 形式の許容設定（クエリ付き URL や項目名を含む旧ハッシュ）を新 ID へ自動移行し、クエリだけが異なる URL でも許容設定が効き続けるようにした。
 - 未解決: なし
+
+## T11 必要なときだけ注入、CHIPS、Cookie の重複除去  (2026-11-03 21:50)
+- 変更ファイル: `public/manifest.json`, `src/content/content-script.ts`, `src/background/service-worker.ts`, `src/security/cookies.ts`, `src/detection/engine.ts`, `PRIVACY_POLICY.md`, `scripts/test-e2e-smoke.mjs`, `tests/content-script.test.ts`, `tests/detection.test.ts`, `tests/service-worker.test.ts`
+- 判断したこと:
+  - IMPL-08 / D6（必要なときだけ注入）: `public/manifest.json` から `"content_scripts"` ブロックを削除し、`permissions`（`["activeTab", "storage", "scripting", "webRequest", "cookies"]`）と `host_permissions`（`["<all_urls>"]`）は v1.6.6.1 のままとした。`src/background/service-worker.ts` の `fetchDomSignals` で調査実行時に `chrome.scripting.executeScript({ target: { tabId }, files: ['content/content-script.js'] })` によりオンデマンド注入してから `EXTRACT_DOM_SIGNALS` を送信するようにした。また `src/content/content-script.ts` の先頭に `initContentScript()`（グローバルフラグ `__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__` による二重実行防止ガード）を設け、同じタブで複数回調査しても `onMessage` リスナーが重複登録されず、拡張機能ロード前に開いていたタブでもリロードなしで調査できるようにした。
+  - IMPL-11（CHIPS 対応）: `src/background/service-worker.ts` に `resolveTopLevelSite(url)`（`parseRegistrableDomain` を用いて `scheme://eTLD+1` を算出、IP アドレスや localhost は origin にフォールバック）と `getInspectedCookies(url)` を実装した。`chrome.cookies.getAll({ url })` と `chrome.cookies.getAll({ url, partitionKey: { topLevelSite } })` の両方を呼び出し、`name|domain|path|partitionKey` で重複除去したうえで `partitioned` および `partitionKey` を正規化して `checkCookies` へ渡すようにした。`src/security/cookies.ts` でも `cookie.partitionKey` がオブジェクト（`{ topLevelSite }`）で渡された場合に文字列へ正規化するようにした。
+  - IMPL-12（Cookie 名の重複除去）: `src/detection/engine.ts` で `input.network?.cookies` と `input.dom?.cookiesFromDocument` の Cookie 名を `uniqueCookieNames`（`Set<string>`）で重複除去し、さらに同一技術ルール内の複数の `cookie` シグナル（例: Laravel の `^laravel_session$` と汎用 `*_session`）の間でも同じ Cookie 名が二重に `evidence` へ追加されないよう `matchedCookieNames`（`Set<string>`）で管理するようにした。これにより、2 経路に存在する同名 Cookie でも根拠の表示が 1 件のみとなる。
+  - DOC-08（`PRIVACY_POLICY.md` の更新、前後の対比）:
+    - 変更前（v1.6.6.1）:
+      - 英語 §1: `Content scripts are deployed across all visited pages via the manifest configuration; however, active inspection processing and report generation occur when the user initiates an inspection via the extension popup.`
+      - 英語 §2: ` History records include the full inspected URL, detected technologies, security findings, and the inspection timestamp.`
+      - 英語 §3: `Content scripts are deployed to all visited pages via the manifest configuration, while active inspection processing and report generation occur when you click the extension icon.`
+      - 日本語 §1: `コンテンツスクリプトはマニフェスト設定により閲覧ページに配置されますが、能動的な調査処理およびレポート生成はユーザーがポップアップを開いて調査を開始した際に実行されます。`
+      - 日本語 §2: `履歴レコードには、調査対象 URL、検出された技術、セキュリティ診断結果、および調査日時が含まれます。`
+      - 日本語 §3: `コンテンツスクリプトはすべてのページに配置されますが、能動的な調査処理はユーザーが拡張機能アイコンをクリックした際に実行されます。`
+    - 変更後（v1.7.0）:
+      - 英語 §1: `Content scripts are not statically deployed across all visited pages; instead, they are injected on demand into the active tab only when the user initiates an inspection via the extension popup.`
+      - 英語 §2: `History records include the sanitized inspected URL (with query strings and fragments removed), detected technologies, security findings, and the inspection timestamp.` / エクスポートも query strings と fragments を既定でマスクする旨を明記。
+      - 英語 §3: `Content scripts are injected on demand into the inspected tab via chrome.scripting.executeScript only when you click the extension icon and initiate an inspection.`
+      - 日本語 §1: `コンテンツスクリプトがすべての閲覧ページに常時配置されることはなく、ユーザーがポップアップを開いて調査を開始した際にのみ、対象タブへオンデマンドで注入されて調査処理およびレポート生成が実行されます。`
+      - 日本語 §2: `履歴レコードには、クエリ文字列およびフラグメントを除去（マスク）した調査対象 URL、検出された技術、セキュリティ診断結果、および調査日時が含まれます。` / エクスポートもクエリ文字列とフラグメントを既定で除去する旨を明記。
+      - 日本語 §3: `コンテンツスクリプトはユーザーが拡張機能アイコンをクリックして調査を開始した際にのみ chrome.scripting.executeScript によって対象タブへオンデマンドで注入されます。`
+- 未解決: なし

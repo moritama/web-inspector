@@ -1473,6 +1473,39 @@ describe('DetectionEngine', () => {
         expect(candidate?.evidence[0]?.detail).not.toContain('Node.js');
       });
     });
+
+    describe('T11: Cookie 名の重複除去 (IMPL-12)', () => {
+      it('IMPL-12: document.cookie と cookies API の 2 経路から同じ名前の Cookie が来ても、根拠の表示は 1 件になること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            cookiesFromDocument: ['laravel_session', 'PHPSESSID'],
+          },
+          network: {
+            url: 'https://example.com/',
+            responseHeaders: {},
+            cookies: [
+              { name: 'laravel_session', value: 'dummy1' },
+              { name: 'PHPSESSID', value: 'dummy2' },
+            ],
+          },
+        });
+
+        const laravel = results.find((r) => r.technology === 'Laravel');
+        expect(laravel).toBeDefined();
+        const laravelCookieEvidences =
+          laravel?.evidence.filter((e) => e.type === 'cookie-name' && e.name === 'laravel_session') ||
+          [];
+        expect(laravelCookieEvidences).toHaveLength(1);
+
+        const php = results.find((r) => r.technology === 'PHP');
+        expect(php).toBeDefined();
+        const phpCookieEvidences =
+          php?.evidence.filter((e) => e.type === 'cookie-name' && e.name === 'PHPSESSID') || [];
+        expect(phpCookieEvidences).toHaveLength(1);
+      });
+    });
   });
 });
 

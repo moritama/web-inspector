@@ -27,7 +27,7 @@ import {
 } from '../storage/exceptions';
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
-import { analyzeExternalConnections } from '../security/domain-analyzer';
+import { analyzeExternalConnections, parseRegistrableDomain } from '../security/domain-analyzer';
 import { assessInspectionCoverage } from '../shared/coverage';
 import {
   CSPPolicy,
@@ -354,25 +354,104 @@ if (typeof chrome !== 'undefined' && chrome.tabs?.onReplaced) {
 }
 
 /**
- * Cookie属性の取得 (値は除外)
+ * URL から CHIPS (Partitioned Cookie) 照会用の topLevelSite (scheme://eTLD+1) を算出する (v1.7.0 T11 / IMPL-11)
  */
-async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
+export function resolveTopLevelSite(url: string): string | null {
   try {
-    const rawCookies = await chrome.cookies.getAll({ url });
-    return rawCookies.map((c: any) => ({
-      name: c.name,
-      domain: c.domain,
-      path: c.path,
-      secure: c.secure,
-      httpOnly: c.httpOnly,
-      sameSite: c.sameSite as 'no_restriction' | 'lax' | 'strict' | 'unspecified',
-      session: c.session,
-      hostOnly: c.hostOnly,
-      partitioned: Boolean(c.partitionKey),
-      partitionKey: c.partitionKey?.topLevelSite || (typeof c.partitionKey === 'string' ? c.partitionKey : null),
-      expirationDate: c.expirationDate,
-      issues: [],
-    }));
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    const { registrableDomain } = parseRegistrableDomain(parsed.hostname);
+    const siteHost = registrableDomain || parsed.hostname.toLowerCase();
+    if (!siteHost) {
+      return null;
+    }
+    return `${parsed.protocol}//${siteHost}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cookie属性の取得 (値は除外)。通常の Cookie に加え、partitionKey: { topLevelSite } 付きで CHIPS も取得する (IMPL-11)
+ */
+export async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
+  try {
+    if (typeof chrome === 'undefined' || !chrome.cookies?.getAll) {
+      return [];
+    }
+    const normalCookies = (await chrome.cookies.getAll({ url })) || [];
+    const topLevelSite = resolveTopLevelSite(url);
+    let partitionedCookies: chrome.cookies.Cookie[] = [];
+
+    if (topLevelSite) {
+      try {
+        partitionedCookies =
+          (await (
+            chrome.cookies.getAll as (
+              details: chrome.cookies.GetAllDetails & {
+                partitionKey?: { topLevelSite: string };
+              }
+            ) => Promise<chrome.cookies.Cookie[]>
+          )({
+            url,
+            partitionKey: { topLevelSite },
+          })) || [];
+      } catch {
+        // partitionKey 未対応環境等の場合は通常の Cookie のみで継続
+        partitionedCookies = [];
+      }
+    }
+
+    const mergedMap = new Map<string, any>();
+    const toCookieEntry = (c: any, fromPartitionQuery: boolean) => {
+      const isPartitioned = Boolean(c.partitioned || c.partitionKey || fromPartitionQuery);
+      const resolvedKey =
+        c.partitionKey?.topLevelSite ||
+        (typeof c.partitionKey === 'string'
+          ? c.partitionKey
+          : isPartitioned
+            ? topLevelSite
+            : null);
+      const dedupeKey = `${c.name}\0${c.domain || ''}\0${c.path || '/'}\0${isPartitioned ? resolvedKey || 'partitioned' : ''}`;
+      return {
+        dedupeKey,
+        cookie: {
+          name: c.name,
+          domain: c.domain,
+          path: c.path,
+          secure: c.secure,
+          httpOnly: c.httpOnly,
+          sameSite: c.sameSite as 'no_restriction' | 'lax' | 'strict' | 'unspecified',
+          session: c.session,
+          hostOnly: c.hostOnly,
+          partitioned: isPartitioned,
+          partitionKey: resolvedKey,
+          expirationDate: c.expirationDate,
+          issues: [],
+        } satisfies InspectedCookieInfo,
+      };
+    };
+
+    const normalBaseKeys = new Set<string>(
+      normalCookies.map((c: any) => `${c.name}\0${c.domain || ''}\0${c.path || '/'}`)
+    );
+    for (const c of normalCookies) {
+      const { dedupeKey, cookie } = toCookieEntry(c, false);
+      mergedMap.set(dedupeKey, cookie);
+    }
+    for (const c of partitionedCookies) {
+      const baseKey = `${(c as any).name}\0${(c as any).domain || ''}\0${(c as any).path || '/'}`;
+      const isPartitionedCookie =
+        Boolean((c as any).partitioned || (c as any).partitionKey) || !normalBaseKeys.has(baseKey);
+      const { dedupeKey, cookie } = toCookieEntry(c, isPartitionedCookie);
+      if (!mergedMap.has(dedupeKey)) {
+        mergedMap.set(dedupeKey, cookie);
+      }
+    }
+
+    return Array.from(mergedMap.values());
   } catch (error) {
     console.warn('Cookie retrieval warning:', error);
     return [];
@@ -380,25 +459,31 @@ async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> 
 }
 
 /**
- * Content ScriptからDOM・CSSシグナルを取得する
+ * Content Script を必要なときだけオンデマンド注入し、DOM・CSSシグナルを取得する (v1.7.0 T11 / IMPL-08 / D6)
  */
-async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
+export async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
+  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する (二重注入は content-script 先頭の印で防止)
   try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
-    if (response) return response as DomSignals;
-  } catch {
-    try {
-      const results = await chrome.scripting.executeScript({
+    if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript) {
+      await chrome.scripting.executeScript({
         target: { tabId },
         files: ['content/content-script.js'],
       });
-      if (results && results.length > 0) {
-        const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
-        if (response) return response as DomSignals;
-      }
-    } catch (e) {
-      console.warn('Content script injection failed:', e);
     }
+  } catch (e) {
+    console.warn('Content script injection warning:', e);
+  }
+
+  // 2. 注入された Content Script から DOM シグナルを取得する
+  try {
+    if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
+      if (response) {
+        return response as DomSignals;
+      }
+    }
+  } catch (e) {
+    console.warn('DOM signals message warning:', e);
   }
 
   return {

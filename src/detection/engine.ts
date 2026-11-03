@@ -51,9 +51,27 @@ export class DetectionEngine {
     const urlObj = this.parseUrl(input.url);
     const runtime = input.runtimeVersions || input.dom?.runtimeVersions || {};
 
+    // IMPL-12: cookies API と document.cookie の両方から得た Cookie 名の重複を Set で除去する
+    const uniqueCookieNames = new Set<string>();
+    if (input.network?.cookies) {
+      for (const c of input.network.cookies) {
+        if (c.name) {
+          uniqueCookieNames.add(c.name);
+        }
+      }
+    }
+    if (input.dom?.cookiesFromDocument) {
+      for (const name of input.dom.cookiesFromDocument) {
+        if (name) {
+          uniqueCookieNames.add(name);
+        }
+      }
+    }
+
     for (const rule of this.rules) {
       const evidences: Evidence[] = [];
       const evidenceEntries: EvidenceEntry[] = [];
+      const matchedCookieNames = new Set<string>();
       let detectedVersion: string | null = null;
       let versionSource: string | undefined = undefined;
       let jsVersion: string | null = null;
@@ -274,16 +292,12 @@ export class DetectionEngine {
           }
 
           case 'cookie': {
-            const cookieNames: string[] = [];
-            if (input.network?.cookies) {
-              cookieNames.push(...input.network.cookies.map((c) => c.name));
-            }
-            if (input.dom?.cookiesFromDocument) {
-              cookieNames.push(...input.dom.cookiesFromDocument);
-            }
-
-            for (const name of cookieNames) {
+            for (const name of uniqueCookieNames) {
+              if (matchedCookieNames.has(name)) {
+                continue;
+              }
               if (this.matchPattern(name, signal.pattern || signal.target)) {
+                matchedCookieNames.add(name);
                 addEvidence({
                   type: 'cookie-name',
                   name,

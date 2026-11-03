@@ -4,8 +4,12 @@
  * Content Script (DOMシグナル抽出) の単体テスト (tests/content-script.test.ts)
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
-import { extractDomSignals } from '../src/content/content-script';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  CONTENT_SCRIPT_GUARD_KEY,
+  extractDomSignals,
+  initContentScript,
+} from '../src/content/content-script';
 import { checkHttpsAndMixedContent } from '../src/security/https';
 
 describe('extractDomSignals (Content Script)', () => {
@@ -148,6 +152,45 @@ describe('extractDomSignals (Content Script)', () => {
       ]);
     } finally {
       console.error = origConsoleError;
+    }
+  });
+
+  it('T11 (IMPL-08): 先頭の実行済みフラグにより二重注入を防ぎ、メッセージリスナーが1回だけ登録されること', () => {
+    const globalScope = globalThis as Record<string, unknown>;
+    const prevFlag = globalScope[CONTENT_SCRIPT_GUARD_KEY];
+    const prevChrome = globalScope.chrome;
+
+    const addListenerMock = vi.fn();
+    globalScope.chrome = {
+      runtime: {
+        onMessage: {
+          addListener: addListenerMock,
+        },
+      },
+    };
+    delete globalScope[CONTENT_SCRIPT_GUARD_KEY];
+
+    try {
+      // 1回目の注入: フラグが立ち、リスナーが1回登録される
+      const firstResult = initContentScript();
+      expect(firstResult).toBe(true);
+      expect(globalScope[CONTENT_SCRIPT_GUARD_KEY]).toBe(true);
+      expect(addListenerMock).toHaveBeenCalledTimes(1);
+
+      // 2回目の注入: 先頭の実行済みフラグによりスキップされ、リスナーは二重登録されない
+      const secondResult = initContentScript();
+      expect(secondResult).toBe(false);
+      expect(addListenerMock).toHaveBeenCalledTimes(1);
+
+      // 登録されたリスナーが EXTRACT_DOM_SIGNALS に対して応答を返すことを確認
+      const listener = addListenerMock.mock.calls[0][0];
+      const sendResponse = vi.fn();
+      const handled = listener({ type: 'EXTRACT_DOM_SIGNALS' }, {}, sendResponse);
+      expect(handled).toBe(true);
+      expect(sendResponse).toHaveBeenCalledTimes(1);
+    } finally {
+      globalScope[CONTENT_SCRIPT_GUARD_KEY] = prevFlag;
+      globalScope.chrome = prevChrome;
     }
   });
 });

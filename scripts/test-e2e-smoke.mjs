@@ -179,6 +179,10 @@ export async function runSmokeTest() {
 
     console.log('[e2e-smoke] Chromiumを起動し、dist/ 拡張機能をロードしました。');
 
+    // T11 (IMPL-08): 拡張機能の初期化前に既に開かれていた初期タブでのページ読み込み
+    const preOpenedPage = context.pages()[0] || (await context.newPage());
+    await preOpenedPage.goto('http://localhost:3000/react18-app', { waitUntil: 'networkidle' });
+
     // 1. Service Worker の起動待機
     let serviceWorker = context.serviceWorkers()[0];
     if (!serviceWorker) {
@@ -189,12 +193,36 @@ export async function runSmokeTest() {
     const extensionId = serviceWorker.url().split('/')[2];
     console.log('[e2e-smoke] 拡張機能ID:', extensionId);
 
+    // T11 (IMPL-08): 初期タブ（既に開かれていたページ）に対してオンデマンド注入で調査が成功することを検証
+    await preOpenedPage.waitForTimeout(500);
+    const preOpenedReport = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      if (tabs.length === 0) throw new Error('初期タブが見つかりません');
+      return await globalThis.runInspection(tabs[0].id);
+    });
+    const preOpenedReact = preOpenedReport?.technologies?.find((t) => t.technology === 'React');
+    if (!preOpenedReact || preOpenedReact.version !== '18.2.0') {
+      throw new Error(`初期タブ (/react18-app) のオンデマンド注入調査に失敗しました (実際: ${JSON.stringify(preOpenedReact)})`);
+    }
+    console.log('  ✓ 初期タブ（読み込み前から開いていたページ）のオンデマンド注入調査が成功');
+
+    // 新規タブ（拡張機能読み込み後に開いたページ）を作成し、初期タブを閉じる
     const page = await context.newPage();
+    await preOpenedPage.close();
 
     // 補助関数: 指定URLに遷移してService WorkerのrunInspectionを実行
     async function inspectUrl(url) {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.waitForTimeout(800);
+      return await serviceWorker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+        if (tabs.length === 0) throw new Error('localhost タブが見つかりません');
+        return await globalThis.runInspection(tabs[0].id);
+      });
+    }
+
+    // 補助関数: 現在のページを再読み込みせずそのまま再調査を実行 (T11: 二重注入防止・evidence重複なし検証用)
+    async function inspectCurrentTabAgain() {
       return await serviceWorker.evaluate(async () => {
         const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
         if (tabs.length === 0) throw new Error('localhost タブが見つかりません');
@@ -215,6 +243,16 @@ export async function runSmokeTest() {
       throw new Error(`/react18-app: React 18.2.0 (confirmed) が検出されませんでした (実際: ${JSON.stringify(reactTech)})`);
     }
     console.log(`  ✓ React 18.2.0 (confirmed) を正常検出`);
+
+    // T11 (IMPL-08): 同じページを2回調査しても evidence が重複しないこと
+    const reactReport2 = await inspectCurrentTabAgain();
+    const reactTech2 = reactReport2.technologies.find((t) => t.technology === 'React');
+    if (!reactTech2 || reactTech2.evidence.length !== reactTech.evidence.length) {
+      throw new Error(
+        `/react18-app: 同じページを2回調査した際に React の evidence 件数が変化しました (1回目: ${reactTech.evidence.length}, 2回目: ${reactTech2?.evidence?.length})`
+      );
+    }
+    console.log(`  ✓ 同一ページの2回連続調査で evidence が重複しないことを確認 (${reactTech2.evidence.length}件)`);
 
     // -------------------------------------------------------------
     // 検証 2: 肯定コントロール (/apache-positive, /laravel-positive)
@@ -244,7 +282,23 @@ export async function runSmokeTest() {
     if (!laravelTech || laravelTech.confidence < 80) {
       throw new Error(`/laravel-positive: Laravel が未検出または確信度不足です (実際: ${JSON.stringify(laravelTech)})`);
     }
-    console.log(`  ✓ Laravel (Cookie直接, 確信度=${laravelTech.confidence}%) を正常検出`);
+    // T11 (IMPL-12): Cookie と document.cookie の両方から来ても同名 Cookie の根拠が重複しないこと、および2回調査でも重複しないこと
+    const laravelSessionEvidences = laravelTech.evidence.filter(
+      (e) => e.type === 'cookie-name' && e.name === 'laravel_session'
+    );
+    if (laravelSessionEvidences.length !== 1) {
+      throw new Error(
+        `/laravel-positive: laravel_session の根拠件数が 1 件ではありません (実際: ${laravelSessionEvidences.length})`
+      );
+    }
+    const laravelReport2 = await inspectCurrentTabAgain();
+    const laravelTech2 = laravelReport2.technologies.find((t) => t.technology === 'Laravel');
+    if (!laravelTech2 || laravelTech2.evidence.length !== laravelTech.evidence.length) {
+      throw new Error(
+        `/laravel-positive: 2回目の調査で Laravel の根拠件数が変化しました (1回目: ${laravelTech.evidence.length}, 2回目: ${laravelTech2?.evidence?.length})`
+      );
+    }
+    console.log(`  ✓ Laravel (Cookie直接, 確信度=${laravelTech.confidence}%, 根拠重複なし) を正常検出`);
 
     // 3-1 実機E2E: /next-ssr-positive (X-Powered-By: Next.js + x-nextjs-cache: HIT -> Node.js推論)
     console.log('[e2e-smoke] [3-1] Next.js SSR連動推論 (/next-ssr-positive & /next-static-negative) を検証中...');

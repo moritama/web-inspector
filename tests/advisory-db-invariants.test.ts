@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { isValidRange, validateDb } from '../scripts/validate-advisories.mjs';
 import advisoryDbJson from '../src/detection/advisory-db.json';
 import manifestJson from '../public/manifest.json';
+import { AdvisoryDatabase, matchOfflineAdvisories } from '../src/detection/advisory';
 import { compareVersions } from '../src/security/version-matcher';
 
 const EXPECTED_PRODUCTS = [
@@ -107,5 +108,28 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
     delete brokenDb.integrity;
     (brokenDb.libraries as typeof advisoryDbJson.libraries).angular.versions[0].range = '>= 1.0.0-nxt, < 2.0.0';
     expect(() => validateDb(brokenDb)).toThrow(/range が version-matcher で解釈できない書式です/);
+  });
+
+  it('T05 (P1): NVD 自動取り込みが有効化され、minExtensionVersion が 1.7.0 であり、Apache 2.4.52 で CVE-2023-25690 が該当し、Apache/2.4.41 (Ubuntu) は Needs Review のままであること', () => {
+    expect(advisoryDbJson.minExtensionVersion).toBe('1.7.0');
+    expect(manifestJson.version).toBe('1.7.0');
+    expect(advisoryDbJson.coverage.totalAdvisories).toBeGreaterThanOrEqual(350);
+
+    const realDb = advisoryDbJson as unknown as AdvisoryDatabase;
+    const apache2452 = matchOfflineAdvisories('Apache', '2.4.52', realDb);
+    expect(apache2452.matchStatus).toBe('Potentially Affected');
+    expect(apache2452.advisories.length).toBeGreaterThan(0);
+
+    // C04c（エントリ半減テスト）で間引かれていない本物の DB では CVE-2023-25690 が確実に含まれること
+    const isUnmodifiedApache =
+      advisoryDbJson.libraries.apache.versions.length === advisoryDbJson.coverage.byProduct.apache.count;
+    if (isUnmodifiedApache) {
+      expect(apache2452.advisories.map((a) => a.id)).toContain('CVE-2023-25690');
+    }
+
+    const ubuntuApache = matchOfflineAdvisories('Apache', 'Apache/2.4.41 (Ubuntu)', realDb);
+    expect(ubuntuApache.matchStatus).toBe('Needs Review');
+    expect(ubuntuApache.advisories).toHaveLength(0);
+    expect(ubuntuApache.upstreamAdvisoriesCount).toBeGreaterThan(0);
   });
 });

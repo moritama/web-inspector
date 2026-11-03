@@ -73,35 +73,50 @@
     },
     "wordpress": {
       "curated": 1,
-      "auto": 0,
+      "auto": 34,
       "nvdCandidates": 35,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 420,
+        "filtered": 128,
+        "no-cpe-range": 1
+      }
     },
     "php": {
       "curated": 2,
-      "auto": 0,
+      "auto": 99,
       "nvdCandidates": 100,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 416,
+        "filtered": 240,
+        "no-cpe-range": 4
+      }
     },
     "nginx": {
       "curated": 2,
-      "auto": 0,
+      "auto": 8,
       "nvdCandidates": 10,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 19,
+        "filtered": 12
+      }
     },
     "apache": {
       "curated": 3,
-      "auto": 0,
+      "auto": 100,
       "nvdCandidates": 103,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 196,
+        "filtered": 71,
+        "no-cpe-range": 1
+      }
     },
     "laravel": {
       "curated": 2,
@@ -115,11 +130,15 @@
     },
     "nodejs": {
       "curated": 2,
-      "auto": 0,
+      "auto": 88,
       "nvdCandidates": 90,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 5,
+        "filtered": 93,
+        "no-cpe-range": 1
+      }
     }
   },
   "drift": [
@@ -255,19 +274,6 @@
     },
     {
       "product": "nodejs",
-      "id": "CVE-2023-39332",
-      "curated": {
-        "range": ">= 20.0.0, < 20.8.1",
-        "cvssScore": 9.8
-      },
-      "upstream": {
-        "range": ">= 20.0.0, < 20.8.0",
-        "cvssScore": 9.8,
-        "source": "nvd"
-      }
-    },
-    {
-      "product": "nodejs",
       "id": "CVE-2023-23918",
       "curated": {
         "range": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
@@ -278,11 +284,26 @@
         "cvssScore": 7.5,
         "source": "nvd"
       }
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-39332",
+      "curated": {
+        "range": ">= 20.0.0, < 20.8.1",
+        "cvssScore": 9.8
+      },
+      "upstream": {
+        "range": ">= 20.0.0, < 20.8.0",
+        "cvssScore": 9.8,
+        "source": "nvd"
+      }
     }
   ],
   "excluded": [],
   "skippedSummary": {
-    "unscored": 12
+    "unscored": 1068,
+    "filtered": 544,
+    "no-cpe-range": 7
   },
   "staleSources": []
 }

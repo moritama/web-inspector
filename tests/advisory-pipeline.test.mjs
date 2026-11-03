@@ -382,6 +382,12 @@ describe('DB 生成 (build-db)', () => {
 
     // D5: curated.json の angular 暫定対応 7 件が撤去されていること
     expect(realCurated.products.angular.advisories).toEqual([]);
+
+    // T05 (P1): NVD 5 製品の autoIngest がすべて true であり、生成 DB の minExtensionVersion が 1.7.0 であること
+    for (const prod of ['wordpress', 'php', 'nginx', 'apache', 'nodejs']) {
+      expect(realCatalog.products[prod]?.nvd?.autoIngest, `${prod}.nvd.autoIngest`).toBe(true);
+    }
+    expect(db.minExtensionVersion).toBe('1.7.0');
   });
 });
 

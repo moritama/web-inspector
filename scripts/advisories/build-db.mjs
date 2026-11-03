@@ -31,7 +31,7 @@ import { PATHS, readJson, sha256, stableStringify, toIsoDate, writeJson } from '
 
 export const OUTPUT_SCHEMA_VERSION = '2.2';
 /** この DB を正しく解釈できる拡張機能の最低バージョン (fixStatus 等を使う NVD 自動取込を有効化する際に引き上げる) */
-export const MIN_EXTENSION_VERSION = '1.6.5';
+export const MIN_EXTENSION_VERSION = '1.7.0';
 
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
 

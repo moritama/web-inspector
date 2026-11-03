@@ -1,0 +1,140 @@
+{
+  "generatedAt": "2026-11-03T17:09:42.255Z",
+  "vitest": {
+    "success": true,
+    "numTotalTests": 431,
+    "numPassedTests": 431,
+    "numFailedTests": 0,
+    "numSkippedTests": 0,
+    "skipped": [],
+    "failed": []
+  },
+  "build": {
+    "contentScriptKB": 6.85,
+    "serviceWorkerKB": 125.16,
+    "distTotalKB": 617.72
+  },
+  "advisoryDb": {
+    "schemaVersion": "2.2",
+    "dataVersion": "20261031",
+    "minExtensionVersion": "1.7.0",
+    "totalAdvisories": 416,
+    "fixStatus": {
+      "fixed": 299,
+      "none": 12,
+      "partial": 9,
+      "unknown": 96
+    },
+    "sizeKB": 451.63
+  },
+  "advisoryDrift": [
+    {
+      "product": "jquery",
+      "id": "CVE-2019-11358",
+      "curatedRange": "< 3.4.0",
+      "upstreamRange": ">= 1.1.4, < 3.4.0",
+      "curatedScore": 6.1,
+      "upstreamScore": 6.1,
+      "source": "osv"
+    },
+    {
+      "product": "jquery",
+      "id": "CVE-2020-11022",
+      "curatedRange": ">= 1.2.0, < 3.5.0",
+      "upstreamRange": ">= 1.12.0, < 3.5.0",
+      "curatedScore": 6.1,
+      "upstreamScore": 6.1,
+      "source": "osv"
+    },
+    {
+      "product": "jquery",
+      "id": "CVE-2015-9251",
+      "curatedRange": "< 3.0.0",
+      "upstreamRange": "< 1.12.2 || >= 1.12.3, < 3.0.0",
+      "curatedScore": 6.1,
+      "upstreamScore": 6.1,
+      "source": "osv"
+    },
+    {
+      "product": "bootstrap",
+      "id": "CVE-2016-10735",
+      "curatedRange": ">= 3.0.0, < 3.4.0",
+      "upstreamRange": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
+      "curatedScore": 6.1,
+      "upstreamScore": 6.1,
+      "source": "osv"
+    },
+    {
+      "product": "bootstrap",
+      "id": "CVE-2019-8331",
+      "curatedRange": "< 3.4.1 || >= 4.0.0, < 4.3.1",
+      "upstreamRange": ">= 3.0.0, < 3.4.1 || >= 4.0.0, < 4.3.1",
+      "curatedScore": 6.1,
+      "upstreamScore": 6.1,
+      "source": "osv"
+    },
+    {
+      "product": "lodash",
+      "id": "CVE-2020-8203",
+      "curatedRange": "< 4.17.20",
+      "upstreamRange": ">= 3.7.0, < 4.17.19",
+      "curatedScore": 7.4,
+      "upstreamScore": 7.4,
+      "source": "osv"
+    },
+    {
+      "product": "php",
+      "id": "CVE-2024-4577",
+      "curatedRange": "< 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
+      "upstreamRange": ">= 8.1.0, < 8.1.29 || >= 8.2.0, < 8.2.20 || >= 8.3.0, < 8.3.8",
+      "curatedScore": 9.8,
+      "upstreamScore": 9.8,
+      "source": "nvd"
+    },
+    {
+      "product": "nginx",
+      "id": "CVE-2023-44487",
+      "curatedRange": ">= 1.9.5, < 1.25.3",
+      "upstreamRange": ">= 1.9.5, <= 1.25.2",
+      "curatedScore": 7.5,
+      "upstreamScore": 7.5,
+      "source": "nvd"
+    },
+    {
+      "product": "apache",
+      "id": "CVE-2021-42013",
+      "curatedRange": ">= 2.4.49, <= 2.4.50",
+      "upstreamRange": "= 2.4.49 || = 2.4.50",
+      "curatedScore": 9.8,
+      "upstreamScore": 9.8,
+      "source": "nvd"
+    },
+    {
+      "product": "laravel",
+      "id": "CVE-2018-15133",
+      "curatedRange": "< 5.5.41 || >= 5.6.0, < 5.6.30",
+      "upstreamRange": "<= 5.5.40 || >= 5.6.0, < 5.6.30",
+      "curatedScore": 8.1,
+      "upstreamScore": 8.1,
+      "source": "osv"
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-23918",
+      "curatedRange": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
+      "upstreamRange": ">= 14.0.0, <= 14.14.0 || >= 14.0.0, < 14.21.3 || >= 16.0.0, <= 16.12.0 || >= 16.0.0, < 16.19.1 || >= 18.0.0, <= 18.11.0 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
+      "curatedScore": 7.5,
+      "upstreamScore": 7.5,
+      "source": "nvd"
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-39332",
+      "curatedRange": ">= 20.0.0, < 20.8.1",
+      "upstreamRange": ">= 20.0.0, < 20.8.0",
+      "curatedScore": 9.8,
+      "upstreamScore": 9.8,
+      "source": "nvd"
+    }
+  ]
+}

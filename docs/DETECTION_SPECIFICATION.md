@@ -19,7 +19,7 @@
 flowchart TD
     subgraph Browser["ブラウザ観測レイヤー (受動的収集)"]
         H["HTTPレスポンスヘッダー<br/>(Server, X-Powered-By, Set-Cookie等)"]
-        C["Cookie一覧<br/>(名前・属性・プレフィックス)"]
+        C["Cookie一覧<br/>(名前・属性)"]
         D["DOM & HTML構造<br/>(Meta, Script src, Link href, 特有属性)"]
         R["JS実行時グローバル変数<br/>(window.bootstrap, window.jQuery等)"]
     end

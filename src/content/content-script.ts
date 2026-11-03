@@ -270,14 +270,68 @@ export function extractDomSignals(): DomSignals {
     // テキスト取得例外防止
   }
 
-  // 6. 混在コンテンツ (Mixed Content) の収集
+  // 6. 混在コンテンツ (Mixed Content) の収集 (v1.7.0 T07 / SPEC-15)
   const mixedContent: MixedContentItem[] = [];
   if (isPageHttps) {
+    const extractHttpUrlsFromSrcset = (srcset: string | null): string[] => {
+      if (!srcset) return [];
+      const urls: string[] = [];
+      srcset.split(',').forEach((candidate) => {
+        const trimmed = candidate.trim();
+        if (!trimmed) return;
+        const urlToken = trimmed.split(/\s+/)[0];
+        if (urlToken && urlToken.startsWith('http://')) {
+          urls.push(urlToken);
+        }
+      });
+      return urls;
+    };
+
     document.querySelectorAll('img[src]').forEach((el) => {
       const src = el.getAttribute('src');
       if (src && src.startsWith('http://')) {
         mixedContent.push({ resourceType: 'image', url: src });
       }
+    });
+
+    document.querySelectorAll('img[srcset]').forEach((el) => {
+      const urls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
+      urls.forEach((url) => {
+        mixedContent.push({ resourceType: 'image', url });
+      });
+    });
+
+    document.querySelectorAll('video[src]').forEach((el) => {
+      const src = el.getAttribute('src');
+      if (src && src.startsWith('http://')) {
+        mixedContent.push({ resourceType: 'video', url: src });
+      }
+    });
+
+    document.querySelectorAll('audio[src]').forEach((el) => {
+      const src = el.getAttribute('src');
+      if (src && src.startsWith('http://')) {
+        mixedContent.push({ resourceType: 'audio', url: src });
+      }
+    });
+
+    document.querySelectorAll('source[src], source[srcset]').forEach((el) => {
+      const parentTag = el.parentElement?.tagName.toLowerCase();
+      const srcType: MixedContentItem['resourceType'] =
+        parentTag === 'audio' ? 'audio' : parentTag === 'picture' ? 'image' : 'video';
+
+      const src = el.getAttribute('src');
+      if (src && src.startsWith('http://')) {
+        mixedContent.push({ resourceType: srcType, url: src });
+      }
+
+      const srcsetUrls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
+      srcsetUrls.forEach((url) => {
+        mixedContent.push({
+          resourceType: parentTag === 'audio' ? 'audio' : parentTag === 'video' ? 'video' : 'image',
+          url,
+        });
+      });
     });
 
     document.querySelectorAll('script[src]').forEach((el) => {
@@ -298,6 +352,27 @@ export function extractDomSignals(): DomSignals {
       const src = el.getAttribute('src');
       if (src && src.startsWith('http://')) {
         mixedContent.push({ resourceType: 'iframe', url: src });
+      }
+    });
+
+    document.querySelectorAll('object[data]').forEach((el) => {
+      const data = el.getAttribute('data');
+      if (data && data.startsWith('http://')) {
+        mixedContent.push({ resourceType: 'object', url: data });
+      }
+    });
+
+    document.querySelectorAll('embed[src]').forEach((el) => {
+      const src = el.getAttribute('src');
+      if (src && src.startsWith('http://')) {
+        mixedContent.push({ resourceType: 'embed', url: src });
+      }
+    });
+
+    document.querySelectorAll('form[action]').forEach((el) => {
+      const action = el.getAttribute('action');
+      if (action && action.startsWith('http://')) {
+        mixedContent.push({ resourceType: 'form', url: action });
       }
     });
   }

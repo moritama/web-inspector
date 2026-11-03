@@ -53,8 +53,8 @@ describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
     expect(normalizeSameSite(undefined)).toBe('unknown');
   });
 
-  // --- Rev.2.1 IMP-04: C13, C14, C15 Cookieプレフィックス ---
-  it('C13: __Host- CookieでDomain指定（hostOnly=false）がある場合、不備と判定されること', () => {
+  // --- v1.7.0 T07 (SPEC-12 / D7): ブラウザが保存しないCookieを対象にしたチェックの削除確認 ---
+  it('C13: __Host- CookieでDomain指定（hostOnly=false）がある場合も、ブラウザが保存しないプレフィックス違反チェックは行わないこと (D7)', () => {
     const cookie: any = {
       name: '__Host-id',
       domain: '.example.com',
@@ -65,11 +65,10 @@ describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
       sameSite: 'lax',
     };
     const issue = evaluateCookie(cookie, true);
-    expect(issue).not.toBeNull();
-    expect(issue?.missingAttributes).toContain('Prefix');
+    expect(issue).toBeNull();
   });
 
-  it('C14: __Host- CookieでPath=/以外の場合、不備と判定されること', () => {
+  it('C14: __Host- CookieでPath=/以外の場合も、ブラウザが保存しないプレフィックス違反チェックは行わないこと (D7)', () => {
     const cookie: any = {
       name: '__Host-id',
       domain: 'example.com',
@@ -80,43 +79,47 @@ describe('Cookie用途別判定・分類テスト (IMP-01 & IMP-04)', () => {
       sameSite: 'lax',
     };
     const issue = evaluateCookie(cookie, true);
-    expect(issue).not.toBeNull();
-    expect(issue?.missingAttributes).toContain('Prefix');
+    expect(issue).toBeNull();
   });
 
-  it('C15: __Secure- CookieでSecureなしの場合、不備と判定されること', () => {
+  it('C15: __Secure- CookieでSecureなしの場合、HTTPS上のSecure属性欠落のみ検出しプレフィックス違反チェックは行わないこと (D7)', () => {
     const cookie: any = {
       name: '__Secure-id',
       domain: 'example.com',
       hostOnly: true,
       path: '/',
-      secure: false, // 不備
+      secure: false,
       httpOnly: true,
       sameSite: 'lax',
     };
     const issue = evaluateCookie(cookie, true);
     expect(issue).not.toBeNull();
-    expect(issue?.missingAttributes).toContain('Prefix');
-    expect(issue?.missingAttributes).toContain('Secure');
+    expect(issue?.missingAttributes).toEqual(['Secure']);
   });
 
-  // --- Rev.2.1 IMP-04: C16 Partitioned Cookie (CHIPS) ---
-  it('C16: Partitioned Cookieを識別し、Secure属性がない場合に不備として検出すること', () => {
+  // --- Rev.2.1 IMP-04 / v1.7.0 T07 (D7): C16 Partitioned Cookie (CHIPS) ---
+  it('C16: Partitioned Cookie (CHIPS) の属性を識別して保持し、HTTP環境での到達不能なCHIPS/SameSite=None固有チェックは行わないこと (D7)', () => {
     const partitionedCookie: any = {
       name: 'part_cookie',
       domain: 'example.com',
       path: '/',
       partitionKey: 'https://top-site.example',
       partitioned: true,
-      secure: false, // CHIPS仕様違反 (Partitioned CookieはSecure必須)
-      httpOnly: false,
+      secure: true,
+      httpOnly: true,
       sameSite: 'none',
     };
 
-    const issue = evaluateCookie(partitionedCookie, true);
-    expect(issue).not.toBeNull();
-    expect(issue?.missingAttributes).toContain('Secure');
-    expect(issue?.description).toContain('Partitioned');
+    const { inspectedCookies } = checkCookies([partitionedCookie], 'https://example.com', true);
+    expect(inspectedCookies[0].partitioned).toBe(true);
+    expect(inspectedCookies[0].partitionKey).toBe('https://top-site.example');
+
+    // HTTP環境 (isHttps=false) で SameSite=None / Partitioned かつ Secure=false でもブラウザ非保存チェックは発火しない
+    const unstoredCookie: any = {
+      ...partitionedCookie,
+      secure: false,
+    };
+    expect(evaluateCookie(unstoredCookie, false)).toBeNull();
   });
 
   // --- Rev.2.1 IMP-04: C18 あいまいな分類 (ambiguous) ---

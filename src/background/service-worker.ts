@@ -6,7 +6,7 @@
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
 import { ALL_TECHNOLOGY_RULES, RULES_VERSION, SSR_INFERENCE_HEADER_NAMES } from '../detection/rules';
-import { SECURITY_HEADER_NAMES } from '../security/headers';
+import { isValidXFrameOptions, SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
 import { SecurityEngine } from '../security/engine';
 import {
@@ -622,7 +622,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   ];
 
   if (cspPolicies.length > 0) {
-    const hasXfo = Boolean(responseHeaders['x-frame-options']?.length);
+    const hasXfo = isValidXFrameOptions(responseHeaders['x-frame-options']?.join(', '));
     const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo);
     // 既存のCSP項目 (SEC-CSP-*) を詳細解析結果に置き換え
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));

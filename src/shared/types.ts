@@ -624,7 +624,18 @@ export interface DetectionEvidence {
  * 混在コンテンツ (Mixed Content)
  */
 export interface MixedContentItem {
-  resourceType: 'image' | 'script' | 'stylesheet' | 'iframe' | 'fetch' | 'other';
+  resourceType:
+    | 'image'
+    | 'script'
+    | 'stylesheet'
+    | 'iframe'
+    | 'video'
+    | 'audio'
+    | 'object'
+    | 'embed'
+    | 'form'
+    | 'fetch'
+    | 'other';
   url: string;
   elementHtml?: string;
 }

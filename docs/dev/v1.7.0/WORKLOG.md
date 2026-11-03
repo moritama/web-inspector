@@ -75,3 +75,14 @@
   - `src/content/content-script.ts` で `<meta http-equiv="Content-Security-Policy-Report-Only">` を `metaCspReportOnly`（`DomSignals` の任意フィールド）として分離収集し、`analyzeCSPPolicies` では meta の Report-Only をポリシー評価から外した上で「無効な指定」として `info` の注記（`SEC-CSP-META-RO`, `status: 'info'`, `severity: 'info'`）を 1 件出力するようにした。meta の Report-Only のみがあるページでは CSP は「未設定」（`SEC-CSP-01`）扱いとなり、あわせて `info` 注記が 1 件出力される。
   - 既存の `tests/csp-parser.test.ts` のテストは期待値を 1 件も変更せずにそのまま維持し、DOM 抽出を含む新規テストを追加するとともにファイル先頭に `// @vitest-environment happy-dom` を付与した。
 - 未解決: なし
+
+## T07 ヘッダー値の検証、混在コンテンツの対象拡大  (2026-11-03 19:20)
+- 変更ファイル: `src/security/headers.ts`, `src/background/service-worker.ts`, `src/security/cookies.ts`, `src/security/https.ts`, `src/content/content-script.ts`, `src/shared/types.ts`, `docs/DETECTION_SPECIFICATION.md`, `tests/review-v1.6.5-acceptance.test.ts`, `tests/security.test.ts`, `tests/content-script.test.ts`, `tests/cookies.test.ts`
+- 判断したこと:
+  - `src/security/headers.ts` に `isValidXFrameOptions` を追加し、`X-Frame-Options` が `DENY` または `SAMEORIGIN` 以外（`ALLOWALL`、`ALLOW-FROM`、不正値）の場合は `pass` にせず `SEC-XFO-02`（`status: 'warning'`, `severity: 'medium'`）とした。ただしレスポンスヘッダーの強制 CSP に `frame-ancestors` がある場合はブラウザ仕様どおりそちらを優先して `SEC-XFO-00`（`pass`）とし、`analyzeCSPPolicies` に渡す `hasXfo` フラグも `isValidXFrameOptions` で判定するように `headers.ts` と `service-worker.ts` を統一した。
+  - HSTS について、`max-age=0`（明示的な無効化）または `max-age` 未指定は `SEC-HSTS-02` の `severity: 'medium'`、`max-age` が 1 年（31536000 秒）未満の場合は `severity: 'low'`、1 年以上の場合は `SEC-HSTS-00`（`pass`）とした。
+  - `Referrer-Policy` について、カンマ区切りのフォールバック指定時はブラウザ仕様どおり最後の認識可能なトークンを有効値として評価し、`unsafe-url` および認識不能な無効値は `SEC-REF-02`（`status: 'warning'`, `severity: 'low'`）、`no-referrer-when-downgrade` は `SEC-REF-03`（`status: 'info'`, `severity: 'info'`）とした。
+  - CORS について、`Access-Control-Allow-Origin: *` と `Access-Control-Allow-Credentials: true` の組み合わせはブラウザが拒否するため、`SEC-CORS-01` の重大度を `high`（`fail`）から設定ミス指摘の `info`（`status: 'info'`, `severity: 'info'`）に変更した。
+  - D7 に従い、ブラウザがそもそも保存しない Cookie を対象にしたチェック（Cookie プレフィックス違反 `SEC-COOKIE-PREFIX`、`SameSite=None` で `Secure` なし、`Partitioned` で `Secure` なし）を `src/security/cookies.ts` から削除し、`docs/DETECTION_SPECIFICATION.md` の図表文言からもプレフィックス表記を外した。ファイル自体の削除は不要であった。
+  - 混在コンテンツ（SPEC-15）について、`src/content/content-script.ts` の収集対象に `img[srcset]`、`video[src]`、`audio[src]`、`source[src]` / `source[srcset]`、`object[data]`、`embed[src]`、`form[action]` を追加した。`src/security/https.ts` ではパッシブ混在（`image`, `video`, `audio`, `other`）をブラウザの HTTPS 自動昇格を考慮して `severity: 'low'` とし、アクティブ混在（`script`, `stylesheet`, `iframe`, `object`, `embed`, `fetch`）および平文 HTTP の `form[action]`（`form`）を `severity: 'high'` として説明文にも反映した。
+- 未解決: なし

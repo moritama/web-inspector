@@ -1,13 +1,13 @@
 /**
  * Web Technology & Security Inspector
- * Cookie属性セキュリティ診断 (src/security/cookies.ts) - IMP-04 (Rev.2.1)
+ * Cookie属性セキュリティ診断 (src/security/cookies.ts) - IMP-04 (Rev.2.1) / v1.7.0 T07 (D7)
  * 
  * - Chrome API SameSiteStatus の内部正規化 (normalizeSameSite)
  * - 用途別分類の高度化・あいまい性 (ambiguous) 管理
- * - Cookieプレフィックス (__Secure-, __Host-, __Http-, __Host-Http-) 検査
- * - Partitioned Cookie (CHIPS) 識別と属性整合性評価
+ * - Partitioned Cookie (CHIPS) 識別
  * - Cookie値（Value）の完全非保持（プライバシー保護徹底）
  * - 安定ID (FindingIdentity) の付与
+ * - v1.7.0 D7: ブラウザが保存しないCookie（プレフィックス違反・SameSite=NoneでSecureなし・PartitionedでSecureなし）のチェックを削除
  */
 
 import { buildCookieResourceKey, generateFindingId } from '../shared/identity';
@@ -173,7 +173,7 @@ export function evaluateCookie(
 ): CookieIssue | null {
   const classification = classifyCookieAdvanced(cookie.name);
   const category = classification.category;
-  const missing: ('Secure' | 'HttpOnly' | 'SameSite' | 'Prefix')[] = [];
+  const missing: ('Secure' | 'HttpOnly')[] = [];
   const descriptions: string[] = [];
 
   // SameSite正規化
@@ -188,16 +188,7 @@ export function evaluateCookie(
     descriptions.push('HTTPS通信において暗号化を義務付けるSecure属性が欠落しています。');
   }
 
-  // 2. Partitioned Cookie (CHIPS) 検査 (3.5)
-  const isPartitioned = Boolean(cookie.partitioned || cookie.partitionKey);
-  if (isPartitioned) {
-    if (!cookie.secure) {
-      if (!missing.includes('Secure')) missing.push('Secure');
-      descriptions.push('Partitioned Cookie (CHIPS) には仕様上Secure属性が必須です。');
-    }
-  }
-
-  // 3. HttpOnly属性の検査 (用途に応じた判定)
+  // 2. HttpOnly属性の検査 (用途に応じた判定)
   if (!cookie.httpOnly) {
     if (category === 'authentication') {
       missing.push('HttpOnly');
@@ -208,45 +199,8 @@ export function evaluateCookie(
     }
   }
 
-  // 4. SameSite属性の検査 (3.2)
-  if (normSameSite === 'none' && !cookie.secure) {
-    missing.push('SameSite');
-    descriptions.push('SameSite=None のCookieにはSecure属性の付与が必須です。');
-  }
-
-  // 5. Cookieプレフィックス要件の検査 (3.4)
   const isDomainPrefix = cookie.domain ? cookie.domain.startsWith('.') : false;
   const isHostOnly = 'hostOnly' in cookie ? Boolean(cookie.hostOnly) : !isDomainPrefix;
-  let prefixType: '__Secure-' | '__Host-' | '__Http-' | '__Host-Http-' | null = null;
-
-  if (cookie.name.startsWith('__Host-Http-')) {
-    prefixType = '__Host-Http-';
-    const valid = cookie.secure && cookie.path === '/' && isHostOnly && cookie.httpOnly;
-    if (!valid) {
-      missing.push('Prefix');
-      descriptions.push('__Host-Http- プレフィックスの要件（Secure、Path=/、Domain属性なし、HttpOnly）を満たしていません。');
-    }
-  } else if (cookie.name.startsWith('__Host-')) {
-    prefixType = '__Host-';
-    const valid = cookie.secure && cookie.path === '/' && isHostOnly;
-    if (!valid) {
-      missing.push('Prefix');
-      descriptions.push('__Host- プレフィックスの要件（Secure、Path=/、Domain属性なし）を満たしていません。');
-    }
-  } else if (cookie.name.startsWith('__Http-')) {
-    prefixType = '__Http-';
-    const valid = cookie.secure && cookie.httpOnly;
-    if (!valid) {
-      missing.push('Prefix');
-      descriptions.push('__Http- プレフィックスの要件（Secure、HttpOnly）を満たしていません。');
-    }
-  } else if (cookie.name.startsWith('__Secure-')) {
-    prefixType = '__Secure-';
-    if (!cookie.secure) {
-      missing.push('Prefix');
-      descriptions.push('__Secure- プレフィックスの要件（Secure属性必須）を満たしていません。');
-    }
-  }
 
   if (missing.length === 0) {
     return null;
@@ -263,8 +217,6 @@ export function evaluateCookie(
     }
   } else if (category === 'csrf') {
     severity = missing.includes('Secure') ? 'medium' : 'low';
-  } else if (isPartitioned && !cookie.secure) {
-    severity = 'medium';
   } else {
     severity = missing.includes('Secure') ? 'medium' : 'low';
   }
@@ -291,7 +243,7 @@ export function evaluateCookie(
     severity,
     missingAttributes: Array.from(new Set(missing)),
     description: `Cookie '${cookie.name}' (${formatCookieCategory(category)}): ${descriptions.join(' ')}`,
-    recommendation: getCookieRecommendation(category, missing, prefixType),
+    recommendation: getCookieRecommendation(category, missing),
   };
 }
 
@@ -332,8 +284,6 @@ export function checkCookies(
       issues.push(issue);
       if (issue.missingAttributes.includes('Secure')) issueTexts.push('Secure属性未設定');
       if (issue.missingAttributes.includes('HttpOnly')) issueTexts.push('HttpOnly属性未設定');
-      if (issue.missingAttributes.includes('SameSite')) issueTexts.push(`SameSite属性不備`);
-      if (issue.missingAttributes.includes('Prefix')) issueTexts.push('プレフィックス仕様不備');
     } else {
       if (!rawCookie.httpOnly && (classification.category === 'csrf' || classification.category === 'preferences' || classification.category === 'analytics')) {
         issueTexts.push('HttpOnly未設定 (フロントエンド連携のため意図的)');
@@ -425,26 +375,7 @@ export function checkCookies(
     }
   }
 
-  // 3. プレフィックス整合性不備
-  const prefixIssues = issues.filter((i) => i.missingAttributes.includes('Prefix'));
-  if (prefixIssues.length > 0) {
-    checks.push({
-      checkId: 'SEC-COOKIE-PREFIX',
-      category: 'cookies',
-      name: 'Cookie プレフィックス仕様不備 (__Host- / __Secure- / __Http-)',
-      status: 'fail',
-      severity: 'medium',
-      observed: `${prefixIssues.length} 件のCookieでプレフィックス要件を満たしていません (${prefixIssues.map((i) => i.name).join(', ')})`,
-      description:
-        '__Host- または __Secure- / __Http- プレフィックスが付与されているCookieが仕様要件を満たしていません。ブラウザによって破棄されるか無効化されます。',
-      recommendation:
-        '__Host- を使用する場合は Secure属性、Path=/、Domain未指定としてください。__Secure- を使用する場合は Secure属性を必須としてください。',
-      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies#cookie_prefixes'],
-      scope: url,
-    });
-  }
-
-  // 4. 一般・トラッキング等のCookie
+  // 3. 一般・トラッキング等のCookie
   const generalIssues = issues.filter((i) => i.category === 'general' || i.category === 'analytics' || i.category === 'preferences');
   if (generalIssues.length > 0 && authIssues.length === 0) {
     const missingSecure = generalIssues.filter((i) => i.missingAttributes.includes('Secure'));
@@ -464,7 +395,7 @@ export function checkCookies(
     }
   }
 
-  // 5. 課題が一切検出されなかった場合
+  // 4. 課題が一切検出されなかった場合
   if (issues.length === 0) {
     checks.push({
       checkId: 'SEC-COOKIE-00',
@@ -496,14 +427,9 @@ function formatCookieCategory(category: CookieCategory): string {
 
 function getCookieRecommendation(
   category: CookieCategory,
-  missing: string[],
-  prefixType?: string | null
+  missing: string[]
 ): string {
   const recs: string[] = [];
-
-  if (prefixType) {
-    recs.push(`プレフィックス '${prefixType}' の仕様要件（Secure, Path=/ 等）を正しく満たしてください。`);
-  }
 
   if (missing.includes('Secure')) {
     recs.push("暗号化通信を強制するために 'Secure' 属性を付与してください。");
@@ -515,10 +441,6 @@ function getCookieRecommendation(
     } else if (category === 'general') {
       recs.push("JavaScriptからのアクセスが不要であれば 'HttpOnly' 属性の付与を推奨します。");
     }
-  }
-
-  if (missing.includes('SameSite')) {
-    recs.push("クロスサイトリクエスト時の送信を制御するため、適切な 'SameSite' (LaxまたはStrict) を指定してください。");
   }
 
   return recs.join(' ');

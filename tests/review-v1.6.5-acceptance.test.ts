@@ -130,7 +130,7 @@ describe('SPEC-10: 同一ライブラリの複数バージョン同居', () => {
 });
 
 describe('SPEC-12: ヘッダー値の妥当性', () => {
-  it.skip('X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上', () => {
+  it('X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上', () => {
     const r = checkHttpHeaders({ 'x-frame-options': ['ALLOWALL'], 'strict-transport-security': ['max-age=0'] }, 'https://e.com/', true);
     expect(r.find((c) => c.checkId.startsWith('SEC-XFO'))?.status).not.toBe('pass');
     expect(['medium', 'high']).toContain(r.find((c) => c.checkId.startsWith('SEC-HSTS'))?.severity);

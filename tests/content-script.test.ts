@@ -6,6 +6,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { extractDomSignals } from '../src/content/content-script';
+import { checkHttpsAndMixedContent } from '../src/security/https';
 
 describe('extractDomSignals (Content Script)', () => {
   beforeEach(() => {
@@ -68,5 +69,56 @@ describe('extractDomSignals (Content Script)', () => {
     const signals = extractDomSignals();
     expect(signals.domMarkers).toContain('[ng-app]');
     expect(signals.domMarkers).toContain('[ng-controller]');
+  });
+
+  it('T07 (SPEC-15): <img srcset="http://...">, <form action="http://...">, <video src="http://..."> 等が混在コンテンツとして検出され、form は high、img / video は low と判定されること', () => {
+    if ((window as any).happyDOM?.setURL) {
+      (window as any).happyDOM.setURL('https://example.com/');
+    } else {
+      window.location.href = 'https://example.com/';
+    }
+
+    document.body.innerHTML = `
+      <img srcset="http://cdn.example.com/img-1x.jpg 1x, https://cdn.example.com/img-2x.jpg 2x">
+      <form action="http://insecure.example.com/submit" method="post"></form>
+      <video src="http://media.example.com/movie.mp4"></video>
+      <audio src="http://media.example.com/voice.mp3"></audio>
+      <video><source src="http://media.example.com/sub.webm"></video>
+      <picture><source srcset="http://cdn.example.com/pic.webp 1x"></picture>
+      <object data="http://legacy.example.com/flash.swf"></object>
+      <embed src="http://legacy.example.com/embed.swf">
+    `;
+
+    const signals = extractDomSignals();
+    expect(signals.mixedContent).toEqual(
+      expect.arrayContaining([
+        { resourceType: 'image', url: 'http://cdn.example.com/img-1x.jpg' },
+        { resourceType: 'form', url: 'http://insecure.example.com/submit' },
+        { resourceType: 'video', url: 'http://media.example.com/movie.mp4' },
+        { resourceType: 'audio', url: 'http://media.example.com/voice.mp3' },
+        { resourceType: 'video', url: 'http://media.example.com/sub.webm' },
+        { resourceType: 'image', url: 'http://cdn.example.com/pic.webp' },
+        { resourceType: 'object', url: 'http://legacy.example.com/flash.swf' },
+        { resourceType: 'embed', url: 'http://legacy.example.com/embed.swf' },
+      ])
+    );
+
+    // form 単独での評価: high
+    const formItems = signals.mixedContent.filter((i) => i.resourceType === 'form');
+    expect(formItems).toHaveLength(1);
+    const formChecks = checkHttpsAndMixedContent('https://example.com/', true, formItems);
+    const activeCheck = formChecks.find((c) => c.checkId === 'SEC-MIXED-ACTIVE');
+    expect(activeCheck?.severity).toBe('high');
+    expect(activeCheck?.status).toBe('fail');
+
+    // img / video (パッシブ混在) での評価: low
+    const passiveItems = signals.mixedContent.filter(
+      (i) => i.resourceType === 'image' || i.resourceType === 'video'
+    );
+    expect(passiveItems.length).toBeGreaterThanOrEqual(2);
+    const passiveChecks = checkHttpsAndMixedContent('https://example.com/', true, passiveItems);
+    const passiveCheck = passiveChecks.find((c) => c.checkId === 'SEC-MIXED-PASSIVE');
+    expect(passiveCheck?.severity).toBe('low');
+    expect(passiveCheck?.status).toBe('warning');
   });
 });

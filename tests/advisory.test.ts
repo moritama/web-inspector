@@ -7,17 +7,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AdvisoryDatabase,
   calculateDbFreshness,
   formatAdvisoryRecommendation,
   getAdvisoryDbMetadata,
   matchOfflineAdvisories,
   resolveRecommendedVersion,
 } from '../src/detection/advisory';
+import fixtureDbJson from './fixtures/advisory-db.fixture.json';
+
+const fixtureDb = fixtureDbJson as unknown as AdvisoryDatabase;
 
 describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / D11-D20)', () => {
   // D16: Matched テスト
   it('D16: 古いjQuery 2.2.4 に対して脆弱性とEOLが正確に検出され Matched となること', () => {
-    const result = matchOfflineAdvisories('jQuery', '2.2.4');
+    const result = matchOfflineAdvisories('jQuery', '2.2.4', fixtureDb);
 
     expect(result.technology).toBe('jQuery');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -30,7 +34,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('サポート終了済みの古いPHP 7.4.30 に対してEOLおよび脆弱性が照合され Matched となること', () => {
-    const result = matchOfflineAdvisories('PHP', '7.4.30');
+    const result = matchOfflineAdvisories('PHP', '7.4.30', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Matched');
     expect(result.eolInfo.status).toBe('EOL');
@@ -40,7 +44,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D12: No Match テスト
   it('D12: 安全な最新Bootstrap 5.3.3 に対して脆弱性なし (No Match / Not Affected) と判定されること', () => {
-    const result = matchOfflineAdvisories('Bootstrap', '5.3.3');
+    const result = matchOfflineAdvisories('Bootstrap', '5.3.3', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('No Match');
     expect(result.matchStatus).toBe('Not Affected');
@@ -50,7 +54,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D11: Not Covered テスト
   it('D11: 未登録の技術の場合は Not Covered (No Data) となること', () => {
-    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0');
+    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Not Covered');
     expect(result.matchStatus).toBe('No Data');
@@ -60,13 +64,13 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D15: Unknown Version テスト
   it('D15: バージョンが不明 (null または空文字) の場合、Unknown Version (Needs Review) となること', () => {
-    const resultNull = matchOfflineAdvisories('jQuery', null);
+    const resultNull = matchOfflineAdvisories('jQuery', null, fixtureDb);
     expect(resultNull.offlineMatchStatus).toBe('Unknown Version');
     expect(resultNull.matchStatus).toBe('Needs Review');
     expect(resultNull.advisories.length).toBe(0);
     expect(resultNull.eolInfo.status).toBe('Unknown');
 
-    const resultEmpty = matchOfflineAdvisories('jQuery', '   ');
+    const resultEmpty = matchOfflineAdvisories('jQuery', '   ', fixtureDb);
     expect(resultEmpty.offlineMatchStatus).toBe('Unknown Version');
     expect(resultEmpty.matchStatus).toBe('Needs Review');
   });
@@ -75,7 +79,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   it('D14: Ubuntu/Debianパッケージバージョン (例: 2.4.52-1ubuntu4) は誤検知を避けて Unknown Version / Needs Review となること', () => {
     // 通常の SemVer "2.4.52" なら脆弱性 CVE-2021-44790 (< 2.4.52) に一致するが、
     // パッケージ版ではバックポート修正されている可能性が高いため断定を避ける
-    const result = matchOfflineAdvisories('Apache', '2.4.52-1ubuntu4');
+    const result = matchOfflineAdvisories('Apache', '2.4.52-1ubuntu4', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
@@ -84,14 +88,14 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('D14: Debianパッケージバージョン (例: 1.18.0-0ubuntu1.4) に対しても安全側に倒すこと', () => {
-    const result = matchOfflineAdvisories('Nginx', '1.18.0-0ubuntu1.4');
+    const result = matchOfflineAdvisories('Nginx', '1.18.0-0ubuntu1.4', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
   });
 
   it('SPEC-02: distroHint オプション指定時は Unknown Version / Needs Review となりディストリ固有注記が返ること', () => {
-    const result = matchOfflineAdvisories('Apache', '2.4.41', undefined, { distroHint: 'Ubuntu' });
+    const result = matchOfflineAdvisories('Apache', '2.4.41', fixtureDb, { distroHint: 'Ubuntu' });
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
     expect(result.advisories.length).toBe(0);
@@ -104,6 +108,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     // 40日前の日付
     const oldDate = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
     const result = matchOfflineAdvisories('jQuery', '2.2.4', {
+      ...fixtureDb,
       generatedAt: oldDate,
     });
 
@@ -155,7 +160,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('古いLaravel 8.0.0 に対してEOLおよびCVE-2021-3129が検出されること', () => {
-    const result = matchOfflineAdvisories('Laravel', '8.0.0');
+    const result = matchOfflineAdvisories('Laravel', '8.0.0', fixtureDb);
 
     expect(result.technology).toBe('Laravel');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -164,7 +169,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('サポート終了済みの古いNode.js 16.14.0 に対してEOLが検出されること', () => {
-    const result = matchOfflineAdvisories('Node.js', '16.14.0');
+    const result = matchOfflineAdvisories('Node.js', '16.14.0', fixtureDb);
 
     expect(result.technology).toBe('Node.js');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -172,7 +177,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('AngularJS 1.8.3 に対して全バージョン影響のCVE-2022-25869が検出され、修正版なし(null)および移行推奨案内が出力されること', () => {
-    const result = matchOfflineAdvisories('AngularJS', '1.8.3');
+    const result = matchOfflineAdvisories('AngularJS', '1.8.3', fixtureDb);
 
     expect(result.technology).toBe('AngularJS');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -189,7 +194,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   // 複数ブランチ・複数アドバイザリ対応の推奨版導出テスト (レビュー 2-4 対応)
   describe('複数ブランチ・複数アドバイザリ推奨版解決テスト (レビュー 2-4 準拠)', () => {
     it('Apache 2.4.49 検出時に、複数の脆弱性 (CVE-2021-41773: 2.4.50, CVE-2021-42013: 2.4.51, CVE-2021-44790: 2.4.52) の中で全てを解消できる最高バージョン (2.4.52) が推奨されること', () => {
-      const result = matchOfflineAdvisories('Apache', '2.4.49');
+      const result = matchOfflineAdvisories('Apache', '2.4.49', fixtureDb);
       expect(result.advisories.length).toBeGreaterThanOrEqual(2);
 
       // 先頭エントリの 2.4.50 ではなく、全てを解消する 2.4.52 が導出されること
@@ -239,13 +244,13 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     });
 
     it('PHP 8.0.10 実DB照合時: 8.0系パッチが存在しない CVE-2024-4577 (8.1.29) と CVE-2022-31628 (8.0.24) が同時にヒットした場合、全体を解消できる 8.1.29 以上が推奨されること', () => {
-      const result = matchOfflineAdvisories('PHP', '8.0.10');
+      const result = matchOfflineAdvisories('PHP', '8.0.10', fixtureDb);
       const recommended = resolveRecommendedVersion('8.0.10', result.advisories);
       expect(recommended).toBe('8.1.29');
     });
 
     it('Bootstrap 4.3.0 検出時に、複数ブランチ修正版 (3.4.1 / 4.3.1) から 4.3 系列の 4.3.1 が正確に抽出されること', () => {
-      const result = matchOfflineAdvisories('Bootstrap', '4.3.0');
+      const result = matchOfflineAdvisories('Bootstrap', '4.3.0', fixtureDb);
       expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
 
       const recommended = resolveRecommendedVersion('4.3.0', result.advisories);

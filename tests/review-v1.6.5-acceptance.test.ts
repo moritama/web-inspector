@@ -11,11 +11,14 @@
 import { describe, expect, it } from 'vitest';
 import { executeInspection } from '../src/background/service-worker';
 import { extractDomSignals } from '../src/content/content-script';
-import { matchOfflineAdvisories } from '../src/detection/advisory';
+import { AdvisoryDatabase, matchOfflineAdvisories } from '../src/detection/advisory';
 import { DetectionEngine } from '../src/detection/engine';
 import { analyzeCSPPolicies, parseCSPPolicy } from '../src/security/csp-parser';
 import { checkHttpHeaders } from '../src/security/headers';
 import { DomSignals, NetworkSignals } from '../src/shared/types';
+import fixtureDbJson from './fixtures/advisory-db.fixture.json';
+
+const fixtureDb = fixtureDbJson as unknown as AdvisoryDatabase;
 
 const emptyDom = (): DomSignals => ({
   url: 'https://example.com/',
@@ -69,13 +72,13 @@ describe('SPEC-04: EOL 判定で未知の旧サイクルを Supported としな�
     ['Node.js', '0.12.18'],
     ['Bootstrap', '1.4.0'],
   ])('%s %s は Supported ではない (EOL もしくは Unknown)', (tech, version) => {
-    expect(matchOfflineAdvisories(tech, version).eolInfo.status).not.toBe('Supported');
+    expect(matchOfflineAdvisories(tech, version, fixtureDb).eolInfo.status).not.toBe('Supported');
   });
 });
 
 describe('SPEC-06: 解析不能なバージョン文字列で CVE を該当させない', () => {
   it('jQuery "custom-build" は Unknown Version / Needs Review', () => {
-    const r = matchOfflineAdvisories('jQuery', 'custom-build');
+    const r = matchOfflineAdvisories('jQuery', 'custom-build', fixtureDb);
     expect(r.advisories).toHaveLength(0);
     expect(r.offlineMatchStatus).toBe('Unknown Version');
   });

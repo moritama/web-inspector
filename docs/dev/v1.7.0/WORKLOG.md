@@ -20,3 +20,12 @@
   - `scripts/validate-advisories.mjs` の `isValidRange` で `||` と `,` で分割したすべての節を `version-matcher.ts` と同じ規則で検証し、`>= 1.0.0-nxt` のような不正な識別子を検出できるようにした。
 - 未解決: なし
 
+## T02 DB に依存しないテストへの整理  (2026-11-03 12:52)
+- 変更ファイル: `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-db-invariants.test.ts`, `tests/version-check.test.ts`, `tests/advisory.test.ts`, `tests/review-v1.6.5-acceptance.test.ts`
+- 判断したこと:
+  - 現行の `src/detection/advisory-db.json` のスナップショットを `tests/fixtures/advisory-db.fixture.json` として複製し、`tests/version-check.test.ts`、`tests/advisory.test.ts`、`tests/review-v1.6.5-acceptance.test.ts` で特定の CVE・件数・推奨版・EOL を検証している `matchOfflineAdvisories` 呼び出しに `fixtureDb`（`dbOverride`）を渡す形に移行した。
+  - 同梱 `src/detection/advisory-db.json` の検証は新設した `tests/advisory-db-invariants.test.ts` に集約し、件数や特定 CVE の有無に依存しない不変条件（`schemaVersion: "2.2"`、全 14 製品の存在、`minExtensionVersion <= manifest.version`、全エントリの必須項目と `isValidRange` / `validateDb` による構文検証、壊れたトークン `>= 1.0.0-nxt` の拒否検証）のみを検査する構成にした。
+  - エントリ半減テスト等で `libraries` のみ差し替えられた場合でも構造・範囲の不変条件を検証できるよう、`validateDb` 呼び出し時には `integrity` を除外して検証するようにした。
+- 未解決: なし
+
+

@@ -5,13 +5,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error scripts/validate-advisories.mjs は型定義を持たない .mjs モジュール
-import { isValidRange, validateDb } from '../scripts/validate-advisories.mjs';
 import { AdvisoryDatabase, matchOfflineAdvisories } from '../src/detection/advisory';
-import advisoryDbJson from '../src/detection/advisory-db.json';
+import fixtureDbJson from './fixtures/advisory-db.fixture.json';
 import { DetectionEngine } from '../src/detection/engine';
 import { compareVersions, satisfiesVersionRange } from '../src/security/version-matcher';
 import { DomSignals } from '../src/shared/types';
+
+const fixtureDb = fixtureDbJson as unknown as AdvisoryDatabase;
 
 describe('Version Matcher Utility', () => {
   it('compareVersions が正しく動作すること', () => {
@@ -219,26 +219,6 @@ describe('T01 (v1.7.0): Angular プレリリース範囲照合と DB range 構�
     const matchedIds = result.advisories.map((a) => a.id);
     expect(matchedIds).toContain('CVE-2026-32635');
   });
-
-  it('同梱 advisory-db.json の全 87 件の range が構文検証を通ること、壊れたトークン (>= 1.0.0-nxt) を混ぜると検証が失敗すること', () => {
-    const validReport = validateDb(advisoryDbJson) as { productCount: number; advisoryCount: number; warnings: string[] };
-    expect(validReport.advisoryCount).toBeGreaterThanOrEqual(87);
-
-    // 全レコードの range が isValidRange を通過することも確認
-    for (const lib of Object.values(advisoryDbJson.libraries)) {
-      for (const v of lib.versions) {
-        expect(isValidRange(v.range), `range: ${v.range}`).toBe(true);
-      }
-    }
-
-    expect(isValidRange('>= 1.0.0-nxt')).toBe(false);
-    expect(isValidRange('>= 1.0.0-nxt, < 2.0.0')).toBe(false);
-
-    const brokenDb = structuredClone(advisoryDbJson) as Record<string, unknown>;
-    delete brokenDb.integrity;
-    (brokenDb.libraries as typeof advisoryDbJson.libraries).angular.versions[0].range = '>= 1.0.0-nxt, < 2.0.0';
-    expect(() => validateDb(brokenDb)).toThrow(/range が version-matcher で解釈できない書式です/);
-  });
 });
 
 describe('T01 - T05: JavaScript & CSS バージョン検出と整合性確認', () => {
@@ -351,31 +331,31 @@ describe('T01 - T05: JavaScript & CSS バージョン検出と整合性確認', 
 
 describe('T06 - T09: EOL & CVE 照合', () => {
   it('T06: Bootstrap 4.3.1 を照合すると EOL と判定されること', () => {
-    const result = matchOfflineAdvisories('Bootstrap', '4.3.1');
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
     expect(result.eolInfo.status).toBe('EOL');
     expect(result.eolInfo.eolDate).toBe('2023-01-01');
   });
 
   it('T07: Bootstrap 4.3.0 を照合すると CVE-2019-8331 (Potentially Affected) と判定されること', () => {
-    const result = matchOfflineAdvisories('Bootstrap', '4.3.0');
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.0', fixtureDb);
     expect(result.matchStatus).toBe('Potentially Affected');
     expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
     expect(result.maxCvss).toBe(6.1);
   });
 
   it('Bootstrap 4.3.1 (修正済み) を照合すると CVE-2019-8331 には該当しないこと', () => {
-    const result = matchOfflineAdvisories('Bootstrap', '4.3.1');
+    const result = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
     expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(false);
   });
 
   it('T08: バージョンが不明な場合は Unknown / Needs Review と判定されること', () => {
-    const result = matchOfflineAdvisories('Bootstrap', null);
+    const result = matchOfflineAdvisories('Bootstrap', null, fixtureDb);
     expect(result.eolInfo.status).toBe('Unknown');
     expect(result.matchStatus).toBe('Needs Review');
   });
 
   it('T09: 未登録の未知技術の場合は No Data と判定されること', () => {
-    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0');
+    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0', fixtureDb);
     expect(result.matchStatus).toBe('No Data');
   });
 });

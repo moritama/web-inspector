@@ -106,7 +106,7 @@ export function generateMarkdownReport(
   const sanitizedUrl = sanitizeUrlForReport(report.url);
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const extVer = report.extensionVersion || '1.3.3';
+  const extVer = report.extensionVersion || '1.7.0';
 
   // 差分分析の計算
   const diff = previousReport ? compareReportsEnhanced(previousReport, report) : null;

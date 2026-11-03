@@ -169,3 +169,12 @@
   - **Public Suffix List (PSL) のビルド時生成とフォールバック機構 (DOC-12)**: `scripts/advisories/lib/psl.mjs` を新設し、上流取得（`fetch-upstream.mjs` への統合）、スナップショット（`data/psl/public_suffix_list.dat`）からのコード生成（`src/security/psl-rules.generated.ts`）、およびスナップショット未取得時に警告を出してフォールバック一覧を使用しビルドを止めない機構を実装した。日本の地域型・都道府県ドメイン（`tokyo.jp` 等）、政令指定都市のワイルドカード・例外ルール（`*.kawasaki.jp`, `!city.kawasaki.jp`, `!metro.tokyo.jp` 等）に対応し、`tests/fixtures/psl.fixture.dat` を用いた単体テストを `tests/domain-analyzer.test.ts` に追加した。
 - 未解決: なし
 
+## T15 仕上げ（C7、C8）  (2026-11-04 00:08)
+- 変更ファイル: `docs/dev/v1.6.6/COMPLETION_REPORT.md`, `docs/dev/v1.6.6/check-result.json`, `docs/DETECTION_SPECIFICATION.md`, `README.md`, `src/detection/rules/index.ts`, `src/export/markdown.ts`, `src/export/csv.ts`
+- 判断したこと:
+  - **v1.6.6 完了報告書の訂正 (C7)**: `docs/dev/v1.6.6/COMPLETION_REPORT.md` の §4 および §10 に記載されていた、skip として残した P1 受け入れテスト 5 件の説明（旧記載: 同一ドメイン Cookie 判定・インラインスクリプトハッシュ評価・クエリパラメータ除外）を、`tests/review-v1.6.5-acceptance.test.ts` の実際のテスト名（`SPEC-07 / SPEC-08: CSP 評価` の 3 件: `複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)`・`scheme-source (https:) は任意ホスト許可として検出する`・`nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)`、`SPEC-10: 同一ライブラリの複数バージョン同居` の 1 件: `jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する`、`SPEC-12: ヘッダー値の妥当性` の 1 件: `X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上`）に訂正した。
+  - **v1.6.6 check-result.json の更新 (C8)**: `docs/dev/v1.6.6/check-result.json` を人間の対応および E2E 実行完了後の最終状態（`mode: "full+e2e"`, `passed: 19`, `failed: 0`、C05・C11・R06 を含む全 19 項目 `PASS`）に合わせて更新した。
+  - **バージョン `1.7.0` とドキュメント・実装の最終整合確認**: `public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `README.md`, `docs/DETECTION_SPECIFICATION.md`, `docs/MAINTENANCE_GUIDE.md` のバージョン表記が `1.7.0` に揃っていることを確認し、`src/detection/rules/index.ts` のコメントおよび `src/export/markdown.ts`・`src/export/csv.ts` の `extensionVersion` フォールバック値も `1.7.0` に統一した。また、`README.md` のディレクトリ構成ツリーおよび `docs/DETECTION_SPECIFICATION.md` §6〜§8 の記述を v1.7.0 の実装（`instances`、`upstreamAdvisoriesCount`、「収録 DB 上は該当なし」と収録範囲表示、`Maintenance` サポート状態、CSP 積集合・`scheme-source`・`strict-dynamic`、ヘッダー値妥当性、連動推論マージ防止、URL クエリ/フラグメント除去、Content Script オンデマンド注入）に一致させた。
+  - **受け入れテストの skip 確認**: `tests/review-v1.6.5-acceptance.test.ts` において `it.skip` / `describe.skip` が 0 件であることを確認した。
+- 未解決: なし
+

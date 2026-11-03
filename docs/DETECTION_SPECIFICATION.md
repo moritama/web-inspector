@@ -342,64 +342,70 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 | **Bootstrap** | `window.bootstrap.Modal.VERSION` または CDN URL にバージョン記載 | Webpack等でバンドル・minifyされ、CSSクラスのみ使用されている場合 |
 | **Angular** | DOMに `ng-version="16.2.0"` 属性が存在 | 本番ビルド時に属性が剥離されている場合 |
 
-### 6.2 複数バージョン混在時の抽出と保持 (`detectedVersions` / SPEC-14)
-- 同一ページ内で同じ技術の複数バージョン（例: レガシープラグインが読み込む `jQuery 2.2.4` とテーマ本体が読み込む `jQuery 3.7.1`）が同時に観測された場合、先に見つかった1件だけで上書きせず、観測された全バージョンを昇順・重複なしで `DetectedTechnology.detectedVersions` に保持します。
-- 代表バージョン（`DetectedTechnology.version`）には、脆弱性診断の見逃しを防ぐため**最小 SemVer（最も古いバージョン）**を設定し、オフライン脆弱性・EOL照合エンジン（`matchOfflineAdvisories`）は `detectedVersions` の全バージョンに対して照合を行います。
+### 6.2 複数バージョン同居時のインスタンス保持 (`instances` / SPEC-10)
+- 同一ページ内で同じ技術の複数バージョン（例: レガシープラグインが読み込む `jQuery 1.12.4` とテーマ本体が読み込む `jQuery 3.7.1`）が同時に観測された場合、先に見つかった1件や最新バージョンだけで上書きせず、観測された各バージョンを SemVer 昇順で `DetectedTechnology.instances`（`TechnologyVersionInstance[]`）に保持します。
+- 各インスタンスに対して個別に `matchOfflineAdvisories()` を実行し、技術全体の `advisories` は全インスタンスの脆弱性の和集合（ID で重複除去）、`supportStatus` は最も厳しい状態（`EOL > Unknown > Maintenance > Supported`）、代表バージョン（`DetectedTechnology.version`）には脆弱性診断の見逃しを防ぐため**最小 SemVer（最も古いバージョン）**を設定します。
 
 ### 6.3 EOL / CVE 照合における安全設計とバックポート配慮
 - **断定の回避**: バージョンが隠蔽されて特定できない場合は、「バージョン不明」として安全に扱い、**無関係なバージョンのCVEを誤報（False Positive）として出さない**安全機構（IMP-19）が働きます。
-- **Linuxディストリビューション版（バックポート修正）への配慮**:
+- **Linuxディストリビューション版（バックポート修正）への配慮 (SPEC-02)**:
   `Server: Apache/2.4.41 (Ubuntu)` のように OS パッケージ版が使用されている場合、バージョン番号上は古く見えても、セキュリティパッチがバックポート（逆移植）されている可能性があります。そのため、診断レポート上では「バージョン表記上は該当。Linuxディストリビューション版（Ubuntu/RHEL等）の場合はバックポート修正済みの可能性あり（要確認）」と確度を分けてガイダンスします。
   1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、バージョンを抽出したヘッダー値全文から括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）およびパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1` 等）を自動検出し、`DetectedTechnology.distroHint` を設定します。
-  2. **オフライン脆弱性照合での安全処理**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、「{distro} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。」という注記を付与します。
-  3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジを表示し、JSON / CSV / Markdown エクスポートにも `distroHint` および注記文を出力します。
+  2. **オフライン脆弱性照合での安全処理と上流件数の併記**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、あわせて `distroHint` が無いと仮定した場合（上流版として照合した場合）に一致する脆弱性件数を `upstreamAdvisoriesCount` として算出します。
+  3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジと「参考: 上流版として照合すると N 件に該当」の案内を表示し、JSON / CSV / Markdown エクスポートにも `distroHint`・`upstreamAdvisoriesCount` および注記文を出力します。
+- **「収録 DB 上は該当なし」と収録範囲の明示 (SPEC-03)**:
+  脆弱性が 0 件だった場合でも、オフライン DB の収録範囲外である可能性を考慮し「安全（影響なし）」とは断定せず、「収録 DB 上は該当なし（収録 N 件・取得元: curated / OSV / NVD・dataVersion: YYYYMMDD）」と表示します。また、DB に脆弱性が 1 件も収録されていない技術（`advisories.length === 0` または未登録）については「この技術の脆弱性は収録していません」と区別して表示します。
 
 ---
 
 ## 7. オフライン脆弱性・EOL照合およびバージョン比較仕様 (v1.7.0)
 
 ### 7.1 SemVer・4要素以上・プレリリース・複数ブランチ範囲の比較 (`src/security/version-matcher.ts`)
-- **多要素バージョンの正規化**: `major.minor.patch` の3要素に加え、第4要素以降（例: `2.4.41.1`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（`-alpha.1`, `-beta.2`, `-rc.1`, `-next.1`）を解析し、辞書順ではなく数値・識別子優先順位に従って比較します。
-- **プレリリース版の同一ブランチ境界ガード (SPEC-03 / SPEC-05)**:
-  `>= 18.0.0, < 18.2.15 || >= 19.0.0, < 19.2.15` のように `||`（OR）で複数ブランチが連結された範囲式において、プレリリース版（例: `22.0.0-next.1` や `19.3.0-next.1`）は、同じ `major.minor` ブランチを対象とする条件節（または当該プレリリース自身の `major.minor.patch` より大きい上限を持つ同一メジャー条件節）に対してのみ評価します。これにより、より新しいメジャー・マイナーのプレリリース版が過去ブランチの `< 19.2.15` 等に誤って一致する偽陽性を防止します。
+- **多要素バージョンの正規化 (SPEC-05)**: `major.minor.patch` の3要素に加え、第4要素以降（例: `1.2.3.4`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（`-alpha.1`, `-beta.2`, `-rc.1`）を解析し、辞書順ではなく数値・識別子優先順位に従って比較します。
+- **プレリリース版の同一ブランチ境界ガード (SPEC-05)**:
+  `>= 18.0.0, < 18.2.15 || >= 19.0.0, < 19.2.15` のように `||`（OR）で複数ブランチが連結された範囲式や単一上限（`< 4.0.0` 等）において、プレリリース版（例: `4.0.0-beta.1` や `5.0.0-alpha.1`）は、同じ `major.minor` ブランチを対象とする条件節に対してのみ一致させます。これにより、別メジャー・マイナーのプレリリース版が過去ブランチの `< X` に誤って一致する偽陽性を防止します。
+- **複合範囲表現の解釈**: カンマ区切り（`>= 4.0.0, < 4.3.1`）や空白区切り（`>=1.0.0 <1.2.0`）の AND 条件、チルダ範囲（`~1.2.3`）、キャレット範囲（`^1.2.3`）、ワイルドカード（`1.2.x`, `1.2.*`）をすべて解釈します。
 
 ### 7.2 修正状況 (`fixStatus`)・CISA KEV・重大度4段階 (`src/detection/advisory.ts`)
 - **修正状況 (`fixStatus` / SPEC-13)**:
   各脆弱性エントリは `fixStatus: 'fixed' | 'unfixed' | 'unknown'` を持ちます：
   - `'fixed'`: 修正済みバージョン（`fixedVersion`）が特定されている状態（UI表示: `修正版: x.y.z`）。
-  - `'unfixed'`: 上流アドバイザリで修正版が存在しない（EOL後の未修正脆弱性等）と確認された状態（UI表示: `未修正（パッチ未提供・緩和策を確認）`）。
-  - `'unknown'`: 複数ブランチの上限または上流データから単一の修正版を一意に特定できない状態（UI表示: `修正状況: 要確認（アドバイザリ参照）`）。
+  - `'unfixed'`: 上流アドバイザリで修正版が存在しない（EOL後の未修正脆弱性等）と確認された状態（UI表示: `未修正`、推奨対応: `未修正の脆弱性を含みます（緩和策を確認）`）。
+  - `'unknown'`: 複数ブランチの上限または上流データから単一の修正版を一意に特定できない状態（UI表示: `修正版: 要確認（アドバイザリ参照）`）。
 - **CISA KEV（悪用が確認された脆弱性）表示**:
-  CISA Known Exploited Vulnerabilities カタログに含まれる CVE は `kev: true`（および追加日 `kevDateAdded`）を保持し、UIおよびエクスポートで `⚠️ KEV (悪用確認済)` バッジを強調表示します。
-- **重大度 4 段階 (`critical` / `high` / `medium` / `low` / SPEC-15)**:
-  CVSS ベーススコアに基づき `critical`（9.0〜10.0）、`high`（7.0〜8.9）、`medium`（4.0〜6.9）、`low`（0.1〜3.9）の 4 段階で分類し、UIのフィルタ・サマリー集計・エクスポートで一貫して 4 段階を扱います。
-- **アドバイザリ参照URLの解決 (IMPL-09)**:
-  CVE ID（`CVE-YYYY-NNNN`）が存在する場合は NVD 詳細ページ（`https://nvd.nist.gov/vuln/detail/<CVE>`）、GHSA ID（`GHSA-...`）のみの場合は GitHub Advisory Database（`https://github.com/advisories/<GHSA>`）、それ以外は `sourceUrl` を使用し、GHSA ID を NVD URL に連結したリンク切れを防止します。
+  CISA Known Exploited Vulnerabilities カタログに含まれる CVE は `kev: true`（および追加日 `kevDateAdded`）を保持し、UIおよびエクスポートで `悪用確認済み（CISA KEV）` バッジを強調表示します。
+- **重大度 4 段階 (`critical` / `high` / `medium` / `low` / SPEC-13)**:
+  CVSS ベーススコアに基づき `critical`（9.0〜10.0）、`high`（7.0〜8.9）、`medium`（4.0〜6.9）、`low`（0.1〜3.9）の 4 段階で分類し、UIのフィルタ・サマリー集計（`securityFindings.critical`）・エクスポートで一貫して 4 段階を扱います。
+- **サポート状態 `Maintenance` と補足説明 (D1)**:
+  `Supported` / `EOL` / `Unknown` に加え、機能追加は終了し重大な修正のみが限定的に提供される状態を `Maintenance`（例: React 18 の `Limited Support (Maintenance)`）として定義し、`eolInfo.label` と `eolInfo.note` を UI・エクスポートに表示します。
+- **アドバイザリ参照URLの解決 (SPEC-13)**:
+  CVE ID（`CVE-YYYY-NNNN`）が存在する場合は NVD 詳細ページ（`https://nvd.nist.gov/vuln/detail/<CVE>`）、GHSA ID（`GHSA-...`）のみの場合は GitHub Advisory Database（`https://github.com/advisories/<GHSA>`）、それ以外は `referenceUrls` を使用し、GHSA ID を NVD URL に連結したリンク切れを防止します。
 
 ---
 
-## 8. セキュリティ診断・CSP解析・PSLドメイン分類仕様 (v1.7.0)
+## 8. セキュリティ診断・CSP解析・プライバシー保護仕様 (v1.7.0)
 
-### 8.1 CSP（Content Security Policy）構文解析と積集合評価 (`src/security/csp-analyzer.ts`)
+### 8.1 CSP（Content Security Policy）構文解析と積集合評価 (`src/security/csp-parser.ts`)
 - **複数CSPヘッダーの積集合（Intersection）評価 (SPEC-07)**:
-  HTTPレスポンスに複数の `Content-Security-Policy` ヘッダーが存在する場合、W3C CSP 仕様に従いすべてのポリシーが同時に適用されるため、1つでも安全なポリシーが危険な設定（`'unsafe-inline'` 等）を禁止していれば防御が有効であると判定します。
-- **`<meta http-equiv="Content-Security-Policy">` のフォールバック評価**:
-  HTTPレスポンスヘッダーに CSP が存在せず、HTML 内の `<meta http-equiv="Content-Security-Policy">` が存在する場合、meta 要素の CSP を解析して評価します（仕様上 meta では無効な `frame-ancestors`, `report-uri`, `sandbox` は除外）。
-- **ディレクティブ継承と無効化規則**:
-  - スクリプト実行制御は `script-src-elem` $\rightarrow$ `script-src` $\rightarrow$ `default-src` の順にフォールバックして評価します。
-  - 同一ディレクティブ内に `'nonce-...'` または `'sha256-...'` / `'sha384-...'` / `'sha512-...'` が存在し、かつ `'unsafe-hashes'` が無い場合、CSP Level 2+ 仕様により `'unsafe-inline'` はブラウザに無視されるため、インラインスクリプト許可警告を抑止します。
-  - `'strict-dynamic'` が存在する場合はホストベース指定や `'unsafe-inline'` が無視される仕様を考慮し、`require-trusted-types-for 'script'` による DOM XSS 防御も評価します。
+  HTTPレスポンスに複数の強制 `Content-Security-Policy` ヘッダーが存在する場合、W3C CSP 仕様に従いすべてのポリシーが同時に適用されるため、1つでも厳格なポリシーが危険な設定（`'unsafe-inline'`, `'unsafe-eval'`, `*`, `data:`, `scheme-source`）を禁止していれば防御が有効であると判定します。
+- **`scheme-source` および `nonce`/`hash` + `'strict-dynamic'` の評価 (SPEC-08)**:
+  - `script-src`（またはフォールバック元の `default-src`）にホスト名なしのスキーム指定（`https:`, `http:`, `ws:`, `wss:`）が含まれる場合、任意のホストからのスクリプト読み込みを許すため `warning`（`medium`）として検出します。
+  - `'nonce-...'` または `'sha256-...'`/`'sha384-...'`/`'sha512-...'` と `'strict-dynamic'` を併用した堅牢な CSP では、`default-src` へのフォールバック注記等が存在しても全体のステータスを `pass` に維持します。
+- **複数 `Content-Security-Policy-Report-Only` ヘッダーの結合 (IMPL-05)**:
+  レスポンスに複数の `Content-Security-Policy-Report-Only` ヘッダーが存在する場合、末尾の 1 件で上書きせずすべて保持して解析します。
 
-### 8.2 HTTPセキュリティヘッダーの値妥当性検証 (`src/security/headers.ts` / SPEC-08)
-- **HSTS (`Strict-Transport-Security`)**: `max-age` ディレクティブの数値を厳密に解析し、`max-age` 欠落・非数値（`max-age=abc`）・`0` または負数の場合は有効な HSTS とみなさず `high`（高リスク）を報告します。
-- **`X-Content-Type-Options`**: トークンが厳密に `nosniff`（大小文字無視・前後空白除去）である場合のみ合格とし、それ以外の不正値は警告します。
-- **`X-Frame-Options`**: `DENY` または `SAMEORIGIN` のみを有効とし、廃止された `ALLOW-FROM` や不正値は無効設定として警告します。ただし、CSP の `frame-ancestors` が有効に設定されている場合はモダンブラウザで `frame-ancestors` が優先されるため、XFO 未設定・不備の警告を `info`（情報）に緩和します。
-- **`Referrer-Policy`**: カンマ区切りで複数指定された場合はブラウザが採用する「末尾の有効なポリシートークン」で判定し、`unsafe-url` や `no-referrer-when-downgrade` 等の漏えいリスクがある値を警告します。
+### 8.2 HTTPセキュリティヘッダーの値妥当性検証 (`src/security/headers.ts` / SPEC-12)
+- **HSTS (`Strict-Transport-Security`)**: `max-age` ディレクティブの数値を厳密に解析し、`max-age=0`（キャッシュ無効化）や `max-age` 欠落・非数値（`max-age=abc`）・負数の場合は有効な HSTS とみなさず `warning`（`medium`）として報告します。
+- **`X-Content-Type-Options`**: トークンが厳密に `nosniff`（大小文字無視・前後空白除去）である場合のみ `pass` とし、それ以外の不正値は `warning`（`medium`）として報告します。
+- **`X-Frame-Options`**: `DENY` または `SAMEORIGIN` のみを有効とし、`ALLOWALL` 等の不正値は `warning`（`medium`）として報告します。ただし、CSP の `frame-ancestors` が有効に設定されている場合はモダンブラウザで `frame-ancestors` が優先されるため、XFO 未設定・不備の警告を `info`（情報）に緩和します。
+- **`Referrer-Policy`**: カンマ区切りで複数指定された場合はブラウザ仕様に従い「末尾の既知トークン」を採用して判定し、未知トークンのみの場合は `warning`（`low`）として報告します。
+- **`Permissions-Policy`**: `camera=*` や `geolocation=()` 等の構文を解析し、すべて `*`（全面許可）のみの構成は `info` として通知します。
+- **技術情報露出 (`SEC-DISC-01`)**: `Server`, `X-Powered-By`, `X-AspNet-Version`, `X-AspNetMvc-Version`, `X-Runtime`, `X-Version`, `X-Generator`, `X-Drupal-Cache` を検査対象とし、製品名を持たない汎用文字列（`Server` 単体など）での誤報を防止します。
 
-### 8.3 混在コンテンツ・Cookie CHIPS・PSL ドメイン分析
-- **混在コンテンツ（Mixed Content）検出の拡大 (`src/content/content-script.ts`, `src/security/https.ts` / SPEC-10)**:
-  HTTPS ページ上の `http://` リソース検出対象として、従来の `script[src]`, `iframe[src]`, `link[href]`, `img[src]`, `video[src]`, `audio[src]` に加え、`img[srcset]`, `source[src]`, `source[srcset]`, `video[poster]`, `object[data]`, `embed[src]`, `form[action]`, およびインライン `style` 属性内の `url(http://...)` を検査します。
-- **Cookie の CHIPS (`Partitioned`) 対応と重複除去 (`src/background/service-worker.ts`, `src/security/cookies.ts` / IMPL-11, IMPL-12)**:
-  `chrome.cookies.getAll` を通常の取得と `partitionKey: { topLevelSite }` 付きの両方で実行して CHIPS Cookie を収集し、`document.cookie` 由来の同名 Cookie との重複を除去します。
-- **Public Suffix List (PSL) のビルド時生成 (`scripts/advisories/lib/psl.mjs`, `src/security/domain-analyzer.ts` / DOC-12)**:
-  `data/psl/public_suffix_list.dat`（未取得時は日本の47都道府県・政令指定都市JPドメインを含むフォールバック一覧）から `src/security/psl-rules.generated.ts` を生成し、通常サフィックス・ワイルドカード（`*.kawasaki.jp` 等）・例外ルール（`!metro.tokyo.jp`, `!city.kawasaki.jp` 等）を処理して正確な登録可能ドメイン（eTLD+1）を特定します。
+### 8.3 連動推論マージ・URLサニタイズ・Content Script 動的注入
+- **直接証拠と連動推論の合算防止 (`src/detection/engine.ts` / SPEC-11)**:
+  直接検出の合計重みが採用閾値（50）未満の技術（例: `Passenger` 単独で weight 40 の Ruby on Rails）に対して、連動推論（`implies`）によるスコアが合算されて `detectionMethod: 'direct'` に化けることを防ぎ、スコアが逆転した場合でも `detectionMethod: 'inferred'` と `inferredFrom` を維持します。
+- **履歴・エクスポートにおける URL クエリ・フラグメント除去 (`src/storage/history.ts`, `src/export/` / IMPL-07)**:
+  `normalizeUrlForStorage()` および `sanitizeReportUrls()` により、保存される履歴データと JSON / CSV エクスポート内の URL（`report.url`, `evidence[].value`, `evidence[].source`, `securityChecks[].scope`, `mixedContent[].url`）からクエリ文字列（`?...`）とフラグメント（`#...`）を除去します。
+- **Content Script のオンデマンド注入 (`src/background/service-worker.ts`, `public/manifest.json` / IMPL-08)**:
+  `manifest.json` の常時 `content_scripts` 宣言を廃止し、ユーザーが調査を実行した対象タブに対してのみ `chrome.scripting.executeScript` で `content/content-script.js` を注入（二重注入防止ガード付き）します。

@@ -283,7 +283,7 @@ npm run build
 # ファイル変更監視ビルド (開発用)
 npm run watch
 
-# 仕様書カタログ・READMEカバレッジ表・DOMセレクタ・PSL定義の再生成
+# 仕様書カタログ・READMEカバレッジ表・DOMセレクタの再生成
 npm run spec:generate
 
 # 型検査 + リンク検査 + 単体テスト実行 (Vitest)
@@ -299,7 +299,7 @@ npm run test-server
 npm run advisories:validate
 npm run advisories:verify-nvd
 
-# オフライン脆弱性DBの最新化 (OSV/NVD/endoflife.date/KEV/PSL から取得 → 生成 → 検証)
+# オフライン脆弱性DBの最新化 (OSV/NVD/endoflife.date/KEV から取得 → 生成 → 検証)
 # ※通常は GitHub Actions「Advisory DB Update」が週次で自動実行し PR を作成します
 npm run advisories:sync
 
@@ -345,11 +345,12 @@ npm run package
 │   │   ├── content-script.ts      # DOM・meta・script・混在コンテンツ収集
 │   │   └── dom-selectors.generated.ts # ルールJSONから自動生成されたDOMセレクタ一覧
 │   ├── detection/                 # 技術検出・脆弱性照合エンジン
-│   │   ├── engine.ts              # 検出エンジン本体 (Implication・複数バージョン抽出)
+│   │   ├── engine.ts              # 検出エンジン本体 (Implication・複数バージョンインスタンス抽出)
 │   │   ├── advisory.ts            # オフライン脆弱性・EOL照合エンジン
 │   │   ├── advisory-db.json       # ビルド済みオフライン脆弱性・EOLデータベース
 │   │   ├── confidence.ts          # 確信度計算ロジック (0〜100, 高/中/低)
 │   │   └── rules/                 # JSON検出ルール (計70技術)
+│   │       ├── index.ts           # ルール統合・型定義
 │   │       ├── server.json        # Webサーバー
 │   │       ├── language.json      # 開発言語 (PHP, Python, Java, Node.js等)
 │   │       ├── backend.json       # バックエンドFW (Spring, Express, FastAPI等)
@@ -358,38 +359,43 @@ npm run package
 │   │       ├── services.json      # クラウド・外部サービス (Vercel, GA, Sentry等)
 │   │       └── cdn-waf.json       # CDN / WAF (Cloudflare, CloudFront等)
 │   ├── security/                  # セキュリティ診断エンジン
-│   │   ├── engine.ts              # 統合セキュリティエンジン
 │   │   ├── headers.ts             # HTTPヘッダー診断 (HSTS, XFO, XCTO, Referrer-Policy, CORS等)
-│   │   ├── csp-analyzer.ts        # CSPディレクティブ構文解析・複数ポリシー積集合評価
+│   │   ├── csp-parser.ts          # CSPディレクティブ構文解析・複数ポリシー積集合評価
 │   │   ├── cookies.ts             # Cookie属性診断 (Secure, HttpOnly, CHIPS, 用途分類)
 │   │   ├── https.ts               # HTTPS・混在コンテンツ診断
-│   │   ├── domain-analyzer.ts     # PSLに基づく登録可能ドメイン(eTLD+1)・サードパーティ分析
-│   │   ├── psl-rules.generated.ts # 自動生成されたPublic Suffix Listルール定義
-│   │   └── version-matcher.ts     # SemVer・プレリリース・複数範囲のバージョン比較
+│   │   ├── version-matcher.ts     # SemVer・プレリリース・複数範囲のバージョン比較
+│   │   └── version-integrity.ts   # CSS/JSバージョン整合性診断
+│   ├── network/
+│   │   └── domain-analyzer.ts     # PSLに基づく登録可能ドメイン(eTLD+1)・サードパーティ分析
 │   ├── storage/
-│   │   ├── history.ts             # 履歴管理 (直列化保存・検索・Diff比較)
-│   │   └── allowlist.ts           # 許容・除外リスト管理
+│   │   ├── history.ts             # 履歴管理 (URLサニタイズ・直列化保存・検索)
+│   │   ├── diff.ts                # 履歴Diff比較・原因推定
+│   │   ├── exceptions.ts          # 許容・除外設定管理
+│   │   └── identity.ts            # 指摘項目の安定ID (FindingId) 生成
 │   ├── export/
 │   │   ├── json.ts                # JSONエクスポート
 │   │   ├── csv.ts                 # Excel対応UTF-8 BOM付きCSVエクスポート
 │   │   └── markdown.ts            # 15セクション包括的Markdownレポート出力
-│   ├── popup/                     # ポップアップ画面スクリプト・スタイル
+│   ├── popup/                     # ポップアップ画面スクリプト・描画・スタイル
 │   │   ├── popup.css
-│   │   └── popup.ts
-│   ├── dashboard/                 # 詳細ダッシュボード画面スクリプト・スタイル
+│   │   ├── popup.ts
+│   │   └── render.ts
+│   ├── dashboard/                 # 詳細ダッシュボード画面スクリプト・描画・スタイル
 │   │   ├── dashboard.css
-│   │   └── dashboard.ts
+│   │   ├── dashboard.ts
+│   │   └── render.ts
 │   └── shared/
 │       ├── types.ts               # 共通型定義
-│       ├── html-escape.ts         # XSS防止エスケープ・safeHrefユーティリティ
-│       └── url-normalize.ts       # クエリ・フラグメント除去URL正規化ユーティリティ
+│       ├── html.ts                # XSS防止エスケープ・safeHrefユーティリティ
+│       ├── coverage.ts            # 調査完全性 (Coverage) 評価
+│       └── constants.ts           # 共通定数定義
 ├── data/
-│   ├── advisories/                # 脆弱性DBカタログ・キュレーション・上流スナップショット
-│   └── psl/                       # Public Suffix List スナップショット配置先
+│   └── advisories/                # 脆弱性DBカタログ・キュレーション・上流スナップショット
 ├── scripts/
-│   ├── generate-spec-catalog.mjs  # 仕様書カタログ・README表・DOMセレクタ・PSL生成
-│   ├── advisories/                # 脆弱性DB取得・ビルド・検証・差分判定パイプライン
-│   └── release/                   # リリース種別判定スクリプト
+│   ├── generate-spec-catalog.mjs  # 仕様書カタログ・README表・DOMセレクタ生成
+│   ├── check-links.mjs            # ドキュメント内ローカルリンク検証
+│   ├── test-e2e-smoke.mjs         # Chrome実機E2Eスモークテスト
+│   └── advisories/                # 脆弱性DB取得・ビルド・検証・差分判定パイプライン
 ├── test-server/                   # 動作検証用モックサーバー
 │   └── server.mjs
 ├── tests/                         # 単体テスト・仕様整合テスト (Vitest)

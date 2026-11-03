@@ -50,7 +50,7 @@ export interface TechnologyRule {
 }
 
 /**
- * 統合ルールセット (v1.6.0)
+ * 統合ルールセット (v1.7.0)
  */
 export const ALL_TECHNOLOGY_RULES: TechnologyRule[] = [
   ...(serverRules as unknown as TechnologyRule[]),

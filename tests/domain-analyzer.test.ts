@@ -131,7 +131,7 @@ describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
       // 生成済みモジュールにも主要ルールが含まれていること
       expect(PUBLIC_SUFFIX_LIST).toContain('tokyo.jp');
       expect(PUBLIC_SUFFIX_WILDCARDS).toContain('kawasaki.jp');
-      expect(PUBLIC_SUFFIX_EXCEPTIONS).toContain('metro.tokyo.jp');
+      expect(PUBLIC_SUFFIX_EXCEPTIONS).toContain('city.kawasaki.jp');
     });
   });
 

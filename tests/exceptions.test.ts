@@ -4,7 +4,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { evaluateExceptionStatus, matchFindingException } from '../src/storage/exceptions';
+import {
+  evaluateExceptionStatus,
+  matchFindingException,
+  migrateFindingException,
+} from '../src/storage/exceptions';
+import {
+  generateFindingIdFromCheck,
+  generateLegacyFindingIdFromCheck,
+} from '../src/shared/identity';
 import { FindingException } from '../src/shared/types';
 
 describe('診断項目の許容・除外設定 (IMP-10)', () => {
@@ -78,5 +86,42 @@ describe('診断項目の許容・除外設定 (IMP-10)', () => {
     // 本番環境 -> 不一致 (active)
     const matchProd = matchFindingException('find_scoped_check', 'https://example.com/mypage', exceptions);
     expect(matchProd.status).toBe('active');
+  });
+
+  it('T10 (IMPL-09): クエリだけが違う URL でも許容設定が効き続け、v1.6.6 形式の許容設定が移行後も効くこと', () => {
+    const url1 = 'https://example.com/a?token=1#top';
+    const url2 = 'https://example.com/a?token=2#bottom';
+
+    // 新形式の ID はクエリやフラグメントが変わっても同一であること
+    const newId1 = generateFindingIdFromCheck('SEC-HSTS-01', url1);
+    const newId2 = generateFindingIdFromCheck('SEC-HSTS-01', url2);
+    expect(newId1).toBe(newId2);
+
+    // v1.6.6 形式で保存されていた許容設定
+    const legacyException: FindingException = {
+      id: 'ex_legacy_1',
+      findingId: generateLegacyFindingIdFromCheck(
+        'SEC-HSTS-01',
+        url1,
+        'HSTS (Strict-Transport-Security)'
+      ),
+      targetUrl: url1,
+      status: 'accepted',
+      reason: 'v1.6.6 からの移行テスト',
+      createdAt: '2026-10-01T00:00:00Z',
+    };
+
+    const { migrated, changed } = migrateFindingException(legacyException);
+    expect(changed).toBe(true);
+    expect(migrated.findingId).toBe(newId2);
+    expect(migrated.targetUrl).toBe('https://example.com/a');
+
+    // 移行後の許容設定が url2 に対して有効であること
+    const matchAfterMigrate = matchFindingException(newId2, url2, [migrated]);
+    expect(matchAfterMigrate.status).toBe('accepted');
+
+    // 未移行のまま matchFindingException に渡された場合でも移行・照合されること
+    const matchDirect = matchFindingException(newId2, url2, [legacyException]);
+    expect(matchDirect.status).toBe('accepted');
   });
 });

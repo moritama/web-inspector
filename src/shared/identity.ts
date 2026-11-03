@@ -124,9 +124,74 @@ export function generateFindingId(identity: FindingIdentity): string {
 }
 
 /**
- * SecurityCheckResult から安定したFinding IDを生成するヘルパー (Rev.2.1 IMP-07 / IMP-10)
+ * 安定ID・オリジン判定用のオリジン抽出
+ * - スキーム・ホスト名を小文字化
+ * - デフォルトポート（http:80, https:443）を省略し、非標準ポートは保持
+ *
+ * @param urlStr 入力URL文字列
+ * @returns 正規化されたオリジン文字列 (例: 'https://example.com' または 'http://localhost:8080')
+ */
+export function extractOriginForIdentity(urlStr: string): string {
+  try {
+    const parsed = new URL(urlStr);
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    let port = parsed.port;
+    if ((protocol === 'http:' && port === '80') || (protocol === 'https:' && port === '443')) {
+      port = '';
+    }
+    const hostPart = port ? `${hostname}:${port}` : hostname;
+    return `${protocol}//${hostPart}`;
+  } catch {
+    return urlStr.trim().toLowerCase().split(/[?#]/)[0];
+  }
+}
+
+/**
+ * URL からクエリ文字列 (?...) とフラグメント (#...) および認証情報を除去する (v1.7.0 T10 / IMPL-07)
+ *
+ * @param urlStr 入力URL文字列
+ * @returns クエリ・フラグメントを除去したURL文字列
+ */
+export function stripUrlQueryAndFragment(urlStr: string): string {
+  if (!urlStr) return '';
+  try {
+    const parsed = new URL(urlStr);
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return urlStr.split(/[?#]/)[0];
+  }
+}
+
+/**
+ * SecurityCheckResult から安定したFinding IDを生成するヘルパー (v1.7.0 T10 / IMPL-09)
+ * - URLのパスやクエリパラメータには依存せず、origin + checkId (+ resourceKey) から算出する
  */
 export function generateFindingIdFromCheck(
+  checkId: string,
+  urlStr: string,
+  resourceKey = ''
+): string {
+  const origin = extractOriginForIdentity(urlStr);
+
+  return generateFindingId({
+    ruleId: checkId,
+    origin,
+    resourceKey: resourceKey || checkId,
+    targetKey: checkId,
+    scopeKey: 'security-check',
+  });
+}
+
+/**
+ * 旧仕様 (v1.6.6 以前) の SecurityCheckResult 用 Finding ID を算出する互換ヘルパー (v1.7.0 T10 / IMPL-09 移行用)
+ * - resourceKey に normalizeUrlForIdentity(urlStr)（パス・クエリ込み）を使用していた旧形式
+ */
+export function generateLegacyFindingIdFromCheck(
   checkId: string,
   urlStr: string,
   targetKey = ''

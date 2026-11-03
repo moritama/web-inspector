@@ -16,6 +16,8 @@ import {
   getReportById,
   saveReportToHistory,
   clearAllHistory,
+  enforceReportStorageLimits,
+  sanitizeReportUrls,
 } from '../storage/history';
 import {
   getAllFindingExceptions,
@@ -827,13 +829,16 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
 
   const allSecurityChecks = [...librarySecurityChecks, ...baseSecurityChecks];
 
-  // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10)
+  // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10 / v1.7.0 T10 IMPL-09)
   const exceptions = await deps.getAllFindingExceptions();
   for (const c of allSecurityChecks) {
     if (!c.findingId) {
-      c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
+      c.findingId = generateFindingIdFromCheck(c.checkId, url);
     }
-    const exMatch = matchFindingException(c.findingId, url, exceptions);
+    const exMatch = matchFindingException(c.findingId, url, exceptions, {
+      checkId: c.checkId,
+      name: c.name,
+    });
     c.exceptionStatus = exMatch.status;
     if (exMatch.exception) {
       c.exceptionReason = exMatch.exception.reason;
@@ -892,7 +897,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     advDbVersion = advMeta.generatedAt.slice(0, 10);
   }
 
-  const report: InspectionReport = {
+  const rawReport: InspectionReport = {
     id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
     url,
     hostname,
@@ -921,9 +926,18 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     externalConnections,
   };
 
-  // 8. 履歴保存
+  // URLマスク（クエリ・フラグメント除去）および単一レポートサイズ・evidence上限の適用 (IMPL-06, IMPL-07)
+  const report = enforceReportStorageLimits(sanitizeReportUrls(rawReport));
+
+  // 8. 履歴保存（失敗しても調査自体は失敗させず、画面への通知情報を付与する: IMPL-06）
   if (deps.saveReport) {
-    await deps.saveReport(report);
+    try {
+      await deps.saveReport(report);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      report.historySaveFailed = true;
+      report.storageWarning = `履歴の保存に失敗しました（${errMsg || 'ストレージ書き込みエラー'}）。今回の調査結果は表示されていますが、履歴には残っていません。`;
+    }
   }
 
   // 9. バッジ更新
@@ -981,45 +995,202 @@ if (typeof globalThis !== 'undefined') {
   (globalThis as any).runInspection = runInspection;
 }
 
-// メッセージリスナー
-if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'INSPECT_CURRENT_TAB') {
-    runInspection(message.tabId)
+const PRIVILEGED_MESSAGE_TYPES = new Set([
+  'INSPECT_CURRENT_TAB',
+  'GET_HISTORY',
+  'GET_ALL_REPORTS',
+  'GET_REPORT_BY_ID',
+  'DELETE_HISTORY_ITEM',
+  'CLEAR_HISTORY',
+  'GET_FINDING_EXCEPTIONS',
+  'SAVE_FINDING_EXCEPTION',
+  'DELETE_FINDING_EXCEPTION',
+]);
+
+/**
+ * メッセージ送信元が拡張機能自身の特権ページ（popup / dashboard 等）であるか検証する (v1.7.0 T10 / IMPL-05)
+ * - sender.id === chrome.runtime.id かつ sender.url が拡張機能のページ (chrome-extension://<id>/...) のときのみ許可
+ * - content script (sender.url が https:// 等) からの特権メッセージを拒否する
+ */
+export function isPrivilegedExtensionSender(
+  sender?: chrome.runtime.MessageSender
+): boolean {
+  if (!sender || typeof sender !== 'object') {
+    return false;
+  }
+  const runtimeId =
+    typeof chrome !== 'undefined' && typeof chrome.runtime?.id === 'string' && chrome.runtime.id
+      ? chrome.runtime.id
+      : undefined;
+
+  if (runtimeId) {
+    if (sender.id !== runtimeId) {
+      return false;
+    }
+  } else if (typeof sender.id !== 'string' || !sender.id) {
+    return false;
+  }
+
+  if (typeof sender.url !== 'string' || !sender.url) {
+    return false;
+  }
+
+  const expectedId = runtimeId || sender.id;
+  const expectedPrefix = `chrome-extension://${expectedId}/`;
+  const runtimeBaseUrl =
+    typeof chrome !== 'undefined' && typeof chrome.runtime?.getURL === 'function'
+      ? chrome.runtime.getURL('')
+      : expectedPrefix;
+
+  if (!sender.url.startsWith(expectedPrefix) && !sender.url.startsWith(runtimeBaseUrl)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 受信したメッセージの型と必須フィールドの形式を検証する (v1.7.0 T10 / IMPL-05)
+ */
+export function validateRuntimeMessage(
+  message: unknown
+): { valid: boolean; knownType: boolean; error?: string } {
+  if (!message || typeof message !== 'object') {
+    return { valid: false, knownType: false, error: 'Message must be an object' };
+  }
+
+  const msg = message as Record<string, unknown>;
+  if (typeof msg.type !== 'string' || !PRIVILEGED_MESSAGE_TYPES.has(msg.type)) {
+    return { valid: false, knownType: false, error: 'Unknown message type' };
+  }
+
+  switch (msg.type) {
+    case 'INSPECT_CURRENT_TAB': {
+      if (
+        msg.tabId !== undefined &&
+        (typeof msg.tabId !== 'number' || !Number.isInteger(msg.tabId) || msg.tabId < 0)
+      ) {
+        return { valid: false, knownType: true, error: 'Invalid tabId' };
+      }
+      return { valid: true, knownType: true };
+    }
+    case 'GET_HISTORY':
+    case 'GET_ALL_REPORTS':
+    case 'CLEAR_HISTORY':
+    case 'GET_FINDING_EXCEPTIONS':
+      return { valid: true, knownType: true };
+    case 'GET_REPORT_BY_ID':
+    case 'DELETE_HISTORY_ITEM':
+    case 'DELETE_FINDING_EXCEPTION': {
+      if (typeof msg.id !== 'string' || msg.id.trim().length === 0 || msg.id.length > 256) {
+        return { valid: false, knownType: true, error: 'Invalid id' };
+      }
+      return { valid: true, knownType: true };
+    }
+    case 'SAVE_FINDING_EXCEPTION': {
+      if (!msg.exception || typeof msg.exception !== 'object') {
+        return { valid: false, knownType: true, error: 'Missing exception object' };
+      }
+      const ex = msg.exception as Record<string, unknown>;
+      const validStatuses = new Set(['accepted', 'false-positive', 'muted']);
+      if (
+        typeof ex.id !== 'string' ||
+        ex.id.trim().length === 0 ||
+        ex.id.length > 128 ||
+        typeof ex.findingId !== 'string' ||
+        ex.findingId.trim().length === 0 ||
+        ex.findingId.length > 256 ||
+        typeof ex.status !== 'string' ||
+        !validStatuses.has(ex.status) ||
+        typeof ex.reason !== 'string' ||
+        ex.reason.length > 2000 ||
+        typeof ex.createdAt !== 'string' ||
+        ex.createdAt.trim().length === 0
+      ) {
+        return { valid: false, knownType: true, error: 'Invalid exception fields' };
+      }
+      if (ex.targetUrl !== undefined && (typeof ex.targetUrl !== 'string' || ex.targetUrl.length > 2048)) {
+        return { valid: false, knownType: true, error: 'Invalid exception targetUrl' };
+      }
+      if (ex.checkId !== undefined && (typeof ex.checkId !== 'string' || ex.checkId.length > 128)) {
+        return { valid: false, knownType: true, error: 'Invalid exception checkId' };
+      }
+      return { valid: true, knownType: true };
+    }
+    default:
+      return { valid: false, knownType: false, error: 'Unknown message type' };
+  }
+}
+
+/**
+ * chrome.runtime.onMessage リスナー本体 (v1.7.0 T10 / IMPL-05)
+ * - 未知のメッセージには同期的に false を返す
+ * - 特権メッセージは sender 検証およびペイロード検証を通過したときのみ実行する
+ */
+export function handleRuntimeMessage(
+  message: unknown,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: any) => void
+): boolean {
+  const validation = validateRuntimeMessage(message);
+  if (!validation.knownType) {
+    return false;
+  }
+
+  if (!isPrivilegedExtensionSender(sender)) {
+    sendResponse({
+      success: false,
+      error: '権限エラー: 拡張機能ページ以外からの特権メッセージは拒否されました。',
+    });
+    return false;
+  }
+
+  if (!validation.valid) {
+    sendResponse({
+      success: false,
+      error: `不正なメッセージ形式です: ${validation.error || 'validation failed'}`,
+    });
+    return false;
+  }
+
+  const msg = message as Record<string, any>;
+
+  if (msg.type === 'INSPECT_CURRENT_TAB') {
+    runInspection(msg.tabId)
       .then((report) => sendResponse({ success: true, report }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_HISTORY') {
+  if (msg.type === 'GET_HISTORY') {
     getHistorySummaries()
       .then((history) => sendResponse({ success: true, history }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_ALL_REPORTS') {
+  if (msg.type === 'GET_ALL_REPORTS') {
     getAllHistoryReports()
       .then((reports) => sendResponse({ success: true, reports }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_REPORT_BY_ID') {
-    getReportById(message.id)
+  if (msg.type === 'GET_REPORT_BY_ID') {
+    getReportById(msg.id)
       .then((report) => sendResponse({ success: true, report }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'DELETE_HISTORY_ITEM') {
-    deleteReportById(message.id)
+  if (msg.type === 'DELETE_HISTORY_ITEM') {
+    deleteReportById(msg.id)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'CLEAR_HISTORY') {
+  if (msg.type === 'CLEAR_HISTORY') {
     clearAllHistory()
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
@@ -1027,27 +1198,31 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   }
 
   // --- Rev.2.1 IMP-10: 許容・除外設定メッセージハンドラ ---
-  if (message.type === 'GET_FINDING_EXCEPTIONS') {
+  if (msg.type === 'GET_FINDING_EXCEPTIONS') {
     getAllFindingExceptions()
       .then((exceptions) => sendResponse({ success: true, exceptions }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'SAVE_FINDING_EXCEPTION') {
-    saveFindingException(message.exception)
+  if (msg.type === 'SAVE_FINDING_EXCEPTION') {
+    saveFindingException(msg.exception as FindingException)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'DELETE_FINDING_EXCEPTION') {
-    deleteFindingException(message.id)
+  if (msg.type === 'DELETE_FINDING_EXCEPTION') {
+    deleteFindingException(msg.id)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  return true;
-});
+  return false;
+}
+
+// メッセージリスナー
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 }

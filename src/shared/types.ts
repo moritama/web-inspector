@@ -484,6 +484,8 @@ export type ExceptionStatus =
 export interface FindingException {
   id: string;               // UUID
   findingId: string;        // 安定ID (FindingIdentity / checkId / checkId:resource)
+  checkId?: string;         // 診断項目ID (v1.7.0 T10 / IMPL-09)
+  resourceKey?: string;     // リソース識別キー (v1.7.0 T10 / IMPL-09)
   targetUrl?: string;       // 適用対象URL (空ならホスト全体または全サイト)
   targetHost?: string;      // 適用対象ホスト名
   status: 'accepted' | 'false-positive' | 'muted';
@@ -802,6 +804,10 @@ export interface InspectionReport {
   mixedContent: MixedContentItem[];
   /** 外部通信先・サードパーティ分析結果 (Rev.2.1 IMP-11) */
   externalConnections?: ExternalConnectionsAnalysis;
+  /** 履歴保存に失敗したかどうかのフラグ (v1.7.0 T10 / IMPL-06) */
+  historySaveFailed?: boolean;
+  /** 履歴保存失敗などのストレージ関連警告メッセージ (v1.7.0 T10 / IMPL-06) */
+  storageWarning?: string;
 }
 
 /**
@@ -840,6 +846,9 @@ export type ExtensionMessage =
   | { type: 'GET_HISTORY' }
   | { type: 'DELETE_HISTORY_ITEM'; id: string }
   | { type: 'CLEAR_HISTORY' }
+  | { type: 'GET_FINDING_EXCEPTIONS' }
+  | { type: 'SAVE_FINDING_EXCEPTION'; exception: FindingException }
+  | { type: 'DELETE_FINDING_EXCEPTION'; id: string }
   | { type: 'QUERY_ONLINE_ADVISORY'; technology: string; version: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SAVE_SETTINGS'; payload: Partial<ExtensionSettings> };

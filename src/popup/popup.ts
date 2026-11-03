@@ -162,7 +162,7 @@ function renderReport(report: InspectionReport): void {
   tabCookieCountEl.textContent = String(report.cookies.length);
 
   // 1. 使用技術一覧
-  renderTechnologies(report.technologies, report.coverage);
+  renderTechnologies(report.technologies, report.coverage, report.storageWarning);
 
   // 2. セキュリティ診断一覧
   renderSecurityChecks(report.securityChecks);
@@ -178,8 +178,20 @@ function renderReport(report: InspectionReport): void {
   }
 }
 
-function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
+function renderTechnologies(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  storageWarning?: string
+): void {
   techsListEl.innerHTML = '';
+
+  if (storageWarning) {
+    const storageBanner = document.createElement('div');
+    storageBanner.className = 'notice-banner storage-warning-banner';
+    storageBanner.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-color, #ef4444); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--danger-color, #ef4444); line-height: 1.4;';
+    storageBanner.innerHTML = `⚠️ <strong>履歴保存通知</strong>: ${escapeHtml(storageWarning)}`;
+    techsListEl.appendChild(storageBanner);
+  }
 
   if (coverage && coverage.networkHeadersObserved === false) {
     const banner = document.createElement('div');
@@ -416,6 +428,7 @@ function showSecurityModal(check: SecurityCheckResult): void {
         exception: {
           id: `ex_${Date.now()}`,
           findingId: check.findingId,
+          checkId: check.checkId,
           targetUrl: currentReport?.url,
           status: 'accepted',
           reason,
@@ -436,6 +449,7 @@ function showSecurityModal(check: SecurityCheckResult): void {
         exception: {
           id: `ex_${Date.now()}`,
           findingId: check.findingId,
+          checkId: check.checkId,
           targetUrl: currentReport?.url,
           status: 'false-positive',
           reason,

@@ -5,15 +5,17 @@
 
 import { resolveTechAdvisoryDisplayInfo } from '../detection/advisory';
 import { InspectionReport } from '../shared/types';
+import { sanitizeReportUrls } from '../storage/history';
 
 /**
- * 調査レポートをJSON文字列としてエクスポートする (v1.7.0 T04 / SPEC-03)
+ * 調査レポートをJSON文字列としてエクスポートする (v1.7.0 T04 / SPEC-03 / T10 IMPL-07)
  *
  * @param report 調査レポート
  * @returns インデント整形されたJSON文字列
  */
 export function exportReportToJson(report: InspectionReport): string {
-  const enrichedTechnologies = (report.technologies || []).map((tech) => {
+  const sanitizedReport = sanitizeReportUrls(report);
+  const enrichedTechnologies = (sanitizedReport.technologies || []).map((tech) => {
     const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
     const exportMatchStatus =
       tech.advisoryMatchStatus === 'Not Affected'
@@ -40,7 +42,7 @@ export function exportReportToJson(report: InspectionReport): string {
   });
 
   const exportPayload = {
-    ...report,
+    ...sanitizedReport,
     technologies: enrichedTechnologies,
   };
 

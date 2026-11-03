@@ -1,7 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeInspection, InspectionDependencies } from '../src/background/service-worker';
+import {
+  executeInspection,
+  handleRuntimeMessage,
+  InspectionDependencies,
+} from '../src/background/service-worker';
 import { AdvisoryDatabase, setTestAdvisoryDatabase } from '../src/detection/advisory';
-import { DomSignals, FindingException, InspectedCookieInfo } from '../src/shared/types';
+import {
+  generateFindingIdFromCheck,
+  generateLegacyFindingIdFromCheck,
+} from '../src/shared/identity';
+import {
+  DomSignals,
+  FindingException,
+  InspectedCookieInfo,
+  InspectionReport,
+} from '../src/shared/types';
+import {
+  getAllFindingExceptions,
+  STORAGE_KEY_EXCEPTIONS,
+} from '../src/storage/exceptions';
+import {
+  enforceReportStorageLimits,
+  estimateJsonByteSize,
+  getAllHistoryReports,
+  saveReportToHistory,
+  STORAGE_KEY_HISTORY,
+} from '../src/storage/history';
 import rawFixtureDb from './fixtures/advisory-db.fixture.json';
 
 const fixtureDb = rawFixtureDb as unknown as AdvisoryDatabase;
@@ -574,6 +598,287 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       expect(jqEolChecks[0].findingId).toContain('1.12.4');
       expect(jqEolChecks[1].findingId).toContain('2.2.4');
       expect(jqEolChecks[0].findingId).not.toBe(jqEolChecks[1].findingId);
+    });
+  });
+
+  describe('T10 (IMPL-05, IMPL-06, IMPL-07, IMPL-09): メッセージ検証・履歴容量・URLマスク・許容設定ID移行', () => {
+    it('IMPL-05: content script を装った sender（sender.tab あり、sender.url が https のページ）からの履歴削除メッセージが拒否され、履歴が残ること', async () => {
+      const store: Record<string, unknown> = {};
+      const extId = 'test-extension-id';
+
+      (globalThis as any).chrome = {
+        runtime: {
+          id: extId,
+          getURL: (path: string) => `chrome-extension://${extId}/${path.replace(/^\//, '')}`,
+        },
+        storage: {
+          local: {
+            get: vi.fn(async (key: string) => ({ [key]: store[key] })),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              Object.assign(store, items);
+            }),
+            remove: vi.fn(async (key: string) => {
+              delete store[key];
+            }),
+          },
+        },
+      };
+
+      const existingReport = await executeInspection(createMockDeps());
+      await saveReportToHistory(existingReport);
+      expect((await getAllHistoryReports()).length).toBe(1);
+
+      const contentScriptSender = {
+        id: extId,
+        tab: { id: 101 } as chrome.tabs.Tab,
+        url: 'https://example.com/malicious-page',
+      } as chrome.runtime.MessageSender;
+
+      const sendResponseClear = vi.fn();
+      const handledClear = handleRuntimeMessage(
+        { type: 'CLEAR_HISTORY' },
+        contentScriptSender,
+        sendResponseClear
+      );
+      expect(handledClear).toBe(false);
+      expect(sendResponseClear).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false })
+      );
+
+      const sendResponseDelete = vi.fn();
+      const handledDelete = handleRuntimeMessage(
+        { type: 'DELETE_HISTORY_ITEM', id: existingReport.id },
+        contentScriptSender,
+        sendResponseDelete
+      );
+      expect(handledDelete).toBe(false);
+      expect(sendResponseDelete).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false })
+      );
+
+      // 履歴が消されずに残っていること
+      const remaining = await getAllHistoryReports();
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].id).toBe(existingReport.id);
+    });
+
+    it('IMPL-05: 未知のメッセージに対してリスナーが false を返し、不正な形のメッセージも拒否すること', () => {
+      const extId = 'test-extension-id';
+      (globalThis as any).chrome = {
+        runtime: {
+          id: extId,
+          getURL: (path: string) => `chrome-extension://${extId}/${path.replace(/^\//, '')}`,
+        },
+      };
+
+      const privilegedSender = {
+        id: extId,
+        url: `chrome-extension://${extId}/popup.html`,
+      } as chrome.runtime.MessageSender;
+
+      const sendResponse = vi.fn();
+      expect(handleRuntimeMessage({ type: 'UNKNOWN_MESSAGE_TYPE' }, privilegedSender, sendResponse)).toBe(false);
+      expect(handleRuntimeMessage(null, privilegedSender, sendResponse)).toBe(false);
+      expect(sendResponse).not.toHaveBeenCalled();
+
+      // 既知の type だが必須フィールド id が欠落している場合
+      const invalidIdResponse = vi.fn();
+      expect(
+        handleRuntimeMessage({ type: 'DELETE_HISTORY_ITEM', id: '' }, privilegedSender, invalidIdResponse)
+      ).toBe(false);
+      expect(invalidIdResponse).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    });
+
+    it('IMPL-06: chrome.storage.local.set が例外を投げるモックでも、調査結果が返り、保存失敗の通知が出ること', async () => {
+      (globalThis as any).chrome = {
+        storage: {
+          local: {
+            get: vi.fn().mockResolvedValue({}),
+            set: vi.fn().mockRejectedValue(new Error('QuotaExceededError: storage is full')),
+          },
+        },
+      };
+
+      const deps = createMockDeps({
+        saveReport: saveReportToHistory,
+      });
+
+      const report = await executeInspection(deps);
+      expect(report).toBeDefined();
+      expect(report.hostname).toBe('example.com');
+      expect(report.historySaveFailed).toBe(true);
+      expect(report.storageWarning).toBeTruthy();
+      expect(report.storageWarning).toContain('履歴の保存に失敗しました');
+    });
+
+    it('IMPL-06: 2 件の調査を同時に保存しても、直列化キューにより両方が履歴に残ること', async () => {
+      const store: Record<string, unknown> = {};
+      (globalThis as any).chrome = {
+        storage: {
+          local: {
+            get: vi.fn(async (key: string) => {
+              await new Promise((r) => setTimeout(r, 15));
+              return { [key]: store[key] };
+            }),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              await new Promise((r) => setTimeout(r, 15));
+              Object.assign(store, items);
+            }),
+          },
+        },
+      };
+
+      const rep1 = await executeInspection(
+        createMockDeps({ tab: { id: 1, url: 'https://site-one.example.com/' } })
+      );
+      const rep2 = await executeInspection(
+        createMockDeps({ tab: { id: 2, url: 'https://site-two.example.com/' } })
+      );
+
+      await Promise.all([saveReportToHistory(rep1), saveReportToHistory(rep2)]);
+
+      const saved = await getAllHistoryReports();
+      expect(saved.length).toBe(2);
+      const ids = saved.map((r) => r.id);
+      expect(ids).toContain(rep1.id);
+      expect(ids).toContain(rep2.id);
+    });
+
+    it('IMPL-06: 1 技術あたりの evidence が 20 件までに切り詰められ、合計容量超過時は古い履歴から削除されること', async () => {
+      const store: Record<string, unknown> = {};
+      (globalThis as any).chrome = {
+        storage: {
+          local: {
+            get: vi.fn(async (key: string) => ({ [key]: store[key] })),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              Object.assign(store, items);
+            }),
+          },
+        },
+      };
+
+      const baseReport = await executeInspection(createMockDeps());
+      const manyEvidences = Array.from({ length: 30 }, (_, i) => ({
+        type: 'script-url' as const,
+        name: `Script ${i}`,
+        value: `https://example.com/js/chunk-${i}.js?secret=token${i}#frag`,
+        source: `https://example.com/page?secret=token${i}#frag`,
+        weight: 50,
+      }));
+      const reportWithManyEvidences: InspectionReport = {
+        ...baseReport,
+        id: 'rep_many_evidences',
+        technologies: baseReport.technologies.map((t, idx) =>
+          idx === 0 ? { ...t, evidence: manyEvidences } : t
+        ),
+      };
+
+      // 1件分は収まるが2件分の合計は超える上限を指定して、古い履歴が削除されることも検証
+      const oldReport: InspectionReport = {
+        ...baseReport,
+        id: 'rep_old',
+      };
+      const singleReportBytes = estimateJsonByteSize([
+        enforceReportStorageLimits(reportWithManyEvidences),
+      ]);
+      await saveReportToHistory(oldReport, 50, singleReportBytes * 3);
+      await saveReportToHistory(reportWithManyEvidences, 50, singleReportBytes + 200);
+
+      const saved = (store[STORAGE_KEY_HISTORY] as InspectionReport[]) || [];
+      expect(saved.length).toBe(1);
+      expect(saved[0].id).toBe('rep_many_evidences');
+      expect(saved[0].technologies[0].evidence.length).toBe(20);
+      expect(JSON.stringify(saved[0])).not.toContain('secret=token');
+    });
+
+    it('IMPL-07: https://example.com/a?token=x#y を調査した履歴に token=x が含まれないこと', async () => {
+      const store: Record<string, unknown> = {};
+      (globalThis as any).chrome = {
+        storage: {
+          local: {
+            get: vi.fn(async (key: string) => ({ [key]: store[key] })),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              Object.assign(store, items);
+            }),
+          },
+        },
+      };
+
+      const deps = createMockDeps({
+        tab: { id: 101, url: 'https://example.com/a?token=x#y' },
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            url: 'https://example.com/a?token=x#y',
+            scriptUrls: ['https://example.com/app.js?token=x#y'],
+          })
+        ),
+        saveReport: saveReportToHistory,
+      });
+
+      const report = await executeInspection(deps);
+      expect(report.url).toBe('https://example.com/a');
+      expect(JSON.stringify(report)).not.toContain('token=x');
+
+      const savedHistory = await getAllHistoryReports();
+      expect(savedHistory.length).toBe(1);
+      expect(savedHistory[0].url).toBe('https://example.com/a');
+      expect(JSON.stringify(savedHistory)).not.toContain('token=x');
+    });
+
+    it('IMPL-09: クエリだけが違う URL でも許容設定が効き続け、v1.6.6 形式の許容設定が移行後も効くこと', async () => {
+      const legacyFindingId = generateLegacyFindingIdFromCheck(
+        'SEC-HSTS-01',
+        'https://example.com/a?token=1',
+        'HSTS (Strict-Transport-Security)'
+      );
+      const store: Record<string, unknown> = {
+        [STORAGE_KEY_EXCEPTIONS]: [
+          {
+            id: 'ex_legacy_hsts',
+            findingId: legacyFindingId,
+            targetUrl: 'https://example.com/a?token=1',
+            status: 'accepted',
+            reason: 'v1.6.6 で登録した許容設定',
+            createdAt: '2026-10-01T00:00:00Z',
+          } satisfies FindingException,
+        ],
+      };
+
+      (globalThis as any).chrome = {
+        storage: {
+          local: {
+            get: vi.fn(async (key: string) => ({ [key]: store[key] })),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              Object.assign(store, items);
+            }),
+          },
+        },
+      };
+
+      const deps = createMockDeps({
+        tab: { id: 101, url: 'https://example.com/a?token=2#section' },
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://example.com/a?token=2#section',
+          headers: {},
+          observed: true,
+        }),
+        getAllFindingExceptions,
+      });
+
+      const report = await executeInspection(deps);
+      const hstsCheck = report.securityChecks.find((c) => c.checkId === 'SEC-HSTS-01');
+      expect(hstsCheck).toBeDefined();
+      expect(hstsCheck?.exceptionStatus).toBe('accepted');
+      expect(hstsCheck?.findingId).toBe(
+        generateFindingIdFromCheck('SEC-HSTS-01', 'https://example.com/a?token=2')
+      );
+
+      // ストレージ内の許容設定も新しい findingId に移行され、targetUrl からクエリが除去されていること
+      const migratedExceptions = store[STORAGE_KEY_EXCEPTIONS] as FindingException[];
+      expect(migratedExceptions[0].findingId).toBe(
+        generateFindingIdFromCheck('SEC-HSTS-01', 'https://example.com')
+      );
+      expect(migratedExceptions[0].targetUrl).toBe('https://example.com/a');
     });
   });
 });

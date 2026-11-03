@@ -441,4 +441,44 @@ describe('Export Functions', () => {
     expect(mdStr).toContain('| **jQuery** | `1.12.4` |');
     expect(mdStr).toContain('| **jQuery** | `3.7.1` |');
   });
+
+  it('T10 (IMPL-07): https://example.com/a?token=x#y を調査した JSON・CSV に token=x が含まれないこと', () => {
+    const reportWithQuery: InspectionReport = {
+      ...dummyReport,
+      url: 'https://example.com/a?token=x#y',
+      technologies: dummyReport.technologies.map((t) => ({
+        ...t,
+        evidence: [
+          {
+            type: 'script-url',
+            name: 'Script URL',
+            value: 'https://example.com/static/app.js?token=x#y',
+            source: 'https://example.com/a?token=x#y',
+            weight: 80,
+          },
+        ],
+      })),
+      securityChecks: dummyReport.securityChecks.map((c) => ({
+        ...c,
+        scope: 'https://example.com/a?token=x#y',
+      })),
+      mixedContent: [
+        {
+          url: 'http://example.com/img.png?token=x#y',
+          resourceType: 'image',
+        },
+      ],
+    };
+
+    const jsonStr = exportReportToJson(reportWithQuery);
+    expect(jsonStr).not.toContain('token=x');
+    expect(jsonStr).not.toContain('#y');
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.url).toBe('https://example.com/a');
+
+    const csvStr = exportReportToCsv(reportWithQuery);
+    expect(csvStr).not.toContain('token=x');
+    expect(csvStr).not.toContain('#y');
+    expect(csvStr).toContain('"https://example.com/a"');
+  });
 });

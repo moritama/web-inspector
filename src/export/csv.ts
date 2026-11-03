@@ -10,6 +10,7 @@ import {
   resolveTechAdvisoryDisplayInfo,
 } from '../detection/advisory';
 import { DetectedTechnology, InspectionReport } from '../shared/types';
+import { sanitizeReportUrls } from '../storage/history';
 
 /**
  * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
@@ -64,7 +65,8 @@ function escapeCsv(cell: string | number | boolean | null | undefined): string {
 /**
  * 調査レポートからExcel対応UTF-8 BOM付きCSVを生成する (Version 1.1)
  */
-export function exportReportToCsv(report: InspectionReport): string {
+export function exportReportToCsv(rawReport: InspectionReport): string {
+  const report = sanitizeReportUrls(rawReport);
   const rows: string[] = [];
   const BOM = '\uFEFF';
 

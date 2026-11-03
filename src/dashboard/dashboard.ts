@@ -226,7 +226,12 @@ async function loadDashboardData(): Promise<void> {
 
 function renderDashboard(report: InspectionReport): void {
   if (currentHostnameEl) currentHostnameEl.textContent = report.hostname;
-  if (inspectedAtTimeEl) inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+  if (inspectedAtTimeEl) {
+    const baseText = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+    inspectedAtTimeEl.textContent = report.storageWarning
+      ? `${baseText} （⚠️ ${report.storageWarning}）`
+      : baseText;
+  }
   if (dashAdvisoryDbDateEl) {
     dashAdvisoryDbDateEl.textContent = `🛡️ 脆弱性DB: ${report.advisoryDatabaseVersion || '2026-10-23'}`;
   }

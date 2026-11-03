@@ -10,7 +10,7 @@
  * - 安定ID (FindingIdentity) の付与
  */
 
-import { generateFindingId } from '../shared/identity';
+import { generateFindingIdFromCheck } from '../shared/identity';
 import {
   CSPPolicy,
   CSPSource,
@@ -673,13 +673,6 @@ export function analyzeCSPPolicies(
 } {
   const results: SecurityCheckResult[] = [];
 
-  let origin = 'https://unknown';
-  try {
-    origin = new URL(url).origin;
-  } catch {
-    origin = url;
-  }
-
   if (!policies || policies.length === 0) {
     results.push({
       checkId: 'SEC-CSP-01',
@@ -791,12 +784,7 @@ export function analyzeCSPPolicies(
         new Set(actionableEnforceIssues.map((i) => i.recommendation))
       ).join(' ');
 
-      const stableId = generateFindingId({
-        ruleId: 'SEC-CSP-DIRECTIVE-ISSUE',
-        origin,
-        resourceKey: 'csp',
-        targetKey: actionableEnforceIssues.map((i) => i.id).join(','),
-      });
+      const stableId = generateFindingIdFromCheck('SEC-CSP-03', url);
 
       results.push({
         checkId: 'SEC-CSP-03',

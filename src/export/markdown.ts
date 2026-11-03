@@ -6,7 +6,11 @@
  * Cookie値・機密ヘッダーは一切含めず、エビデンス保持・受動的解析の原則を堅持します。
  */
 
-import { formatAdvisoryRecommendation, getEffectiveFixStatus } from '../detection/advisory';
+import {
+  formatAdvisoryRecommendation,
+  getEffectiveFixStatus,
+  resolveTechAdvisoryDisplayInfo,
+} from '../detection/advisory';
 import {
   DetailedDiffItem,
   FindingException,
@@ -168,8 +172,9 @@ ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
 | 対象技術 | バージョン | ディストリ版 | サポート状況 (EOL) | 照合ステータス | 該当CVE/GHSA | 修正状況 (fixStatus) | CISA KEV | 推奨対応 |
 |---|:---:|:---:|:---:|:---:|---|---|:---:|---|
 ${report.technologies.map((t) => {
+  const displayInfo = resolveTechAdvisoryDisplayInfo(t);
   const eol = t.supportStatus === 'EOL' ? `**EOL (${t.eolDate || '終了'})**` : t.supportStatus || 'Unknown';
-  const matchStatus = t.offlineMatchStatus || 'Not Covered';
+  const matchStatus = escapeMarkdown(displayInfo.statusLabel);
   const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
   const cveList = t.advisories && t.advisories.length > 0
     ? t.advisories.map((a) => {
@@ -181,7 +186,11 @@ ${report.technologies.map((t) => {
         const linkPart = advUrl ? `[${escapeMarkdown(a.id)}](${advUrl})` : escapeMarkdown(a.id);
         return `${linkPart} (${escapeMarkdown(String(a.severity).toLowerCase())})`;
       }).join(', ')
-    : '該当なし';
+    : displayInfo.isZeroCoverage
+    ? 'この技術の脆弱性は収録していません'
+    : displayInfo.isDistro
+    ? escapeMarkdown(displayInfo.statusLabel)
+    : '収録 DB 上は該当なし';
   const fixStatusCol = t.advisories && t.advisories.length > 0
     ? Array.from(new Set(t.advisories.map((a) => getEffectiveFixStatus(a)))).map((s) => `\`${escapeMarkdown(s)}\``).join(', ')
     : '-';
@@ -199,8 +208,12 @@ ${report.technologies.map((t) => {
       )
     : t.supportStatus === 'EOL'
     ? '最新LTS系列への移行'
+    : displayInfo.isDistro
+    ? escapeMarkdown(
+        `${t.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${typeof displayInfo.upstreamAdvisoriesCount === 'number' ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）` : ''}`
+      )
     : '現状維持';
-  return `| **${escapeMarkdown(t.technology)}** | \`${escapeMarkdown(t.version || '不明')}\` | ${distro} | ${eol} | \`${matchStatus}\` | ${cveList} | ${fixStatusCol} | ${kevCol} | ${rec} |`;
+  return `| **${escapeMarkdown(t.technology)}** | \`${escapeMarkdown(t.version || '不明')}\` | ${distro} | ${eol} | ${matchStatus} | ${cveList} | ${fixStatusCol} | ${kevCol} | ${rec} |`;
 }).join('\n')}
 `);
 

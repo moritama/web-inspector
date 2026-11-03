@@ -28,7 +28,100 @@
       "apache",
       "laravel",
       "nodejs"
-    ]
+    ],
+    "byProduct": {
+      "jquery": {
+        "count": 7,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "bootstrap": {
+        "count": 9,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "react": {
+        "count": 2,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "vue": {
+        "count": 1,
+        "sources": [
+          "OSV"
+        ]
+      },
+      "angular": {
+        "count": 9,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "angularjs": {
+        "count": 14,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "lodash": {
+        "count": 10,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "moment": {
+        "count": 5,
+        "sources": [
+          "OSV"
+        ]
+      },
+      "wordpress": {
+        "count": 1,
+        "sources": [
+          "curated"
+        ]
+      },
+      "php": {
+        "count": 2,
+        "sources": [
+          "curated"
+        ]
+      },
+      "nginx": {
+        "count": 2,
+        "sources": [
+          "curated"
+        ]
+      },
+      "apache": {
+        "count": 3,
+        "sources": [
+          "curated"
+        ]
+      },
+      "laravel": {
+        "count": 20,
+        "sources": [
+          "curated",
+          "OSV"
+        ]
+      },
+      "nodejs": {
+        "count": 2,
+        "sources": [
+          "curated"
+        ]
+      }
+    }
   },
   "syncStatus": "success",
   "integrity": {

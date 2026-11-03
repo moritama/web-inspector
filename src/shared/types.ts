@@ -144,6 +144,14 @@ export type OfflineMatchStatus =
 export type DbFreshnessLevel = 'fresh' | 'moderate' | 'stale' | 'unknown';
 
 /**
+ * 製品ごとの脆弱性DB収録情報 (v1.7.0 T04 / SPEC-03)
+ */
+export interface AdvisoryProductCoverage {
+  count: number;
+  sources: string[];
+}
+
+/**
  * 脆弱性DBスナップショットメタデータ (Rev.2.1 IMP-06 / 5.4)
  */
 export interface AdvisoryDbMetadata {
@@ -153,6 +161,8 @@ export interface AdvisoryDbMetadata {
   sources: string[];
   coverage: {
     technologies: string[];
+    totalAdvisories?: number;
+    byProduct?: Record<string, AdvisoryProductCoverage | number>;
   };
   advisoryCount: number;
   productCount: number;
@@ -279,6 +289,16 @@ export interface DetectedTechnology {
   maxCvss?: number | null;
   /** 脆弱性データ更新日時 */
   advisoryDataUpdatedAt?: string;
+  /** DB内のこの技術の脆弱性収録件数 (v1.7.0 T04 / SPEC-03) */
+  productAdvisoryCount?: number;
+  /** この技術の脆弱性の取得元リスト (curated / OSV / NVD) (v1.7.0 T04 / SPEC-03) */
+  productSources?: string[];
+  /** 照合に使用したDBのdataVersion (v1.7.0 T04 / SPEC-03) */
+  advisoryDataVersion?: string;
+  /** ディストリビューション版のときの上流版での参考該当件数 (v1.7.0 T04 / SPEC-03) */
+  upstreamAdvisoriesCount?: number;
+  /** ユーザー向け脆弱性照合ステータス表示ラベル (v1.7.0 T04 / SPEC-03) */
+  advisoryStatusLabel?: string;
 
   /** 技術の概要 */
   description?: string;

@@ -3,11 +3,17 @@
  * ポップアップ描画純粋関数 (src/popup/render.ts) - IMPL-03
  */
 
+import {
+  formatAdvisoryRecommendation,
+  resolveTechAdvisoryDisplayInfo,
+  sortAdvisoriesByPriority,
+} from '../detection/advisory';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
   DetectedTechnology,
   InspectedCookieInfo,
   SecurityCheckResult,
+  SecurityAdvisory,
 } from '../shared/types';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
@@ -128,28 +134,23 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     `;
   }
 
-  // 既知脆弱性 (CVE) ブロック
+  // 既知脆弱性 (CVE) ブロック (v1.7.0 T04 / SPEC-03)
   let cveHtml = '';
-  const statusLabel = tech.offlineMatchStatus || 'Not Covered';
+  const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
+  const statusLabel = tech.offlineMatchStatus || (displayInfo.isZeroCoverage ? 'Not Covered' : 'No Match');
   const staleNotice = tech.isStale ? '<span style="color:var(--warning-color);margin-left:6px;font-size:11px;">⚠️ DB鮮度: 31日以上経過</span>' : '';
 
-  if (tech.advisories && tech.advisories.length > 0) {
-    cveHtml = `
-      <div>
-        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">照合ステータス: <strong>${escapeHtml(statusLabel)}</strong></div>
-        ${tech.advisories
-          .map((adv) => {
-            const sevClass = getAdvisorySeverityBadgeClass(adv.severity);
-            const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
-            const kevBadge = adv.kev
-              ? `<span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
-              : '';
-            const fixStatusHtml = adv.fixStatus
-              ? `<span class="badge badge-fix-status" style="margin-left:8px;">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
-              : '';
-            return `
-          <div class="advisory-card">
+  const renderAdvisoryItemHtml = (adv: SecurityAdvisory, cardClass: string): string => {
+    const sevClass = getAdvisorySeverityBadgeClass(adv.severity);
+    const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+    const kevBadge = adv.kev
+      ? `<span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+      : '';
+    const fixStatusHtml = adv.fixStatus
+      ? `<span class="badge badge-fix-status" style="margin-left:8px;">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+      : '';
+    return `
+          <div class="${cardClass}">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
               <strong>${escapeHtml(adv.id)}</strong>
               <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
@@ -182,23 +183,61 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
             }
           </div>
         `;
-          })
-          .join('')}
+  };
+
+  if (tech.advisories && tech.advisories.length > 0) {
+    const sortedAdvisories = sortAdvisoriesByPriority(tech.advisories);
+    const topAdvisories = sortedAdvisories.slice(0, 5);
+    const restAdvisories = sortedAdvisories.slice(5);
+    const recommendationText = formatAdvisoryRecommendation(tech.version, tech.advisories, {
+      isEol: tech.supportStatus === 'EOL',
+      technologyName: tech.technology,
+    });
+    const moreHtml =
+      restAdvisories.length > 0
+        ? `
+          <details class="advisory-more" style="margin-top:6px;">
+            <summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--accent-color);">ほか ${restAdvisories.length} 件を表示</summary>
+            <div style="margin-top:6px;">
+              ${restAdvisories.map((adv) => renderAdvisoryItemHtml(adv, 'advisory-card advisory-more-item')).join('')}
+            </div>
+          </details>
+        `
+        : '';
+
+    cveHtml = `
+      <div>
+        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">照合ステータス: <strong>${escapeHtml(statusLabel)}</strong>（収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>
+        <div style="font-size:11px;color:var(--accent-color);margin-bottom:6px;">推奨対応: ${escapeHtml(recommendationText)}</div>
+        ${topAdvisories.map((adv) => renderAdvisoryItemHtml(adv, 'advisory-card')).join('')}
+        ${moreHtml}
       </div>
     `;
   } else {
-    let statusText = 'この技術のオフライン脆弱性データは未収録です。';
-    if (statusLabel === 'No Match') {
-      statusText = 'オフラインDBに収録されていますが、検出されたバージョンには該当する既知脆弱性はありません。';
-    } else if (statusLabel === 'Unknown Version') {
-      statusText = tech.distroHint
-        ? `${tech.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。`
-        : 'バージョン不明、またはLinuxディストリビューション固有パッケージのため脆弱性断定を保留しています。';
+    let headingStatus = escapeHtml(statusLabel);
+    let statusText = '';
+    if (displayInfo.isDistro) {
+      const upstreamRef =
+        typeof displayInfo.upstreamAdvisoriesCount === 'number'
+          ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件該当）`
+          : '';
+      headingStatus = `Needs Review (${escapeHtml(statusLabel)})`;
+      statusText = `${tech.distroHint || 'Linux'} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。${upstreamRef}（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）`;
+    } else if (displayInfo.isZeroCoverage) {
+      headingStatus = '収録なし (Not Covered)';
+      statusText = `この技術の脆弱性は収録していません（dataVersion: ${displayInfo.dataVersion}）。`;
+    } else if (statusLabel === 'Unknown Version' || tech.advisoryMatchStatus === 'Needs Review' || !tech.version) {
+      headingStatus = 'Needs Review (Unknown Version)';
+      statusText = `バージョン不明のため脆弱性断定を保留しています（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）。`;
+    } else {
+      headingStatus = '収録 DB 上は該当なし (No Match)';
+      statusText = `収録 DB 上は該当なし（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）。`;
     }
     cveHtml = `
       <div>
         <div class="detail-section-title">脆弱性照合状況 (オフラインDB) ${staleNotice}</div>
-        <div style="font-size:12px;">ステータス: <strong>${escapeHtml(statusLabel)}</strong></div>
+        <div style="font-size:12px;">ステータス: <strong>${headingStatus}</strong></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(statusText)}</div>
       </div>
     `;

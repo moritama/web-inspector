@@ -280,6 +280,23 @@ describe('DB 生成 (build-db)', () => {
     expect(up.eol.react.cycles).toHaveLength(3);
     expect(up.kev.count).toBe(1);
   });
+
+  it('T04 (SPEC-03): coverage.byProduct に製品ごとの収録件数と取得元が出力される', () => {
+    const { db } = build();
+    expect(db.coverage.byProduct).toBeDefined();
+    expect(db.coverage.byProduct.jquery).toEqual({
+      count: 3,
+      sources: ['curated', 'OSV'],
+    });
+    expect(db.coverage.byProduct.nginx).toEqual({
+      count: 2,
+      sources: ['NVD'],
+    });
+    expect(db.coverage.byProduct.react).toEqual({
+      count: 0,
+      sources: [],
+    });
+  });
 });
 
 describe('DB 差分分類 (diff-db)', () => {

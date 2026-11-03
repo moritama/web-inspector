@@ -4,7 +4,11 @@
  * Excel文字化け防止 UTF-8 BOM付き、数式インジェクション対策、Version 1.1 新規フィールド対応
  */
 
-import { formatAdvisoryRecommendation, getEffectiveFixStatus } from '../detection/advisory';
+import {
+  formatAdvisoryRecommendation,
+  getEffectiveFixStatus,
+  resolveTechAdvisoryDisplayInfo,
+} from '../detection/advisory';
 import { InspectionReport } from '../shared/types';
 
 /**
@@ -79,13 +83,18 @@ export function exportReportToCsv(report: InspectionReport): string {
     rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     for (const tech of report.technologies) {
+      const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
       const evidenceSummary = tech.evidence
         .map((e) => `[${e.type}] ${e.name}: ${e.value}`)
         .join('; ');
 
       const advisoryIds = tech.advisories && tech.advisories.length > 0
         ? tech.advisories.map((a) => a.id).join('; ')
-        : 'なし';
+        : displayInfo.isZeroCoverage
+        ? 'この技術の脆弱性は収録していません'
+        : displayInfo.isDistro
+        ? displayInfo.statusLabel
+        : '収録 DB 上は該当なし';
 
       const fixStatusText = tech.advisories && tech.advisories.length > 0
         ? Array.from(new Set(tech.advisories.map((a) => getEffectiveFixStatus(a)))).join('; ')
@@ -112,6 +121,8 @@ export function exportReportToCsv(report: InspectionReport): string {
           })
         : tech.supportStatus === 'EOL'
         ? 'EOLのため移行・更新推奨'
+        : displayInfo.isDistro
+        ? `${tech.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${typeof displayInfo.upstreamAdvisoriesCount === 'number' ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）` : ''}`
         : '現状維持';
 
       const detectionMethodText = tech.isCandidateGroup || tech.detectionMethod === 'associated'
@@ -148,7 +159,7 @@ export function exportReportToCsv(report: InspectionReport): string {
           mismatchStatusText,
           tech.supportStatus || 'Unknown',
           tech.eolDate || '-',
-          tech.advisoryMatchStatus || 'No Data',
+          displayInfo.statusLabel,
           advisoryIds,
           tech.maxCvss ?? '-',
           fixStatusText,

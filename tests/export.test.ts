@@ -175,4 +175,81 @@ describe('Export Functions', () => {
     expect(mdStr).toContain('https://github.com/advisories/GHSA-5cp4-xmrw-59wf');
     expect(mdStr).not.toContain('nvd.nist.gov/vuln/detail/GHSA-');
   });
+
+  // --- T04 (SPEC-03): 「収録 DB 上は該当なし」と収録範囲のエクスポート検証 ---
+  it('T04 (SPEC-03): エクスポート 3 形式とも「収録 DB 上は該当なし」の表現になり、Not Affected だけの表記が残っておらず、未収録技術は「収録していません」と出る', () => {
+    const reportSpec03: InspectionReport = {
+      ...dummyReport,
+      technologies: [
+        {
+          technology: 'Apache',
+          category: 'web-server',
+          detected: true,
+          confidence: 100,
+          confidenceLevel: 'high',
+          version: '2.4.62',
+          evidence: [],
+          advisoryMatchStatus: 'Not Affected',
+          productAdvisoryCount: 3,
+          productSources: ['curated', 'NVD'],
+          advisoryDataVersion: '20261031',
+          advisories: [],
+        },
+        {
+          technology: 'Tailwind CSS',
+          category: 'js-framework',
+          detected: true,
+          confidence: 95,
+          confidenceLevel: 'high',
+          version: '3.4.1',
+          evidence: [],
+          advisoryMatchStatus: 'Not Affected',
+          productAdvisoryCount: 0,
+          productSources: [],
+          advisoryDataVersion: '20261031',
+          advisories: [],
+        },
+        {
+          technology: 'Apache',
+          category: 'web-server',
+          detected: true,
+          confidence: 100,
+          confidenceLevel: 'high',
+          version: '2.4.41 (Ubuntu)',
+          evidence: [],
+          advisoryMatchStatus: 'Needs Review',
+          productAdvisoryCount: 3,
+          productSources: ['curated', 'NVD'],
+          advisoryDataVersion: '20261031',
+          upstreamAdvisoriesCount: 3,
+          advisories: [],
+        },
+      ],
+    };
+
+    // 1. JSON
+    const jsonStr = exportReportToJson(reportSpec03);
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.technologies[0].advisoryStatusLabel).toContain('収録 DB 上は該当なし');
+    expect(parsed.technologies[0].advisoryStatusLabel).toContain('収録 3 件');
+    expect(parsed.technologies[0].advisoryStatusLabel).toContain('curated / NVD');
+    expect(parsed.technologies[0].advisoryStatusLabel).toContain('dataVersion: 20261031');
+    expect(parsed.technologies[1].advisoryStatusLabel).toBe('この技術の脆弱性は収録していません');
+    expect(parsed.technologies[2].advisoryStatusLabel).toContain('Needs Review');
+    expect(parsed.technologies[2].advisoryStatusLabel).toContain('上流版では 3 件');
+
+    // 2. CSV
+    const csvStr = exportReportToCsv(reportSpec03);
+    expect(csvStr).toContain('収録 DB 上は該当なし（収録 3 件・取得元: curated / NVD・dataVersion: 20261031）');
+    expect(csvStr).toContain('この技術の脆弱性は収録していません');
+    expect(csvStr).toContain('Needs Review（参考: 上流版では 3 件該当）');
+    expect(csvStr).not.toContain('"Not Affected"');
+
+    // 3. Markdown
+    const mdStr = generateMarkdownReport(reportSpec03);
+    expect(mdStr).toContain('収録 DB 上は該当なし（収録 3 件・取得元: curated / NVD・dataVersion: 20261031）');
+    expect(mdStr).toContain('この技術の脆弱性は収録していません');
+    expect(mdStr).toContain('Needs Review（参考: 上流版では 3 件該当）');
+    expect(mdStr).not.toContain('| Not Affected |');
+  });
 });

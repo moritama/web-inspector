@@ -403,4 +403,94 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
       expect(kevAdv?.fixStatus).toBe('fixed');
     });
   });
+
+  // --- T04 (SPEC-03): 「収録 DB 上は該当なし」・収録範囲・多件数優先ソート・ディストリ版上流参考件数 ---
+  describe('T04 (SPEC-03): 収録 DB 範囲メタデータ・優先順位ソート・ディストリ版上流件数', () => {
+    it('固定 DB で Apache 2.4.62 を照合したとき、収録件数・取得元・dataVersion・「収録 DB 上は該当なし」が返ること', () => {
+      const res = matchOfflineAdvisories('Apache', '2.4.62', fixtureDb);
+      expect(res.matchStatus).toBe('Not Affected');
+      expect(res.advisories).toHaveLength(0);
+      expect(res.productAdvisoryCount).toBe(3);
+      expect(res.productSources).toEqual(['curated', 'NVD']);
+      expect(res.advisoryDataVersion).toBe('20261031');
+      expect(res.advisoryStatusLabel).toContain('収録 DB 上は該当なし');
+    });
+
+    it('収録件数 0 の技術（Tailwind CSS）を照合したとき、productAdvisoryCount=0 と「この技術の脆弱性は収録していません」が返ること', () => {
+      const res = matchOfflineAdvisories('Tailwind CSS', '3.4.1', fixtureDb);
+      expect(res.matchStatus).toBe('No Data');
+      expect(res.productAdvisoryCount).toBe(0);
+      expect(res.productSources).toEqual([]);
+      expect(res.advisoryStatusLabel).toBe('この技術の脆弱性は収録していません');
+    });
+
+    it('ディストリ版 Apache/2.4.41 (Ubuntu) で Needs Review のまま、上流版での該当件数 (upstreamAdvisoriesCount) が算出されること', () => {
+      const res = matchOfflineAdvisories('Apache', '2.4.41 (Ubuntu)', fixtureDb);
+      expect(res.matchStatus).toBe('Needs Review');
+      expect(res.advisories).toHaveLength(0);
+      expect(res.upstreamAdvisoriesCount).toBe(1);
+      expect(res.productAdvisoryCount).toBe(3);
+
+      const resWithPrefix = matchOfflineAdvisories('Apache', 'Apache/2.4.41 (Ubuntu)', fixtureDb);
+      expect(resWithPrefix.matchStatus).toBe('Needs Review');
+      expect(resWithPrefix.advisories).toHaveLength(0);
+      expect(resWithPrefix.upstreamAdvisoriesCount).toBe(1);
+    });
+
+    it('12 件該当するとき、KEV → 重大度 → CVSS の順にソートされ、推奨版は全件から最大バージョンが計算されること', () => {
+      const manyDb = {
+        dataVersion: '20261031',
+        generatedAt: '2026-10-31T00:00:00Z',
+        coverage: {
+          byProduct: {
+            'many-lib': { count: 12, sources: ['curated', 'OSV', 'NVD'] },
+          },
+        },
+        libraries: {
+          'many-lib': {
+            aliases: ['many-lib'],
+            eol: [{ cycle: '1.x', eolDate: null, status: 'Supported' }],
+            versions: [
+              // 1〜11件目: KEV なし、さまざまな重大度・CVSS・fixedVersion
+              ...Array.from({ length: 11 }, (_, i) => ({
+                range: '< 2.0.0',
+                cve: `CVE-2026-00${String(i + 1).padStart(2, '0')}`,
+                cvssScore: 5.0 + (i % 5) * 0.5,
+                severity: i === 0 ? 'critical' : i < 4 ? 'high' : 'medium',
+                title: `Vuln ${i + 1}`,
+                fixedVersion: i === 10 ? '1.9.9' : `1.0.${i + 1}`,
+                fixStatus: 'fixed' as const,
+                kev: false,
+                origin: 'auto',
+              })),
+              // 12件目: CVSS は中程度だが KEV=true のエントリ（ソート後は先頭に来るべき）
+              {
+                range: '< 2.0.0',
+                cve: 'CVE-2026-9999',
+                cvssScore: 7.2,
+                severity: 'high',
+                title: 'KEV Exploited Vulnerability',
+                fixedVersion: '1.2.0',
+                fixStatus: 'fixed' as const,
+                kev: true,
+                kevDateAdded: '2026-05-01',
+                origin: 'curated',
+              },
+            ],
+          },
+        },
+      };
+
+      const res = matchOfflineAdvisories('many-lib', '1.0.0', manyDb as unknown as AdvisoryDatabase);
+      expect(res.advisories).toHaveLength(12);
+      // 先頭は KEV エントリ
+      expect(res.advisories[0].id).toBe('CVE-2026-9999');
+      expect(res.advisories[0].kev).toBe(true);
+      // 2番目は critical のエントリ
+      expect(res.advisories[1].id).toBe('CVE-2026-0001');
+      expect(res.advisories[1].severity).toBe('critical');
+      // 推奨版は下位（11件目）にあった 1.9.9 も含めて全件から計算されていること
+      expect(formatAdvisoryRecommendation('1.0.0', res.advisories)).toContain('1.9.9');
+    });
+  });
 });

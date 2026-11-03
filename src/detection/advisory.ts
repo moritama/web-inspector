@@ -10,7 +10,9 @@ import {
   AdvisoryDbMetadata,
   AdvisoryFixStatus,
   AdvisoryMatchStatus,
+  AdvisoryProductCoverage,
   DbFreshnessLevel,
+  DetectedTechnology,
   EolInfo,
   OfflineMatchStatus,
   SecurityAdvisory,
@@ -40,6 +42,8 @@ export interface LibraryVersionAdvisory {
   advisoryUrl?: string;
   verifiedAt?: string;
   scoreSource?: string;
+  origin?: string;
+  sources?: string[];
 }
 
 interface LibraryEolEntry {
@@ -63,6 +67,7 @@ export interface AdvisoryDatabase {
   coverage?: {
     technologies: string[];
     totalAdvisories?: number;
+    byProduct?: Record<string, AdvisoryProductCoverage | number>;
   };
   advisoryCount?: number;
   productCount?: number;
@@ -85,6 +90,16 @@ export interface OfflineAdvisoryResult {
   eolInfo: EolInfo;
   updatedAt: string;
   warning?: string;
+  /** DB内のこの技術の脆弱性収録件数 (v1.7.0 T04 / SPEC-03) */
+  productAdvisoryCount?: number;
+  /** この技術の脆弱性の取得元リスト (curated / OSV / NVD) (v1.7.0 T04 / SPEC-03) */
+  productSources?: string[];
+  /** 照合に使用したDBのdataVersion (v1.7.0 T04 / SPEC-03) */
+  advisoryDataVersion?: string;
+  /** ディストリビューション版のときの上流版での参考該当件数 (v1.7.0 T04 / SPEC-03) */
+  upstreamAdvisoriesCount?: number;
+  /** ユーザー向け脆弱性照合ステータス表示ラベル (v1.7.0 T04 / SPEC-03) */
+  advisoryStatusLabel?: string;
 }
 
 /**
@@ -166,6 +181,263 @@ export function setTestAdvisoryDatabase(db: Partial<AdvisoryDatabase> | null): v
 }
 
 /**
+ * 脆弱性一覧を表示優先順位（KEV → 重大度 → CVSS降順）でソートする (v1.7.0 T04 / SPEC-03)
+ */
+export function sortAdvisoriesByPriority<
+  T extends {
+    severity?: string;
+    cvssScore?: number | null;
+    kev?: boolean;
+    id?: string;
+    cve?: string;
+  },
+>(advisories: T[]): T[] {
+  const rankOf = (sev?: string): number => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical') return 0;
+    if (s === 'high') return 1;
+    if (s === 'medium') return 2;
+    if (s === 'low') return 3;
+    return 4;
+  };
+
+  return [...advisories].sort((a, b) => {
+    const aKev = Boolean(a.kev);
+    const bKev = Boolean(b.kev);
+    if (aKev !== bKev) return bKev ? 1 : -1;
+
+    const rDiff = rankOf(a.severity) - rankOf(b.severity);
+    if (rDiff !== 0) return rDiff;
+
+    const scoreA = typeof a.cvssScore === 'number' ? a.cvssScore : 0;
+    const scoreB = typeof b.cvssScore === 'number' ? b.cvssScore : 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+
+    const idA = a.id || a.cve || '';
+    const idB = b.id || b.cve || '';
+    return idB.localeCompare(idA);
+  });
+}
+
+/**
+ * 技術名から収録DB内の該当製品エントリを検索する内部ヘルパー
+ */
+function findLibraryEntry(
+  technology: string,
+  activeDb: AdvisoryDatabase
+): { targetKey: string | null; targetEntry: LibraryEntry | null } {
+  const normalized = (technology || '').toLowerCase().trim();
+  if (!normalized) return { targetKey: null, targetEntry: null };
+
+  for (const [key, entry] of Object.entries(activeDb.libraries || {})) {
+    if (
+      key.toLowerCase() === normalized ||
+      (Array.isArray(entry.aliases) && entry.aliases.some((a) => a.toLowerCase() === normalized))
+    ) {
+      return { targetKey: key, targetEntry: entry };
+    }
+  }
+  return { targetKey: null, targetEntry: null };
+}
+
+/**
+ * 技術名に対応する収録DBの収録件数・取得元・dataVersionを取得する (v1.7.0 T04 / SPEC-03)
+ */
+export function getProductCoverageInfo(
+  technology: string,
+  dbOverride?: Partial<AdvisoryDatabase>
+): {
+  count: number;
+  sources: string[];
+  dataVersion: string;
+  covered: boolean;
+} {
+  const effectiveOverride = dbOverride ?? testAdvisoryDbOverride ?? undefined;
+  const activeDb: AdvisoryDatabase = {
+    ...advisoryDb,
+    ...effectiveOverride,
+    libraries: effectiveOverride?.libraries ?? advisoryDb.libraries,
+  };
+  const dataVersion =
+    activeDb.dataVersion || activeDb.version || advisoryDb.dataVersion || ADVISORY_DB_VERSION;
+
+  const { targetKey, targetEntry } = findLibraryEntry(technology, activeDb);
+  if (!targetEntry) {
+    return {
+      count: 0,
+      sources: [],
+      dataVersion,
+      covered: false,
+    };
+  }
+
+  const vers = Array.isArray(targetEntry.versions) ? targetEntry.versions : [];
+  const srcSet = new Set<string>();
+
+  if (
+    vers.some(
+      (v) =>
+        v.origin === 'curated' || (Array.isArray(v.sources) && v.sources.includes('curated'))
+    )
+  ) {
+    srcSet.add('curated');
+  }
+  if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('osv'))) {
+    srcSet.add('OSV');
+  }
+  if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('nvd'))) {
+    srcSet.add('NVD');
+  }
+
+  const byProductItem = targetKey ? activeDb.coverage?.byProduct?.[targetKey] : undefined;
+  if (
+    byProductItem &&
+    typeof byProductItem === 'object' &&
+    Array.isArray(byProductItem.sources) &&
+    (!effectiveOverride?.libraries || byProductItem.count === vers.length)
+  ) {
+    for (const s of byProductItem.sources) {
+      srcSet.add(s);
+    }
+  }
+
+  if (vers.length > 0 && srcSet.size === 0) {
+    srcSet.add('curated');
+    srcSet.add('OSV');
+    srcSet.add('NVD');
+  }
+
+  const count = vers.length;
+  return {
+    count,
+    sources: Array.from(srcSet),
+    dataVersion,
+    covered: count > 0,
+  };
+}
+
+/**
+ * ディストリビューション版のバージョン文字列から、上流版として照合した場合の該当件数を参考値として計算する (v1.7.0 T04 / SPEC-03)
+ */
+export function countUpstreamAdvisories(
+  technology: string,
+  version: string | null | undefined,
+  dbOverride?: Partial<AdvisoryDatabase>
+): number | undefined {
+  if (!version || version.trim() === '') return undefined;
+
+  const effectiveOverride = dbOverride ?? testAdvisoryDbOverride ?? undefined;
+  const activeDb: AdvisoryDatabase = {
+    ...advisoryDb,
+    ...effectiveOverride,
+    libraries: effectiveOverride?.libraries ?? advisoryDb.libraries,
+  };
+
+  const { targetEntry } = findLibraryEntry(technology, activeDb);
+  if (!targetEntry || !Array.isArray(targetEntry.versions)) return undefined;
+
+  const stripped = version
+    .trim()
+    .replace(/^[a-zA-Z0-9._-]+\//, '')
+    .trim()
+    .replace(/^v\.?/i, '');
+  const upstreamVer = stripped.split(/[-+~\s(]/)[0];
+  if (!upstreamVer || parseVersionParts(upstreamVer) === null) return undefined;
+
+  let matchedCount = 0;
+  for (const adv of targetEntry.versions) {
+    if (satisfiesVersionRange(upstreamVer, adv.range)) {
+      matchedCount++;
+    }
+  }
+  return matchedCount;
+}
+
+/**
+ * UI・エクスポート共通の脆弱性収録状況・表示ラベル解決ヘルパー (v1.7.0 T04 / SPEC-03)
+ * 手動構築された DetectedTechnology オブジェクトに対しても、収録件数・取得元・dataVersion・上流版該当件数を補完する。
+ */
+export function resolveTechAdvisoryDisplayInfo(
+  tech: Partial<DetectedTechnology>,
+  dbOverride?: Partial<AdvisoryDatabase>
+): {
+  count: number;
+  sources: string[];
+  sourcesText: string;
+  dataVersion: string;
+  upstreamAdvisoriesCount?: number;
+  isDistro: boolean;
+  isZeroCoverage: boolean;
+  statusLabel: string;
+} {
+  const cov = getProductCoverageInfo(tech.technology || '', dbOverride);
+  const count =
+    typeof tech.productAdvisoryCount === 'number' ? tech.productAdvisoryCount : cov.count;
+  const sources =
+    Array.isArray(tech.productSources) && tech.productSources.length > 0
+      ? tech.productSources
+      : cov.sources;
+  const sourcesText = sources.length > 0 ? sources.join(' / ') : 'curated / OSV / NVD';
+  const dataVersion = tech.advisoryDataVersion || cov.dataVersion;
+
+  const isDistro = Boolean(
+    tech.distroHint ||
+      (tech.version && isLinuxPackageVersion(tech.version)) ||
+      typeof tech.upstreamAdvisoriesCount === 'number'
+  );
+
+  const upstreamAdvisoriesCount =
+    typeof tech.upstreamAdvisoriesCount === 'number'
+      ? tech.upstreamAdvisoriesCount
+      : isDistro
+        ? countUpstreamAdvisories(tech.technology || '', tech.version, dbOverride)
+        : undefined;
+
+  const advList = Array.isArray(tech.advisories) ? tech.advisories : [];
+  const isZeroCoverage =
+    count === 0 ||
+    tech.advisoryMatchStatus === 'No Data' ||
+    tech.offlineMatchStatus === 'Not Covered';
+
+  let statusLabel: string;
+  if (advList.length > 0) {
+    statusLabel = `既知脆弱性あり (${advList.length}件)`;
+  } else if (isDistro) {
+    const upNote =
+      typeof upstreamAdvisoriesCount === 'number'
+        ? `（参考: 上流版では ${upstreamAdvisoriesCount} 件該当）`
+        : '';
+    statusLabel = `Needs Review${upNote}`;
+  } else if (isZeroCoverage) {
+    statusLabel = 'この技術の脆弱性は収録していません';
+  } else if (
+    tech.advisoryMatchStatus === 'Needs Review' ||
+    tech.offlineMatchStatus === 'Unknown Version' ||
+    !tech.version
+  ) {
+    statusLabel = `要確認（バージョン未特定・収録 ${count} 件・取得元: ${sourcesText}・dataVersion: ${dataVersion}）`;
+  } else if (
+    tech.advisoryMatchStatus === 'Lookup Failed' ||
+    tech.offlineMatchStatus === 'Lookup Error'
+  ) {
+    statusLabel = '照合エラー (Lookup Failed)';
+  } else {
+    statusLabel = `収録 DB 上は該当なし（収録 ${count} 件・取得元: ${sourcesText}・dataVersion: ${dataVersion}）`;
+  }
+
+  return {
+    count,
+    sources,
+    sourcesText,
+    dataVersion,
+    upstreamAdvisoriesCount,
+    isDistro,
+    isZeroCoverage,
+    statusLabel,
+  };
+}
+
+/**
  * 技術名とバージョンから、オフラインデータベースを照合してCVEおよびEOL情報を取得する (Rev.2.1 IMP-06)
  *
  * @param technology 技術名 (例: "jQuery", "PHP", "Bootstrap", "Apache")
@@ -188,8 +460,9 @@ export function matchOfflineAdvisories(
   };
 
   const now = new Date().toISOString().slice(0, 10);
-  const normalized = technology.toLowerCase().trim();
   const freshnessInfo = calculateDbFreshness(activeDb.generatedAt);
+  const coverageInfo = getProductCoverageInfo(technology, effectiveOverride);
+  const { targetKey, targetEntry } = findLibraryEntry(technology, activeDb);
 
   try {
     // 1. バージョン不明時 (空またはnull、あるいは解析不能文字列) -> Unknown Version / Needs Review (SPEC-06)
@@ -210,12 +483,24 @@ export function matchOfflineAdvisories(
           recommendation: 'バージョンが特定できないため、サポート状況および既知脆弱性を判定できません。',
         },
         updatedAt: now,
+        productAdvisoryCount: coverageInfo.count,
+        productSources: coverageInfo.sources,
+        advisoryDataVersion: coverageInfo.dataVersion,
+        advisoryStatusLabel:
+          coverageInfo.count === 0
+            ? 'この技術の脆弱性は収録していません'
+            : `要確認（バージョン未特定・収録 ${coverageInfo.count} 件・取得元: ${coverageInfo.sources.join(' / ')}・dataVersion: ${coverageInfo.dataVersion}）`,
       };
     }
 
-    // 2. Linuxパッケージ固有バージョンおよびディストリビューション版のバックポート考慮 (Rev.2.1 IMP-06 / 5.6 / D14 / SPEC-02)
+    // 2. Linuxパッケージ固有バージョンおよびディストリビューション版のバックポート考慮 (Rev.2.1 IMP-06 / 5.6 / D14 / SPEC-02 / SPEC-03)
     if (options?.distroHint) {
-      const distroNote = `${options.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。`;
+      const upstreamCount = countUpstreamAdvisories(technology, version, effectiveOverride);
+      const upstreamNote =
+        typeof upstreamCount === 'number'
+          ? `（参考: 上流版では ${upstreamCount} 件該当）`
+          : '';
+      const distroNote = `${options.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。ディストリビューションのセキュリティ情報で確認してください。${upstreamNote}`;
       return {
         technology,
         version,
@@ -233,10 +518,20 @@ export function matchOfflineAdvisories(
         },
         updatedAt: now,
         warning: distroNote,
+        productAdvisoryCount: coverageInfo.count,
+        productSources: coverageInfo.sources,
+        advisoryDataVersion: coverageInfo.dataVersion,
+        upstreamAdvisoriesCount: upstreamCount,
+        advisoryStatusLabel: `Needs Review${upstreamNote}`,
       };
     }
 
     if (isLinuxPackageVersion(version)) {
+      const upstreamCount = countUpstreamAdvisories(technology, version, effectiveOverride);
+      const upstreamNote =
+        typeof upstreamCount === 'number'
+          ? `（参考: 上流版では ${upstreamCount} 件該当）`
+          : '';
       return {
         technology,
         version,
@@ -250,27 +545,20 @@ export function matchOfflineAdvisories(
           status: 'Unknown',
           eolDate: null,
           source: 'offline-db',
-          recommendation: `Linuxディストリビューション固有パッケージ版 (${version}) です。ディストリビュータによるセキュリティ修正バックポートが適用されている可能性があるため、機械的断定を避けています。`,
+          recommendation: `Linuxディストリビューション固有パッケージ版 (${version}) です。ディストリビュータによるセキュリティ修正バックポートが適用されている可能性があるため、機械的断定を避けています。${upstreamNote}`,
         },
         updatedAt: now,
-        warning: 'Linuxディストリビューション固有パッケージのため、バックポート修正の可能性があります。',
+        warning: `Linuxディストリビューション固有パッケージのため、バックポート修正の可能性があります。${upstreamNote}`,
+        productAdvisoryCount: coverageInfo.count,
+        productSources: coverageInfo.sources,
+        advisoryDataVersion: coverageInfo.dataVersion,
+        upstreamAdvisoriesCount: upstreamCount,
+        advisoryStatusLabel: `Needs Review${upstreamNote}`,
       };
     }
 
-    // 3. データベース検索 (キー直接またはaliasesから)
-    let targetEntry: LibraryEntry | null = null;
-    let targetKey: string | null = null;
-
-    for (const [key, entry] of Object.entries(activeDb.libraries)) {
-      if (key.toLowerCase() === normalized || entry.aliases.some((a) => a.toLowerCase() === normalized)) {
-        targetEntry = entry;
-        targetKey = key;
-        break;
-      }
-    }
-
-    // カタログ未収録技術 -> Not Covered / No Data
-    if (!targetEntry) {
+    // 3. カタログ未収録技術または収録0件 -> Not Covered / No Data (SPEC-03)
+    if (!targetEntry || coverageInfo.count === 0) {
       return {
         technology,
         version,
@@ -280,13 +568,19 @@ export function matchOfflineAdvisories(
         dbFreshness: freshnessInfo.freshness,
         advisories: [],
         maxCvss: null,
-        eolInfo: {
-          status: 'Unknown',
-          eolDate: null,
-          source: 'offline-db',
-          recommendation: 'この技術のオフライン脆弱性・EOLカタログは未登録です。',
-        },
+        eolInfo: targetEntry
+          ? matchEolPolicy(targetKey || technology, version, targetEntry.eol)
+          : {
+              status: 'Unknown',
+              eolDate: null,
+              source: 'offline-db',
+              recommendation: 'この技術のオフライン脆弱性・EOLカタログは未登録です。',
+            },
         updatedAt: now,
+        productAdvisoryCount: 0,
+        productSources: [],
+        advisoryDataVersion: coverageInfo.dataVersion,
+        advisoryStatusLabel: 'この技術の脆弱性は収録していません',
       };
     }
 
@@ -365,20 +659,28 @@ export function matchOfflineAdvisories(
       }
     }
 
+    // KEV → 重大度 → CVSS の順にソート (SPEC-03)
+    const sortedAdvisories = sortAdvisoriesByPriority(matchedAdvisories);
+
     // 最大CVSSスコア計算
     const maxCvss =
-      matchedAdvisories.length > 0
-        ? Math.max(...matchedAdvisories.map((a) => a.cvssScore || 5.0))
+      sortedAdvisories.length > 0
+        ? Math.max(...sortedAdvisories.map((a) => a.cvssScore || 5.0))
         : null;
 
     // 照合ステータス決定 (Matched / No Match)
     const offlineMatchStatus: OfflineMatchStatus =
-      matchedAdvisories.length > 0 ? 'Matched' : 'No Match';
+      sortedAdvisories.length > 0 ? 'Matched' : 'No Match';
     const matchStatus: AdvisoryMatchStatus =
-      matchedAdvisories.length > 0 ? 'Potentially Affected' : 'Not Affected';
+      sortedAdvisories.length > 0 ? 'Potentially Affected' : 'Not Affected';
 
     // 5. EOL・サポート状況突合
     const eolInfo = matchEolPolicy(targetKey || technology, version, targetEntry.eol);
+
+    const statusLabel =
+      sortedAdvisories.length > 0
+        ? `既知脆弱性あり (${sortedAdvisories.length}件)`
+        : `収録 DB 上は該当なし（収録 ${coverageInfo.count} 件・取得元: ${coverageInfo.sources.join(' / ')}・dataVersion: ${coverageInfo.dataVersion}）`;
 
     return {
       technology,
@@ -387,10 +689,14 @@ export function matchOfflineAdvisories(
       offlineMatchStatus,
       isStale: freshnessInfo.isStale,
       dbFreshness: freshnessInfo.freshness,
-      advisories: matchedAdvisories,
+      advisories: sortedAdvisories,
       maxCvss,
       eolInfo,
       updatedAt: now,
+      productAdvisoryCount: coverageInfo.count,
+      productSources: coverageInfo.sources,
+      advisoryDataVersion: coverageInfo.dataVersion,
+      advisoryStatusLabel: statusLabel,
     };
   } catch (error) {
     // 照合処理エラー -> Lookup Error / Lookup Failed
@@ -411,6 +717,10 @@ export function matchOfflineAdvisories(
       },
       updatedAt: now,
       warning: error instanceof Error ? error.message : String(error),
+      productAdvisoryCount: coverageInfo.count,
+      productSources: coverageInfo.sources,
+      advisoryDataVersion: coverageInfo.dataVersion,
+      advisoryStatusLabel: '照合エラー (Lookup Failed)',
     };
   }
 }

@@ -34,7 +34,8 @@ export function isLinuxPackageVersion(version: string | null | undefined): boole
   if (!version) return false;
   const lower = version.toLowerCase().trim();
   return /[-+~]([0-9]+)?(ubuntu|deb|debian|el[0-9]|rhel|amzn|redhat|centos|arch|alpine|suse|lp[0-9]|dfsg|fc[0-9]+)/i.test(lower)
-    || /\.(?:el\d|fc\d|amzn\d)/i.test(lower);
+    || /\.(?:el\d|fc\d|amzn\d)/i.test(lower)
+    || /\((?:ubuntu|debian|centos|red hat(?:\s+enterprise\s+linux)?|rhel|fedora|almalinux|rocky(?:\s+linux)?|amazon\s+linux|suse|alpine|arch|raspbian)[^)]*\)/i.test(lower);
 }
 
 /**
@@ -90,7 +91,8 @@ export function parseVersion(version: string | null | undefined): ParsedVersion 
 
   // ディストリビューションの印はプレリリースとして扱わない（2.4.41-1ubuntu1 < 2.4.41 になるのを防ぐ）
   if (isLinuxPackageVersion(version)) {
-    const distroMatch = clean.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?/);
+    const stripped = clean.replace(/^[a-zA-Z0-9._-]+\//, '').trim();
+    const distroMatch = stripped.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?/);
     if (!distroMatch) return null;
     return {
       parts: [

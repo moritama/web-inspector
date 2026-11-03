@@ -214,6 +214,25 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
     for (const [r, n] of Object.entries(reasons)) report.skippedSummary[r] = (report.skippedSummary[r] || 0) + n;
   }
 
+  const byProduct = {};
+  for (const [k, lib] of Object.entries(libraries)) {
+    const vers = Array.isArray(lib.versions) ? lib.versions : [];
+    const srcSet = new Set();
+    if (vers.some((v) => v.origin === 'curated' || (Array.isArray(v.sources) && v.sources.includes('curated')))) {
+      srcSet.add('curated');
+    }
+    if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('osv'))) {
+      srcSet.add('OSV');
+    }
+    if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('nvd'))) {
+      srcSet.add('NVD');
+    }
+    byProduct[k] = {
+      count: vers.length,
+      sources: [...srcSet],
+    };
+  }
+
   const librariesJson = JSON.stringify(libraries);
   const db = {
     schemaVersion: OUTPUT_SCHEMA_VERSION,
@@ -228,7 +247,7 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
       'CISA KEV Catalog',
       'Curated (data/advisories/curated.json)',
     ],
-    coverage: { totalAdvisories: total, technologies: Object.keys(libraries) },
+    coverage: { totalAdvisories: total, technologies: Object.keys(libraries), byProduct },
     syncStatus: report.staleSources.length === 0 ? 'success' : 'partial',
     integrity: { algorithm: 'sha256', target: 'libraries', digest: sha256(librariesJson) },
     libraries,

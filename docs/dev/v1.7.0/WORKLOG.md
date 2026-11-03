@@ -38,5 +38,13 @@
   - Popup・Dashboard・エクスポート 3 形式（JSON / CSV / Markdown）すべてに `fixStatus`、`kev`（「悪用確認済み（CISA KEV）」）、4 段階重大度を表示・出力し、UI 描画時にはすべて `escapeHtml()` を通すようにした。
 - 未解決: なし
 
-
+## T04 「収録 DB 上は該当なし」と収録範囲の表示、多件数の表示  (2026-11-03 14:46)
+- 変更ファイル: `scripts/advisories/build-db.mjs`, `src/shared/types.ts`, `src/security/version-matcher.ts`, `src/detection/advisory.ts`, `src/detection/engine.ts`, `src/popup/render.ts`, `src/dashboard/render.ts`, `src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-pipeline.test.mjs`, `tests/advisory.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - `scripts/advisories/build-db.mjs` で schemaVersion 2.2 を維持したまま `coverage.byProduct` に各製品の `{ count, sources }`（`curated`, `OSV`, `NVD`）を書き出すようにした。`coverage.byProduct` が未定義の古い DB やテストデータでも動作するよう、`advisory.ts` の `getProductCoverageInfo` で `libraries[key].versions` から収録件数と取得元をフォールバック計算する構成にした。
+  - 過去に保存された履歴データ（v1.6.x 形式）でも UI 描画やエクスポート時に収録範囲・ステータスラベルが正しく表示されるよう、`DetectedTechnology` の新規フィールド（`productAdvisoryCount`, `productSources`, `advisoryDataVersion`, `upstreamAdvisoriesCount`, `advisoryStatusLabel`）はすべて任意（`?`）とし、`resolveTechAdvisoryDisplayInfo` で現行 DB から補完できるようにした。
+  - 該当 0 件の表示を「収録 DB 上は該当なし」に変更し、収録件数・取得元（`curated / OSV / NVD`）・`dataVersion` を併記した。収録件数が 0 件の技術（DB 未登録の Tailwind CSS やエントリ 0 件の製品）は「この技術の脆弱性は収録していません」と表示するようにした。
+  - 該当が 6 件以上の場合は `sortAdvisoriesByPriority`（KEV → 重大度 4 段階 → CVSS スコア降順）でソートした上で上位 5 件を表示し、残りを `<details class="advisory-more">`（「ほか N 件を表示」）で折りたたむようにした。折りたたみ内の要素にも `.advisory-card` クラスを付与し、推奨修正バージョンは折りたたみ前の全件から算出する。
+  - ディストリビューションパッケージ版（`2.4.52-1ubuntu4` のようなハイフン表記に加え、`2.4.41 (Ubuntu)` や `Apache/2.4.41 (Ubuntu)` のような括弧表記）を `isLinuxPackageVersion` で検出し、`Needs Review` を維持したまま上流バージョンとして照合した場合の該当件数を `countUpstreamAdvisories` で算出し、「参考: 上流版では N 件該当」を添えるようにした。固定 DB（Apache 収録 3 件のうち `< 2.4.52` が 1 件、残りは `>= 2.4.49`）における `2.4.41 (Ubuntu)` の上流版該当件数は 1 件であることをテストで確認した。
+- 未解決: なし
 

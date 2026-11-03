@@ -28,7 +28,23 @@
       "apache",
       "laravel",
       "nodejs"
-    ]
+    ],
+    "byProduct": {
+      "jquery": { "count": 7, "sources": ["curated", "OSV", "NVD"] },
+      "bootstrap": { "count": 9, "sources": ["curated", "OSV", "NVD"] },
+      "react": { "count": 2, "sources": ["curated", "OSV", "NVD"] },
+      "vue": { "count": 1, "sources": ["OSV", "NVD"] },
+      "angular": { "count": 9, "sources": ["curated", "OSV", "NVD"] },
+      "angularjs": { "count": 14, "sources": ["curated", "OSV", "NVD"] },
+      "lodash": { "count": 10, "sources": ["curated", "OSV", "NVD"] },
+      "moment": { "count": 5, "sources": ["OSV", "NVD"] },
+      "wordpress": { "count": 1, "sources": ["curated", "NVD"] },
+      "php": { "count": 2, "sources": ["curated", "NVD"] },
+      "nginx": { "count": 2, "sources": ["curated", "NVD"] },
+      "apache": { "count": 3, "sources": ["curated", "NVD"] },
+      "laravel": { "count": 20, "sources": ["curated", "OSV", "NVD"] },
+      "nodejs": { "count": 2, "sources": ["curated", "NVD"] }
+    }
   },
   "syncStatus": "success",
   "integrity": {

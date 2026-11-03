@@ -294,4 +294,196 @@ describe('IMPL-03: 悪意のある値を含むレポート描画時の XSS / 不
       expect(html).toContain('悪用確認済み（CISA KEV）');
     }
   });
+
+  // --- T04 (SPEC-03): 「収録 DB 上は該当なし」・収録範囲・多件数の折りたたみ・ディストリ版上流参考件数 ---
+  describe('T04 (SPEC-03): Popup / Dashboard の脆弱性表示（収録範囲・多件数折りたたみ・ディストリ版）', () => {
+    it('固定 DB で Apache 2.4.62 を照合したとき、ポップアップとダッシュボードに「収録 DB 上は該当なし」「収録 3 件」「dataVersion」が出る', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const rawFixtureDb = (await import('./fixtures/advisory-db.fixture.json')).default;
+      const match = matchOfflineAdvisories('Apache', '2.4.62', rawFixtureDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+
+      const apacheTech: DetectedTechnology = {
+        technology: 'Apache',
+        category: 'web-server',
+        detected: true,
+        confidence: 100,
+        confidenceLevel: 'high',
+        version: '2.4.62',
+        evidence: [],
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+        eolInfo: match.eolInfo,
+        productAdvisoryCount: match.productAdvisoryCount,
+        productSources: match.productSources,
+        advisoryDataVersion: match.advisoryDataVersion,
+        advisoryStatusLabel: match.advisoryStatusLabel,
+      };
+
+      const popupHtml = renderTechModalHtml(apacheTech);
+      const dashTableHtml = renderLibrarySecurityTableHtml([apacheTech]);
+      const dashFullHtml = renderFullTechnologiesHtml([apacheTech]);
+
+      for (const html of [popupHtml, dashTableHtml, dashFullHtml]) {
+        expect(html).toContain('収録 DB 上は該当なし');
+        expect(html).toContain('収録 3 件');
+        expect(html).toContain('curated / NVD');
+        expect(html).toContain('dataVersion: 20261031');
+      }
+    });
+
+    it('12 件該当する固定データで、表示が 5 件＋「ほか 7 件」になり、先頭が KEV のエントリである', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const manyDb = {
+        dataVersion: '20261031',
+        generatedAt: '2026-10-31T00:00:00Z',
+        coverage: {
+          technologies: ['many-lib'],
+          byProduct: {
+            'many-lib': { count: 12, sources: ['curated', 'OSV', 'NVD'] },
+          },
+        },
+        libraries: {
+          'many-lib': {
+            aliases: ['many-lib'],
+            eol: [{ cycle: '1.x', eolDate: null, status: 'Supported' }],
+            versions: [
+              ...Array.from({ length: 11 }, (_, i) => ({
+                range: '< 2.0.0',
+                cve: `CVE-2026-00${String(i + 1).padStart(2, '0')}`,
+                cvssScore: 5.0 + (i % 5) * 0.5,
+                severity: i === 0 ? 'critical' : i < 4 ? 'high' : 'medium',
+                title: `Vuln ${i + 1}`,
+                fixedVersion: i === 10 ? '1.9.9' : `1.0.${i + 1}`,
+                fixStatus: 'fixed' as const,
+                kev: false,
+                origin: 'auto',
+              })),
+              {
+                range: '< 2.0.0',
+                cve: 'CVE-2026-9999',
+                cvssScore: 7.2,
+                severity: 'high',
+                title: 'KEV Priority Entry',
+                fixedVersion: '1.2.0',
+                fixStatus: 'fixed' as const,
+                kev: true,
+                kevDateAdded: '2026-05-01',
+                origin: 'curated',
+              },
+            ],
+          },
+        },
+      };
+
+      const match = matchOfflineAdvisories('many-lib', '1.0.0', manyDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+      const manyTech: DetectedTechnology = {
+        technology: 'many-lib',
+        category: 'js-framework',
+        detected: true,
+        confidence: 100,
+        confidenceLevel: 'high',
+        version: '1.0.0',
+        evidence: [],
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+        productAdvisoryCount: match.productAdvisoryCount,
+        productSources: match.productSources,
+        advisoryDataVersion: match.advisoryDataVersion,
+      };
+
+      // ポップアップの検証
+      const popupContainer = document.createElement('div');
+      popupContainer.innerHTML = renderTechModalHtml(manyTech);
+      const allPopupCards = popupContainer.querySelectorAll('.advisory-card');
+      const hiddenPopupCards = popupContainer.querySelectorAll('details.advisory-more .advisory-card');
+      expect(allPopupCards).toHaveLength(12);
+      expect(hiddenPopupCards).toHaveLength(7);
+      expect(allPopupCards.length - hiddenPopupCards.length).toBe(5);
+      expect(popupContainer.querySelector('details.advisory-more > summary')?.textContent).toContain('ほか 7 件');
+      expect(allPopupCards[0].textContent).toContain('CVE-2026-9999');
+      expect(allPopupCards[0].textContent).toContain('悪用確認済み（CISA KEV）');
+      // 推奨版は全12件から計算された 1.9.9 が表示されること
+      expect(popupContainer.innerHTML).toContain('1.9.9');
+
+      // ダッシュボード（技術詳細カード）の検証
+      const dashContainer = document.createElement('div');
+      dashContainer.innerHTML = renderFullTechnologiesHtml([manyTech]);
+      const allDashCards = dashContainer.querySelectorAll('.advisory-card');
+      const hiddenDashCards = dashContainer.querySelectorAll('details.advisory-more .advisory-card');
+      expect(allDashCards).toHaveLength(12);
+      expect(hiddenDashCards).toHaveLength(7);
+      expect(allDashCards.length - hiddenDashCards.length).toBe(5);
+      expect(dashContainer.querySelector('details.advisory-more > summary')?.textContent).toContain('ほか 7 件');
+      expect(allDashCards[0].textContent).toContain('CVE-2026-9999');
+      expect(allDashCards[0].textContent).toContain('悪用確認済み（CISA KEV）');
+
+      // ダッシュボード（一覧テーブル）の検証
+      const tableContainer = document.createElement('table');
+      tableContainer.innerHTML = `<tbody>${renderLibrarySecurityTableHtml([manyTech])}</tbody>`;
+      expect(tableContainer.textContent).toContain('ほか 7 件');
+      expect(tableContainer.textContent).toContain('CVE-2026-9999');
+      expect(tableContainer.textContent).toContain('1.9.9');
+    });
+
+    it('Apache/2.4.41 (Ubuntu) で Needs Review のまま、「上流版では N 件」が表示される', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const rawFixtureDb = (await import('./fixtures/advisory-db.fixture.json')).default;
+      const match = matchOfflineAdvisories('Apache', '2.4.41 (Ubuntu)', rawFixtureDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+
+      const distroTech: DetectedTechnology = {
+        technology: 'Apache',
+        category: 'web-server',
+        detected: true,
+        confidence: 100,
+        confidenceLevel: 'high',
+        version: '2.4.41 (Ubuntu)',
+        evidence: [],
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+        productAdvisoryCount: match.productAdvisoryCount,
+        productSources: match.productSources,
+        advisoryDataVersion: match.advisoryDataVersion,
+        upstreamAdvisoriesCount: match.upstreamAdvisoriesCount,
+      };
+
+      const popupHtml = renderTechModalHtml(distroTech);
+      const dashTableHtml = renderLibrarySecurityTableHtml([distroTech]);
+      const dashFullHtml = renderFullTechnologiesHtml([distroTech]);
+
+      for (const html of [popupHtml, dashTableHtml, dashFullHtml]) {
+        expect(html).toContain('Needs Review');
+        expect(html).toContain('上流版では 1 件');
+      }
+    });
+
+    it('収録件数 0 の技術（Tailwind CSS）は「この技術の脆弱性は収録していません」と表示される', async () => {
+      const { matchOfflineAdvisories } = await import('../src/detection/advisory');
+      const rawFixtureDb = (await import('./fixtures/advisory-db.fixture.json')).default;
+      const match = matchOfflineAdvisories('Tailwind CSS', '3.4.1', rawFixtureDb as unknown as Parameters<typeof matchOfflineAdvisories>[2]);
+
+      const tailwindTech: DetectedTechnology = {
+        technology: 'Tailwind CSS',
+        category: 'js-framework',
+        detected: true,
+        confidence: 95,
+        confidenceLevel: 'high',
+        version: '3.4.1',
+        evidence: [],
+        advisoryMatchStatus: match.matchStatus,
+        advisories: match.advisories,
+        productAdvisoryCount: match.productAdvisoryCount,
+        productSources: match.productSources,
+        advisoryDataVersion: match.advisoryDataVersion,
+        advisoryStatusLabel: match.advisoryStatusLabel,
+      };
+
+      const popupHtml = renderTechModalHtml(tailwindTech);
+      const dashTableHtml = renderLibrarySecurityTableHtml([tailwindTech]);
+      const dashFullHtml = renderFullTechnologiesHtml([tailwindTech]);
+
+      for (const html of [popupHtml, dashTableHtml, dashFullHtml]) {
+        expect(html).toContain('この技術の脆弱性は収録していません');
+      }
+    });
+  });
 });

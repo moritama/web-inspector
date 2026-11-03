@@ -3,16 +3,47 @@
  * JSONエクスポート (src/export/json.ts)
  */
 
+import { resolveTechAdvisoryDisplayInfo } from '../detection/advisory';
 import { InspectionReport } from '../shared/types';
 
 /**
- * 調査レポートをJSON文字列としてエクスポートする
+ * 調査レポートをJSON文字列としてエクスポートする (v1.7.0 T04 / SPEC-03)
  *
  * @param report 調査レポート
  * @returns インデント整形されたJSON文字列
  */
 export function exportReportToJson(report: InspectionReport): string {
-  return JSON.stringify(report, null, 2);
+  const enrichedTechnologies = (report.technologies || []).map((tech) => {
+    const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
+    const exportMatchStatus =
+      tech.advisoryMatchStatus === 'Not Affected'
+        ? displayInfo.statusLabel
+        : tech.advisoryMatchStatus || displayInfo.statusLabel;
+    const exportOfflineStatus =
+      tech.offlineMatchStatus === 'No Match'
+        ? '収録 DB 上は該当なし (No Match)'
+        : tech.offlineMatchStatus;
+
+    return {
+      ...tech,
+      advisoryMatchStatus: exportMatchStatus,
+      ...(exportOfflineStatus ? { offlineMatchStatus: exportOfflineStatus } : {}),
+      productAdvisoryCount: displayInfo.count,
+      productSources: displayInfo.sources,
+      advisoryDataVersion: displayInfo.dataVersion,
+      ...(typeof displayInfo.upstreamAdvisoriesCount === 'number'
+        ? { upstreamAdvisoriesCount: displayInfo.upstreamAdvisoriesCount }
+        : {}),
+      advisoryStatusLabel: displayInfo.statusLabel,
+    };
+  });
+
+  const exportPayload = {
+    ...report,
+    technologies: enrichedTechnologies,
+  };
+
+  return JSON.stringify(exportPayload, null, 2);
 }
 
 /**

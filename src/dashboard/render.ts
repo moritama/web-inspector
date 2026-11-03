@@ -3,11 +3,16 @@
  * ダッシュボード描画純粋関数 (src/dashboard/render.ts) - IMPL-01, IMPL-03
  */
 
-import { formatAdvisoryRecommendation } from '../detection/advisory';
+import {
+  formatAdvisoryRecommendation,
+  resolveTechAdvisoryDisplayInfo,
+  sortAdvisoriesByPriority,
+} from '../detection/advisory';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
   DetectedTechnology,
   InspectionReport,
+  SecurityAdvisory,
   SecurityCheckResult,
 } from '../shared/types';
 
@@ -208,26 +213,43 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           ? '<span class="badge badge-high">Supported</span>'
           : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
 
-      let cveBadge = '<span class="badge sev-pass">該当なし</span>';
-      if (t.distroHint) {
-        cveBadge = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
-      } else if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
-        const hasKev = t.advisories?.some((a) => a.kev === true) ?? false;
+      const displayInfo = resolveTechAdvisoryDisplayInfo(t);
+      let cveBadge = '';
+      if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
+        const sortedAdvisories = sortAdvisoriesByPriority(t.advisories || []);
+        const topAdvisories = sortedAdvisories.slice(0, 5);
+        const restAdvisories = sortedAdvisories.slice(5);
+        const hasKev = sortedAdvisories.some((a) => a.kev === true);
         const kevBadge = hasKev
           ? '<span class="badge badge-kev" style="margin-right:4px;">悪用確認済み（CISA KEV）</span>'
           : '';
         const fixStatuses = Array.from(
-          new Set((t.advisories || []).map((a) => a.fixStatus).filter(Boolean))
+          new Set(sortedAdvisories.map((a) => a.fixStatus).filter(Boolean))
         );
         const fixBadge =
           fixStatuses.length > 0
             ? ` <span class="badge badge-fix-status">${escapeHtml(fixStatuses.join('/'))}</span>`
             : '';
-        cveBadge = `${kevBadge}<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>${fixBadge}`;
-      } else if (t.offlineMatchStatus === 'Not Covered') {
-        cveBadge = '<span style="color:var(--text-muted);font-size:11px;">未登録</span>';
-      } else if (t.offlineMatchStatus === 'Unknown Version') {
-        cveBadge = '<span class="badge badge-medium">要確認</span>';
+        const topIdsHtml = topAdvisories
+          .map((a) => `${escapeHtml(a.id)}${a.kev ? ' (KEV)' : ''}`)
+          .join(', ');
+        const restHtml =
+          restAdvisories.length > 0
+            ? `<details class="advisory-more" style="margin-top:2px;font-size:11px;"><summary style="cursor:pointer;color:var(--accent-color);">ほか ${restAdvisories.length} 件</summary><div>${restAdvisories.map((a) => escapeHtml(a.id)).join(', ')}</div></details>`
+            : '';
+        cveBadge = `${kevBadge}<span class="badge badge-cve">該当 ${sortedAdvisories.length}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>${fixBadge}<div style="font-size:11px;color:var(--text-sub);margin-top:2px;">${topIdsHtml}</div>${restHtml}`;
+      } else if (displayInfo.isDistro) {
+        const upstreamRefHtml =
+          typeof displayInfo.upstreamAdvisoriesCount === 'number'
+            ? `<div style="font-size:11px;color:var(--text-sub);margin-top:2px;">参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件該当（収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`
+            : '';
+        cveBadge = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint || 'Linux package')}">Needs Review: ディストリ版（バックポートの可能性）</span>${upstreamRefHtml}`;
+      } else if (displayInfo.isZeroCoverage) {
+        cveBadge = '<span style="color:var(--text-muted);font-size:11px;">この技術の脆弱性は収録していません</span>';
+      } else if (t.offlineMatchStatus === 'Unknown Version' || t.advisoryMatchStatus === 'Needs Review' || !t.version) {
+        cveBadge = `<span class="badge badge-medium">要確認 (Needs Review)</span><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件（取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`;
+      } else {
+        cveBadge = `<span class="badge sev-pass">収録 DB 上は該当なし</span><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件（取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`;
       }
 
       if (t.isStale) {
@@ -252,8 +274,12 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
         });
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
-      } else if (t.distroHint) {
-        recommendation = `${t.distroHint} ディストリビューションのセキュリティ情報を確認`;
+      } else if (displayInfo.isDistro) {
+        const upSuffix =
+          typeof displayInfo.upstreamAdvisoriesCount === 'number'
+            ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）`
+            : '';
+        recommendation = `${t.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${upSuffix}`;
       } else if (t.offlineMatchStatus === 'Unknown Version' && t.version) {
         recommendation = 'パッケージ固有版のため個別セキュリティ情報の確認を推奨';
       }
@@ -340,6 +366,63 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
           ? `<div>公式サイト: ${renderSafeExternalLink(t.website, t.website, { style: 'color:var(--accent-color);' })}</div>`
           : '';
 
+        const displayInfo = resolveTechAdvisoryDisplayInfo(t);
+        const renderAdvLiHtml = (adv: SecurityAdvisory, liClass: string): string => {
+          const sevClass = getSeverityBadgeClass(adv.severity);
+          const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+          const kevBadge = adv.kev
+            ? ` <span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+            : '';
+          const fixBadge = adv.fixStatus
+            ? ` <span class="badge badge-fix-status">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+            : '';
+          return `
+                <li class="${liClass}" style="margin-bottom:6px;">
+                  <strong>${escapeHtml(adv.id)}</strong> <span class="badge ${sevClass}">${sevText}</span>${kevBadge} (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
+                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}${fixBadge}
+                </li>
+              `;
+        };
+
+        let advisoriesSectionHtml = '';
+        if (t.advisories && t.advisories.length > 0) {
+          const sortedAdvisories = sortAdvisoriesByPriority(t.advisories);
+          const topAdvisories = sortedAdvisories.slice(0, 5);
+          const restAdvisories = sortedAdvisories.slice(5);
+          const recText = formatAdvisoryRecommendation(t.version, t.advisories, {
+            isEol: t.supportStatus === 'EOL',
+            technologyName: t.technology,
+          });
+          const moreDetailsHtml =
+            restAdvisories.length > 0
+              ? `
+            <details class="advisory-more" style="margin-top:4px;">
+              <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--accent-color);">ほか ${restAdvisories.length} 件</summary>
+              <ul style="padding-left:18px;margin-top:4px;">
+                ${restAdvisories.map((adv) => renderAdvLiHtml(adv, 'advisory-card advisory-more-item')).join('')}
+              </ul>
+            </details>
+          `
+              : '';
+          advisoriesSectionHtml = `
+          <div style="margin-top:8px;">
+            <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA) (${t.advisories.length}件):</strong>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}</div>
+            <div style="font-size:12px;color:var(--accent-color);margin-top:2px;">推奨対応: ${escapeHtml(recText)}</div>
+            <ul class="advisory-list" style="padding-left:18px;margin-top:4px;">
+              ${topAdvisories.map((adv) => renderAdvLiHtml(adv, 'advisory-card advisory-item')).join('')}
+            </ul>
+            ${moreDetailsHtml}
+          </div>
+        `;
+        } else if (!t.isCandidateGroup) {
+          advisoriesSectionHtml = `
+          <div style="margin-top:8px;font-size:12px;">
+            <strong>脆弱性照合状況:</strong> ${escapeHtml(displayInfo.statusLabel)}
+          </div>
+        `;
+        }
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
@@ -404,35 +487,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             : ''
         }
 
-        ${
-          t.advisories && t.advisories.length > 0
-            ? `
-          <div style="margin-top:8px;">
-            <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA):</strong>
-            <ul style="padding-left:18px;margin-top:4px;">
-              ${t.advisories
-                .map((adv) => {
-                  const sevClass = getSeverityBadgeClass(adv.severity);
-                  const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
-                  const kevBadge = adv.kev
-                    ? ` <span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
-                    : '';
-                  const fixBadge = adv.fixStatus
-                    ? ` <span class="badge badge-fix-status">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
-                    : '';
-                  return `
-                <li style="margin-bottom:6px;">
-                  <strong>${escapeHtml(adv.id)}</strong> <span class="badge ${sevClass}">${sevText}</span>${kevBadge} (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
-                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}${fixBadge}
-                </li>
-              `;
-                })
-                .join('')}
-            </ul>
-          </div>
-        `
-            : ''
-        }
+        ${advisoriesSectionHtml}
 
         <div style="font-weight:700;margin-top:8px;">判定根拠 (Evidence):</div>
         <ul style="padding-left:18px;">

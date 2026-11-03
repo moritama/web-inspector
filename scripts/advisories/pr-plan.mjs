@@ -265,7 +265,7 @@ export function planPullRequest(params = {}) {
   }
 
   const warnings = [];
-  if (classification === 'minor' && isAutoMergeRequested && effectiveTestsPassed && !isAppTokenAvailable) {
+  if (!isAppTokenAvailable) {
     warnings.push(
       'GitHub App トークンが未設定のため自動マージを行いません (GITHUB_TOKEN では PR の CI やマージ後の release.yml が起動しないため)'
     );
@@ -354,7 +354,7 @@ function main() {
   });
 
   for (const w of plan.warnings) {
-    console.warn(`::warning::${w}`);
+    console.log(`::warning::${w}`);
   }
 
   if (args['out-body']) {
@@ -370,6 +370,7 @@ function main() {
       `should_auto_merge=${plan.shouldAutoMerge}`,
       `should_fail_job=${plan.shouldFailJob}`,
       `tests_passed=${plan.testsPassed}`,
+      `has_app_token=${plan.hasAppToken}`,
       `title=${plan.title}`,
       `labels=${plan.labels.join(',')}`,
       `remove_labels=${plan.removeLabels.join(',')}`,

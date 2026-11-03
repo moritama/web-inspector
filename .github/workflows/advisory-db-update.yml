@@ -154,6 +154,8 @@ jobs:
           PR_LABELS: ${{ steps.plan.outputs.labels }}
           SHOULD_AUTO_MERGE: ${{ steps.plan.outputs.should_auto_merge }}
           SHOULD_FAIL_JOB: ${{ steps.plan.outputs.should_fail_job }}
+          HAS_APP_TOKEN: ${{ steps.plan.outputs.has_app_token }}
+          AUTO_MERGE: ${{ vars.ADVISORY_AUTO_MERGE }}
         run: |
           git config user.name "advisory-db-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -175,6 +177,10 @@ jobs:
           else
             gh pr create --head "$BOT_BRANCH" --base main --title "$PR_TITLE" --body-file "$RUNNER_TEMP/pr-body.md" \
               --label "$PR_LABELS"
+          fi
+
+          if [ "$HAS_APP_TOKEN" != "true" ] && [ "$AUTO_MERGE" = "true" ]; then
+            echo "::warning::GitHub App トークンが未設定のため自動マージを行いません (BOT_APP_CLIENT_ID / BOT_APP_PRIVATE_KEY を設定してください)"
           fi
 
           if [ "$SHOULD_AUTO_MERGE" = "true" ]; then

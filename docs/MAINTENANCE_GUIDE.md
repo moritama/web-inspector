@@ -300,6 +300,8 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 > **リリース記録 (v1.6.5)**:
 > `release/web-inspector-v1.6.5.zip` はタグ `v1.6.5`（コミット `c825dc9`）から作成されました。以後の main の差分は、ビルド入力(src/、public/、package.json、ロックファイル、ビルド設定、scripts/package.mjs)を含まず、公開用 zip の内容には影響しません。
 
+### 3.1 手動でのパッケージ確認・ストア提出手順
+
 1. **パッケージの確認**:
    - `release/web-inspector-vX.X.X.zip` のサイズ（約70〜100KB）および中身を確認します。
 2. **ローカル実機検証**:
@@ -309,3 +311,117 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
    - [Chrome デベロッパー ダッシュボード](https://chrome.google.com/webstore/devconsole/) にログインします。
    - 対象アイテムを選択し、「パッケージのアップロード」から生成されたZIPファイルをアップロードします。
    - 変更点サマリーを入力し、「審査に送信」をクリックします。
+
+---
+
+### 3.2 脆弱性 DB 更新の自動マージと自動公開（D4 全自動パイプライン）
+
+v1.7.0 以降では、**「脆弱性 DB だけの更新（第 4 要素リビジョン版: 例 `1.7.0.1`）」** と **「コード変更を含む更新（3 要素バージョン: 例 `1.7.1`）」** を機械的に分離し、DB だけの軽微な更新（`minor`）は週次ジョブから Chrome Web Store の審査提出・公開まで人の操作なしで完結する構成を備えています。一方、コード変更を含むリリースや重大な DB 変更（`major`）は、従来どおり人間のレビュー・承認（`STAGED_PUBLISH`）を経て公開されます。
+
+```mermaid
+flowchart TD
+    subgraph WeeklyJob ["1. 週次 DB 更新 (advisory-db-update.yml)"]
+        Cron["毎週月曜 05:23 JST 起動"] --> FetchBuild["上流取得・DB生成・差分分類<br>(diff-db.mjs / bump-db-revision.mjs)"]
+        FetchBuild --> TestStep["検証・単体テスト・ビルド<br>(validate / verify-nvd / npm test)"]
+        TestStep --> PlanStep["PR計画・ラベル判定<br>(pr-plan.mjs)"]
+        PlanStep -->|minor & テスト合格 &<br>Appトークンあり &<br>ADVISORY_AUTO_MERGE=true| AutoMerge["GitHub App トークンで PR 作成<br>& gh pr merge --auto --squash"]
+        PlanStep -->|major または テスト失敗<br>(db:tests-failing)| ManualReview["PR 作成・人間がレビュー<br>(自動マージしない)"]
+    end
+
+    subgraph ReleaseJob ["2. リリース判定・ストア提出 (release.yml)"]
+        AutoMerge -->|main へマージ<br>(manifest.json 更新)| Prepare["リリース種別判定<br>(classify-release.mjs)"]
+        ManualReview -->|人間がマージ| Prepare
+        Prepare -->|4要素版 & DB関連ファイルのみ変更<br>& CWS_AUTO_PUBLISH=true| AutoRoute["Environment: chrome-web-store-auto<br>(承認なし / DEFAULT_PUBLISH)"]
+        Prepare -->|コード変更を含む版 または 3要素版<br>または CWS_AUTO_PUBLISH!=true| ManualRoute["Environment: chrome-web-store<br>(レビュアー承認必須 / STAGED_PUBLISH)"]
+        AutoRoute --> CwsReview["Chrome Web Store 審査通過後<br>ストアへ自動公開"]
+        ManualRoute --> CwsStaged["Chrome Web Store 審査通過後<br>ダッシュボードで人間が公開"]
+    end
+
+    subgraph MonitorJob ["3. 審査ステータス監視 (cws-status.yml)"]
+        CwsReview -.-> DailyCheck["毎日 1 回 status 監視<br>(cws-status.mjs)"]
+        DailyCheck -->|REJECTED / SUSPENDED 等| AlertIssue["GitHub Issue 自動起票・通知<br>(ラベル: cws-status)"]
+    end
+```
+
+#### ① 自動マージ (`advisory-db-update.yml` / `pr-plan.mjs` / `diff-db.mjs`) の安全条件
+週次 PR が自動マージされるのは、以下の**すべて**を満たす場合に限られます：
+1. `diff-db.mjs` の分類が **`minor`** であること。以下のいずれかに該当する場合はすべて **`major`** となり、自動マージされません：
+   - 手動管理（`curated`）アドバイザリの削除、または製品全体の削除
+   - EOL ステータスの逆行（`EOL` $\rightarrow$ `Supported` / `Maintenance`）
+   - 上流ソースの取得失敗を含む場合（`syncStatus !== 'ok'`）
+   - DB ファイルサイズが 50% を超えて増減した場合（初回 NVD 取り込み等を含む）
+   - `schemaVersion` または `minExtensionVersion` が変更された場合
+   - 既存アドバイザリの範囲（`range`）またはスコア（`cvssScore`）の変更が **20 件を超える**場合
+   - CISA KEV フラグが解除（`true` $\rightarrow$ `false`）された場合
+2. `npm test` および `npm run build` がすべて合格し、`db:tests-failing` ラベルが付いていないこと。
+3. GitHub App トークン（`BOT_APP_CLIENT_ID` / `BOT_APP_PRIVATE_KEY`）が設定されていること（未設定時は警告を出して自動マージをスキップ）。
+4. リポジトリ変数 `ADVISORY_AUTO_MERGE` が `'true'` であること。
+
+#### ② 自動公開 (`release.yml` / `classify-release.mjs`) の安全条件
+`main` ブランチへのマージ後、承認なし Environment（`chrome-web-store-auto`）および `DEFAULT_PUBLISH`（審査通過後の自動公開）が選ばれるのは、以下の**すべて**を満たす場合に限られます：
+1. `public/manifest.json` の `version` が **4 要素**（例: `1.7.0.1`）であること。
+2. 直前のリリースタグ（`v*`）からの変更ファイルが、`data/advisories/**`、`src/detection/advisory-db.json`、`public/manifest.json` のみに収まっていること。
+3. `public/manifest.json` の変更行が `"version"` フィールドのみであること。
+4. リポジトリ変数 `CWS_AUTO_PUBLISH` が `'true'` であること。
+
+※ 上記を 1 つでも満たさない場合は、自動的に承認必須の Environment `chrome-web-store` と `STAGED_PUBLISH` にフォールバックします（手動実行 `workflow_dispatch` の際は `CWS_PUBLISH_TYPE` または実行時入力 `publish_type` を選択可能です）。
+
+---
+
+### 3.3 全自動パイプラインの停止方法（緊急停止手順）
+
+上流データの異常や Chrome Web Store 審査での問題が発生し、自動マージ・自動公開を止めたい場合は、GitHub リポジトリの **Settings > Secrets and variables > Actions > Variables** で以下の **2 つの変数を `false` に変更**してください（コードの変更やコミットは不要で、即座に反映されます）。
+
+| 変数名 | 停止時の設定値 | 効果 |
+|---|---|---|
+| **`ADVISORY_AUTO_MERGE`** | `false` | 週次 DB 更新 PR の自動マージを停止します（PR の作成とテストは継続され、人間が確認してマージします）。 |
+| **`CWS_AUTO_PUBLISH`** | `false` | DB 限定リリースであっても自動公開（`chrome-web-store-auto` / `DEFAULT_PUBLISH`）を使わず、すべて承認必須の `chrome-web-store` / `STAGED_PUBLISH` に切り替えます。 |
+
+---
+
+### 3.4 誤った DB が公開されたときの戻し方（ロールバック手順）
+
+万が一、誤った脆弱性範囲や不適切なエントリを含む DB リビジョン版（例: `1.7.0.2`）が Chrome Web Store に公開された場合は、Chrome Web Store の仕様上「過去のバージョン番号を再アップロード」することはできないため、**該当 PR を revert した上で、第 4 要素を 1 つ進めた新しいリビジョン版（例: `1.7.0.3`）を作成して公開**します。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Maintainer as メンテナー
+    participant GitHub as GitHub (main)
+    participant Actions as Release Workflow
+    participant CWS as Chrome Web Store
+
+    Maintainer->>GitHub: 1. 変数 ADVISORY_AUTO_MERGE と CWS_AUTO_PUBLISH を一旦 false に設定 (任意)
+    Maintainer->>GitHub: 2. 問題の DB 更新 PR を Revert するブランチを作成
+    Maintainer->>GitHub: 3. curated.json (excluded 等) を調整し build-db.mjs で正しい DB を再生成
+    Maintainer->>GitHub: 4. bump-db-revision.mjs で manifest.json の第4要素を +1 (例: 1.7.0.2 → 1.7.0.3)
+    Maintainer->>GitHub: 5. PR を作成し CI 合格を確認して main へマージ
+    GitHub->>Actions: 6. Release ワークフロー起動 (v1.7.0.3 パッケージ生成)
+    Actions->>CWS: 7. v1.7.0.3 をアップロード・審査提出・公開
+```
+
+1. **該当コミットの取り消しと除外設定**:
+   - 問題となった DB 更新 PR を GitHub 上（または `git revert`）で取り消します。
+   - 特定の上流 CVE/GHSA が原因の場合は、`data/advisories/curated.json` の `excluded` に該当 ID と除外理由を追加し、`npm run advisories:build` と `npm run advisories:validate` を実行します。
+2. **新しい第 4 要素リビジョン番号の採番**:
+   - 既にタグ付け・提出されたバージョン番号（例: `1.7.0.2`）よりも大きいバージョンにするため、`node scripts/advisories/bump-db-revision.mjs` を実行（または手動で編集）して、`public/manifest.json` の `version` を次の第 4 要素リビジョン（例: `1.7.0.3`）に進めます。
+3. **マージと再リリース**:
+   - `npm test` の合格を確認して `main` ブランチへマージすると、`Release` ワークフローが `v1.7.0.3` をビルドして Chrome Web Store へ提出します。
+
+---
+
+### 3.5 自動化を有効にするための初期設定（管理者向けチェックリスト）
+
+全自動パイプラインを稼働させるには、リポジトリ管理者が GitHub および Google Cloud コンソールで以下の設定を行います。
+
+1. **PR 作成・自動マージ用 GitHub App の作成と Secrets 登録**:
+   - 標準の `GITHUB_TOKEN` で作成・マージされた PR は、無限ループ防止仕様により後続の `CI` や `Release` ワークフローを起動しません。そのため、リポジトリ専用の GitHub App（Permissions: `Contents: Read and write`, `Pull requests: Read and write`, `Issues: Read and write`）を作成してインストールし、Client ID を Variable `BOT_APP_CLIENT_ID`、秘密鍵を Secret `BOT_APP_PRIVATE_KEY` に登録します。
+2. **`main` ブランチ保護ルール（Ruleset）の設定**:
+   - リポジトリ設定で「Allow auto-merge（自動マージを許可）」を有効にします。
+   - `main` の Ruleset で「Require status checks to pass（必須チェック: `CI`）」を設定し、「Require approval of the most recent reviewable push」はオフにするか、上記 GitHub App をバイパス対象に設定します。
+3. **GitHub Environment `chrome-web-store-auto` と GCP Workload Identity Federation の設定**:
+   - GitHub に Environment `chrome-web-store-auto` を「Required reviewers なし」「Deployment branches: `main` のみ」で作成します（既存の `chrome-web-store` は Required reviewers ありのまま維持します）。
+   - Google Cloud の Workload Identity Pool Provider において、`repo:<owner>/<repo>:environment:chrome-web-store-auto` からの OIDC トークンを許可し、なりすまし防止のため `repository_id` および `repository_owner_id` の数値クレーム条件（immutable ID）を付与します。
+4. **段階的な有効化（2 週間の試行期間）**:
+   - 最初の 2 週間は `ADVISORY_AUTO_MERGE=false`・`CWS_AUTO_PUBLISH=false` のまま週次ジョブを動かし、生成される PR の差分とテスト結果を確認します。問題がなければ `ADVISORY_AUTO_MERGE=true` $\rightarrow$ `CWS_AUTO_PUBLISH=true` の順に有効化します。
+

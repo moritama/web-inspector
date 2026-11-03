@@ -148,3 +148,14 @@
       - 日本語 §2: `履歴レコードには、クエリ文字列およびフラグメントを除去（マスク）した調査対象 URL、検出された技術、セキュリティ診断結果、および調査日時が含まれます。` / エクスポートもクエリ文字列とフラグメントを既定で除去する旨を明記。
       - 日本語 §3: `コンテンツスクリプトはユーザーが拡張機能アイコンをクリックして調査を開始した際にのみ chrome.scripting.executeScript によって対象タブへオンデマンドで注入されます。`
 - 未解決: なし
+
+## T16 DB 更新の自動マージと自動公開  (2026-11-03 22:08)
+- 変更ファイル: `scripts/release/classify-release.mjs`, `scripts/release/cws-status.mjs`, `scripts/advisories/diff-db.mjs`, `scripts/advisories/pr-plan.mjs`, `.github/workflows/release.yml`, `.github/workflows/advisory-db-update.yml`, `.github/workflows/cws-status.yml`, `tests/advisory-pipeline.test.mjs`, `docs/MAINTENANCE_GUIDE.md`
+- 判断したこと:
+  - D4（リリース種別判定と自動公開ルート）: `scripts/release/classify-release.mjs` を新設し、バージョンが 4 要素（`1.7.0.1` 等）かつ前回タグが存在し、変更ファイルが `data/advisories/**`・`src/detection/advisory-db.json`・`public/manifest.json` のみに収まり、`public/manifest.json` の変更が `"version"` 行のみである場合を「DB だけの版（`isDbOnly: true`）」と判定する純粋関数 `classifyRelease` と CLI を実装した。`isDbOnly && CWS_AUTO_PUBLISH === 'true'` のときのみ `mode: 'auto'`, `environment: 'chrome-web-store-auto'`, `publishType: 'DEFAULT_PUBLISH'` とし、それ以外（コードを含む版・3要素版・`CWS_AUTO_PUBLISH` 未設定・`manifest.json` の `version` 以外の変更）はすべて `mode: 'manual'`, `environment: 'chrome-web-store'`, `publishType: 'STAGED_PUBLISH'` とした（`workflow_dispatch` 時は `CWS_PUBLISH_TYPE` や入力 `publish_type` を選択可能）。
+  - `.github/workflows/release.yml` の `prepare` ジョブで `classify-release.mjs` を呼び出し、`submit` ジョブの `environment` と `PUBLISH_TYPE` を自動分岐するように更新した。
+  - 自動マージ条件の厳格化: `scripts/advisories/pr-plan.mjs` と `.github/workflows/advisory-db-update.yml` で、自動マージを「`classification === 'minor'`、テスト合格（`db:tests-failing` なし）、App トークンあり（`hasAppToken`）、`ADVISORY_AUTO_MERGE=true`」のすべてを満たす場合に限定し、App トークンがない場合は自動マージせず警告（`::warning::`）を出すようにした。
+  - `scripts/advisories/diff-db.mjs` の `major` 条件追加: 既存の条件に加え、`schemaVersion` の変更、`minExtensionVersion` の変更、既存アドバイザリの範囲・スコア変更が 20 件を超える場合、KEV の解除（`true` → `false`）を `reasonsMajor` に追加した。また `baseSize` 未指定時でも 50 件以上の DB（初回 NVD 取り込み 87 → 416 件等）で JSON サイズが 50% を超えて増減した場合は `major` と判定するようにした。
+  - 審査ステータス監視: `scripts/release/cws-status.mjs` と `.github/workflows/cws-status.yml` を追加し、`vars.CWS_ENABLED == 'true'` のときに毎日 1 回 `cws-publish.mjs status` を確認して、却下（`REJECTED`）や停止状態（`SUSPENDED`, `TAKEN_DOWN` 等）であれば GitHub Issue を作成（既存のオープン Issue があればコメント追記）するようにした。すべてのワークフローでアクションは SHA 固定・最小 `permissions` とした。
+  - `docs/MAINTENANCE_GUIDE.md` §3 に全自動パイプラインのフロー図（Mermaid）、緊急停止手順（`ADVISORY_AUTO_MERGE` と `CWS_AUTO_PUBLISH` の 2 変数を `false` に変更）、誤った DB が公開された場合のロールバック手順（該当 PR を revert し第 4 要素を +1 した次のリビジョン版を公開）、および管理者が行う初期設定手順を追記した。
+- 未解決: GitHub / Google Cloud コンソール側での初期設定（GitHub App の作成と `BOT_APP_CLIENT_ID` / `BOT_APP_PRIVATE_KEY` 登録、`main` のブランチ保護/Ruleset 設定、Environment `chrome-web-store-auto` の作成と GCP Workload Identity Federation の許可設定、および最初の 2 週間の試行運用後の変数有効化）は、完了報告書の「人の確認事項」として管理者が実施する。

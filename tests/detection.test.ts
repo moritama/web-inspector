@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { DetectionEngine } from '../src/detection/engine';
+import { ALL_TECHNOLOGY_RULES } from '../src/detection/rules';
 import { DomSignals, NetworkSignals } from '../src/shared/types';
 
 describe('DetectionEngine', () => {
@@ -1419,6 +1420,57 @@ describe('DetectionEngine', () => {
           '3.6.0',
         ]);
         expect(jq?.version).toBe('1.12.4');
+      });
+    });
+
+    describe('T09: 連動推論の確信度と候補ラベル整合 (SPEC-14, DOC-11)', () => {
+      it('SPEC-14: Material UI（確信度 85）から係数 0.9 で推論された React の確信度が Math.floor(85 * 0.9) = 76 となること', () => {
+        const results = engine.detect({
+          url: 'https://example.com/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ["[class*='MuiButton-']"],
+          },
+        });
+
+        const mui = results.find((r) => r.technology === 'Material UI');
+        expect(mui).toBeDefined();
+        expect(mui?.confidence).toBe(85);
+        expect(mui?.detectionMethod).toBe('direct');
+
+        const react = results.find((r) => r.technology === 'React');
+        expect(react).toBeDefined();
+        expect(react?.confidence).toBe(76);
+        expect(react?.confidenceLevel).toBe('medium');
+        expect(react?.detectionMethod).toBe('inferred');
+        expect(react?.runtimeStatus).toBe('possible');
+        expect(react?.inferredFrom).toBe('Material UI');
+      });
+
+      it('DOC-11: バックエンド候補が 2 つだけ一致したとき、その 2 つだけが候補ラベルと candidateTechnologies に出ること', () => {
+        // Node.js ルールを除いたルールセット（Java と Laravel の 2 候補のみが XSRF-TOKEN に一致）
+        const twoCandidateRules = ALL_TECHNOLOGY_RULES.filter((r) => r.id !== 'nodejs');
+        const customEngine = new DetectionEngine(twoCandidateRules);
+
+        const results = customEngine.detect({
+          url: 'https://example.com/',
+          dom: emptyDom,
+          network: {
+            url: 'https://example.com/',
+            responseHeaders: {},
+            cookies: [{ name: 'XSRF-TOKEN', value: 'token-abc' }],
+          },
+        });
+
+        const candidate = results.find((r) => r.isCandidateGroup);
+        expect(candidate).toBeDefined();
+        expect(candidate?.technology).toBe('Java / Laravel (候補)');
+        expect(candidate?.candidateTechnologies).toEqual([
+          'Java (Spring Boot)',
+          'Laravel (PHP)',
+        ]);
+        expect(candidate?.evidence[0]?.detail).toContain('Java / Laravel');
+        expect(candidate?.evidence[0]?.detail).not.toContain('Node.js');
       });
     });
   });

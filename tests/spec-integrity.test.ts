@@ -182,5 +182,133 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
       expect(parsedSelectors).toEqual(expectedSorted);
     }
   });
+
+  it('仕様書 §4 の連動推論図・表と rules/*.json の implies 定義（relation, runtimeStatus, confidenceFactor）が完全に一致していること (T09 / DOC-05)', () => {
+    const ruleByName = new Map<string, TechnologyRule>();
+    const ruleById = new Map<string, TechnologyRule>();
+    for (const r of allRules) {
+      ruleByName.set(r.name, r);
+      ruleById.set(r.id, r);
+    }
+
+    // 1. rules/*.json から全 implies エッジを抽出
+    interface ImpliesEdge {
+      sourceId: string;
+      sourceName: string;
+      targetId: string;
+      targetName: string;
+      relation: string;
+      runtimeStatus: string;
+      confidenceFactor: number;
+    }
+
+    const ruleEdges: ImpliesEdge[] = [];
+    for (const rule of allRules) {
+      if (!rule.implies || rule.implies.length === 0) continue;
+      for (const imp of rule.implies) {
+        expect(typeof imp, `${rule.id} の implies がオブジェクト形式ではありません`).toBe('object');
+        if (typeof imp === 'object') {
+          const targetRule = ruleById.get(imp.id);
+          expect(targetRule, `${rule.id} の推論先 ${imp.id} が存在しません`).toBeDefined();
+          expect(typeof imp.runtimeStatus, `${rule.id} -> ${imp.id} に runtimeStatus が定義されていません`).toBe('string');
+          expect(typeof imp.confidenceFactor, `${rule.id} -> ${imp.id} に confidenceFactor が定義されていません`).toBe('number');
+          ruleEdges.push({
+            sourceId: rule.id,
+            sourceName: rule.name,
+            targetId: imp.id,
+            targetName: targetRule ? targetRule.name : imp.id,
+            relation: imp.relation,
+            runtimeStatus: imp.runtimeStatus ?? '',
+            confidenceFactor: imp.confidenceFactor ?? NaN,
+          });
+        }
+      }
+    }
+
+    // 2. 仕様書 §4 セクションを切り出す
+    const sec4Start = specContent.indexOf('## 4. Implication Engine（連動推論）連動マトリクス');
+    const sec5Start = specContent.indexOf('## 5.');
+    expect(sec4Start).toBeGreaterThan(-1);
+    expect(sec5Start).toBeGreaterThan(sec4Start);
+    const sec4Content = specContent.slice(sec4Start, sec5Start);
+
+    // 3. §4 の Mermaid 図からエッジを抽出
+    const mermaidMatch = sec4Content.match(/```mermaid([\s\S]*?)```/);
+    expect(mermaidMatch, '仕様書 §4 に Mermaid 図が見つかりません').not.toBeNull();
+    const mermaidBody = mermaidMatch ? mermaidMatch[1] : '';
+    const nodeLabelMap = new Map<string, string>();
+    const diagramEdges: ImpliesEdge[] = [];
+
+    for (const rawLine of mermaidBody.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('graph ')) continue;
+      const edgeMatch = line.match(
+        /^([A-Za-z0-9_]+)(?:\["([^"]+)"\])?\s*-->\|"([^"|]+)"\|\s*([A-Za-z0-9_]+)(?:\["([^"]+)"\])?$/
+      );
+      if (!edgeMatch) continue;
+      const [, srcVar, srcLabel, edgeLabel, dstVar, dstLabel] = edgeMatch;
+      if (srcLabel) nodeLabelMap.set(srcVar, srcLabel);
+      if (dstLabel) nodeLabelMap.set(dstVar, dstLabel);
+
+      const sourceName = nodeLabelMap.get(srcVar) || srcVar;
+      const targetName = nodeLabelMap.get(dstVar) || dstVar;
+      const srcRule = ruleByName.get(sourceName);
+      const dstRule = ruleByName.get(targetName);
+      expect(srcRule, `Mermaid図の推論元「${sourceName}」がルールに存在しません`).toBeDefined();
+      expect(dstRule, `Mermaid図の推論先「${targetName}」がルールに存在しません`).toBeDefined();
+
+      const labelParts = edgeLabel.match(/^([a-z-]+)\s*\(([a-z-]+)(?:,\s*([0-9.]+))?\)$/);
+      expect(labelParts, `Mermaid図のエッジラベル形式が不正です: ${edgeLabel}`).not.toBeNull();
+      if (srcRule && dstRule && labelParts) {
+        diagramEdges.push({
+          sourceId: srcRule.id,
+          sourceName: srcRule.name,
+          targetId: dstRule.id,
+          targetName: dstRule.name,
+          relation: labelParts[1],
+          runtimeStatus: labelParts[2],
+          confidenceFactor: labelParts[3] !== undefined ? Number(labelParts[3]) : NaN,
+        });
+      }
+    }
+
+    // 4. §4 の連動推論マトリクス表からエッジを抽出
+    const tableEdges: ImpliesEdge[] = [];
+    for (const rawLine of sec4Content.split('\n')) {
+      const trimmed = rawLine.trim();
+      if (!trimmed.startsWith('| **')) continue;
+      const cols = trimmed.split('|').map((c) => c.trim());
+      if (cols.length < 6) continue;
+      const srcCellMatch = cols[1].match(/^\*\*(.+?)\*\*\s*\(`([^`]+)`\)$/);
+      const dstCellMatch = cols[2].match(/^\*\*(.+?)\*\*\s*\(`([^`]+)`\)$/);
+      expect(srcCellMatch, `表の推論元セル形式が不正です: ${cols[1]}`).not.toBeNull();
+      expect(dstCellMatch, `表の推論先セル形式が不正です: ${cols[2]}`).not.toBeNull();
+      if (!srcCellMatch || !dstCellMatch) continue;
+      const sourceName = srcCellMatch[1];
+      const sourceId = srcCellMatch[2];
+      const targetName = dstCellMatch[1];
+      const targetId = dstCellMatch[2];
+      const relation = cols[3].replace(/`/g, '');
+      const runtimeStatus = cols[4].replace(/`/g, '');
+      const confidenceFactor = Number(cols[5].replace(/`/g, ''));
+      tableEdges.push({
+        sourceId,
+        sourceName,
+        targetId,
+        targetName,
+        relation,
+        runtimeStatus,
+        confidenceFactor,
+      });
+    }
+
+    const sortKey = (e: ImpliesEdge) => `${e.sourceId}->${e.targetId}`;
+    const sortedRules = [...ruleEdges].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+    const sortedDiagram = [...diagramEdges].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+    const sortedTable = [...tableEdges].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+
+    expect(sortedTable).toEqual(sortedRules);
+    expect(sortedDiagram).toEqual(sortedRules);
+  });
 });
 

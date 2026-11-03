@@ -38,7 +38,7 @@ function inspectCssAssets(): InspectedCssAsset[] {
       },
       {
         lib: 'Bootstrap',
-        regex: /\/bootstrap[/-]([0-9.]+)\//i,
+        regex: /\/bootstrap[/@-]([0-9.]+)\//i,
       },
       {
         lib: 'jQuery UI',
@@ -56,8 +56,8 @@ function inspectCssAssets(): InspectedCssAsset[] {
 
     let detectedLib: string | undefined;
     let detectedVersion: string | null = null;
-    let evidenceType: 'css-url' | 'css-comment' = 'css-url';
-    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    const evidenceType: 'css-url' = 'css-url';
+    const confidence: 'high' | 'medium' | 'low' = 'medium';
 
     for (const p of patterns) {
       const match = href.match(p.regex);
@@ -76,29 +76,9 @@ function inspectCssAssets(): InspectedCssAsset[] {
       }
     }
 
-    // 2. CSSコメントからのバージョン抽出 (styleSheets経由の安全なインメモリ確認)
-    try {
-      for (let i = 0; i < document.styleSheets.length; i++) {
-        const sheet = document.styleSheets[i];
-        if (sheet.href === href) {
-          // 同一オリジン等の理由でアクセス可能な場合、ルールやオーナーノードを検査
-          const ownerNode = sheet.ownerNode;
-          if (ownerNode && ownerNode.textContent) {
-            const commentMatch = ownerNode.textContent.match(
-              /\/\*!\s*\*?\s*([A-Za-z0-9_.-]+)\s+v?([0-9.]+)/i
-            );
-            if (commentMatch) {
-              detectedLib = detectedLib || commentMatch[1];
-              detectedVersion = commentMatch[2];
-              evidenceType = 'css-comment';
-              confidence = 'high';
-            }
-          }
-        }
-      }
-    } catch {
-      // クロスオリジンCSS読み取り制限時の例外防止
-    }
+    // ※ブラウザのCSSOM仕様上、sheet.cssRules にはCSSコメントが保持されず、
+    // 受動的調査（追加リクエストなし）では外部CSS内のコメントを読み取れないため、
+    // URLパス・ファイル名・クエリパラメータからのみバージョンを抽出する (DOC-06)。
 
     if (detectedLib || /bootstrap|tailwind|bulma/i.test(href)) {
       assets.push({

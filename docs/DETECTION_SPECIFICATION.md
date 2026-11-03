@@ -235,35 +235,66 @@ Implication Engine は、親技術が直接検出された際に、依存関係�
 
 ```mermaid
 graph LR
-    Next["Next.js"] -->|"framework-dependency (possible)"| React["React"]
-    Next -->|"possible-runtime (unknown)"| Node["Node.js"]
+    Next["Next.js"] -->|"framework-dependency (possible, 0.9)"| React["React"]
+    Next["Next.js"] -->|"possible-runtime (unknown, 0.9)"| Node["Node.js"]
     
-    Nuxt["Nuxt"] -->|"framework-dependency (confirmed)"| Vue["Vue.js"]
-    Nuxt -->|"possible-runtime (unknown)"| Node
+    Nuxt["Nuxt"] -->|"framework-dependency (possible, 0.9)"| Vue["Vue.js"]
+    Nuxt["Nuxt"] -->|"possible-runtime (unknown, 0.9)"| Node["Node.js"]
     
-    SvelteKit["SvelteKit"] -->|"framework-dependency (confirmed)"| Svelte["Svelte"]
-    SvelteKit -->|"possible-runtime (unknown)"| Node
+    SvelteKit["SvelteKit"] -->|"framework-dependency (possible, 0.9)"| Svelte["Svelte"]
+    SvelteKit["SvelteKit"] -->|"possible-runtime (unknown, 0.9)"| Node["Node.js"]
     
-    MUI["Material UI"] -->|"framework-dependency (confirmed)"| React
+    MUI["Material UI"] -->|"framework-dependency (possible, 0.9)"| React["React"]
     
-    Laravel["Laravel"] -->|"runtime-dependency (unknown)"| PHP["PHP"]
-    Symfony["Symfony"] -->|"runtime-dependency (unknown)"| PHP
-    CakePHP["CakePHP"] -->|"runtime-dependency (unknown)"| PHP
-    WP["WordPress"] -->|"runtime-dependency (unknown)"| PHP
-    Drupal["Drupal"] -->|"runtime-dependency (unknown)"| PHP
+    Laravel["Laravel"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
+    Symfony["Symfony"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
+    CakePHP["CakePHP"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
+    WP["WordPress"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
+    Drupal["Drupal"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
+    Joomla["Joomla"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
     
-    Spring["Spring Boot"] -->|"runtime-dependency (unknown)"| Java["Java"]
-    FastAPI["FastAPI"] -->|"runtime-dependency (unknown)"| Python["Python"]
-    Django["Django"] -->|"runtime-dependency (unknown)"| Python
-    Flask["Flask"] -->|"runtime-dependency (unknown)"| Python
-    Rails["Ruby on Rails"] -->|"runtime-dependency (unknown)"| Ruby["Ruby"]
-    Express["Express"] -->|"runtime-dependency (unknown)"| Node
-    Fastify["Fastify"] -->|"runtime-dependency (unknown)"| Node
-    ASPCore["ASP.NET Core"] -->|"runtime-dependency (unknown)"| DotNet[".NET"]
+    Spring["Spring Boot"] -->|"runtime-dependency (unknown, 0.95)"| Java["Java"]
+    SpringSec["Spring Security"] -->|"runtime-dependency (unknown, 0.9)"| Java["Java"]
+    FastAPI["FastAPI"] -->|"runtime-dependency (unknown, 0.95)"| Python["Python"]
+    Django["Django"] -->|"runtime-dependency (unknown, 0.95)"| Python["Python"]
+    Flask["Flask"] -->|"runtime-dependency (unknown, 0.9)"| Python["Python"]
+    Rails["Ruby on Rails"] -->|"runtime-dependency (unknown, 0.95)"| Ruby["Ruby"]
+    Express["Express"] -->|"runtime-dependency (unknown, 0.95)"| Node["Node.js"]
+    Nest["NestJS"] -->|"possible-runtime (unknown, 0.9)"| Node["Node.js"]
+    Fastify["Fastify"] -->|"runtime-dependency (unknown, 0.95)"| Node["Node.js"]
+    ASPCore["ASP.NET Core"] -->|"runtime-dependency (unknown, 0.95)"| DotNet[".NET"]
 ```
 
+### 連動推論マトリクス表
+
+| 推論元技術 (Parent) | 推論先技術 (Child) | 推論関係 (`relation`) | 稼働状態 (`runtimeStatus`) | 確信度係数 (`confidenceFactor`) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Next.js** (`nextjs`) | **React** (`react`) | `framework-dependency` | `possible` | `0.9` |
+| **Next.js** (`nextjs`) | **Node.js** (`nodejs`) | `possible-runtime` | `unknown` | `0.9` |
+| **Nuxt** (`nuxtjs`) | **Vue.js** (`vue`) | `framework-dependency` | `possible` | `0.9` |
+| **Nuxt** (`nuxtjs`) | **Node.js** (`nodejs`) | `possible-runtime` | `unknown` | `0.9` |
+| **SvelteKit** (`sveltekit`) | **Svelte** (`svelte`) | `framework-dependency` | `possible` | `0.9` |
+| **SvelteKit** (`sveltekit`) | **Node.js** (`nodejs`) | `possible-runtime` | `unknown` | `0.9` |
+| **Material UI** (`material-ui`) | **React** (`react`) | `framework-dependency` | `possible` | `0.9` |
+| **Laravel** (`laravel`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Symfony** (`symfony`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **CakePHP** (`cakephp`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **WordPress** (`wordpress`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Drupal** (`drupal`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Joomla** (`joomla`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Spring Boot** (`spring-boot`) | **Java** (`java`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Spring Security** (`spring-security`) | **Java** (`java`) | `runtime-dependency` | `unknown` | `0.9` |
+| **FastAPI** (`fastapi`) | **Python** (`python`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Django** (`python-django`) | **Python** (`python`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Flask** (`flask`) | **Python** (`python`) | `runtime-dependency` | `unknown` | `0.9` |
+| **Ruby on Rails** (`ruby-on-rails`) | **Ruby** (`ruby`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Express** (`express`) | **Node.js** (`nodejs`) | `runtime-dependency` | `unknown` | `0.95` |
+| **NestJS** (`nestjs`) | **Node.js** (`nodejs`) | `possible-runtime` | `unknown` | `0.9` |
+| **Fastify** (`fastify`) | **Node.js** (`nodejs`) | `runtime-dependency` | `unknown` | `0.95` |
+| **ASP.NET Core** (`aspnet-core`) | **.NET** (`dotnet`) | `runtime-dependency` | `unknown` | `0.95` |
+
 ### 連動推論ルールと設計原則
-1. **確信度上限クリップ**: 推論先の確信度は、推論元技術の確信度を超えないよう制御されます（$Score_{child} \le Score_{parent} \times Factor$）。
+1. **確信度計算（子 = 親 × 係数）**: 推論先の確信度は、推論元技術の確信度に係数（`confidenceFactor`）を乗じ、端数を切り捨てて算出されます（$Score_{child} = \lfloor Score_{parent} \times Factor \rfloor$）。
 2. **循環防止**: `visitedEdges` によるトポロジカル探索を行い、`A -> B -> A` のような無限ループを完全に抑止します。
 3. **静的配信への配慮**: Next.js や Nuxt からの Node.js 推論は、静的ホスティング（SSG）で配信されている可能性を考慮し、SSRの明確な証拠がない限り**「稼働未確認 (`unknown`)」**として記録します（※Astro は静的SSG配信が標準であるため、Node.js への自動連動推論は行いません）。
 
@@ -282,8 +313,8 @@ sequenceDiagram
 
     Note over User,Engine: 状態A: Cookie「XSRF-TOKEN」のみ検出された場合
     User->>Engine: Cookie一覧 { XSRF-TOKEN: ... }
-    Engine->>Engine: Laravel, Spring Boot, Node.js に低い重み(35点)付与
-    Engine->>UI: 1行に集約して表示<br/>「Laravel / Spring Boot / Node.js (候補)」
+    Engine->>Engine: Java, Laravel, Node.js に低い重み(35点)付与
+    Engine->>UI: 一致した候補のみを1行に集約して表示<br/>「Java / Laravel / Node.js (候補)」
 
     Note over User,Engine: 状態B: Laravel固有のCookieが後から見つかった場合
     User->>Engine: Cookie一覧 { XSRF-TOKEN, laravel_session }
@@ -292,7 +323,7 @@ sequenceDiagram
     Engine->>UI: 「Laravel (直接検出 95%)」に確定昇格
 ```
 
-- **集約のメリット**: 1つのCookieに対して3つの技術がバラバラに表示されて画面が埋まるノイズを防止します。
+- **集約のメリット**: 1つのCookieに対して複数の技術がバラバラに表示されて画面が埋まるノイズを防止します。ラベルには実際に一致した候補技術のみを動的に連結して表示します（例: 2件のみ一致した場合は一致した2件のみを連結）。
 - **自動解消（Resolution）**: いずれかの技術に固有のシグナル（例: `laravel_session`, `JSESSIONID`, `X-Powered-By: Express` 等）が検出された瞬間、候補状態は即座に解除され、特定された技術のみが本採用されます。
 
 ---

@@ -107,3 +107,12 @@
   - `scripts/test-e2e-smoke.mjs` に `checkServerResponding`、`ensureTestServer`、`stopTestServer` を追加し、ポート 3000 で既にテスト用サーバーが応答している場合はそれを再利用し、未起動の場合は `test-server/server.mjs` を子プロセスで起動して HTTP 応答を待ってから E2E を実行し、`finally` ブロック（成功時・失敗時の双方）で子プロセスを停止してポート 3000 が閉じるまで待機するようにした。
   - `tests/advisory-pipeline.test.mjs` に `pr-plan.mjs` の単体テストを追加し、「テスト失敗・minor・auto-merge 有効」で「PR 作成・`db:tests-failing` ラベル付与・失敗テスト名の本文記載・自動マージしない・ジョブ失敗」となること、およびテスト成功時・major 時・App トークンなし時の分岐を検証した。
 - 未解決: 実際の GitHub Actions（`workflow_dispatch`）での動作確認は完了報告書の「人の確認事項」に含める。
+
+## T09 連動推論の確信度、検出表示の整合  (2026-11-03 20:41)
+- 変更ファイル: `src/detection/engine.ts`, `src/detection/rules/frontend.json`, `src/content/content-script.ts`, `docs/DETECTION_SPECIFICATION.md`, `docs/phases/PHASE_2_LIBRARY_SECURITY.md`, `tests/detection.test.ts`, `tests/content-script.test.ts`, `tests/spec-integrity.test.ts`
+- 判断したこと:
+  - SPEC-14（連動推論の確信度計算）: `src/detection/engine.ts` の `resolveImplications()` における推論先確信度の計算式を従来の `- 5` 減算から仕様書どおり「子 = 親 × 係数（端数切り捨て）」（`Math.floor(trigger.confidence * impDef.confidenceFactor)`）に変更した。これにより、たとえば Material UI（確信度 85）から係数 `0.9` で推論された React の確信度は `76` となる。
+  - DOC-05（`docs/DETECTION_SPECIFICATION.md` §4 の図表と `rules/*.json` の整合）: `src/detection/rules/frontend.json` の `nextjs`、`nuxtjs`、`material-ui`、`sveltekit` の `implies` 定義（計 7 エッジ）に明示的な `"confidenceFactor": 0.9` を付与し、全ルール JSON の全 23 エッジで `id`、`relation`、`runtimeStatus`、`confidenceFactor` が明示されるようにした。その上で `docs/DETECTION_SPECIFICATION.md` §4 の Mermaid 図と「連動推論マトリクス表」（§3 の技術カタログ表の行頭判定 `` | ` `` と干渉しない `| **技術名** (\`id\`) |` 形式）を全 23 エッジ（`Next.js -> React`、`Nuxt -> Vue.js`、`SvelteKit -> Svelte`、`Material UI -> React` が `possible` であること、および各エッジの `confidenceFactor` を含む）と完全に一致させ、`tests/spec-integrity.test.ts` で図・表・`rules/*.json` の完全一致を自動検証するようにした。
+  - DOC-06（CSS コメントからのバージョン抽出）: ブラウザの CSSOM（`sheet.cssRules`）はコメントを保持せず、`<link>` 要素の `textContent` も常に空であるため、実際に動作していなかった `src/content/content-script.ts`（`inspectCssAssets`）の CSS コメント抽出ブロックを削除し、`<link rel="stylesheet" href="...">` の URL パターンからの抽出のみに整理した。あわせて `docs/phases/PHASE_2_LIBRARY_SECURITY.md` から CSS コメント抽出の記述を削除した。
+  - DOC-11（バックエンド候補ラベルの整合）: `src/detection/engine.ts` の `consolidateCandidates()` で候補ラベルを `"Java / Laravel / Node.js (候補)"` に固定せず、実際に一致した候補のみを `${matchedNames.join(' / ')} (候補)`、`candidateTechnologies`、`evidence[0].detail`、`description` に含めるように変更し、`docs/DETECTION_SPECIFICATION.md` §5 の記述も合わせた。
+- 未解決: なし

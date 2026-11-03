@@ -121,4 +121,33 @@ describe('extractDomSignals (Content Script)', () => {
     expect(passiveCheck?.severity).toBe('low');
     expect(passiveCheck?.status).toBe('warning');
   });
+
+  it('T09 (DOC-06): <link rel="stylesheet"> の URL から Bootstrap バージョンを抽出し、死んでいた CSS コメント抽出には依存しないこと', () => {
+    const origConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = String(args[0] ?? '');
+      if (msg.includes('CSS file loading is disabled')) return;
+      origConsoleError(...args);
+    };
+    try {
+      document.head.innerHTML = `
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+      `;
+
+      const signals = extractDomSignals();
+      expect(signals.cssAssets).toBeDefined();
+      expect(signals.cssAssets).toEqual([
+        {
+          href: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
+          filename: 'bootstrap.min.css',
+          inferredLibrary: 'Bootstrap',
+          inferredVersion: '5.3.2',
+          evidenceType: 'css-url',
+          confidence: 'medium',
+        },
+      ]);
+    } finally {
+      console.error = origConsoleError;
+    }
+  });
 });

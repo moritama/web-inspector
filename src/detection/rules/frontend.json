@@ -31,12 +31,14 @@
       {
         "id": "react",
         "relation": "framework-dependency",
-        "runtimeStatus": "possible"
+        "runtimeStatus": "possible",
+        "confidenceFactor": 0.9
       },
       {
         "id": "nodejs",
         "relation": "possible-runtime",
-        "runtimeStatus": "unknown"
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
       }
     ],
     "signals": [
@@ -104,12 +106,14 @@
       {
         "id": "vue",
         "relation": "framework-dependency",
-        "runtimeStatus": "possible"
+        "runtimeStatus": "possible",
+        "confidenceFactor": 0.9
       },
       {
         "id": "nodejs",
         "relation": "possible-runtime",
-        "runtimeStatus": "unknown"
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
       }
     ],
     "signals": [
@@ -475,7 +479,8 @@
       {
         "id": "react",
         "relation": "framework-dependency",
-        "runtimeStatus": "possible"
+        "runtimeStatus": "possible",
+        "confidenceFactor": 0.9
       }
     ],
     "signals": [
@@ -522,12 +527,14 @@
       {
         "id": "svelte",
         "relation": "framework-dependency",
-        "runtimeStatus": "possible"
+        "runtimeStatus": "possible",
+        "confidenceFactor": 0.9
       },
       {
         "id": "nodejs",
         "relation": "possible-runtime",
-        "runtimeStatus": "unknown"
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.9
       }
     ],
     "signals": [

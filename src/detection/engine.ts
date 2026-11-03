@@ -692,6 +692,23 @@ export class DetectionEngine {
 
       // 2件以上が XSRF-TOKEN のみで競合している場合、1行に集約
       if (xsrfOnlyItems.length >= 2) {
+        const candidateDetailLabelMap: Record<string, string> = {
+          Java: 'Java (Spring Boot)',
+          Laravel: 'Laravel (PHP)',
+          'Node.js': 'Node.js (Express)',
+        };
+        const matchedTechSet = new Set(xsrfOnlyItems.map((i) => i.technology));
+        const matchedNames = candidateTechNames.filter((name) => matchedTechSet.has(name));
+        for (const item of xsrfOnlyItems) {
+          if (!matchedNames.includes(item.technology)) {
+            matchedNames.push(item.technology);
+          }
+        }
+        const groupLabel = `${matchedNames.join(' / ')} (候補)`;
+        const candidateTechnologies = matchedNames.map(
+          (name) => candidateDetailLabelMap[name] || name
+        );
+
         // 個別の候補を results から削除
         for (let i = results.length - 1; i >= 0; i--) {
           const item = results[i];
@@ -702,7 +719,7 @@ export class DetectionEngine {
 
         // 1つの統合された候補技術オブジェクトを追加
         results.push({
-          technology: 'Java / Laravel / Node.js (候補)',
+          technology: groupLabel,
           category: 'programming-language',
           detected: true,
           version: null,
@@ -710,7 +727,7 @@ export class DetectionEngine {
           confidence: 35,
           confidenceLevel: 'low',
           isCandidateGroup: true,
-          candidateTechnologies: ['Java (Spring Boot)', 'Laravel (PHP)', 'Node.js (Express)'],
+          candidateTechnologies,
           detectionMethod: 'associated',
           runtimeStatus: 'possible',
           evidence: [
@@ -719,8 +736,7 @@ export class DetectionEngine {
               name: 'XSRF-TOKEN',
               value: 'XSRF-TOKEN',
               source: input.url,
-              detail:
-                'Cookie「XSRF-TOKEN」を検出（Spring Security, Laravel, Express等のSPA構成で広く使われるため、いずれかが稼働している可能性あり）',
+              detail: `Cookie「XSRF-TOKEN」を検出（${matchedNames.join(' / ')} 等のSPA構成で広く使われるため、いずれかが稼働している可能性あり）`,
               confidence: 'low',
               weight: 35,
             },
@@ -734,8 +750,7 @@ export class DetectionEngine {
           },
           advisoryMatchStatus: 'No Data',
           offlineMatchStatus: 'Not Covered',
-          description:
-            'SPAと連携するバックエンドフレームワーク（Spring Boot, Laravel, Express等）で広く採用されているCSRF保護Cookie。いずれかのフレームワークが稼働している可能性があります。',
+          description: `SPAと連携するバックエンドフレームワーク（${candidateTechnologies.join(', ')}）で広く採用されているCSRF保護Cookie。いずれかのフレームワークが稼働している可能性があります。`,
         });
       }
     }
@@ -825,10 +840,8 @@ export class DetectionEngine {
             relationLabel = '実行時依存';
           }
 
-          // 連動先確信度（トリガーが80%以上の場合は80% High、それ以外は係数適用）
-          const impliedWeight = trigger.confidence >= 80
-            ? 80
-            : Math.min(79, Math.max(50, Math.round(trigger.confidence * impDef.confidenceFactor)));
+          // 連動先確信度（仕様書 4.1 の Score_child = floor(Score_parent * Factor) に統一）
+          const impliedWeight = Math.floor(trigger.confidence * impDef.confidenceFactor);
 
           const impliedEvidence: Evidence = {
             type: 'pattern',
@@ -836,7 +849,7 @@ export class DetectionEngine {
             value: trigger.technology,
             source: trigger.technology,
             detail: `${trigger.technology}（確信度${trigger.confidence}%）の検出に基づく連動判定 [${relationLabel}]`,
-            confidence: impliedWeight >= 80 ? 'high' : 'medium',
+            confidence: impliedWeight >= 80 ? 'high' : impliedWeight >= 50 ? 'medium' : 'low',
             weight: impliedWeight,
           };
 

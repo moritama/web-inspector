@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   analyzeExternalConnections,
+  collectLoadedResourceUrls,
   determinePartyType,
   guessServiceCategory,
   parsePslText,
@@ -232,6 +233,105 @@ describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
       expect(analysis.firstPartyCount).toBe(0);
       expect(analysis.thirdPartyCount).toBe(0);
       expect(analysis.connections).toEqual([]);
+    });
+
+    it('v1.7.1 T05: sampleUrls にクエリ文字列やフラグメントが含まれる場合、stripUrlQueryAndFragment でマスクされること', () => {
+      const analysis = analyzeExternalConnections('https://www.drupal.org/', [
+        'https://www.drupal.org/',
+        'https://www.drupal.org/files/advagg_css/css__abc.css?token=SECRET_TOKEN_123#section',
+      ]);
+      expect(analysis.totalConnections).toBe(1);
+      expect(analysis.connections[0].sampleUrls).toEqual([
+        'https://www.drupal.org/',
+        'https://www.drupal.org/files/advagg_css/css__abc.css',
+      ]);
+      expect(JSON.stringify(analysis.connections[0].sampleUrls)).not.toContain('SECRET_TOKEN_123');
+    });
+  });
+
+  describe('v1.7.1 T05: collectLoadedResourceUrls と T04 公開サイトスナップショット回帰検証', () => {
+    it('collectLoadedResourceUrls がページ本体・Resource Timing・DOMリソースを集約して重複を除去すること', () => {
+      const urls = collectLoadedResourceUrls('https://app.example.test/page?foo=1', {
+        url: 'https://app.example.test/page?foo=1',
+        title: 'Test',
+        scriptUrls: ['/js/app.js', 'https://cdn.example.test/lib.js'],
+        linkUrls: [{ rel: 'stylesheet', href: '/css/style.css' }],
+        domResourceUrls: ['https://img.example.test/logo.png'],
+        resourceEntries: [
+          { url: 'https://app.example.test/js/app.js', initiatorType: 'script' },
+          { url: 'https://api.example.test/v1/data', initiatorType: 'fetch' },
+        ],
+        metaTags: [],
+        domMarkers: [],
+        htmlSnippets: [],
+        mixedContent: [],
+        cookiesFromDocument: [],
+        cssAssets: [],
+      });
+
+      expect(urls).toEqual([
+        'https://app.example.test/page',
+        'https://app.example.test/js/app.js',
+        'https://api.example.test/v1/data',
+        'https://cdn.example.test/lib.js',
+        'https://app.example.test/css/style.css',
+        'https://img.example.test/logo.png',
+      ]);
+    });
+
+    it('T04 の全スナップショット（testasp.vulnweb.com、testaspnet.vulnweb.com、demo.testfire.net、http.badssl.com、www.drupal.org ほか）で通信先が 0 件にならないこと', () => {
+      const snapshotsDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+      const requiredHosts = [
+        'testasp.vulnweb.com',
+        'testaspnet.vulnweb.com',
+        'demo.testfire.net',
+        'http.badssl.com',
+        'www.drupal.org',
+      ];
+
+      const files = fs
+        .readdirSync(snapshotsDir)
+        .filter((f) => f.endsWith('.json'))
+        .sort();
+
+      for (const reqHost of requiredHosts) {
+        expect(files).toContain(`${reqHost}.json`);
+      }
+
+      for (const file of files) {
+        const snapPath = path.join(snapshotsDir, file);
+        const snap = JSON.parse(fs.readFileSync(snapPath, 'utf-8')) as {
+          url: string;
+          finalUrl?: string;
+          resourceTiming?: Array<{ name: string; initiatorType?: string }>;
+        };
+        const pageUrl = snap.finalUrl || snap.url;
+        const resourceUrls = collectLoadedResourceUrls(pageUrl, {
+          url: pageUrl,
+          title: '',
+          metaTags: [],
+          scriptUrls: [],
+          linkUrls: [],
+          domMarkers: [],
+          htmlSnippets: [],
+          mixedContent: [],
+          cookiesFromDocument: [],
+          cssAssets: [],
+          resourceEntries: (snap.resourceTiming || []).map((e) => ({
+            url: e.name,
+            initiatorType: e.initiatorType || 'other',
+          })),
+        });
+        const analysis = analyzeExternalConnections(pageUrl, resourceUrls);
+
+        expect(analysis.totalConnections).toBeGreaterThanOrEqual(1);
+        expect(analysis.connections.length).toBeGreaterThanOrEqual(1);
+
+        const selfHostname = new URL(pageUrl).hostname.toLowerCase();
+        const selfConn = analysis.connections.find((c) => c.hostname === selfHostname);
+        expect(selfConn).toBeDefined();
+        expect(selfConn?.resourceCount).toBeGreaterThanOrEqual(1);
+      }
     });
   });
 });

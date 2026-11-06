@@ -457,6 +457,33 @@ export async function runSmokeTest() {
     console.log(`  ✓ AngularJS CVE observed文言のassert合格: "${cveCheck.observed}"`);
 
     // -------------------------------------------------------------
+    // 検証 4-2: 相対 URL ページ (/relative-urls-only) の外部通信先・非通信参照除外検証 (v1.7.1 T05)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [4-2] 相対URLページ (/relative-urls-only) の通信先集計・非通信参照除外を検証中...');
+    const relReport = await inspectUrl('http://localhost:3000/relative-urls-only');
+    const selfHost = new URL(relReport.url).hostname;
+    const relConnections = relReport?.externalConnections?.connections || [];
+    const selfConn = relConnections.find((c) => c.hostname === selfHost);
+    if (!selfConn) {
+      throw new Error(`/relative-urls-only: 自ホスト (${selfHost}) が externalConnections に含まれていません (実際: ${JSON.stringify(relConnections)})`);
+    }
+    if (selfConn.resourceCount !== 3) {
+      throw new Error(`/relative-urls-only: 自ホスト (${selfHost}) の resourceCount が読み込み数 (3 = ページ本体 + CSS + JS) と一致しません (実際: ${selfConn.resourceCount})`);
+    }
+    const excludedHosts = [
+      'en.relative.example.test',
+      'fr.relative.example.test',
+      'canonical.relative.example.test',
+      'form.relative.example.test',
+    ];
+    for (const exHost of excludedHosts) {
+      if (relConnections.some((c) => c.hostname === exHost)) {
+        throw new Error(`/relative-urls-only: 読み込みを伴わない参照 (${exHost}) が externalConnections に混入しています`);
+      }
+    }
+    console.log(`  ✓ /relative-urls-only: 自ホスト (${selfHost}) が resourceCount=3 で通信先に載り、alternate/canonical/form送信先は除外されていることを確認`);
+
+    // -------------------------------------------------------------
     // 検証 5: エクスポート保存 (Markdown, CSV, JSON) 実動テスト
     // -------------------------------------------------------------
     console.log('[e2e-smoke] [5/6] エクスポート保存 (downloads権限廃止・アンカー方式) を検証中...');

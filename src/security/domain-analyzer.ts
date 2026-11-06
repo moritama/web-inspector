@@ -8,10 +8,12 @@
 
 import {
   DomainPartyType,
+  DomSignals,
   ExternalConnectionItem,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
 } from '../shared/types';
+import { stripUrlQueryAndFragment } from '../shared/identity';
 import {
   PSL_SOURCE,
   PUBLIC_SUFFIX_EXCEPTIONS,
@@ -381,7 +383,213 @@ export function determinePartyType(resHostnameOrUrl: string, pageUrl: string): D
 }
 
 /**
- * ページURLと収集されたリソースURL群から、外部通信先・サードパーティ総合分析を実行する (Rev.2.1 IMP-11)
+ * DOM の <link> 要素のうち、通信先として数える対象 rel トークン一覧 (v1.7.1 T05)
+ */
+const ALLOWED_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'stylesheet',
+  'preload',
+  'modulepreload',
+  'icon',
+  'apple-touch-icon',
+  'apple-touch-icon-precomposed',
+  'mask-icon',
+  'manifest',
+]);
+
+/**
+ * 通信先から除外する参照のみの <link> rel トークン一覧 (v1.7.1 T05)
+ */
+const EXCLUDED_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'alternate',
+  'canonical',
+  'prev',
+  'next',
+  'dns-prefetch',
+  'preconnect',
+  'shortlink',
+  'pingback',
+  'edituri',
+  'wlwmanifest',
+]);
+
+/**
+ * <link> の rel 属性が通信先カウント対象（stylesheet, preload, modulepreload, icon, manifest）かどうかを判定する (v1.7.1 T05)
+ */
+export function isResourceLinkRel(rel: string | undefined | null): boolean {
+  if (!rel) return false;
+  const tokens = rel.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  if (tokens.some((t) => EXCLUDED_LINK_REL_TOKENS.has(t))) {
+    return false;
+  }
+  return tokens.some((t) => ALLOWED_LINK_REL_TOKENS.has(t));
+}
+
+/**
+ * 文字列が http(s) の絶対URL・プロトコル相対URL・または相対リソースパスとして解決可能か判定し、
+ * pageUrl 基準の絶対URLに変換する。非ネットワークスキームや単なる不正識別子は null を返す (v1.7.1 T05)。
+ */
+export function resolveResourceUrl(
+  rawUrl: string | undefined | null,
+  pageUrl?: string
+): string | null {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+
+  // 非ネットワークスキームは除外
+  if (/^(?:javascript|data|blob|mailto|tel|about|chrome|chrome-extension|moz-extension|file):/i.test(trimmed)) {
+    return null;
+  }
+
+  // 1. 絶対 http(s) URL またはプロトコル相対 URL (//...)
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('//')) {
+    try {
+      const candidate = trimmed.startsWith('//')
+        ? `${pageUrl && /^http:/i.test(pageUrl) ? 'http:' : 'https:'}${trimmed}`
+        : trimmed;
+      const u = pageUrl && /^https?:\/\//i.test(pageUrl) ? new URL(candidate, pageUrl) : new URL(candidate);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname) {
+        return u.href;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  // 2. 相対URL（/path, ./path, ../path, dir/file, または styles.css のようなファイル名）を pageUrl 基準で解決
+  // ※ 'invalid-url' のようなスラッシュも拡張子も持たない不正な文字列は除外する
+  const looksLikeRelativeResource =
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('../') ||
+    trimmed.includes('/') ||
+    /\.[a-z0-9]{2,8}(?:[?#]|$)/i.test(trimmed);
+
+  if (looksLikeRelativeResource && pageUrl && /^https?:\/\//i.test(pageUrl)) {
+    try {
+      const u = new URL(trimmed, pageUrl);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname) {
+        return u.href;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 重複判定用に URL からフラグメント (#...) のみを除去した正規化文字列を返す
+ */
+function stripFragmentOnly(url: string): string {
+  const hashIdx = url.indexOf('#');
+  return hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+}
+
+/**
+ * ページURLと DomSignals から、実際に読み込まれたリソースURL一覧を構築する (v1.7.1 T05 / E2)
+ *
+ * 1. メインドキュメント自身の URL（自ホスト 1 件目）
+ * 2. Performance Resource Timing API (`domSignals.resourceEntries`) で観測された実読み込みリソース（主情報源）
+ * 3. DOM の参照（script[src], 対象 rel の link[href], cssAssets, domResourceUrls, form 以外の mixedContent）による補完（重複除去）
+ */
+export function collectLoadedResourceUrls(
+  pageUrl: string,
+  domSignals?: DomSignals | null
+): string[] {
+  const collected: string[] = [];
+  const seenExact = new Set<string>();
+  const seenStripped = new Set<string>();
+
+  const registerUrl = (resolved: string, allowDuplicatePathWithDifferentQuery: boolean): void => {
+    const exactKey = stripFragmentOnly(resolved);
+    const strippedKey = stripUrlQueryAndFragment(resolved);
+    if (seenExact.has(exactKey)) return;
+    if (!allowDuplicatePathWithDifferentQuery && seenStripped.has(strippedKey)) return;
+    seenExact.add(exactKey);
+    seenStripped.add(strippedKey);
+    collected.push(strippedKey);
+  };
+
+  // 1. メインドキュメント URL
+  const mainDocUrl = resolveResourceUrl(pageUrl);
+  if (mainDocUrl) {
+    registerUrl(mainDocUrl, true);
+  }
+
+  if (!domSignals) {
+    return collected;
+  }
+
+  // 2. 主情報源: Performance Resource Timing API (performance.getEntriesByType('resource'))
+  if (Array.isArray(domSignals.resourceEntries)) {
+    for (const entry of domSignals.resourceEntries) {
+      if (!entry || typeof entry.url !== 'string') continue;
+      const resolved = resolveResourceUrl(entry.url, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, true);
+      }
+    }
+  }
+
+  // 3. DOM の参照で補完（Resource Timing に既にある URL は二重計上しない）
+  if (Array.isArray(domSignals.scriptUrls)) {
+    for (const rawSrc of domSignals.scriptUrls) {
+      const resolved = resolveResourceUrl(rawSrc, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.linkUrls)) {
+    for (const link of domSignals.linkUrls) {
+      if (!link || !isResourceLinkRel(link.rel)) continue;
+      const resolved = resolveResourceUrl(link.href, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.cssAssets)) {
+    for (const asset of domSignals.cssAssets) {
+      if (!asset || typeof asset.href !== 'string') continue;
+      const resolved = resolveResourceUrl(asset.href, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.domResourceUrls)) {
+    for (const rawUrl of domSignals.domResourceUrls) {
+      const resolved = resolveResourceUrl(rawUrl, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.mixedContent)) {
+    for (const item of domSignals.mixedContent) {
+      // <form action="..."> は送信先であり、ページ表示時に読み込まれたリソースではないため通信先に入れない
+      if (!item || item.resourceType === 'form' || typeof item.url !== 'string') continue;
+      const resolved = resolveResourceUrl(item.url, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  return collected;
+}
+
+/**
+ * ページURLと収集されたリソースURL群から、外部通信先・サードパーティ総合分析を実行する (Rev.2.1 IMP-11 / v1.7.1 T05)
  *
  * @param pageUrl 調査対象ページのURL
  * @param resourceUrls 検出されたスクリプト、スタイル、画像、通信先URLリスト
@@ -416,20 +624,18 @@ export function analyzeExternalConnections(
       if (!rawUrl || typeof rawUrl !== 'string') continue;
 
       try {
-        const trimmed = rawUrl.trim();
-        // http:// または https:// または // (プロトコル相対) で始まる絶対URLのみを対象とする
-        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('//')) {
-          continue;
-        }
+        const resolvedHref = resolveResourceUrl(rawUrl, pageUrl);
+        if (!resolvedHref) continue;
 
-        const u = new URL(trimmed.startsWith('//') ? `https:${trimmed}` : trimmed, pageUrl);
+        const u = new URL(resolvedHref);
         const resHost = u.hostname.toLowerCase();
         if (!resHost) continue;
 
+        const maskedUrl = stripUrlQueryAndFragment(u.href);
         const current = hostMap.get(resHost) || { count: 0, sampleUrls: [] };
         current.count += 1;
-        if (current.sampleUrls.length < 3 && !current.sampleUrls.includes(rawUrl)) {
-          current.sampleUrls.push(rawUrl);
+        if (current.sampleUrls.length < 3 && !current.sampleUrls.includes(maskedUrl)) {
+          current.sampleUrls.push(maskedUrl);
         }
         hostMap.set(resHost, current);
       } catch {

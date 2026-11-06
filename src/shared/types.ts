@@ -692,6 +692,26 @@ export interface InspectedCssAsset {
 }
 
 /**
+ * Performance Resource Timing API から観測された読み込み済みリソース項目 (v1.7.1 T05 / E2)
+ */
+export interface ObservedResourceEntry {
+  /** 解決済みのリソース絶対URL (entry.name) */
+  url: string;
+  /** 読み込み元種別 (entry.initiatorType: script, link, img, fetch, xmlhttprequest, css, other 等) */
+  initiatorType: string;
+}
+
+/**
+ * 通信先には含めない参照のみのURL項目（alternate, canonical, dns-prefetch, preconnect, form action 等）(v1.7.1 T05)
+ */
+export interface ReferenceOnlyUrlItem {
+  /** 参照種別 (alternate, canonical, prev, next, dns-prefetch, preconnect, form 等) */
+  sourceType: string;
+  /** 解決済みの絶対URL */
+  url: string;
+}
+
+/**
  * Content ScriptおよびMAIN WorldがDOMから収集するシグナル
  */
 export interface DomSignals {
@@ -700,6 +720,16 @@ export interface DomSignals {
   metaTags: Array<{ name?: string; property?: string; content: string }>;
   scriptUrls: string[];
   linkUrls: Array<{ rel: string; href: string }>;
+  /** script要素のsrc属性の元の属性値一覧（検出ルール・互換用）(v1.7.1 T05) */
+  rawScriptUrls?: string[];
+  /** link要素のrel/href属性の元の属性値一覧（検出ルール・互換用）(v1.7.1 T05) */
+  rawLinkUrls?: Array<{ rel: string; href: string }>;
+  /** Performance Resource Timing API で観測された読み込み済みリソース一覧 (v1.7.1 T05 / E2) */
+  resourceEntries?: ObservedResourceEntry[];
+  /** DOM要素（script, 対象link, img, iframe, media等）から解決されたサブリソースURL一覧（補完用）(v1.7.1 T05) */
+  domResourceUrls?: string[];
+  /** 通信先には含めない参照のみURL一覧（alternate, canonical, form action 等）(v1.7.1 T05) */
+  referenceOnlyUrls?: ReferenceOnlyUrlItem[];
   domMarkers: string[];
   htmlSnippets: string[];
   mixedContent: MixedContentItem[];

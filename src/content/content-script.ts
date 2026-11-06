@@ -4,13 +4,138 @@
  * 閲覧中のWebページ内でDOM、CSSアセット、混在コンテンツを収集します
  */
 
-import { DomSignals, InspectedCssAsset, MixedContentItem } from '../shared/types';
+import {
+  DomSignals,
+  InspectedCssAsset,
+  MixedContentItem,
+  ObservedResourceEntry,
+  ReferenceOnlyUrlItem,
+} from '../shared/types';
 import { DOM_MARKER_SELECTORS } from './dom-selectors.generated';
 
 /**
  * 二重注入を防ぐための実行済みフラグ名 (v1.7.0 T11 / IMPL-08)
  */
 export const CONTENT_SCRIPT_GUARD_KEY = '__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__';
+
+/**
+ * DOM の <link> 要素のうち、実際にリソースを読み込む対象として扱う rel トークン一覧 (v1.7.1 T05)
+ */
+export const ALLOWED_RESOURCE_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'stylesheet',
+  'preload',
+  'modulepreload',
+  'icon',
+  'apple-touch-icon',
+  'apple-touch-icon-precomposed',
+  'mask-icon',
+  'manifest',
+]);
+
+/**
+ * 通信を伴わない参照（またはヒントのみ）として通信先から除外する rel トークン一覧 (v1.7.1 T05)
+ */
+export const NON_CONNECTION_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'alternate',
+  'canonical',
+  'prev',
+  'next',
+  'dns-prefetch',
+  'preconnect',
+  'shortlink',
+  'pingback',
+  'edituri',
+  'wlwmanifest',
+]);
+
+/**
+ * <link> の rel 属性値が、実際にリソースを読み込む対象（stylesheet, preload, modulepreload, icon, manifest）かどうかを判定する (v1.7.1 T05)
+ */
+export function isResourceLinkRel(rel: string | undefined | null): boolean {
+  if (!rel) return false;
+  const tokens = rel.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  if (tokens.some((t) => NON_CONNECTION_LINK_REL_TOKENS.has(t))) {
+    return false;
+  }
+  return tokens.some((t) => ALLOWED_RESOURCE_LINK_REL_TOKENS.has(t));
+}
+
+/**
+ * ドキュメントの基準URL（document.baseURI / <base href> / window.location.href）を解決する (v1.7.1 T05)
+ */
+export function resolveDocumentBaseUri(baseUrlOverride?: string): string | undefined {
+  const candidates = [
+    baseUrlOverride,
+    typeof document !== 'undefined' ? document.baseURI : undefined,
+    typeof window !== 'undefined' ? window.location?.href : undefined,
+  ];
+
+  let fallbackBase: string | undefined;
+  for (const candidate of candidates) {
+    if (candidate && /^https?:\/\//i.test(candidate)) {
+      fallbackBase = candidate;
+      break;
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    const baseEl = document.querySelector('base[href]');
+    const baseHref = baseEl?.getAttribute('href')?.trim();
+    if (baseHref) {
+      try {
+        const resolvedBase = fallbackBase ? new URL(baseHref, fallbackBase) : new URL(baseHref);
+        if (resolvedBase.protocol === 'http:' || resolvedBase.protocol === 'https:') {
+          return resolvedBase.href;
+        }
+      } catch {
+        // 無効な <base href> はフォールバックを使用
+      }
+    }
+  }
+
+  return fallbackBase;
+}
+
+/**
+ * 相対URLまたはプロトコル相対URLを document.baseURI 基準の絶対 http(s) URL に解決する (v1.7.1 T05)
+ * data:, blob:, javascript:, mailto:, tel:, about: などの非ネットワークスキームは null を返す。
+ */
+export function resolveToAbsoluteUrl(
+  rawUrl: string | undefined | null,
+  baseUri?: string
+): string | null {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) return null;
+  if (/^(?:javascript|data|blob|mailto|tel|about):/i.test(trimmed)) {
+    return null;
+  }
+
+  const effectiveBase = baseUri || resolveDocumentBaseUri();
+  if (effectiveBase && /^https?:\/\//i.test(effectiveBase)) {
+    try {
+      const resolved = new URL(trimmed, effectiveBase);
+      if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+        return resolved.href;
+      }
+    } catch {
+      // 単体解析へフォールバック
+    }
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const resolved = new URL(trimmed);
+      if (resolved.protocol === 'http:' || resolved.protocol === 'https:') {
+        return resolved.href;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
 
 /**
  * Content Script のメッセージリスナーを初期化する。
@@ -40,19 +165,24 @@ export function initContentScript(): boolean {
 initContentScript();
 
 /**
- * CSSファイル参照（linkタグ）を解析し、ライブラリ名とバージョンを推定する (ADD-02)
+ * CSSファイル参照（linkタグ）を解析し、ライブラリ名とバージョンを推定する (ADD-02 / v1.7.1 T05)
  */
-function inspectCssAssets(): InspectedCssAsset[] {
+function inspectCssAssets(baseUri?: string): InspectedCssAsset[] {
   const assets: InspectedCssAsset[] = [];
-  const linkElements = document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]');
+  const linkElements = document.querySelectorAll<HTMLLinkElement>('link[href]');
 
   linkElements.forEach((link) => {
-    const href = link.href;
-    if (!href) return;
+    const rel = link.getAttribute('rel') || '';
+    const relTokens = rel.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (!isResourceLinkRel(rel) || !relTokens.includes('stylesheet')) return;
+
+    const rawHref = link.getAttribute('href') || link.href;
+    if (!rawHref) return;
+    const href = resolveToAbsoluteUrl(rawHref, baseUri) || link.href || rawHref;
 
     let filename = '';
     try {
-      const urlObj = new URL(href, window.location.href);
+      const urlObj = new URL(href, baseUri || window.location.href);
       const segments = urlObj.pathname.split('/');
       filename = segments[segments.length - 1] || '';
     } catch {
@@ -128,10 +258,18 @@ function inspectCssAssets(): InspectedCssAsset[] {
 }
 
 /**
- * ページ内のDOM、スクリプト、メタ情報、混在コンテンツを安全に抽出する
+ * ページ内のDOM、スクリプト、メタ情報、混在コンテンツ、読み込み済みリソースを安全に抽出する (v1.7.1 T05)
  */
-export function extractDomSignals(): DomSignals {
-  const isPageHttps = window.location.protocol === 'https:';
+export function extractDomSignals(baseUrlOverride?: string): DomSignals {
+  const baseUri = resolveDocumentBaseUri(baseUrlOverride);
+  const pageUrl =
+    baseUrlOverride ||
+    (typeof window !== 'undefined' && /^https?:\/\//i.test(window.location?.href || '')
+      ? window.location.href
+      : baseUri || (typeof window !== 'undefined' ? window.location?.href || '' : ''));
+  const isPageHttps = /^https:/i.test(pageUrl) || window.location?.protocol === 'https:';
+  const isInInactiveContainer = (el: Element): boolean =>
+    Boolean(el.closest?.('noscript, template'));
 
   // 1. metaタグ収集
   const metaTags: Array<{ name?: string; property?: string; content: string }> = [];
@@ -144,24 +282,114 @@ export function extractDomSignals(): DomSignals {
     }
   });
 
-  // 2. script src 収集
+  // 2. script src 収集（document.baseURI 基準の絶対URLに変換し、元の属性値は rawScriptUrls に保持）(v1.7.1 T05)
+  const rawScriptUrls: string[] = [];
   const scriptUrls: string[] = [];
+  const domResourceUrls: string[] = [];
+  const referenceOnlyUrls: ReferenceOnlyUrlItem[] = [];
+
   document.querySelectorAll('script[src]').forEach((el) => {
-    const src = el.getAttribute('src');
-    if (src) {
-      scriptUrls.push(src);
+    const rawSrc = el.getAttribute('src');
+    if (rawSrc && rawSrc.trim()) {
+      const trimmed = rawSrc.trim();
+      rawScriptUrls.push(trimmed);
+      const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
+      scriptUrls.push(resolved || trimmed);
+      if (resolved && !isInInactiveContainer(el)) {
+        domResourceUrls.push(resolved);
+      }
     }
   });
 
-  // 3. link href 収集
+  // 3. link href 収集（対象 rel のみ linkUrls / domResourceUrls に入れ、alternate・canonical 等は referenceOnlyUrls に分離）(v1.7.1 T05)
+  const rawLinkUrls: Array<{ rel: string; href: string }> = [];
   const linkUrls: Array<{ rel: string; href: string }> = [];
   document.querySelectorAll('link[href]').forEach((el) => {
-    const href = el.getAttribute('href');
+    const rawHref = el.getAttribute('href');
     const rel = el.getAttribute('rel') || '';
-    if (href) {
-      linkUrls.push({ rel, href });
+    if (rawHref && rawHref.trim()) {
+      const trimmed = rawHref.trim();
+      rawLinkUrls.push({ rel, href: trimmed });
+      const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
+      if (isResourceLinkRel(rel)) {
+        linkUrls.push({ rel, href: resolved || trimmed });
+        if (resolved && !isInInactiveContainer(el)) {
+          domResourceUrls.push(resolved);
+        }
+      } else if (resolved) {
+        const relToken = rel.toLowerCase().trim().split(/\s+/).filter(Boolean)[0] || 'link';
+        referenceOnlyUrls.push({ sourceType: relToken, url: resolved });
+      }
     }
   });
+
+  // 3b. その他のDOMサブリソース要素（img, iframe, video, audio, source, embed, object）の解決済みURL収集 (v1.7.1 T05)
+  document
+    .querySelectorAll('img[src], iframe[src], video[src], audio[src], source[src], embed[src]')
+    .forEach((el) => {
+      if (isInInactiveContainer(el)) return;
+      const rawSrc = el.getAttribute('src');
+      const resolved = resolveToAbsoluteUrl(rawSrc, baseUri);
+      if (resolved) {
+        domResourceUrls.push(resolved);
+      }
+    });
+
+  document.querySelectorAll('img[srcset], source[srcset]').forEach((el) => {
+    if (isInInactiveContainer(el)) return;
+    if (el.getAttribute('src')) return;
+    const srcset = el.getAttribute('srcset');
+    if (!srcset) return;
+    const firstCandidate = srcset.split(',')[0]?.trim().split(/\s+/)[0];
+    const resolved = resolveToAbsoluteUrl(firstCandidate, baseUri);
+    if (resolved) {
+      domResourceUrls.push(resolved);
+    }
+  });
+
+  document.querySelectorAll('object[data]').forEach((el) => {
+    if (isInInactiveContainer(el)) return;
+    const rawData = el.getAttribute('data');
+    const resolved = resolveToAbsoluteUrl(rawData, baseUri);
+    if (resolved) {
+      domResourceUrls.push(resolved);
+    }
+  });
+
+  // 3c. form[action] は送信先（参照のみ）として記録し、通信先には入れない (v1.7.1 T05)
+  document.querySelectorAll('form[action]').forEach((el) => {
+    if (isInInactiveContainer(el)) return;
+    const rawAction = el.getAttribute('action');
+    const resolved = resolveToAbsoluteUrl(rawAction, baseUri);
+    if (resolved) {
+      referenceOnlyUrls.push({ sourceType: 'form', url: resolved });
+    }
+  });
+
+  // 3d. Performance Resource Timing API で実際に読み込まれたリソースを収集 (v1.7.1 T05 / E2)
+  const resourceEntries: ObservedResourceEntry[] = [];
+  try {
+    if (typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function') {
+      const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          if (!entry || typeof entry.name !== 'string') continue;
+          const resolved = resolveToAbsoluteUrl(entry.name, baseUri);
+          if (resolved) {
+            resourceEntries.push({
+              url: resolved,
+              initiatorType:
+                typeof entry.initiatorType === 'string' && entry.initiatorType.trim()
+                  ? entry.initiatorType.trim()
+                  : 'other',
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    // Performance API 例外防止
+  }
 
   // 4. 特徴的なDOMマーカーの探査
   const domMarkers: string[] = [];
@@ -407,8 +635,8 @@ export function extractDomSignals(): DomSignals {
     // Cookie読み取り例外防止
   }
 
-  // 8. CSSアセット解析 (Version 1.1 ADD-02)
-  const cssAssets = inspectCssAssets();
+  // 8. CSSアセット解析 (Version 1.1 ADD-02 / v1.7.1 T05)
+  const cssAssets = inspectCssAssets(baseUri);
 
   // 9. meta CSP の収集 (Rev.2.1 IMP-05 / v1.7.0 T06: Report-Only を分離収集)
   const metaCsp: string[] = [];
@@ -430,11 +658,16 @@ export function extractDomSignals(): DomSignals {
   }
 
   return {
-    url: window.location.href,
+    url: pageUrl,
     title: document.title || '',
     metaTags,
     scriptUrls,
     linkUrls,
+    rawScriptUrls,
+    rawLinkUrls,
+    resourceEntries,
+    domResourceUrls,
+    referenceOnlyUrls,
     domMarkers,
     htmlSnippets,
     mixedContent,

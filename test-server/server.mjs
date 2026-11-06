@@ -677,6 +677,7 @@ const server = http.createServer((req, res) => {
 <head>
   <meta charset="UTF-8">
   <title>相対 URL のみのリソース読み込み検証</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/assets/css/bootstrap-5.3.3.min.css">
   <link rel="alternate" hreflang="en" href="https://en.relative.example.test/">
   <link rel="alternate" hreflang="fr" href="https://fr.relative.example.test/">

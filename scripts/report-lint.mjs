@@ -61,8 +61,8 @@ export const CHECK_DEFINITIONS = [
     id: 'R04',
     number: 4,
     title: '根拠のホストが通信先に含まれ、通信先に alternate や form の送信先だけのホストがない',
-    pending: true,
-    pendingUntil: 'T05',
+    pending: false,
+    pendingUntil: null,
   },
   {
     id: 'R05',
@@ -89,8 +89,8 @@ export const CHECK_DEFINITIONS = [
     id: 'R08',
     number: 8,
     title: '完全性が「完全」なら通信先が 1 件以上',
-    pending: true,
-    pendingUntil: 'T05/T06',
+    pending: false,
+    pendingUntil: null,
   },
 ];
 

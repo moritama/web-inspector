@@ -28,7 +28,13 @@ import {
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
-import { analyzeExternalConnections, parseRegistrableDomain } from '../security/domain-analyzer';
+import {
+  analyzeExternalConnections,
+  collectLoadedResourceUrls,
+  isResourceLinkRel,
+  parseRegistrableDomain,
+  resolveResourceUrl,
+} from '../security/domain-analyzer';
 import { assessInspectionCoverage } from '../shared/coverage';
 import {
   CSPPolicy,
@@ -657,6 +663,41 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     domSignals.domMarkers = [...(domSignals.domMarkers || []), ...validatedMarkers];
   }
 
+  // v1.7.1 T05: モックや古い形式の DomSignals でも URL がページ基準の絶対URLになるよう正規化し、非アセット link を分離する
+  if (!domSignals.rawScriptUrls) {
+    domSignals.rawScriptUrls = [...(domSignals.scriptUrls || [])];
+  }
+  domSignals.scriptUrls = (domSignals.scriptUrls || []).map(
+    (s) => resolveResourceUrl(s, url) || s
+  );
+
+  if (!domSignals.rawLinkUrls) {
+    domSignals.rawLinkUrls = [...(domSignals.linkUrls || [])];
+  }
+  const filteredLinks: Array<{ rel: string; href: string }> = [];
+  const refOnly = [...(domSignals.referenceOnlyUrls || [])];
+  for (const l of domSignals.linkUrls || []) {
+    if (!l || typeof l.href !== 'string') continue;
+    const resolvedHref = resolveResourceUrl(l.href, url) || l.href;
+    if (isResourceLinkRel(l.rel)) {
+      filteredLinks.push({ rel: l.rel, href: resolvedHref });
+    } else if (/^https?:\/\//i.test(resolvedHref)) {
+      const relToken = (l.rel || '').toLowerCase().trim().split(/\s+/).filter(Boolean)[0] || 'link';
+      if (!refOnly.some((r) => r.sourceType === relToken && r.url === resolvedHref)) {
+        refOnly.push({ sourceType: relToken, url: resolvedHref });
+      }
+    }
+  }
+  domSignals.linkUrls = filteredLinks;
+  domSignals.referenceOnlyUrls = refOnly;
+
+  if (Array.isArray(domSignals.cssAssets)) {
+    domSignals.cssAssets = domSignals.cssAssets.map((asset) => ({
+      ...asset,
+      href: resolveResourceUrl(asset.href, url) || asset.href,
+    }));
+  }
+
   // 3. HTTPヘッダー・Cookieの取得 (IMPL-02: URL照合)
   const cachedData = await deps.getCachedHeaders(currentTabId);
   let isOriginMatch = false;
@@ -949,13 +990,8 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     headerCount: Object.keys(responseHeaders).length,
   });
 
-  // 8.1 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11)
-  const resourceUrls = [
-    ...domSignals.scriptUrls,
-    ...domSignals.linkUrls.map((l) => l.href),
-    ...domSignals.mixedContent.map((m) => m.url),
-    ...domSignals.cssAssets.map((c) => c.href),
-  ];
+  // 8.1 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11 / v1.7.1 T05: 実際に読み込まれたリソースを主にしDOM参照で補完)
+  const resourceUrls = collectLoadedResourceUrls(url, domSignals);
   const externalConnections = analyzeExternalConnections(url, resourceUrls);
 
   const advMeta = getAdvisoryDbMetadata();

@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { renderExternalConnectionsHtml } from '../src/dashboard/render';
 import {
   escapeMarkdown,
   escapeMarkdownTableCell,
@@ -565,6 +566,44 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
       const sec11 = md.split('## 11. 差分発生原因の推定分析')[1]?.split('## 12.')[0] || '';
       expect(sec11).toContain('比較未実行のため対象外');
       expect(sec11).not.toContain('分析対象の有意な差分変化はありません');
+    });
+
+    it('v1.7.1 T05 (N1): セクション 9 とダッシュボード通信先ビューに「読み込まれたリソースの取得元」の旨と非通信参照の除外が明記されていること', () => {
+      const md = generateMarkdownReport(dummyReportA);
+      expect(md).toContain(
+        '## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）'
+      );
+      expect(md).toContain(
+        '`alternate`・`canonical`・`dns-prefetch`・`preconnect`・フォームの `action` 送信先など、読み込みを伴わない参照は含みません'
+      );
+
+      const dashHtml = renderExternalConnectionsHtml({
+        totalConnections: 1,
+        firstPartyCount: 1,
+        thirdPartyCount: 0,
+        categoryBreakdown: {
+          cdn: 0,
+          analytics: 0,
+          advertising: 0,
+          fonts: 0,
+          social: 0,
+          api: 0,
+          other: 1,
+        },
+        connections: [
+          {
+            hostname: 'secure.example.test',
+            registrableDomain: 'example.test',
+            publicSuffix: 'test',
+            partyType: 'first-party',
+            category: 'other',
+            resourceCount: 3,
+            sampleUrls: ['https://secure.example.test/'],
+          },
+        ],
+      });
+      expect(dashHtml).toContain('読み込まれたリソースの取得元ドメイン集計');
+      expect(dashHtml).toContain('読み込みを伴わない参照は通信先に含めません');
     });
   });
 });

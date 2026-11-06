@@ -281,10 +281,11 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
     expect(result.results.every((r) => r.passed)).toBe(true);
   });
 
-  it('既定設定では (4) R04 と (8) R08 が保留（pending）として定義されていること', () => {
+  it('T05 で (4) R04 と (8) R08 の保留が解除され、全 8 項目が既定で有効（保留 0 件）になっていること', () => {
     const pending = getPendingChecks();
-    expect(pending.map((p) => p.id)).toEqual(['R04', 'R08']);
+    expect(pending.map((p) => p.id)).toEqual([]);
     expect(CHECK_DEFINITIONS.length).toBe(8);
+    expect(CHECK_DEFINITIONS.every((d) => !d.pending)).toBe(true);
   });
 
   describe('各検査項目 (1)〜(8) の違反検出検証', () => {
@@ -342,7 +343,7 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
         },
       ];
       const mdA = generateMarkdownReport(reportMissingHost);
-      const resA = lintReportPair(reportMissingHost, mdA, { includePending: true });
+      const resA = lintReportPair(reportMissingHost, mdA);
       expect(resA.ok).toBe(false);
       const r04A = resA.results.find((r) => r.id === 'R04');
       expect(r04A?.passed).toBe(false);
@@ -366,7 +367,7 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
         sampleUrls: ['http://form-only.example.test/submit'],
       });
       const mdB = generateMarkdownReport(reportFormHost);
-      const resB = lintReportPair(reportFormHost, mdB, { includePending: true });
+      const resB = lintReportPair(reportFormHost, mdB);
       expect(resB.ok).toBe(false);
       const r04B = resB.results.find((r) => r.id === 'R04');
       expect(r04B?.passed).toBe(false);
@@ -444,7 +445,7 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
       };
       const md = generateMarkdownReport(report);
 
-      const res = lintReportPair(report, md, { includePending: true });
+      const res = lintReportPair(report, md);
       expect(res.ok).toBe(false);
       const r08 = res.results.find((r) => r.id === 'R08');
       expect(r08?.passed).toBe(false);

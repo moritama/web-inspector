@@ -432,9 +432,11 @@ ${p.rawValue}
 `).join('\n') : '> CSPヘッダーまたはmetaタグによるCSPは設定されていません。'}
 `);
 
-  // 9. 外部通信先・サードパーティ分析 (IMP-11)
+  // 9. 外部通信先・サードパーティ分析 (IMP-11 / v1.7.1 T05: 読み込まれたリソースの取得元)
   const ext = report.externalConnections;
-  sections.push(`## 9. 外部通信先・サードパーティ分析 (Public Suffix List / eTLD+1)
+  sections.push(`## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）
+
+※ **集計対象:** ページ本体および実際に読み込まれたサブリソース（Performance Resource Timing API・DOMの \`script\` / \`stylesheet\` / \`preload\` / \`modulepreload\` / \`icon\` / \`manifest\` / 画像・メディア等）の取得元ホストを集計しています（\`alternate\`・\`canonical\`・\`dns-prefetch\`・\`preconnect\`・フォームの \`action\` 送信先など、読み込みを伴わない参照は含みません）。
 
 - **総通信先ホスト数:** ${ext?.totalConnections ?? 0} 件
 - **First-Party (同一組織・自社ドメイン):** ${ext?.firstPartyCount ?? 0} 件

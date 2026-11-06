@@ -16,6 +16,8 @@ import {
 } from '../shared/security-status';
 import {
   DetectedTechnology,
+  ExternalConnectionsAnalysis,
+  ExternalServiceCategory,
   InspectionReport,
   SecurityAdvisory,
   SecurityCheckResult,
@@ -691,4 +693,98 @@ export function renderCookiesTableHtml(cookies: any[]): string {
   `
     )
     .join('');
+}
+
+/**
+ * 外部通信先・サードパーティドメイン分析ビューのHTML文字列を生成する（v1.7.1 T05）
+ *
+ * ページ本体および実際に読み込まれたサブリソース（Resource Timing API・script・stylesheet・画像等）の
+ * 取得元ホスト（eTLD+1）を集計して表示します。alternate リンク、canonical、dns-prefetch、preconnect、
+ * form の送信先（action）など読み込みを伴わない参照は通信先に含めません。
+ */
+export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnalysis): string {
+  if (!analysis || !analysis.connections || analysis.connections.length === 0) {
+    return '<div class="empty-state">外部通信先情報はまだ解析されていません。</div>';
+  }
+
+  const catLabels: Record<ExternalServiceCategory, string> = {
+    cdn: 'CDN・静的配信',
+    analytics: 'アクセス解析',
+    advertising: '広告・マーケティング',
+    fonts: 'Webフォント',
+    social: 'SNSウィジェット',
+    api: '外部API',
+    other: 'その他',
+  };
+
+  const categoryChips = (Object.entries(analysis.categoryBreakdown) as [ExternalServiceCategory, number][])
+    .filter(([_, count]) => count > 0)
+    .map(
+      ([cat, count]) =>
+        `<span class="badge badge-medium" style="margin-right:6px;display:inline-block;margin-top:4px;">${escapeHtml(catLabels[cat] || cat)}: ${count}件</span>`
+    )
+    .join('');
+
+  return `
+    <div class="diff-box">
+      <div class="diff-title">読み込まれたリソースの取得元ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">
+        対象ページ本体および実際に読み込まれたサブリソース（Resource Timing API・スクリプト・スタイルシート・画像等）の取得元を集計しています。alternate リンク、canonical、dns-prefetch、preconnect、form の送信先（action）など読み込みを伴わない参照は通信先に含めません。
+      </div>
+      <div style="margin-bottom:8px;">
+        検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
+        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
+      </div>
+      <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
+    </div>
+
+    <div class="diff-box">
+      <div class="diff-title">読み込まれたリソースの取得元ホスト一覧</div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ホスト名</th>
+              <th>eTLD+1 (組織ドメイン)</th>
+              <th>分類</th>
+              <th>用途カテゴリ</th>
+              <th>リソース数</th>
+              <th>サンプルURL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${analysis.connections
+              .map((item) => {
+                let badgeClass = 'badge-medium';
+                let partyLabel = 'Third-Party';
+                if (item.partyType === 'first-party') {
+                  badgeClass = 'badge-high';
+                  partyLabel = 'First-Party (自社)';
+                } else if (item.partyType === 'local') {
+                  badgeClass = 'badge-low';
+                  partyLabel = 'Local (内部)';
+                } else {
+                  badgeClass = 'badge-medium';
+                  partyLabel = 'Third-Party (外部)';
+                }
+
+                const sampleUrl = item.sampleUrls.length > 0 ? item.sampleUrls[0] : '';
+
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(item.hostname)}</strong></td>
+                    <td><code>${escapeHtml(item.registrableDomain || '-')}</code></td>
+                    <td><span class="badge ${badgeClass}">${partyLabel}</span></td>
+                    <td><span class="badge" style="background:var(--bg-hover);">${escapeHtml(catLabels[item.category] || item.category)}</span></td>
+                    <td>${item.resourceCount}</td>
+                    <td style="font-size:11px;color:var(--text-sub);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(sampleUrl)}">${escapeHtml(sampleUrl || '-')}</td>
+                  </tr>
+                `;
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }

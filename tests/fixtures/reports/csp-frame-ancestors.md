@@ -96,7 +96,9 @@ frame-ancestors 'self'
 
 
 
-## 9. 外部通信先・サードパーティ分析 (Public Suffix List / eTLD+1)
+## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）
+
+※ **集計対象:** ページ本体および実際に読み込まれたサブリソース（Performance Resource Timing API・DOMの `script` / `stylesheet` / `preload` / `modulepreload` / `icon` / `manifest` / 画像・メディア等）の取得元ホストを集計しています（`alternate`・`canonical`・`dns-prefetch`・`preconnect`・フォームの `action` 送信先など、読み込みを伴わない参照は含みません）。
 
 - **総通信先ホスト数:** 1 件
 - **First-Party (同一組織・自社ドメイン):** 1 件

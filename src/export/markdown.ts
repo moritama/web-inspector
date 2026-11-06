@@ -7,6 +7,7 @@
  */
 
 import {
+  ADVISORY_DB_VERSION,
   formatAdvisoryRecommendation,
   getEffectiveFixStatus,
   resolveTechAdvisoryDisplayInfo,
@@ -15,9 +16,14 @@ import {
   DetailedDiffItem,
   DetectedTechnology,
   FindingException,
+  InspectedCookieInfo,
   InspectionReport,
+  SecurityCheckResult,
 } from '../shared/types';
-import { formatMarkdownStatusBadge } from '../shared/security-status';
+import {
+  formatMarkdownStatusBadge,
+  isRequiresAttention,
+} from '../shared/security-status';
 import { compareReportsEnhanced } from '../storage/diff';
 
 /**
@@ -92,6 +98,137 @@ export function escapeMarkdown(text: string | null | undefined): string {
 }
 
 /**
+ * Markdown表のセル内テキスト向けにパイプ文字と改行のみをエスケープする (v1.7.1 T02 / 指摘7)
+ */
+export function escapeMarkdownTableCell(text: string | null | undefined): string {
+  if (!text) return '';
+  return text
+    .replace(/\r\n|\n|\r/g, ' ')
+    .replace(/\|/g, '\\|');
+}
+
+/**
+ * Markdownのコードスパン（インラインコード）を生成する (v1.7.1 T02 / 指摘7)
+ * - コードスパン内では escapeMarkdown を使用しない（_ や [ ] 等にバックスラッシュを付けない）
+ * - 値にバッククォートが含まれる場合は、連続するバッククォートの最大長+1個のバッククォートで囲む
+ * - 表のセル内（inTable: true）では `|` だけを `\|` にエスケープする
+ */
+export function formatMarkdownCodeSpan(
+  text: string | null | undefined,
+  options?: { inTable?: boolean }
+): string {
+  const raw = (text ?? '').replace(/\r\n|\n|\r/g, ' ');
+  const content = options?.inTable ? raw.replace(/\|/g, '\\|') : raw;
+
+  const backtickMatches = content.match(/`+/g);
+  const maxBackticks = backtickMatches
+    ? Math.max(...backtickMatches.map((m) => m.length))
+    : 0;
+  const fence = '`'.repeat(maxBackticks + 1);
+
+  const needsPadding =
+    content.startsWith('`') ||
+    content.endsWith('`') ||
+    (content.length > 0 && content.startsWith(' ') && content.endsWith(' '));
+
+  return needsPadding ? `${fence} ${content} ${fence}` : `${fence}${content}${fence}`;
+}
+
+/**
+ * 脆弱性DBバージョン文字列を概要・注記共通の書式（YYYY-MM-DD）に整形する (v1.7.1 T02 / 指摘6)
+ */
+function formatAdvisoryDbVersion(rawVersion?: string): string {
+  const ver = rawVersion || ADVISORY_DB_VERSION || '2026-10-31';
+  if (/^\d{8}$/.test(ver)) {
+    return `${ver.slice(0, 4)}-${ver.slice(4, 6)}-${ver.slice(6, 8)}`;
+  }
+  return ver;
+}
+
+/**
+ * 公式にLTS（Long Term Support）リリース系列を持つ技術かどうかを判定する (v1.7.1 T02 / 指摘6)
+ */
+function hasLtsRelease(technology: string): boolean {
+  const normalized = (technology || '').toLowerCase().trim();
+  const ltsTechnologies = new Set([
+    'node.js',
+    'nodejs',
+    'node',
+    'angular',
+    'laravel',
+    'django',
+    'java',
+    'spring boot',
+    'ubuntu',
+    'debian',
+  ]);
+  return ltsTechnologies.has(normalized);
+}
+
+/**
+ * 推奨対応文（recommendation）から1文目を抽出する (v1.7.1 T02 / E3)
+ */
+function extractFirstRecommendationSentence(recommendation: string | null | undefined): string {
+  const trimmed = (recommendation || '').replace(/\r\n|\n|\r/g, ' ').trim();
+  if (!trimmed) return '設定および構成の見直しを検討してください。';
+  const periodIdx = trimmed.indexOf('。');
+  if (periodIdx !== -1) {
+    return trimmed.slice(0, periodIdx + 1).trim();
+  }
+  return trimmed;
+}
+
+/**
+ * 観測されたCookieが親ドメイン（上位ドメインまたはドメイン指定スコープ）のCookieかどうかを判定する (v1.7.1 T02 / 指摘5)
+ */
+function isParentDomainCookie(cookie: InspectedCookieInfo, pageHostname: string): boolean {
+  if (!cookie.domain || cookie.domain === '-') return false;
+  const cleanCookieDomain = cookie.domain.replace(/^\.+/, '').toLowerCase();
+  const cleanPageHost = (pageHostname || '').toLowerCase();
+  if (!cleanCookieDomain) return false;
+  if (cookie.domain.startsWith('.') || cookie.hostOnly === false) return true;
+  return cleanPageHost !== cleanCookieDomain && cleanPageHost.endsWith(`.${cleanCookieDomain}`);
+}
+
+/**
+ * 要確認のセキュリティ診断項目から推奨対応ロードマップのMarkdown本文を組み立てる (v1.7.1 T02 / E3)
+ */
+function buildRoadmapSectionBody(securityChecks: readonly SecurityCheckResult[]): string {
+  const attentionChecks = (securityChecks || []).filter((c) => isRequiresAttention(c));
+  if (attentionChecks.length === 0) {
+    return '> 対応が必要な項目はありません。';
+  }
+
+  const urgentChecks = attentionChecks.filter(
+    (c) => c.severity === 'critical' || c.severity === 'high'
+  );
+  const plannedChecks = attentionChecks.filter((c) => c.severity === 'medium');
+  const lowChecks = attentionChecks.filter(
+    (c) => c.severity !== 'critical' && c.severity !== 'high' && c.severity !== 'medium'
+  );
+
+  const groups: Array<{ title: string; items: SecurityCheckResult[] }> = [
+    { title: '至急対応 (CRITICAL / HIGH)', items: urgentChecks },
+    { title: '計画的対応 (MEDIUM)', items: plannedChecks },
+    { title: '継続的改善 (LOW)', items: lowChecks },
+  ].filter((g) => g.items.length > 0);
+
+  if (groups.length === 0) {
+    return '> 対応が必要な項目はありません。';
+  }
+
+  return groups
+    .map((group, idx) => {
+      const lines = group.items.map((c) => {
+        const firstSentence = extractFirstRecommendationSentence(c.recommendation);
+        return `   - **${escapeMarkdownTableCell(c.name)}**: ${escapeMarkdownTableCell(firstSentence)}`;
+      });
+      return `${idx + 1}. **${group.title}:**\n${lines.join('\n')}`;
+    })
+    .join('\n');
+}
+
+/**
  * 調査レポートから Rev.2.1 準拠の 15セクション Markdown ドキュメントを生成する (Rev.2.1 IMP-12 / 11.3)
  *
  * @param report 今回の調査レポート
@@ -108,6 +245,7 @@ export function generateMarkdownReport(
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
   const extVer = report.extensionVersion || '1.7.0';
+  const advDbVer = formatAdvisoryDbVersion(report.advisoryDatabaseVersion);
 
   // 差分分析の計算
   const diff = previousReport ? compareReportsEnhanced(previousReport, report) : null;
@@ -115,18 +253,18 @@ export function generateMarkdownReport(
   const sections: string[] = [];
 
   // タイトル
-  sections.push(`# Web Technology & Security Inspection Report\n\n**対象ホスト:** \`${hostname}\`  \n**調査実施日時:** ${inspectedDate} (JST)  \n**Inspector バージョン:** v${extVer} (Manifest V3)  \n**解析方式:** 受動的解析 (Passive Inspection) / 完全ローカル突合  \n\n---`);
+  sections.push(`# Web Technology & Security Inspection Report\n\n**対象ホスト:** ${formatMarkdownCodeSpan(hostname)}  \n**調査実施日時:** ${inspectedDate} (JST)  \n**Inspector バージョン:** v${extVer} (Manifest V3)  \n**解析方式:** 受動的解析 (Passive Inspection) / 完全ローカル突合  \n\n---`);
 
   // 1. 調査概要
   sections.push(`## 1. 調査概要
 
 | 項目 | 内容 |
 |---|---|
-| 対象URL | \`${sanitizedUrl}\` |
-| ホスト名 | \`${hostname}\` |
+| 対象URL | ${formatMarkdownCodeSpan(sanitizedUrl, { inTable: true })} |
+| ホスト名 | ${formatMarkdownCodeSpan(hostname, { inTable: true })} |
 | プロトコル | ${report.summary.isHttps ? 'HTTPS (暗号化通信)' : 'HTTP (非暗号化)'} |
-| 診断ルールバージョン | ${escapeMarkdown(report.rulesVersion)} |
-| オフライン脆弱性DBバージョン | ${escapeMarkdown(report.advisoryDatabaseVersion || '2026.10')} |
+| 診断ルールバージョン | ${escapeMarkdownTableCell(report.rulesVersion)} |
+| オフライン脆弱性DBバージョン | ${escapeMarkdownTableCell(advDbVer)} |
 | 要確認項目数 | **${report.summary.requiresAttentionCount} 件** |
 | 検出技術スタック数 | **${report.summary.totalTechnologies} 件** |
 `);
@@ -148,7 +286,7 @@ export function generateMarkdownReport(
 - **ネットワーク・通信解析:** ${cov?.network === 'complete' ? '✅ 取得成功' : '⚠️ 一部制限あり'}
 ${
   cov?.details?.missingPermissions && cov.details.missingPermissions.length > 0
-    ? `\n> [!NOTE]\n> **未付与の権限:** ${cov.details.missingPermissions.map((s) => `\`${s}\``).join(', ')}\n`
+    ? `\n> [!NOTE]\n> **未付与の権限:** ${cov.details.missingPermissions.map((s) => formatMarkdownCodeSpan(s)).join(', ')}\n`
     : ''
 }
 `);
@@ -178,12 +316,12 @@ ${
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const ver = t.isCandidateGroup ? 'いずれかの可能性' : t.version ? `v${t.version}` : '不明';
-  const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
+  const distro = t.distroHint ? formatMarkdownCodeSpan(t.distroHint, { inTable: true }) : '-';
   const method = t.isCandidateGroup || t.detectionMethod === 'associated' ? '候補・関連' : t.detectionMethod === 'inferred' ? '連動検知' : '直接検出';
   const relation = t.inferredFrom ? `${t.inferredFrom} (${t.implicationType || '連動'})` : '-';
   const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
-  return `| **${escapeMarkdown(t.technology)}** | ${escapeMarkdown(t.category)} | \`${escapeMarkdown(ver)}\` | ${distro} | ${method} | ${escapeMarkdown(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
+  return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(t.category)} | ${formatMarkdownCodeSpan(ver, { inTable: true })} | ${distro} | ${method} | ${escapeMarkdownTableCell(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
 }).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}
 `);
 
@@ -195,7 +333,7 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
 ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
   const statBadge = formatMarkdownStatusBadge(c.status);
   const exBadge = c.exceptionStatus === 'accepted' ? '🛡️ 許容済' : c.exceptionStatus === 'false-positive' ? '❌ 誤検知除外' : '-';
-  return `| ${escapeMarkdown(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | \`${escapeMarkdown(c.observed)}\` | ${exBadge} |`;
+  return `| ${escapeMarkdownTableCell(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | ${formatMarkdownCodeSpan(c.observed, { inTable: true })} | ${exBadge} |`;
 }).join('\n') : '| なし | - | - | - | - |'}
 `);
 
@@ -203,19 +341,19 @@ ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
   sections.push(`## 6. EOL・既知脆弱性情報 (ライブラリセキュリティ)
 
 > [!IMPORTANT]
-> オフライン脆弱性DBスナップショット (Rev.2.1) とのローカル突合結果です。未登録の技術は「安全」を意味するものではありません。
+> オフライン脆弱性DBスナップショット (${escapeMarkdownTableCell(advDbVer)}) とのローカル突合結果です。未登録の技術は「安全」を意味するものではありません。
 
 | 対象技術 | バージョン | ディストリ版 | サポート状況 (EOL) | 照合ステータス | 該当CVE/GHSA | 修正状況 (fixStatus) | CISA KEV | 推奨対応 |
 |---|:---:|:---:|:---:|:---:|---|---|:---:|---|
-${expandedTechnologies.map((t) => {
+${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const displayInfo = resolveTechAdvisoryDisplayInfo(t);
   const eol = t.eolInfo?.label
-    ? escapeMarkdown(t.eolInfo.label)
+    ? escapeMarkdownTableCell(t.eolInfo.label)
     : t.supportStatus === 'EOL'
     ? `**EOL (${t.eolDate || '終了'})**`
     : t.supportStatus || 'Unknown';
-  const matchStatus = escapeMarkdown(displayInfo.statusLabel);
-  const distro = t.distroHint ? `\`${escapeMarkdown(t.distroHint)}\`` : '-';
+  const matchStatus = escapeMarkdownTableCell(displayInfo.statusLabel);
+  const distro = t.distroHint ? formatMarkdownCodeSpan(t.distroHint, { inTable: true }) : '-';
   const cveList = t.advisories && t.advisories.length > 0
     ? t.advisories.map((a) => {
         const advUrl = /^CVE-\d{4}-\d+$/i.test(a.id)
@@ -223,51 +361,62 @@ ${expandedTechnologies.map((t) => {
           : /^GHSA-[a-z0-9-]+$/i.test(a.id)
             ? `https://github.com/advisories/${a.id}`
             : a.referenceUrls?.find((u) => !(u.includes('nvd.nist.gov') && /\/GHSA-/i.test(u))) || '';
-        const linkPart = advUrl ? `[${escapeMarkdown(a.id)}](${advUrl})` : escapeMarkdown(a.id);
-        return `${linkPart} (${escapeMarkdown(String(a.severity).toLowerCase())})`;
+        const linkPart = advUrl ? `[${escapeMarkdownTableCell(a.id)}](${advUrl})` : escapeMarkdownTableCell(a.id);
+        return `${linkPart} (${escapeMarkdownTableCell(String(a.severity).toLowerCase())})`;
       }).join(', ')
-    : displayInfo.isZeroCoverage
-    ? 'この技術の脆弱性は収録していません'
-    : displayInfo.isDistro
-    ? escapeMarkdown(displayInfo.statusLabel)
-    : '収録 DB 上は該当なし';
+    : '-';
   const fixStatusCol = t.advisories && t.advisories.length > 0
-    ? Array.from(new Set(t.advisories.map((a) => getEffectiveFixStatus(a)))).map((s) => `\`${escapeMarkdown(s)}\``).join(', ')
+    ? Array.from(new Set(t.advisories.map((a) => getEffectiveFixStatus(a)))).map((s) => formatMarkdownCodeSpan(s, { inTable: true })).join(', ')
     : '-';
   const kevCol = t.advisories && t.advisories.length > 0
     ? t.advisories.some((a) => a.kev === true)
       ? '**悪用確認済み（CISA KEV）**'
       : 'なし'
     : '-';
-  const rec = t.advisories && t.advisories.length > 0
-    ? escapeMarkdown(
-        formatAdvisoryRecommendation(t.version, t.advisories, {
-          isEol: t.supportStatus === 'EOL',
-          technologyName: t.technology,
-        })
-      )
+  const isUnknownVersion =
+    !t.version ||
+    t.version.trim() === '' ||
+    t.offlineMatchStatus === 'Unknown Version' ||
+    (t.advisoryMatchStatus === 'Needs Review' && !displayInfo.isDistro);
+  const recRaw = t.advisories && t.advisories.length > 0
+    ? formatAdvisoryRecommendation(t.version, t.advisories, {
+        isEol: t.supportStatus === 'EOL',
+        technologyName: t.technology,
+      })
     : t.eolInfo?.note
-    ? escapeMarkdown(t.eolInfo.note)
+    ? t.eolInfo.note
     : t.supportStatus === 'EOL'
-    ? '最新LTS系列への移行'
+    ? hasLtsRelease(t.technology)
+      ? '最新LTS系列への移行'
+      : 'サポート中のメジャーバージョンへの移行'
     : displayInfo.isDistro
-    ? escapeMarkdown(
-        `${t.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${typeof displayInfo.upstreamAdvisoriesCount === 'number' ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）` : ''}`
-      )
+    ? `${t.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${typeof displayInfo.upstreamAdvisoriesCount === 'number' ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）` : ''}`
+    : isUnknownVersion
+    ? '評価不可（バージョン不明）'
+    : displayInfo.isZeroCoverage
+    ? '評価不可（収録対象外）'
     : '現状維持';
-  return `| **${escapeMarkdown(t.technology)}** | \`${escapeMarkdown(t.version || '不明')}\` | ${distro} | ${eol} | ${matchStatus} | ${cveList} | ${fixStatusCol} | ${kevCol} | ${rec} |`;
-}).join('\n')}
+  const rec = escapeMarkdownTableCell(recRaw);
+  return `| **${escapeMarkdownTableCell(t.technology)}** | ${formatMarkdownCodeSpan(t.version || '不明', { inTable: true })} | ${distro} | ${eol} | ${matchStatus} | ${cveList} | ${fixStatusCol} | ${kevCol} | ${rec} |`;
+}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}
 `);
 
   // 7. Cookie属性診断 (IMP-01 / IMP-04)
+  const parentCookies = (report.cookies || []).filter((c) => isParentDomainCookie(c, hostname));
+  const parentCookieNote =
+    parentCookies.length > 0
+      ? `※ **親ドメインのCookieに関する注記:** 親ドメインをスコープとするCookie（${parentCookies.map((c) => formatMarkdownCodeSpan(c.name)).join(', ')}）は、同一ドメイン配下の別サイト・別ページで発行された可能性があり、このページが設定したとは限らない点にご留意ください。`
+      : '※ **親ドメインのCookieに関する注記:** 親ドメイン（上位ドメイン）をスコープとするCookieが含まれる場合、同一ドメイン配下の別サイト・別ページで発行された可能性があり、このページが設定したとは限らない点にご留意ください。';
+
   sections.push(`## 7. Cookie属性診断
 
 ※ **セキュリティ保護:** Cookieの値（Value）および認証シークレットは一切収集・出力していません。
+${parentCookieNote}
 
 | Cookie名 | ドメイン | パス | 用途分類 | Secure | HttpOnly | SameSite | CHIPS (Partitioned) |
 |---|---|---|:---:|:---:|:---:|:---:|:---:|
 ${report.cookies.length > 0 ? report.cookies.map((c) => {
-  return `| \`${escapeMarkdown(c.name)}\` | \`${escapeMarkdown(c.domain || '-')}\` | \`${escapeMarkdown(c.path || '-')}\` | ${escapeMarkdown(c.category || 'general')} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | \`${c.sameSite || '-'}\` | ${c.partitioned ? 'Yes' : 'No'} |`;
+  return `| ${formatMarkdownCodeSpan(c.name, { inTable: true })} | ${formatMarkdownCodeSpan(c.domain || '-', { inTable: true })} | ${formatMarkdownCodeSpan(c.path || '-', { inTable: true })} | ${escapeMarkdownTableCell(c.category || 'general')} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | ${formatMarkdownCodeSpan(c.sameSite || '-', { inTable: true })} | ${c.partitioned ? 'Yes' : 'No'} |`;
 }).join('\n') : '| なし | - | - | - | - | - | - | - |'}
 `);
 
@@ -295,7 +444,7 @@ ${p.rawValue}
 |---|---|:---:|:---:|:---:|
 ${ext && ext.connections.length > 0 ? ext.connections.map((item) => {
   const partyBadge = item.partyType === 'first-party' ? 'First-Party' : item.partyType === 'third-party' ? '**Third-Party**' : 'Local';
-  return `| \`${escapeMarkdown(item.hostname)}\` | \`${escapeMarkdown(item.registrableDomain)}\` | ${partyBadge} | \`${item.category}\` | ${item.resourceCount} |`;
+  return `| ${formatMarkdownCodeSpan(item.hostname, { inTable: true })} | ${formatMarkdownCodeSpan(item.registrableDomain, { inTable: true })} | ${partyBadge} | ${formatMarkdownCodeSpan(item.category, { inTable: true })} | ${item.resourceCount} |`;
 }).join('\n') : '| 外部通信先は観測されませんでした | - | - | - | - |'}
 `);
 
@@ -305,23 +454,27 @@ ${ext && ext.connections.length > 0 ? ext.connections.map((item) => {
 ${diff ? `
 - **前回調査日時:** ${new Date(diff.reportA.inspectedAt).toLocaleString('ja-JP')}
 - **今回調査日時:** ${new Date(diff.reportB.inspectedAt).toLocaleString('ja-JP')}
-- **新規検出技術:** ${diff.addedTechnologies.length > 0 ? diff.addedTechnologies.map((t) => `\`${t}\``).join(', ') : 'なし'}
-- **消失技術:** ${diff.removedTechnologies.length > 0 ? diff.removedTechnologies.map((t) => `\`${t}\``).join(', ') : 'なし'}
-- **新規発生した指摘:** ${diff.newSecurityIssues.length > 0 ? diff.newSecurityIssues.map((s) => `\`${s}\``).join(', ') : 'なし'}
-- **解消された指摘:** ${diff.resolvedSecurityIssues.length > 0 ? diff.resolvedSecurityIssues.map((s) => `\`${s}\``).join(', ') : 'なし'}
+- **新規検出技術:** ${diff.addedTechnologies.length > 0 ? diff.addedTechnologies.map((t) => formatMarkdownCodeSpan(t)).join(', ') : 'なし'}
+- **消失技術:** ${diff.removedTechnologies.length > 0 ? diff.removedTechnologies.map((t) => formatMarkdownCodeSpan(t)).join(', ') : 'なし'}
+- **新規発生した指摘:** ${diff.newSecurityIssues.length > 0 ? diff.newSecurityIssues.map((s) => formatMarkdownCodeSpan(s)).join(', ') : 'なし'}
+- **解消された指摘:** ${diff.resolvedSecurityIssues.length > 0 ? diff.resolvedSecurityIssues.map((s) => formatMarkdownCodeSpan(s)).join(', ') : 'なし'}
 ` : '> 前回調査レポートとの比較は実行されていません（初回調査または単一レポート出力）。'}
 `);
 
   // 11. 差分発生原因 (IMP-09)
   sections.push(`## 11. 差分発生原因の推定分析
 
-${diff && diff.diffItems.length > 0 ? `
+${!diff
+  ? '> 比較未実行のため対象外です（前回調査レポートとの比較は実行されていません）。'
+  : diff.diffItems.length > 0
+  ? `
 | 変化項目 | 差分種別 | 推定原因 | 変化内容 | 詳細解説 |
 |---|:---:|:---:|---|---|
 ${diff.diffItems.map((item: DetailedDiffItem) => {
-  return `| **${escapeMarkdown(item.target)}** | \`${item.diffType}\` | \`${item.diffCause}\` | \`${escapeMarkdown(item.before || '-')}\` &rarr; \`${escapeMarkdown(item.after || '-')}\` | ${escapeMarkdown(item.causeExplanation)} |`;
+  return `| **${escapeMarkdownTableCell(item.target)}** | ${formatMarkdownCodeSpan(item.diffType, { inTable: true })} | ${formatMarkdownCodeSpan(item.diffCause, { inTable: true })} | ${formatMarkdownCodeSpan(item.before || '-', { inTable: true })} &rarr; ${formatMarkdownCodeSpan(item.after || '-', { inTable: true })} | ${escapeMarkdownTableCell(item.causeExplanation)} |`;
 }).join('\n')}
-` : '> 分析対象の有意な差分変化はありません。'}
+`
+  : '> 分析対象の有意な差分変化はありません。'}
 `);
 
   // 12. 許容・除外設定 (IMP-10)
@@ -332,7 +485,7 @@ ${exceptions.length > 0 ? `
 |:---:|---|---|---|:---:|
 ${exceptions.map((ex) => {
   const stLabel = ex.status === 'accepted' ? 'リスク許容' : ex.status === 'false-positive' ? '誤検知' : '通知抑制';
-  return `| **${stLabel}** | \`${escapeMarkdown(ex.findingId)}\` | \`${escapeMarkdown(ex.targetUrl || '全体適用')}\` | ${escapeMarkdown(ex.reason)} | ${ex.createdAt ? ex.createdAt.slice(0, 10) : '-'} |`;
+  return `| **${stLabel}** | ${formatMarkdownCodeSpan(ex.findingId, { inTable: true })} | ${formatMarkdownCodeSpan(ex.targetUrl || '全体適用', { inTable: true })} | ${escapeMarkdownTableCell(ex.reason)} | ${ex.createdAt ? ex.createdAt.slice(0, 10) : '-'} |`;
 }).join('\n')}
 ` : '> 現在適用されている許容・除外設定はありません。'}
 `);
@@ -340,16 +493,7 @@ ${exceptions.map((ex) => {
   // 13. 推奨対応ロードマップ
   sections.push(`## 13. 推奨対応ロードマップ
 
-1. **至急対応 (High Severity):**
-   - 既知脆弱性（CVE）が特定されたライブラリを修正済みバージョン以降へ更新する。
-   - 暗号化通信（HTTPS）および混在コンテンツ（Mixed Content）の解消。
-2. **計画的対応 (Medium Severity):**
-   - サポート終了（EOL）を迎えたミドルウェア・ライブラリの次世代LTS系列への移行計画策定。
-   - セッションCookieに対する \`Secure\`、\`HttpOnly\`、適切な \`SameSite\` 属性の付与。
-   - Content-Security-Policy (CSP) の導入および \`unsafe-inline\` の排除。
-3. **継続的改善 (Low / Best Practices):**
-   - HSTS (\`Strict-Transport-Security\`) ヘッダーの \`max-age=31536000; includeSubDomains\` 適用。
-   - 外部サードパーティスクリプトの棚卸しと整合性検証 (SRI) の導入。
+${buildRoadmapSectionBody(report.securityChecks)}
 `);
 
   // 14. 検出根拠 (エビデンス)
@@ -357,7 +501,7 @@ ${exceptions.map((ex) => {
 
 ${report.technologies.map((t) => `
 ### ${t.technology} (確信度: ${t.confidenceLevel} - ${t.confidence}%)
-${t.evidence.map((e) => `- **[${e.type}]** \`${escapeMarkdown(e.name)}\`: \`${escapeMarkdown(e.value)}\` ${e.detail ? `(${escapeMarkdown(e.detail)})` : ''}`).join('\n')}
+${t.evidence.map((e) => `- **[${e.type}]** ${formatMarkdownCodeSpan(e.name)}: ${formatMarkdownCodeSpan(e.value)} ${e.detail ? `(${escapeMarkdown(e.detail)})` : ''}`).join('\n')}
 `).join('\n')}
 `);
 

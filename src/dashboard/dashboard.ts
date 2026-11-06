@@ -378,7 +378,7 @@ function handleCompare(): void {
 
   compareResultContainer.innerHTML = `
     <div class="diff-box">
-      <div class="diff-title">差分分析サマリー (Rev.2.1 IMP-09)</div>
+      <div class="diff-title">差分分析サマリー</div>
       <div style="margin-bottom:8px;">
         検出された変化: <strong>${diff.diffItems.length} 件</strong>
         (新規: ${diff.summary.addedCount}, 消失: ${diff.summary.removedCount}, 変更: ${diff.summary.changedCount}, 解消: ${diff.summary.resolvedCount}, 新規警告: ${diff.summary.regressedCount})

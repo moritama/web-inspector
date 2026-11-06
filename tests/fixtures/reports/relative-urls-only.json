@@ -1,0 +1,247 @@
+{
+  "id": "rep_fixture_relative_urls_03",
+  "url": "https://relative.example.test/",
+  "hostname": "relative.example.test",
+  "inspectedAt": "2026-11-01T00:00:00.000Z",
+  "extensionVersion": "1.7.0",
+  "rulesVersion": "1.7.0",
+  "advisoryDatabaseVersion": "2026-10-31",
+  "coverage": {
+    "dom": "complete",
+    "headers": "complete",
+    "cookies": "complete",
+    "iframes": "not-applicable",
+    "network": "complete",
+    "overallStatus": "complete",
+    "details": {
+      "domItemCount": 5,
+      "headerCount": 6,
+      "cookieCount": 0
+    }
+  },
+  "summary": {
+    "totalTechnologies": 2,
+    "requiresAttentionCount": 0,
+    "securityFindings": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 7,
+      "unknown": 0
+    },
+    "librarySecurity": {
+      "eolCount": 0,
+      "vulnerableLibraryCount": 0,
+      "mismatchCount": 0
+    },
+    "isHttps": true,
+    "mixedContentCount": 0
+  },
+  "technologies": [
+    {
+      "technology": "jQuery",
+      "category": "js-css-library",
+      "detected": true,
+      "version": "3.7.1",
+      "versionSource": "script-url",
+      "confidence": 90,
+      "confidenceLevel": "high",
+      "detectionMethod": "direct",
+      "runtimeStatus": "confirmed",
+      "supportStatus": "Supported",
+      "eolDate": null,
+      "advisoryMatchStatus": "Not Affected",
+      "offlineMatchStatus": "No Match",
+      "productAdvisoryCount": 4,
+      "productSources": ["curated", "OSV", "NVD"],
+      "advisoryDataVersion": "20261031",
+      "advisories": [],
+      "evidence": [
+        {
+          "type": "script-url",
+          "name": "script[src]",
+          "value": "https://relative.example.test/assets/js/jquery-3.7.1.min.js",
+          "source": "https://relative.example.test/",
+          "weight": 90
+        }
+      ]
+    },
+    {
+      "technology": "Bootstrap",
+      "category": "js-css-library",
+      "detected": true,
+      "version": "5.3.3",
+      "versionSource": "css-url",
+      "confidence": 90,
+      "confidenceLevel": "high",
+      "detectionMethod": "direct",
+      "runtimeStatus": "not-applicable",
+      "supportStatus": "Supported",
+      "eolDate": null,
+      "advisoryMatchStatus": "Not Affected",
+      "offlineMatchStatus": "No Match",
+      "productAdvisoryCount": 5,
+      "productSources": ["curated", "OSV", "NVD"],
+      "advisoryDataVersion": "20261031",
+      "advisories": [],
+      "evidence": [
+        {
+          "type": "css-url",
+          "name": "link[href]",
+          "value": "https://relative.example.test/assets/css/bootstrap-5.3.3.min.css",
+          "source": "https://relative.example.test/",
+          "weight": 90
+        }
+      ]
+    }
+  ],
+  "securityChecks": [
+    {
+      "checkId": "SEC-HTTPS-01",
+      "category": "https-communication",
+      "name": "HTTPS暗号化通信",
+      "status": "pass",
+      "severity": "info",
+      "observed": "HTTPSで接続（証明書の有効性は対象外）",
+      "description": "ページはHTTPSで暗号化されて配信されています。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-HTTPS-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-HSTS-01",
+      "category": "http-headers",
+      "name": "HSTS (Strict-Transport-Security)",
+      "status": "pass",
+      "severity": "info",
+      "observed": "max-age=31536000; includeSubDomains; preload",
+      "description": "十分な有効期間を持つHSTSヘッダーが設定されています。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-HSTS-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-XFO-01",
+      "category": "http-headers",
+      "name": "X-Frame-Options",
+      "status": "pass",
+      "severity": "info",
+      "observed": "DENY",
+      "description": "クリックジャッキング対策が有効です。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-XFO-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-XCTO-01",
+      "category": "http-headers",
+      "name": "X-Content-Type-Options",
+      "status": "pass",
+      "severity": "info",
+      "observed": "nosniff",
+      "description": "MIMEタイプスニッフィング防止が有効です。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-XCTO-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-CSP-00",
+      "category": "http-headers",
+      "name": "CSP (Content-Security-Policy)",
+      "status": "pass",
+      "severity": "info",
+      "observed": "1 件のポリシーが有効",
+      "description": "主要な危険ディレクティブが制限され、堅牢なCSPポリシーが設定されています。",
+      "recommendation": "現在のポリシー設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-CSP-00:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-REF-01",
+      "category": "http-headers",
+      "name": "Referrer-Policy",
+      "status": "info",
+      "severity": "info",
+      "observed": "ヘッダー未設定（ブラウザ既定: strict-origin-when-cross-origin 相当）",
+      "description": "Referrer-Policy ヘッダーは未設定ですが、モダンブラウザの既定値によりクロスオリジンへのパス送信は制限されます。",
+      "recommendation": "明示的に strict-origin-when-cross-origin 以上のポリシーを設定することを検討してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-REF-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-PERM-01",
+      "category": "http-headers",
+      "name": "Permissions-Policy",
+      "status": "info",
+      "severity": "info",
+      "observed": "ヘッダー未設定",
+      "description": "Permissions-Policy ヘッダーが設定されていません。",
+      "recommendation": "カメラ・マイク・位置情報など不要なブラウザAPIを制限する設定を検討してください。",
+      "referenceUrls": [],
+      "scope": "https://relative.example.test/",
+      "findingId": "SEC-PERM-01:https://relative.example.test",
+      "exceptionStatus": "active"
+    }
+  ],
+  "cookies": [],
+  "cspPolicies": [
+    {
+      "id": "csp_response-header_enforce_03",
+      "source": "response-header",
+      "mode": "enforce",
+      "directives": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "frame-ancestors": ["'none'"]
+      },
+      "rawValue": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      "warnings": [],
+      "observedAt": "2026-11-01T00:00:00.000Z"
+    }
+  ],
+  "mixedContent": [],
+  "externalConnections": {
+    "totalConnections": 1,
+    "firstPartyCount": 1,
+    "thirdPartyCount": 0,
+    "categoryBreakdown": {
+      "cdn": 0,
+      "analytics": 0,
+      "advertising": 0,
+      "fonts": 0,
+      "social": 0,
+      "api": 0,
+      "other": 1
+    },
+    "connections": [
+      {
+        "hostname": "relative.example.test",
+        "registrableDomain": "example.test",
+        "publicSuffix": "test",
+        "partyType": "first-party",
+        "category": "other",
+        "resourceCount": 3,
+        "sampleUrls": [
+          "https://relative.example.test/",
+          "https://relative.example.test/assets/js/jquery-3.7.1.min.js",
+          "https://relative.example.test/assets/css/bootstrap-5.3.3.min.css"
+        ]
+      }
+    ]
+  }
+}

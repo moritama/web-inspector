@@ -31,3 +31,13 @@
   - セクション 7「Cookie属性診断」（指摘 5）に、親ドメインをスコープとする Cookie は同一ドメイン配下の別サイト・別ページで発行された可能性があり「このページが設定したとは限らない」旨の注記を 1 行追加した。
   - 既存テストの期待値の変更（全 1 件）: `tests/markdown.test.ts` の「Cookie値（Value）や機密トークンがレポートに含まれないこと」において、Cookie 名 `SESSION_ID` の出力期待値を `SESSION\_ID` から `` `SESSION_ID` `` に変更した（理由: 指摘 7 により、コードスパン内では `escapeMarkdown` を使わず `_` 等にバックスラッシュを付けない仕様に変更したため）。
 - 未解決: なし
+
+## T03 整合性チェッカーと回帰用フィクスチャ、collect-reports.mjs --snapshot  (2026-11-07 04:51)
+- 変更ファイル: `package.json`, `scripts/report-lint.mjs`, `scripts/collect-reports.mjs`, `test-server/server.mjs`, `tests/fixtures/.gitignore`, `tests/fixtures/reports/csp-frame-ancestors.json`, `tests/fixtures/reports/csp-frame-ancestors.md`, `tests/fixtures/reports/app-insights-cookies.json`, `tests/fixtures/reports/app-insights-cookies.md`, `tests/fixtures/reports/relative-urls-only.json`, `tests/fixtures/reports/relative-urls-only.md`, `tests/fixtures/reports/wordpress-legacy-ga.json`, `tests/fixtures/reports/wordpress-legacy-ga.md`, `tests/report-lint.test.ts`
+- 判断したこと:
+  - レポート（JSON と Markdown の組）を機械的に検査する `scripts/report-lint.mjs` と `npm run reports:lint` を実装した。検査項目 (1) R01〜(8) R08 のうち、後続タスクで有効化する (4) R04（根拠のホストと通信先の整合・非通信参照ホストの除外）と (8) R08（完全性が「完全」なら通信先 1 件以上）を `pending: true`（保留）として定義し、CLI 出力および `_summary.md` に保留件数と対象項目を表示するようにした。
+  - `scripts/collect-reports.mjs` を拡張し、(a) レポート取得後に `lintReportPair` を実行して合否と違反詳細を `_summary.md` に出力する処理、(b) `--snapshot` オプション指定時に HTML（`page.content()`）、サニタイズ済みメイン文書レスポンスヘッダー（`Set-Cookie` の値や `Authorization` / `Cookie` ヘッダーを除去）、Resource Timing 一覧、値を除去した Cookie 属性一覧を `snapshots/` に保存する処理を追加した。
+  - 合成データによる回帰用フィクスチャ 4 組（`csp-frame-ancestors`、`app-insights-cookies`、`relative-urls-only`、`wordpress-legacy-ga`、ホスト名はすべて `*.example.test`）を `tests/fixtures/reports/` に作成し、`generateMarkdownReport` の出力と完全一致するように整形した。あわせて対応する再現エンドポイント 4 件を `test-server/server.mjs` に追加した。ルート `.gitignore` の `reports/` パターンによって `tests/fixtures/reports/` が Git 追跡対象から除外されるのを防ぐため、`tests/fixtures/.gitignore` で `!reports/` を指定した。
+  - `tests/report-lint.test.ts` を追加し、各検査項目 (1)〜(8) の違反検出、v1.7.0 修正前レポートで (1)(2)(3)(6) が不合格になり T01・T02 修正後レポートで合格すること、回帰用フィクスチャ全 4 件の合格、`collect-reports.mjs` の `--snapshot` 引数解析・ヘッダー/Cookie サニタイズ・サマリー出力を検証した。
+  - 既存テストの期待値の変更はなし。
+- 未解決: なし

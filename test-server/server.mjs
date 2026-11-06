@@ -47,6 +47,10 @@ function createLayout(title, content) {
       <a href="/bootstrap-only">/bootstrap-only (Bootstrapのみ)</a>
       <a href="/distro-apache">/distro-apache (Distro Apache)</a>
       <a href="/jquery-multi">/jquery-multi (複数jQuery)</a>
+      <a href="/csp-frame-ancestors">/csp-frame-ancestors (CSP FAのみ)</a>
+      <a href="/app-insights-cookies">/app-insights-cookies (AI Cookie)</a>
+      <a href="/relative-urls-only">/relative-urls-only (相対URLのみ)</a>
+      <a href="/wordpress-legacy-ga">/wordpress-legacy-ga (WP &amp; ga.js)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -394,6 +398,13 @@ const server = http.createServer((req, res) => {
       '_ga=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       '_myapp_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       'laravel_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ASP.NET_SessionId=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__RequestVerificationToken=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ai_user=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ai_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ApplicationGatewayAffinity=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__utma=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__utmz=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
     ];
     res.setHeader('Set-Cookie', expiredCookies);
     res.setHeader('Content-Type', 'text/html; charset=UTF-8');
@@ -591,6 +602,147 @@ const server = http.createServer((req, res) => {
         <script src="/js/jquery-3.7.1.min.js"></script>`
       )
     );
+  }
+
+  // --- 16. /csp-frame-ancestors (v1.7.1 T03: frame-ancestors だけの CSP) ---
+  if (pathname === '/csp-frame-ancestors') {
+    res.setHeader('Server', 'nginx/1.24.0');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'CSP frame-ancestors 単独検証',
+        `<h1>CSP frame-ancestors 単独検証 (/csp-frame-ancestors)</h1>
+        <p>このページでは <code>Content-Security-Policy: frame-ancestors 'self'</code> のみを送信し、<code>X-Frame-Options</code> は未設定です。</p>
+        <div class="card">
+          <h3>期待される診断結果:</h3>
+          <ul>
+            <li><strong>X-Frame-Options</strong>: <code>PASS</code>（観測値に <code>CSP frame-ancestors により保護</code>）</li>
+            <li><strong>CSP (Content-Security-Policy)</strong>: <code>WARN</code>（<code>script-src</code> 等が未指定）</li>
+          </ul>
+        </div>`
+      )
+    );
+  }
+
+  // --- 17. /app-insights-cookies (v1.7.1 T03: Application Insights の Cookie と CSRF トークン) ---
+  if (pathname === '/app-insights-cookies') {
+    res.setHeader('Server', 'Microsoft-IIS/10.0');
+    res.setHeader('X-AspNet-Version', '4.0.30319');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Set-Cookie', [
+      'ASP.NET_SessionId=mock_aspnet_session_01; Path=/; HttpOnly; SameSite=Lax',
+      '__RequestVerificationToken=mock_csrf_token_01; Path=/; SameSite=Lax',
+      'ai_user=mock_ai_user_01; Path=/; SameSite=Lax',
+      'ai_session=mock_ai_session_01; Path=/; SameSite=Lax',
+      'ApplicationGatewayAffinity=mock_agw_affinity_01; Path=/; HttpOnly; SameSite=Lax',
+    ]);
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'Application Insights Cookie & CSRF 検証',
+        `<h1>Application Insights Cookie &amp; CSRF 検証 (/app-insights-cookies)</h1>
+        <p>このページでは Application Insights の計測 Cookie (<code>ai_user</code>, <code>ai_session</code>) や CSRF トークン (<code>__RequestVerificationToken</code>)、<code>ApplicationGatewayAffinity</code> を発行しています。</p>
+        <script src="https://js.monitor.azure.com/scripts/b/ai.2.min.js"></script>`
+      )
+    );
+  }
+
+  // --- 18. /relative-urls-only (v1.7.1 T03: 相対 URL だけのページ & 非通信 link/form) ---
+  if (pathname === '/assets/js/jquery-3.7.1.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v3.7.1 */ window.jQuery = function() {}; window.jQuery.fn = { jquery: "3.7.1" }; window.$ = window.jQuery;');
+  }
+  if (pathname === '/assets/css/bootstrap-5.3.3.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/*! Bootstrap v5.3.3 */ .relative-container { display: block; }');
+  }
+  if (pathname === '/relative-urls-only') {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    );
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>相対 URL のみのリソース読み込み検証</title>
+  <link rel="stylesheet" href="/assets/css/bootstrap-5.3.3.min.css">
+  <link rel="alternate" hreflang="en" href="https://en.relative.example.test/">
+  <link rel="alternate" hreflang="fr" href="https://fr.relative.example.test/">
+  <link rel="canonical" href="https://canonical.relative.example.test/">
+</head>
+<body>
+  <div class="relative-container">
+    <h1>相対 URL のみのリソース読み込み検証 (/relative-urls-only)</h1>
+    <p>スクリプトとスタイルシートを相対パスのみで読み込み、別ホストの alternate リンクと form[action] を含みます。</p>
+    <form action="https://form.relative.example.test/submit" method="post">
+      <button type="submit">送信</button>
+    </form>
+  </div>
+  <script src="/assets/js/jquery-3.7.1.min.js"></script>
+</body>
+</html>`);
+  }
+
+  // --- 19. /wordpress-legacy-ga (v1.7.1 T03: WordPress と旧 ga.js) ---
+  if (pathname === '/wp-includes/js/wp-embed.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* wp-embed 6.4.3 */');
+  }
+  if (pathname === '/wp-includes/css/dist/block-library/style.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* wp-block-library 6.4.3 */');
+  }
+  if (pathname === '/wp-content/plugins/contact-form-7/includes/js/index.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* contact-form-7 5.8.7 */');
+  }
+  if (pathname === '/wp-content/themes/twentytwentyfour/style.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* Theme Name: Twenty Twenty-Four */');
+  }
+  if (pathname === '/wordpress-legacy-ga') {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Set-Cookie', [
+      '__utma=1.123456789.1700000000.1700000000.1700000000.1; Path=/; SameSite=Lax',
+      '__utmz=1.1700000000.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); Path=/; SameSite=Lax',
+    ]);
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WordPress &amp; 旧 Google Analytics (ga.js) 検証</title>
+  <link rel="https://api.w.org/" href="/wp-json/">
+  <link rel="stylesheet" href="/wp-includes/css/dist/block-library/style.min.css?ver=6.4.3">
+  <link rel="stylesheet" href="/wp-content/themes/twentytwentyfour/style.css?ver=1.0">
+</head>
+<body>
+  <div class="wp-site-blocks">
+    <h1>WordPress &amp; 旧 Google Analytics (ga.js) 検証 (/wordpress-legacy-ga)</h1>
+    <p>WordPress コア・プラグイン・テーマの URL と旧 ga.js スクリプトを含みます。</p>
+  </div>
+  <script src="/wp-includes/js/wp-embed.min.js?ver=6.4.3"></script>
+  <script src="/wp-content/plugins/contact-form-7/includes/js/index.js?ver=5.8.7"></script>
+  <script src="https://ssl.google-analytics.com/ga.js"></script>
+</body>
+</html>`);
   }
 
   // --- 8. デフォルト (v1.1 テストページ) ---

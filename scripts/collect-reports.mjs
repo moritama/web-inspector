@@ -5,17 +5,21 @@
  * dist/ の拡張を読み込んだ Chromium で、サイト一覧の URL を順に開き、
  * Service Worker の runInspection を呼んでレポートを作成し、
  * ポップアップの「Markdown 出力」と同じ形式のファイルと、元データの JSON を保存する。
+ * 取得後に整合性チェッカー (scripts/report-lint.mjs) を実行し、結果を _summary.md に記録する。
  *
  * 使い方:
  *   npm run build
  *   node scripts/collect-reports.mjs                       # 既定のサイト一覧を使う
  *   node scripts/collect-reports.mjs --sites my-sites.txt  # サイト一覧を指定
+ *   node scripts/collect-reports.mjs --snapshot            # スナップショット (HTML・ヘッダー・Resource Timing) も保存
  *   node scripts/collect-reports.mjs https://example.com/  # URL を直接指定
  *
  * オプション:
  *   --sites <file>       サイト一覧（1 行 1 URL、# 以降はコメント）
  *                        既定: report-sites.local.txt があればそれ、なければ scripts/report-sites.example.txt
  *   --out <dir>          出力先。既定: reports/<YYYY-MM-DD_HHmm>
+ *   --snapshot           各サイトの HTML (page.content())、メイン文書のレスポンスヘッダー、
+ *                        Resource Timing の一覧を <out>/snapshots/ に保存する（Cookie の値は含めない）
  *   --headless           ヘッドレスで実行（channel: 'chromium'。環境によっては拡張が読み込まれない）
  *   --executable <path>  Chromium / Chrome の実行ファイルを指定
  *   --wait <ms>          読み込み完了後、診断までに待つ時間。既定: 2000
@@ -36,6 +40,7 @@ import tls from 'node:tls';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { getPendingChecks, lintReportPair } from './report-lint.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,7 +51,18 @@ const EXAMPLE_SITES = path.join(ROOT_DIR, 'scripts', 'report-sites.example.txt')
 
 /** コマンドライン引数を解釈する */
 export function parseArgs(argv) {
-  const opts = { sites: null, out: null, headless: false, executable: null, waitMs: 2000, timeoutMs: 30000, inspectTimeoutMs: 60000, strictTls: false, urls: [] };
+  const opts = {
+    sites: null,
+    out: null,
+    headless: false,
+    executable: null,
+    waitMs: 2000,
+    timeoutMs: 30000,
+    inspectTimeoutMs: 60000,
+    strictTls: false,
+    snapshot: false,
+    urls: [],
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--sites') opts.sites = argv[++i];
@@ -56,6 +72,7 @@ export function parseArgs(argv) {
     else if (a === '--wait') opts.waitMs = Number(argv[++i]);
     else if (a === '--timeout') opts.timeoutMs = Number(argv[++i]);
     else if (a === '--strict-tls') opts.strictTls = true;
+    else if (a === '--snapshot') opts.snapshot = true;
     else if (a.startsWith('--')) throw new Error(`不明なオプション: ${a}`);
     else opts.urls.push(a);
   }
@@ -89,6 +106,80 @@ export function reportBaseName(report) {
   const cleanHost = String(report.hostname).replace(/[^a-zA-Z0-9.-]/g, '_');
   const dateStr = new Date(report.inspectedAt).toISOString().slice(0, 10);
   return `web-inspector-report-${cleanHost}-${dateStr}`;
+}
+
+/** スナップショット保存用のベースファイル名（ホスト名ベース） */
+export function snapshotBaseName(hostnameOrReport) {
+  const host =
+    typeof hostnameOrReport === 'string'
+      ? hostnameOrReport
+      : String(hostnameOrReport?.hostname || '');
+  return host.toLowerCase().replace(/[^a-z0-9.-]/g, '_') || 'snapshot';
+}
+
+/**
+ * Set-Cookie ヘッダー文字列から Cookie の値（Value）を取り除き、名前と属性だけを残す
+ * 例: "ASPSESSIONIDQCSRDTBS=SECRET123; path=/; HttpOnly" -> "ASPSESSIONIDQCSRDTBS=; path=/; HttpOnly"
+ */
+export function maskSetCookieValue(rawSetCookie) {
+  const str = String(rawSetCookie ?? '').trim();
+  if (!str) return '';
+  const parts = str.split(';');
+  const first = parts[0] || '';
+  const eqIdx = first.indexOf('=');
+  const maskedFirst = eqIdx >= 0 ? `${first.slice(0, eqIdx).trim()}=` : first.trim();
+  const attrs = parts
+    .slice(1)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return [maskedFirst, ...attrs].join('; ');
+}
+
+/**
+ * スナップショット保存用にメイン文書のレスポンスヘッダーをサニタイズする（Cookie値や機密ヘッダーを含めない）
+ */
+export function sanitizeSnapshotHeaders(rawHeaders) {
+  const result = {};
+  if (!rawHeaders || typeof rawHeaders !== 'object') return result;
+
+  const forbiddenHeaders = new Set(['authorization', 'proxy-authorization', 'cookie']);
+
+  if (Array.isArray(rawHeaders)) {
+    for (const h of rawHeaders) {
+      const k = String(h?.name || '').toLowerCase().trim();
+      if (!k || forbiddenHeaders.has(k)) continue;
+      if (!result[k]) result[k] = [];
+      const val = String(h?.value ?? '');
+      result[k].push(k === 'set-cookie' ? maskSetCookieValue(val) : val);
+    }
+    return result;
+  }
+
+  for (const [rawKey, rawVal] of Object.entries(rawHeaders)) {
+    const k = String(rawKey || '').toLowerCase().trim();
+    if (!k || forbiddenHeaders.has(k)) continue;
+    const list = Array.isArray(rawVal) ? rawVal : [String(rawVal ?? '')];
+    result[k] = list.map((v) => (k === 'set-cookie' ? maskSetCookieValue(v) : String(v ?? '')));
+  }
+  return result;
+}
+
+/**
+ * スナップショット保存用に Cookie リストから値（value）を除去し、属性のみを残す
+ */
+export function sanitizeSnapshotCookies(rawCookies) {
+  if (!Array.isArray(rawCookies)) return [];
+  return rawCookies.map((c) => ({
+    name: String(c?.name ?? ''),
+    domain: String(c?.domain ?? ''),
+    path: String(c?.path ?? '/'),
+    secure: Boolean(c?.secure),
+    httpOnly: Boolean(c?.httpOnly),
+    sameSite: String(c?.sameSite ?? 'unspecified'),
+    session: Boolean(c?.session),
+    hostOnly: Boolean(c?.hostOnly),
+    partitioned: Boolean(c?.partitioned),
+  }));
 }
 
 /** 出力先の既定値 reports/<YYYY-MM-DD_HHmm>（ローカル時刻） */
@@ -135,22 +226,54 @@ function mdCell(s) {
   return String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
-export function buildSummary(results, meta) {
+export function buildSummary(results, meta = {}) {
+  const okResults = results.filter((r) => r.ok);
+  const failResults = results.filter((r) => !r.ok);
+  const lintedResults = okResults.filter((r) => r.lint);
+  const lintPassed = lintedResults.filter((r) => r.lint.ok).length;
+  const lintFailed = lintedResults.filter((r) => !r.lint.ok).length;
+  const pendingDefs = Array.isArray(meta.pendingChecks) ? meta.pendingChecks : getPendingChecks();
+  const pendingText =
+    pendingDefs.length > 0
+      ? `${pendingDefs.length} 項目（${pendingDefs.map((d) => `${d.id}: ${d.pendingUntil}`).join(', ')}）`
+      : '0 項目';
+
   const lines = [
     '# レポート一括取得の結果',
     '',
     `- 実行日時: ${meta.startedAt}`,
     `- 拡張: ${meta.extensionVersion ?? '不明'}（dist/）`,
-    `- 成功: ${results.filter((r) => r.ok).length} 件 / 失敗: ${results.filter((r) => !r.ok).length} 件`,
+    `- 成功: ${okResults.length} 件 / 失敗: ${failResults.length} 件`,
+    `- 整合性チェック: 合格 ${lintPassed} 件 / 不合格 ${lintFailed} 件（保留: ${pendingText}）`,
     '',
-    '| URL | 結果 | 最終 URL | 要確認 | 技術数 | ファイル | 備考 |',
-    '|---|---|---|---:|---:|---|---|',
+    '| URL | 結果 | 最終 URL | 要確認 | 技術数 | 整合性 | ファイル | 備考 |',
+    '|---|---|---|---:|---:|---|---|---|',
   ];
   for (const r of results) {
+    const lintCell = !r.ok
+      ? '-'
+      : !r.lint
+        ? '-'
+        : r.lint.ok
+          ? '合格'
+          : `不合格 (${r.lint.violations.map((v) => v.id).join(', ')})`;
     lines.push(
-      `| ${mdCell(r.url)} | ${r.ok ? '成功' : `失敗: ${mdCell(r.error)}`} | ${mdCell(r.finalUrl ?? '-')} | ${r.ok ? r.attention : '-'} | ${r.ok ? r.techCount : '-'} | ${r.ok ? mdCell(r.file) : '-'} | ${mdCell((r.notes || []).join(' / ') || '-')} |`
+      `| ${mdCell(r.url)} | ${r.ok ? '成功' : `失敗: ${mdCell(r.error)}`} | ${mdCell(r.finalUrl ?? '-')} | ${r.ok ? r.attention : '-'} | ${r.ok ? r.techCount : '-'} | ${mdCell(lintCell)} | ${r.ok ? mdCell(r.file) : '-'} | ${mdCell((r.notes || []).join(' / ') || '-')} |`
     );
   }
+
+  const failedLintItems = lintedResults.filter((r) => !r.lint.ok);
+  if (failedLintItems.length > 0) {
+    lines.push('', '## 整合性チェックの違反詳細', '');
+    for (const r of failedLintItems) {
+      lines.push(`### ${mdCell(r.file)} (${mdCell(r.url)})`);
+      for (const v of r.lint.violations) {
+        lines.push(`- **(${v.number}) [${v.id}] ${mdCell(v.title)}**: ${mdCell(v.message)}`);
+      }
+      lines.push('');
+    }
+  }
+
   return lines.join('\n') + '\n';
 }
 
@@ -198,6 +321,21 @@ async function inspectOne(context, url, opts) {
 
   // サイトごとに新しいタブを使う（前のサイトの遅れたナビゲーションに巻き込まれないため）
   const page = await context.newPage();
+  let mainStatusCode = null;
+  let mainResponseHeaders = {};
+
+  page.on('response', async (res) => {
+    try {
+      if (res.frame() === page.mainFrame() && res.request().isNavigationRequest()) {
+        mainStatusCode = res.status();
+        const hdrArray = await res.headersArray().catch(() => []);
+        mainResponseHeaders = sanitizeSnapshotHeaders(hdrArray);
+      }
+    } catch {
+      // レスポンスヘッダー取得例外は無視
+    }
+  });
+
   try {
     let gotoError = null;
     try {
@@ -256,7 +394,41 @@ async function inspectOne(context, url, opts) {
       }),
     ]).finally(() => clearTimeout(timer));
 
-    return { finalUrl: target, report, notes };
+    let snapshot = null;
+    if (opts.snapshot) {
+      const html = await page.content().catch(() => '');
+      const resourceTiming = await page
+        .evaluate(() => {
+          try {
+            return performance.getEntriesByType('resource').map((entry) => ({
+              name: String(entry.name || ''),
+              initiatorType: String(entry.initiatorType || 'other'),
+              transferSize: typeof entry.transferSize === 'number' ? entry.transferSize : 0,
+              encodedBodySize: typeof entry.encodedBodySize === 'number' ? entry.encodedBodySize : 0,
+              decodedBodySize: typeof entry.decodedBodySize === 'number' ? entry.decodedBodySize : 0,
+              startTime: typeof entry.startTime === 'number' ? Math.round(entry.startTime) : 0,
+              duration: typeof entry.duration === 'number' ? Math.round(entry.duration) : 0,
+            }));
+          } catch {
+            return [];
+          }
+        })
+        .catch(() => []);
+
+      snapshot = {
+        url,
+        finalUrl: target,
+        hostname: report.hostname || new URL(target).hostname,
+        statusCode: mainStatusCode,
+        capturedAt: report.inspectedAt || new Date().toISOString(),
+        responseHeaders: mainResponseHeaders,
+        resourceTiming,
+        cookies: sanitizeSnapshotCookies(report.cookies || []),
+        html,
+      };
+    }
+
+    return { finalUrl: target, report, notes, snapshot };
   } finally {
     await page.close().catch(() => {});
   }
@@ -274,6 +446,10 @@ export async function main(argv = process.argv.slice(2)) {
 
   const outDir = opts.out ? path.resolve(process.cwd(), opts.out) : defaultOutDir();
   fs.mkdirSync(outDir, { recursive: true });
+  const snapshotsDir = opts.snapshot ? path.join(outDir, 'snapshots') : null;
+  if (snapshotsDir) {
+    fs.mkdirSync(snapshotsDir, { recursive: true });
+  }
   console.log(`[collect] 対象 ${sites.length} 件、出力先: ${path.relative(ROOT_DIR, outDir) || outDir}`);
 
   const md = await loadMarkdownGenerator();
@@ -309,20 +485,50 @@ export async function main(argv = process.argv.slice(2)) {
     for (const [i, url] of sites.entries()) {
       const label = `[${i + 1}/${sites.length}] ${url}`;
       try {
-        const { finalUrl, report, notes } = await inspectOne(context, url, opts);
+        const { finalUrl, report, notes, snapshot } = await inspectOne(context, url, opts);
         const base = reportBaseName(report);
         // 同じホスト・同じ日付が複数ある場合（パス違いなど）は連番を付ける
         let name = base;
         for (let n = 2; fs.existsSync(path.join(outDir, `${name}.md`)); n++) name = `${base}-${n}`;
 
-        fs.writeFileSync(path.join(outDir, `${name}.md`), md.generateMarkdownReport(report, null, []), 'utf8');
+        const markdownText = md.generateMarkdownReport(report, null, []);
+        fs.writeFileSync(path.join(outDir, `${name}.md`), markdownText, 'utf8');
         fs.writeFileSync(path.join(outDir, `${name}.json`), JSON.stringify(report, null, 2) + '\n', 'utf8');
+
+        const lint = lintReportPair(report, markdownText);
+
+        let snapshotFile = null;
+        if (snapshotsDir && snapshot) {
+          const snapBase = snapshotBaseName(snapshot.hostname || report.hostname);
+          let snapName = snapBase;
+          for (let n = 2; fs.existsSync(path.join(snapshotsDir, `${snapName}.json`)); n++) {
+            snapName = `${snapBase}-${n}`;
+          }
+          fs.writeFileSync(
+            path.join(snapshotsDir, `${snapName}.json`),
+            JSON.stringify(snapshot, null, 2) + '\n',
+            'utf8'
+          );
+          fs.writeFileSync(path.join(snapshotsDir, `${snapName}.html`), snapshot.html || '', 'utf8');
+          snapshotFile = `snapshots/${snapName}.json`;
+        }
 
         const attention = report.summary?.requiresAttentionCount ?? '-';
         const techCount = report.summary?.totalTechnologies ?? report.technologies?.length ?? '-';
-        results.push({ url, ok: true, finalUrl, attention, techCount, file: `${name}.md`, notes });
+        results.push({
+          url,
+          ok: true,
+          finalUrl,
+          attention,
+          techCount,
+          file: `${name}.md`,
+          notes,
+          lint,
+          snapshotFile,
+        });
+        const lintBadge = lint.ok ? '整合性:OK' : `整合性:NG(${lint.violations.map((v) => v.id).join(',')})`;
         const noteText = notes.length ? `　※${notes.join(' / ')}` : '';
-        console.log(`  ✓ ${label} → ${name}.md（要確認 ${attention} 件、技術 ${techCount} 件）${noteText}`);
+        console.log(`  ✓ ${label} → ${name}.md（要確認 ${attention} 件、技術 ${techCount} 件、${lintBadge}）${noteText}`);
       } catch (err) {
         const message = String(err?.message || err).split('\n')[0];
         results.push({ url, ok: false, error: message, finalUrl: null });
@@ -341,7 +547,11 @@ export async function main(argv = process.argv.slice(2)) {
 
   fs.writeFileSync(
     path.join(outDir, '_summary.md'),
-    buildSummary(results, { startedAt, extensionVersion: manifest.version }),
+    buildSummary(results, {
+      startedAt,
+      extensionVersion: manifest.version,
+      pendingChecks: getPendingChecks(),
+    }),
     'utf8'
   );
   const ok = results.filter((r) => r.ok).length;

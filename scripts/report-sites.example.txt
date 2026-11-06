@@ -1,0 +1,36 @@
+# レポート一括取得の対象サイト（scripts/collect-reports.mjs）
+# 1 行 1 URL。# 以降はコメント。
+# 独自のサイト（第三者の実サイトなど）は report-sites.local.txt（.gitignore 済み）に書く。
+# report-sites.local.txt があれば、こちらより優先して使われる。
+
+# 脆弱性診断用の公開テストサイト（多くは HTTP のみ）
+http://testphp.vulnweb.com/
+http://testhtml5.vulnweb.com/
+http://testasp.vulnweb.com/
+http://testaspnet.vulnweb.com/
+https://demo.testfire.net/
+http://demo.owasp-juice.shop/
+
+# HTTPS・混在コンテンツの検証用（badssl.com）
+https://mixed-script.badssl.com/
+https://mixed.badssl.com/
+https://mixed-form.badssl.com/
+https://hsts.badssl.com/
+http://http.badssl.com/
+
+# 誤検知確認用（設定の堅いサイト）
+https://github.com/
+https://www.google.com/
+https://www.mozilla.org/
+https://securityheaders.com/
+https://www.cloudflare.com/
+
+# 技術検出の確認用（各技術の公式サイト）
+https://wordpress.org/
+https://jquery.com/
+https://getbootstrap.com/
+https://angularjs.org/
+https://angular.dev/
+https://react.dev/
+https://vuejs.org/
+https://www.drupal.org/

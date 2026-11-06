@@ -1,0 +1,121 @@
+{
+  "url": "https://demo.testfire.net/",
+  "finalUrl": "https://demo.testfire.net/",
+  "hostname": "demo.testfire.net",
+  "statusCode": 200,
+  "capturedAt": "2026-11-06T20:18:47.285Z",
+  "responseHeaders": {
+    "content-type": [
+      "text/html;charset=ISO-8859-1"
+    ],
+    "date": [
+      "Fri, 06 Nov 2026 20:18:43 GMT"
+    ],
+    "server": [
+      "Apache-Coyote/1.1"
+    ],
+    "set-cookie": [
+      "JSESSIONID=; Path=/; Secure; HttpOnly"
+    ],
+    "transfer-encoding": [
+      "chunked"
+    ]
+  },
+  "resourceTiming": [
+    {
+      "name": "https://demo.testfire.net/style.css",
+      "initiatorType": "link",
+      "transferSize": 1465,
+      "encodedBodySize": 1165,
+      "decodedBodySize": 1165,
+      "startTime": 1079,
+      "duration": 187
+    },
+    {
+      "name": "https://demo.testfire.net/images/logo.gif",
+      "initiatorType": "img",
+      "transferSize": 5289,
+      "encodedBodySize": 4989,
+      "decodedBodySize": 4989,
+      "startTime": 1079,
+      "duration": 681
+    },
+    {
+      "name": "https://demo.testfire.net/images/header_pic.jpg",
+      "initiatorType": "img",
+      "transferSize": 16509,
+      "encodedBodySize": 16209,
+      "decodedBodySize": 16209,
+      "startTime": 1079,
+      "duration": 881
+    },
+    {
+      "name": "https://demo.testfire.net/images/pf_lock.gif",
+      "initiatorType": "img",
+      "transferSize": 376,
+      "encodedBodySize": 76,
+      "decodedBodySize": 76,
+      "startTime": 1080,
+      "duration": 351
+    },
+    {
+      "name": "https://demo.testfire.net/images/home1.jpg",
+      "initiatorType": "img",
+      "transferSize": 8200,
+      "encodedBodySize": 7900,
+      "decodedBodySize": 7900,
+      "startTime": 1080,
+      "duration": 773
+    },
+    {
+      "name": "https://demo.testfire.net/images/home2.jpg",
+      "initiatorType": "img",
+      "transferSize": 6204,
+      "encodedBodySize": 5904,
+      "decodedBodySize": 5904,
+      "startTime": 1080,
+      "duration": 836
+    },
+    {
+      "name": "https://demo.testfire.net/images/home3.jpg",
+      "initiatorType": "img",
+      "transferSize": 10741,
+      "encodedBodySize": 10441,
+      "decodedBodySize": 10441,
+      "startTime": 1080,
+      "duration": 846
+    },
+    {
+      "name": "https://demo.testfire.net/images/gradient.jpg",
+      "initiatorType": "css",
+      "transferSize": 1194,
+      "encodedBodySize": 894,
+      "decodedBodySize": 894,
+      "startTime": 1094,
+      "duration": 501
+    },
+    {
+      "name": "https://demo.testfire.net/favicon.ico",
+      "initiatorType": "other",
+      "transferSize": 7121,
+      "encodedBodySize": 6821,
+      "decodedBodySize": 6821,
+      "startTime": 1965,
+      "duration": 142
+    }
+  ],
+  "cookies": [
+    {
+      "name": "JSESSIONID",
+      "domain": "demo.testfire.net",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "unspecified",
+      "session": true,
+      "hostOnly": true,
+      "partitioned": false
+    }
+  ],
+  "html": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\"><head>\n\t<title>Altoro Mutual</title>\n  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n  <link href=\"/style.css\" rel=\"stylesheet\" type=\"text/css\">\n</head>\n<body style=\"margin-top:5px;\">\n\n<div id=\"header\" style=\"margin-bottom:5px; width: 99%;\">\n  <form id=\"frmSearch\" method=\"get\" action=\"/search.jsp\">\n\t  <table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n\t\t  <tbody><tr>\n\t\t      <td rowspan=\"2\"><a id=\"HyperLink1\" href=\"/index.jsp\"><img src=\"/images/logo.gif\" width=\"283\" height=\"80/\"></a></td>\n\t\t\t  <td align=\"right\" valign=\"top\">\n  \t\t\t  <a id=\"LoginLink\" href=\"/login.jsp\"><font style=\"font-weight: bold; color: red;\">Sign In</font></a> | <a id=\"HyperLink3\" href=\"/index.jsp?content=inside_contact.htm\">Contact Us</a> | <a id=\"HyperLink4\" href=\"/feedback.jsp\">Feedback</a> | <label for=\"txtSearch\">Search</label>\n          <input type=\"text\" name=\"query\" id=\"query\" accesskey=\"S\">\n          <input type=\"submit\" value=\"Go\">\n\t\t\t  </td>\n\t\t  </tr>\n\t\t  <tr>\n\t\t\t  <td align=\"right\" style=\"background-image:url('/images/gradient.jpg');padding:0px;margin:0px;\"><img src=\"/images/header_pic.jpg\" alt=\"\" width=\"354\" height=\"60/\"></td>\n\t\t  </tr>\n\t  </tbody></table>\n\t</form>\n</div>\n\n<div id=\"wrapper\" style=\"width: 99%;\">\n\t \n\n<!-- TOC BEGIN -->     \n     </div><table cellspacing=\"0\" width=\"100%\">\n  <tbody><tr>\n    <td width=\"25%\" class=\"bt br bb\"><div id=\"Header1\"><img id=\"Image1\" src=\"/images/pf_lock.gif\" width=\"12\" height=\"14\" style=\"vertical-align: bottom;\" alt=\"Secure Login\"> &nbsp; <a id=\"AccountLink\" href=\"/login.jsp\" class=\"focus\">ONLINE BANKING LOGIN</a></div></td>\n    <td width=\"25%\" class=\"cc bt br bb\"><div id=\"Header2\"><a id=\"LinkHeader2\" class=\"focus\" href=\"/index.jsp?content=personal.htm\">PERSONAL</a></div></td>\n    <td width=\"25%\" class=\"cc bt br bb\"><div id=\"Header3\"><a id=\"LinkHeader3\" class=\"focus\" href=\"/index.jsp?content=business.htm\">SMALL BUSINESS</a></div></td>\n    <td width=\"25%\" class=\"cc bt bb\"><div id=\"Header4\"><a id=\"LinkHeader4\" class=\"focus\" href=\"/index.jsp?content=inside.htm\">INSIDE ALTORO MUTUAL</a></div></td>\n  </tr>\n  <tr>\n  \n  <!-- END HEADER -->\n\n\n<td valign=\"top\" class=\"cc br bb\">\n        <br style=\"line-height: 10px;\">\n        \n        <a id=\"CatLink1\" class=\"subheader\" href=\"index.jsp?content=personal.htm\">PERSONAL</a>\n        <ul class=\"sidebar\">\n            <li><a id=\"MenuHyperLink1\" href=\"index.jsp?content=personal_deposit.htm\">Deposit Product</a></li>\n            <li><a id=\"MenuHyperLink2\" href=\"index.jsp?content=personal_checking.htm\">Checking</a></li>\n            <li><a id=\"MenuHyperLink3\" href=\"index.jsp?content=personal_loans.htm\">Loan Products</a></li>\n            <li><a id=\"MenuHyperLink4\" href=\"index.jsp?content=personal_cards.htm\">Cards</a></li>\n            <li><a id=\"MenuHyperLink5\" href=\"index.jsp?content=personal_investments.htm\">Investments &amp; Insurance</a></li>\n            <li><a id=\"MenuHyperLink6\" href=\"index.jsp?content=personal_other.htm\">Other Services</a></li>\n        </ul>\n\n        <a id=\"CatLink2\" class=\"subheader\" href=\"index.jsp?content=business.htm\">SMALL BUSINESS</a>\n        <ul class=\"sidebar\">\n            <li><a id=\"MenuHyperLink7\" href=\"index.jsp?content=business_deposit.htm\">Deposit Products</a></li>\n            <li><a id=\"MenuHyperLink8\" href=\"index.jsp?content=business_lending.htm\">Lending Services</a></li>\n            <li><a id=\"MenuHyperLink9\" href=\"index.jsp?content=business_cards.htm\">Cards</a></li>\n            <li><a id=\"MenuHyperLink10\" href=\"index.jsp?content=business_insurance.htm\">Insurance</a></li>\n            <li><a id=\"MenuHyperLink11\" href=\"index.jsp?content=business_retirement.htm\">Retirement</a></li>\n            <li><a id=\"MenuHyperLink12\" href=\"index.jsp?content=business_other.htm\">Other Services</a></li>\n        </ul>\n\n        <a id=\"CatLink3\" class=\"subheader\" href=\"index.jsp?content=inside.htm\">INSIDE ALTORO MUTUAL</a>\n        <ul class=\"sidebar\">\n            <li><a id=\"MenuHyperLink13\" href=\"index.jsp?content=inside_about.htm\">About Us</a></li>\n            <li><a id=\"MenuHyperLink14\" href=\"index.jsp?content=inside_contact.htm\">Contact Us</a></li>\n            <li><a id=\"MenuHyperLink15\" href=\"cgi.exe\">Locations</a></li>\n            <li><a id=\"MenuHyperLink16\" href=\"index.jsp?content=inside_investor.htm\">Investor Relations</a></li>\n            <li><a id=\"MenuHyperLink17\" href=\"index.jsp?content=inside_press.htm\">Press Room</a></li>\n            <li><a id=\"MenuHyperLink18\" href=\"index.jsp?content=inside_careers.htm\">Careers</a></li>\n\t\t\t<li><a id=\"MenuHyperLink19\" href=\"subscribe.jsp\">Subscribe</a></li>\n        </ul>\n    </td>\n<!-- TOC END -->\n\n    <td valign=\"top\" colspan=\"3\" class=\"bb\">\n\t\t\n\t\t\n\t\t\n\t\t\t<!-- Keywords:Altoro Mutual, online banking, banking, checking, savings, accounts -->\n<br>\n<table border=\"0\" cellspacing=\"0\" width=\"100%\">\n  <tbody><tr>\n    <td width=\"33%\" valign=\"top\">\n        <b><a href=\"index.jsp?content=personal_savings.htm\">Online Banking with FREE Online Bill Pay </a></b><br>\n        No stamps, envelopes, or checks to write give you more time to spend on the things you enjoy. <br>\n        <br>\n        <center><img src=\"images/home1.jpg\" width=\"170\" height=\"114\"></center>\n        <br>\n\n        <b><a href=\"index.jsp?content=personal_loans.htm\">Real Estate Financing</a></b><br>\n        Fast. Simple. Professional. Whether you are preparing to buy, build, purchase land, or construct new space, let Altoro Mutual's premier real estate lenders help with financing. As a regional leader, we know the market, we understand the business, and we have the track record to prove it\n    </td>\n    <td width=\"33%\" valign=\"top\">\n        <center><img src=\"images/home2.jpg\" width=\"170\" height=\"128\"></center>\n        <br><br>\n        <b><a href=\"index.jsp?content=business_cards.htm\">Business Credit Cards</a></b><br>\n        You're always looking for ways to improve your company's bottom line. You want to be informed, improve efficiency and control expenses. Now, you can do it all - with a business credit card account from Altoro Mutual.\n        <br>\n\n        <br>\n        <b><a href=\"index.jsp?content=business_retirement.htm\">Retirement Solutions</a></b><br>\n        Retaining good employees is a tough task. See how Altoro Mutual can assist you in accomplishing this feat through effective Retirement Solutions.\n    </td>\n    <td width=\"33%\" valign=\"top\">\n        <b>Privacy and Security </b><br>\n        The 2000 employees of Altoro Mutual are dedicated to protecting your <a href=\"index.jsp?content=privacy.htm\">privacy</a> and <a href=\"default.jsp?content=security.htm\">security</a>. We pledge to provide you with the information and resources that you need to help secure your information and keep it confidential.  This is our promise.\n        <br><br>\n\n        <center><img src=\"images/home3.jpg\" width=\"170\" height=\"113\"></center><br><br>\n\n        <b><a href=\"survey_questions.jsp\">Win a Samsung Galaxy S10 smartphone</a></b>\n        <br>\n        Completing this short survey will enter you in a draw for 1 of 5 Samsung Galaxy S10 smartphones!  We look forward to hearing your important feedback.\n        <br><br>\n    </td>\n  </tr>\n</tbody></table>\n\t\t\n    </td>\n\t\n\n\n \n\n<!-- BEGIN FOOTER -->\n\n\n</tr>\n</tbody></table>\n<div id=\"footer\" style=\"width: 99%;\">\n    <a id=\"HyperLink5\" href=\"/index.jsp?content=privacy.htm\">Privacy Policy</a>\n    &nbsp;&nbsp;|&nbsp;&nbsp;\n    <a id=\"HyperLink6\" href=\"/index.jsp?content=security.htm\">Security Statement</a>\n    &nbsp;&nbsp;|&nbsp;&nbsp;\n    <a id=\"HyperLink6\" href=\"/status_check.jsp\">Server Status Check</a>\n    &nbsp;&nbsp;|&nbsp;&nbsp; \n    <a id=\"HyperLink6\" href=\"/swagger/index.html\">REST API</a>\n    &nbsp;&nbsp;|&nbsp;&nbsp; \n    ©&nbsp;2026 Altoro Mutual, Inc.\n    <span style=\"color:red;font-weight:bold;font-style:italic;float:right\">This web application is open source!<span style=\"color:black;font-style:italic;font-weight:normal;float:right\">&nbsp;<a href=\"https://github.com/AppSecDev/AltoroJ/\">Get your copy from GitHub</a> and take advantage of advanced features</span></span>\n\t<br><br><br>\n    <div class=\"disclaimer\">\n        The AltoroJ website is published by HCL Technologies, Ltd. for the sole purpose of\n        demonstrating the effectiveness of HCL products in detecting web application\n        vulnerabilities and website defects. This site is not a real banking site. Similarities,\n        if any, to third party products and/or websites are purely coincidental. This site is\n        provided \"as is\" without warranty of any kind, either express or implied. HCL does\n        not assume any risk in relation to your use of this website. For more information,\n        please go to <a id=\"HyperLink7\" href=\"https://www.hcl-software.com/appscan/\">https://www.hcl-software.com/appscan/</a>.<br><br>\n\n        Copyright © 2008, 2017, IBM Corporation, All rights reserved.\n        Copyright © 2017, 2026, HCL Technologies, Ltd., All rights reserved.\n    </div>\n</div>\n\n\n\n</body></html>"
+}

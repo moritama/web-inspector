@@ -643,6 +643,8 @@ export interface InspectionCoverage {
     domItemCount?: number;
     headerCount?: number;
     cookieCount?: number;
+    /** 完全性が「部分的 (partial)」となった理由一覧 (v1.7.1 T06) */
+    partialReasons?: string[];
   };
 }
 
@@ -743,6 +745,10 @@ export interface DomSignals {
   metaCspReportOnly?: string[];
   // T06 / DOC-01 追加: 特定DOM要素のテキスト先頭200文字 (例: Spring Boot Whitelabel Error Page)
   elementTexts?: string[];
+  /** Content Script のシグナル収集が途中で失敗またはフォールバックしたか (v1.7.1 T06) */
+  collectionPartial?: boolean;
+  /** Content Script の収集が部分的になった理由一覧 (v1.7.1 T06) */
+  collectionErrors?: string[];
 }
 
 /**

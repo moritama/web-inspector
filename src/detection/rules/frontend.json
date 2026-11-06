@@ -147,10 +147,17 @@
       {
         "type": "dom",
         "target": "[ng-version]",
-        "pattern": "ng-version=\"([0-9.]+)\"",
-        "versionRegex": "ng-version=\"([0-9.]+)\"",
+        "pattern": "ng-version=\"([0-9]+(?:\\.[0-9]+)*(?:[-+][0-9A-Za-z.-]+)?)\"",
+        "versionRegex": "ng-version=\"([0-9]+(?:\\.[0-9]+)*)",
         "weight": 95,
         "detail": "DOM属性（ng-version）からAngularを検出"
+      },
+      {
+        "type": "dom",
+        "target": "[_nghost-], [_ngcontent-], [ng-server-context]",
+        "pattern": "_nghost-|_ngcontent-|\\[ng-server-context\\]",
+        "weight": 85,
+        "detail": "DOM属性（_nghost-* / _ngcontent-* / ng-server-context）からAngularを検出"
       }
     ]
   },
@@ -163,10 +170,10 @@
     "signals": [
       {
         "type": "dom",
-        "target": "[ng-app], [ng-controller]",
-        "pattern": "\\bng-(?:app|controller|model|bind)\\b",
+        "target": "[ng-app], [data-ng-app], [ng-controller], [data-ng-controller], [ng-model], [data-ng-model], [ng-bind], [ng-repeat], [ng-cloak], .ng-scope, .ng-binding",
+        "pattern": "(?:\\b|data-)ng-(?:app|controller|model|bind|repeat|cloak)\\b|\\.ng-(?:scope|binding)\\b",
         "weight": 90,
-        "detail": "DOM属性（ng-app / ng-controller）からAngularJS 1.xを検出"
+        "detail": "DOM属性・クラス（ng-app / data-ng-app / ng-controller / ng-scope 等）からAngularJS 1.xを検出"
       },
       {
         "type": "script",

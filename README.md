@@ -104,7 +104,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 |  | CakePHP (`cakephp`) | - | - | - | cookie (CAKEPHP) |
 |  | Spring Security (`spring-security`) | - | - | - | dom (input[name='_csrf']) |
 | **CMS** | **WordPress** (`wordpress`) | ✅ | ✅ | ✅ | meta (generator), script (src), link (href), header (link) |
-|  | Drupal (`drupal`) | ✅ | - | - | meta (generator), header (x-generator), header (x-drupal-cache), script (src) |
+|  | Drupal (`drupal`) | ✅ | - | - | meta (generator), header (x-generator), header (x-drupal-cache), header (x-drupal-dynamic-cache), dom ([data-drupal-selector], [data-drupal-messages], [data-drupal-link-system-path], script[data-drupal-selector='drupal-settings-json']), script (src), link (href) |
 |  | Joomla (`joomla`) | ✅ | - | - | meta (generator), script (src) |
 |  | Shopify (`shopify`) | - | - | - | header (server), script (src), link (href) |
 |  | Wix (`wix`) | - | - | - | meta (generator), header (x-wix-request-id), script (src) |
@@ -112,8 +112,8 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 |  | Next.js (`nextjs`) | - | - | - | dom (script#__NEXT_DATA__), script (src), link (href), header (x-powered-by) |
 |  | **Vue.js** (`vue`) | ✅ | ✅ | ✅ | dom ([data-v-], [data-v-app], __vue_app__), script (src), dom (#__nuxt), 実行時バージョン取得 (MAIN world) |
 |  | Nuxt (`nuxtjs`) | - | - | - | dom (#__nuxt, script#__NUXT_DATA__), script (src), link (href) |
-|  | **Angular** (`angular`) | ✅ | ✅ | ✅ | dom ([ng-version]) |
-|  | **AngularJS** (`angularjs`) | ✅ | ✅ | ✅ | dom ([ng-app], [ng-controller]), script (src), 実行時バージョン取得 (MAIN world) |
+|  | **Angular** (`angular`) | ✅ | ✅ | ✅ | dom ([ng-version]), dom ([_nghost-], [_ngcontent-], [ng-server-context]) |
+|  | **AngularJS** (`angularjs`) | ✅ | ✅ | ✅ | dom ([ng-app], [data-ng-app], [ng-controller], [data-ng-controller], [ng-model], [data-ng-model], [ng-bind], [ng-repeat], [ng-cloak], .ng-scope, .ng-binding), script (src), 実行時バージョン取得 (MAIN world) |
 |  | Svelte (`svelte`) | - | - | - | dom ([class*='svelte-']), script (src) |
 |  | **jQuery** (`jquery`) | ✅ | ✅ | ✅ | script (src), 実行時バージョン取得 (MAIN world) |
 |  | **Bootstrap** (`bootstrap`) | ✅ | ✅ | ✅ | link (href), script (src), dom (.container, .row, .col-), 実行時バージョン取得 (MAIN world) |

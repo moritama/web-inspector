@@ -35,7 +35,11 @@ import {
   parseRegistrableDomain,
   resolveResourceUrl,
 } from '../security/domain-analyzer';
-import { assessInspectionCoverage } from '../shared/coverage';
+import {
+  assessInspectionCoverage,
+  countDomItems,
+  hasDomResourceReferences,
+} from '../shared/coverage';
 import {
   CSPPolicy,
   DomSignals,
@@ -469,6 +473,8 @@ export async function getInspectedCookies(url: string): Promise<InspectedCookieI
  * Content Script を必要なときだけオンデマンド注入し、DOM・CSSシグナルを取得する (v1.7.0 T11 / IMPL-08 / D6)
  */
 export async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
+  const collectionErrors: string[] = [];
+
   // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する (二重注入は content-script 先頭の印で防止)
   try {
     if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript) {
@@ -479,18 +485,33 @@ export async function fetchDomSignals(tabId: number, url: string): Promise<DomSi
     }
   } catch (e) {
     console.warn('Content script injection warning:', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    collectionErrors.push(`Content Script の注入に失敗しました${msg ? `: ${msg}` : ''}`);
   }
 
   // 2. 注入された Content Script から DOM シグナルを取得する
   try {
     if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
       const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
-      if (response) {
-        return response as DomSignals;
+      if (response && typeof response === 'object') {
+        const signals = response as DomSignals;
+        if (collectionErrors.length > 0) {
+          return {
+            ...signals,
+            collectionPartial: true,
+            collectionErrors: [...collectionErrors, ...(signals.collectionErrors || [])],
+          };
+        }
+        return signals;
       }
+      collectionErrors.push('Content Script から有効な DOM シグナル応答が得られませんでした');
     }
   } catch (e) {
     console.warn('DOM signals message warning:', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    collectionErrors.push(
+      `Content Script からの DOM シグナル取得に失敗しました${msg ? `: ${msg}` : ''}`
+    );
   }
 
   return {
@@ -504,6 +525,11 @@ export async function fetchDomSignals(tabId: number, url: string): Promise<DomSi
     mixedContent: [],
     cookiesFromDocument: [],
     cssAssets: [],
+    collectionPartial: true,
+    collectionErrors:
+      collectionErrors.length > 0
+        ? collectionErrors
+        : ['Content Script からの DOM シグナル収集に失敗しました'],
   };
 }
 
@@ -627,8 +653,29 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     hostname = url;
   }
 
-  // 1. DOM・CSS情報の取得
-  const domSignals = await deps.fetchDomSignals(currentTabId, url);
+  // 1. DOM・CSS情報の取得 (Content Script の収集失敗時も安全にフォールバックし partial 理由を記録 - v1.7.1 T06)
+  let domSignals: DomSignals;
+  try {
+    domSignals = await deps.fetchDomSignals(currentTabId, url);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    domSignals = {
+      url,
+      title: '',
+      metaTags: [],
+      scriptUrls: [],
+      linkUrls: [],
+      domMarkers: [],
+      htmlSnippets: [],
+      mixedContent: [],
+      cookiesFromDocument: [],
+      cssAssets: [],
+      collectionPartial: true,
+      collectionErrors: [
+        `Content Script の DOM 収集が失敗しました${msg ? `: ${msg}` : ''}`,
+      ],
+    };
+  }
 
   // 2. JavaScript実行時バージョンおよび内部フレームワークマーカーの取得 (MAIN World)
   const runtimeInfo = await deps.fetchRuntimeVersions(currentTabId);
@@ -978,21 +1025,33 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
 
   const isHttps = url.toLowerCase().startsWith('https://');
 
-  // 8. 調査完全性評価 (Rev.2.1 IMP-08)
+  // 8. 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11 / v1.7.1 T05: 実際に読み込まれたリソースを主にしDOM参照で補完)
+  const resourceUrls = collectLoadedResourceUrls(url, domSignals);
+  const externalConnections = analyzeExternalConnections(url, resourceUrls);
+
+  // 8.1 調査完全性評価 (Rev.2.1 IMP-08 / v1.7.1 T06)
+  const domItemCount = countDomItems(domSignals);
+  const hasDomRefs = hasDomResourceReferences(domSignals);
+  const hasDom = Boolean(
+    domSignals.title ||
+      domItemCount > 0 ||
+      hasDomRefs ||
+      (domSignals.resourceEntries && domSignals.resourceEntries.length > 0)
+  );
   const coverage = assessInspectionCoverage({
-    hasDom: Boolean(domSignals.title || domSignals.metaTags.length > 0 || domSignals.scriptUrls.length > 0),
+    hasDom,
     hasHeaders: headersObserved,
     hasCookiesPermission: true,
     cookieCount: cookies.length,
     hasWebRequestPermission: deps.hasWebRequestPermission ?? true,
     unobservedPreScan: !headersObserved,
-    domItemCount: domSignals.metaTags.length + domSignals.scriptUrls.length,
+    domItemCount,
     headerCount: Object.keys(responseHeaders).length,
+    domCollectionPartial: domSignals.collectionPartial,
+    domCollectionReasons: domSignals.collectionErrors,
+    hasDomResourceReferences: hasDomRefs,
+    externalConnectionCount: externalConnections.totalConnections,
   });
-
-  // 8.1 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11 / v1.7.1 T05: 実際に読み込まれたリソースを主にしDOM参照で補完)
-  const resourceUrls = collectLoadedResourceUrls(url, domSignals);
-  const externalConnections = analyzeExternalConnections(url, resourceUrls);
 
   const advMeta = getAdvisoryDbMetadata();
   let advDbVersion = advMeta.dataVersion || '2026.10';

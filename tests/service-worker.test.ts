@@ -1080,4 +1080,92 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       expect(httpOnlyCheck?.observed).toContain('__Host-chips_session');
     });
   });
+
+  describe('v1.7.1 T06: Content Script 収集失敗時の完全性 (partial) と domItemCount の拡張', () => {
+    it('Content Script の収集を失敗させたモック（sendMessage 失敗 / fetchDomSignals 失敗 / 途中失敗）で、完全性が「部分的 (partial)」になり理由が出ること', async () => {
+      // 1. chrome.tabs.sendMessage が例外を投げた場合 (fetchDomSignals 経由)
+      (globalThis as any).chrome = {
+        scripting: {
+          executeScript: vi.fn().mockResolvedValue([{ result: undefined }]),
+        },
+        tabs: {
+          sendMessage: vi.fn().mockRejectedValue(new Error('Could not establish connection')),
+        },
+      };
+
+      const fallbackSignals = await fetchDomSignals(101, 'https://app.example.test/');
+      expect(fallbackSignals.collectionPartial).toBe(true);
+      expect(fallbackSignals.collectionErrors?.[0]).toContain('Could not establish connection');
+
+      const mockHeaders = vi.fn().mockResolvedValue({
+        url: 'https://app.example.test/',
+        headers: {
+          server: ['Apache/2.4.58 (Ubuntu)'],
+        },
+      });
+
+      const reportFromSendMessageFail = await executeInspection(
+        createMockDeps({
+          tab: { id: 101, url: 'https://app.example.test/' },
+          getCachedHeaders: mockHeaders,
+          fetchDomSignals: () => fetchDomSignals(101, 'https://app.example.test/'),
+        })
+      );
+      expect(reportFromSendMessageFail.coverage?.headers).toBe('complete');
+      expect(reportFromSendMessageFail.coverage?.overallStatus).toBe('partial');
+      expect(reportFromSendMessageFail.coverage?.dom).toBe('partial');
+      expect(reportFromSendMessageFail.coverage?.details?.partialReasons?.length).toBeGreaterThan(0);
+      const md1 = generateMarkdownReport(reportFromSendMessageFail);
+      expect(md1).toContain('一部制限あり (Partial)');
+      expect(md1).toContain('**部分的となった理由:**');
+
+      // 2. deps.fetchDomSignals 自体が reject した場合
+      const reportFromRejectedDep = await executeInspection(
+        createMockDeps({
+          tab: { id: 101, url: 'https://app.example.test/' },
+          getCachedHeaders: mockHeaders,
+          fetchDomSignals: vi.fn().mockRejectedValue(new Error('Frame was detached during scan')),
+        })
+      );
+      expect(reportFromRejectedDep.coverage?.headers).toBe('complete');
+      expect(reportFromRejectedDep.coverage?.overallStatus).toBe('partial');
+      expect(reportFromRejectedDep.coverage?.dom).toBe('partial');
+      expect(
+        reportFromRejectedDep.coverage?.details?.partialReasons?.some((r) =>
+          r.includes('Frame was detached during scan')
+        )
+      ).toBe(true);
+    });
+
+    it('executeInspection の domItemCount が metaTags と scriptUrls に加えて domMarkers・スタイルシート・htmlSnippets を含めて集計されること', async () => {
+      const deps = createMockDeps({
+        tab: { id: 101, url: 'https://app.example.test/' },
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://app.example.test/',
+          headers: {
+            server: ['Apache/2.4.58 (Ubuntu)'],
+          },
+        }),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: {},
+          frameworkMarkers: [],
+        }),
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            url: 'https://app.example.test/',
+            metaTags: [{ name: 'generator', content: 'WordPress 6.4.2' }],
+            scriptUrls: ['https://app.example.test/js/app.js'],
+            linkUrls: [{ rel: 'stylesheet', href: 'https://app.example.test/css/style.css' }],
+            domMarkers: ['[ng-version]', '_nghost-'],
+            htmlSnippets: ['container flex'],
+          })
+        ),
+      });
+
+      const report = await executeInspection(deps);
+      // meta(1) + script(1) + stylesheet(1) + domMarkers(2) + htmlSnippets(1) = 6
+      expect(report.coverage?.details?.domItemCount).toBe(6);
+      expect(report.coverage?.overallStatus).toBe('complete');
+    });
+  });
 });

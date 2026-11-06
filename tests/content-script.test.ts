@@ -501,4 +501,271 @@ describe('extractDomSignals (Content Script)', () => {
       }
     });
   });
+
+  describe('v1.7.1 T06: 混在コンテンツ URL (badssl 3 サイト)・N2 DOM 検出・Content Script 途中失敗', () => {
+    it('badssl 3 サイトのスナップショット (mixed / mixed-script / mixed-form) で混在コンテンツの観測値に要素と URL が出ること', async () => {
+      const origConsoleError = console.error;
+      console.error = (...args: unknown[]) => {
+        const msg = String(args[0] ?? '');
+        if (msg.includes('CSS file loading is disabled')) return;
+        origConsoleError(...args);
+      };
+
+      try {
+        const snapshotsDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+        const expectations: Array<{
+          host: string;
+          checkId: string;
+          expectedObservedFragment: string;
+        }> = [
+          {
+            host: 'mixed.badssl.com',
+            checkId: 'SEC-MIXED-PASSIVE',
+            expectedObservedFragment: 'img: http://mixed.badssl.com/image.jpg',
+          },
+          {
+            host: 'mixed-script.badssl.com',
+            checkId: 'SEC-MIXED-ACTIVE',
+            expectedObservedFragment: 'script: http://mixed-script.badssl.com/nonsecure.js',
+          },
+          {
+            host: 'mixed-form.badssl.com',
+            checkId: 'SEC-MIXED-ACTIVE',
+            expectedObservedFragment:
+              'form[action]: http://http.badssl.com/resources/form-submitted.html',
+          },
+        ];
+
+        for (const { host, checkId, expectedObservedFragment } of expectations) {
+          const snap = JSON.parse(
+            fs.readFileSync(path.join(snapshotsDir, `${host}.json`), 'utf-8')
+          ) as {
+            url: string;
+            finalUrl?: string;
+            responseHeaders?: Record<string, string[]>;
+            resourceTiming?: Array<{ name: string; initiatorType?: string }>;
+            cookies?: InspectedCookieInfo[];
+            html?: string;
+          };
+          const pageUrl = snap.finalUrl || snap.url;
+          const html =
+            snap.html || fs.readFileSync(path.join(snapshotsDir, `${host}.html`), 'utf-8');
+
+          document.documentElement.innerHTML = html;
+          const signals = extractDomSignals(pageUrl);
+          const report = await executeInspection({
+            tab: { id: 1, url: pageUrl },
+            fetchDomSignals: async () => signals,
+            fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+            getCachedHeaders: async () => ({
+              url: pageUrl,
+              headers: snap.responseHeaders || {},
+              observed: true,
+            }),
+            getInspectedCookies: async () => snap.cookies || [],
+            getAllFindingExceptions: async () => [],
+            saveReport: async () => {},
+            hasWebRequestPermission: true,
+          });
+
+          const check = report.securityChecks.find((c) => c.checkId === checkId);
+          expect(check).toBeDefined();
+          expect(check?.observed).toContain(expectedObservedFragment);
+        }
+      } finally {
+        console.error = origConsoleError;
+      }
+    });
+
+    it('angular.dev スナップショットでビルドメタデータ付き ng-version="22.2.5+sha-d881689" および _nghost- / _ngcontent- / [ng-server-context] から Angular 22.2.5 が検出されること', async () => {
+      const origConsoleError = console.error;
+      console.error = (...args: unknown[]) => {
+        const msg = String(args[0] ?? '');
+        if (msg.includes('CSS file loading is disabled')) return;
+        origConsoleError(...args);
+      };
+
+      try {
+        const snapshotsDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+        const snap = JSON.parse(
+          fs.readFileSync(path.join(snapshotsDir, 'angular.dev.json'), 'utf-8')
+        ) as {
+          url: string;
+          finalUrl?: string;
+          responseHeaders?: Record<string, string[]>;
+          resourceTiming?: Array<{ name: string; initiatorType?: string }>;
+          cookies?: InspectedCookieInfo[];
+          html?: string;
+        };
+        const pageUrl = snap.finalUrl || snap.url;
+        const html =
+          snap.html || fs.readFileSync(path.join(snapshotsDir, 'angular.dev.html'), 'utf-8');
+
+        document.documentElement.innerHTML = html;
+        const signals = extractDomSignals(pageUrl);
+        expect(signals.domMarkers).toContain('ng-version="22.2.5+sha-d881689"');
+        expect(signals.domMarkers).toContain('_nghost-');
+        expect(signals.domMarkers).toContain('_ngcontent-');
+        expect(signals.domMarkers).toContain('[ng-server-context]');
+
+        const report = await executeInspection({
+          tab: { id: 1, url: pageUrl },
+          fetchDomSignals: async () => signals,
+          fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+          getCachedHeaders: async () => ({
+            url: pageUrl,
+            headers: snap.responseHeaders || {},
+            observed: true,
+          }),
+          getInspectedCookies: async () => snap.cookies || [],
+          getAllFindingExceptions: async () => [],
+          saveReport: async () => {},
+          hasWebRequestPermission: true,
+        });
+
+        const angular = report.technologies.find((t) => t.technology === 'Angular');
+        expect(angular).toBeDefined();
+        expect(angular?.version).toBe('22.2.5');
+        expect(angular?.confidence).toBe(95);
+      } finally {
+        console.error = origConsoleError;
+      }
+    });
+
+    it('angularjs.org (Firebase 404 ページ) と www.drupal.org (Fastly Client Challenge ページ) のスナップショットには対象技術の印が無く誤検出しないこと、また代替シグナルがある DOM では AngularJS と Drupal が検出されること', async () => {
+      const snapshotsDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+
+      // 1. angularjs.org スナップショット: Firebase Hosting の 404 Site Not Found ページ
+      const angularjsHtml = fs.readFileSync(
+        path.join(snapshotsDir, 'angularjs.org.html'),
+        'utf-8'
+      );
+      expect(angularjsHtml).toContain('<title>Site Not Found</title>');
+      expect(angularjsHtml).not.toMatch(/ng-app|angular/i);
+      document.documentElement.innerHTML = angularjsHtml;
+      const angularjsSnapSignals = extractDomSignals('https://angularjs.org/');
+      const angularjsSnapReport = await executeInspection({
+        tab: { id: 1, url: 'https://angularjs.org/' },
+        fetchDomSignals: async () => angularjsSnapSignals,
+        fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+        getCachedHeaders: async () => ({
+          url: 'https://angularjs.org/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: async () => [],
+        getAllFindingExceptions: async () => [],
+        saveReport: async () => {},
+        hasWebRequestPermission: true,
+      });
+      expect(
+        angularjsSnapReport.technologies.find((t) => t.technology === 'AngularJS')
+      ).toBeUndefined();
+
+      // 2. www.drupal.org スナップショット: Fastly の Client Challenge CAPTCHA ページ
+      const drupalHtml = fs.readFileSync(
+        path.join(snapshotsDir, 'www.drupal.org.html'),
+        'utf-8'
+      );
+      expect(drupalHtml).toContain('<title>Client Challenge</title>');
+      expect(drupalHtml).toContain('fastlyLogo');
+      expect(drupalHtml).not.toMatch(/drupal/i);
+      document.documentElement.innerHTML = drupalHtml;
+      const drupalSnapSignals = extractDomSignals('https://www.drupal.org/');
+      const drupalSnapReport = await executeInspection({
+        tab: { id: 1, url: 'https://www.drupal.org/' },
+        fetchDomSignals: async () => drupalSnapSignals,
+        fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+        getCachedHeaders: async () => ({
+          url: 'https://www.drupal.org/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: async () => [],
+        getAllFindingExceptions: async () => [],
+        saveReport: async () => {},
+        hasWebRequestPermission: true,
+      });
+      expect(
+        drupalSnapReport.technologies.find((t) => t.technology === 'Drupal')
+      ).toBeUndefined();
+
+      // 3. AngularJS の代替シグナル (data-ng-app / .ng-scope) を持つ DOM では AngularJS が検出されること
+      document.documentElement.innerHTML = `
+        <html><body>
+          <div data-ng-app="portalApp" class="ng-scope">
+            <span class="ng-binding">Hello</span>
+          </div>
+        </body></html>
+      `;
+      const altAngularJsSignals = extractDomSignals('https://legacy.example.test/');
+      expect(altAngularJsSignals.domMarkers).toContain('[data-ng-app]');
+      expect(altAngularJsSignals.domMarkers).toContain('.ng-scope');
+
+      // 4. Drupal の代替シグナル (data-drupal-selector / drupal-settings-json) を持つ DOM では Drupal が検出されること
+      document.documentElement.innerHTML = `
+        <html><head>
+          <script type="application/json" data-drupal-selector="drupal-settings-json">{"path":{"baseUrl":"/"}}</script>
+        </head><body>
+          <div data-drupal-messages-fallback class="hidden"></div>
+        </body></html>
+      `;
+      const altDrupalSignals = extractDomSignals('https://cms.example.test/');
+      expect(altDrupalSignals.domMarkers).toContain('data-drupal-');
+      expect(altDrupalSignals.domMarkers).toContain('[data-drupal-selector]');
+    });
+
+    it('extractDomSignals の途中で例外が発生したとき、collectionPartial: true が記録され完全性が「部分的 (partial)」になること', async () => {
+      document.body.innerHTML = `
+        <div ng-version="19.1.0">App</div>
+      `;
+
+      const origQuerySelectorAll = document.querySelectorAll.bind(document);
+      const qsaSpy = vi
+        .spyOn(document, 'querySelectorAll')
+        .mockImplementation(((selector: string) => {
+          if (selector === 'script[src]') {
+            throw new Error('Simulated DOM querySelectorAll failure');
+          }
+          return origQuerySelectorAll(selector);
+        }) as typeof document.querySelectorAll);
+
+      try {
+        const signals = extractDomSignals('https://partial.example.test/');
+        expect(signals.collectionPartial).toBe(true);
+        expect(
+          signals.collectionErrors?.some((e) =>
+            e.includes('Simulated DOM querySelectorAll failure')
+          )
+        ).toBe(true);
+        // 他のステップ（DOM セレクタ探査）は継続して収集できていること
+        expect(signals.domMarkers).toContain('ng-version="19.1.0"');
+
+        const report = await executeInspection({
+          tab: { id: 1, url: 'https://partial.example.test/' },
+          fetchDomSignals: async () => signals,
+          fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+          getCachedHeaders: async () => ({
+            url: 'https://partial.example.test/',
+            headers: { 'x-content-type-options': ['nosniff'] },
+            observed: true,
+          }),
+          getInspectedCookies: async () => [],
+          getAllFindingExceptions: async () => [],
+          saveReport: async () => {},
+          hasWebRequestPermission: true,
+        });
+
+        expect(report.coverage?.overallStatus).toBe('partial');
+        expect(report.coverage?.dom).toBe('partial');
+        expect(
+          report.coverage?.details?.partialReasons?.some((r) =>
+            r.includes('Simulated DOM querySelectorAll failure')
+          )
+        ).toBe(true);
+      } finally {
+        qsaSpy.mockRestore();
+      }
+    });
+  });
 });

@@ -269,7 +269,7 @@ export function generateMarkdownReport(
 | 検出技術スタック数 | **${report.summary.totalTechnologies} 件** |
 `);
 
-  // 2. 調査範囲・完全性 (IMP-08)
+  // 2. 調査範囲・完全性 (IMP-08 / v1.7.1 T06)
   const cov = report.coverage;
   const statusLabel =
     cov?.overallStatus === 'complete'
@@ -277,9 +277,15 @@ export function generateMarkdownReport(
       : cov?.overallStatus === 'partial'
       ? '一部制限あり (Partial)'
       : '未取得 (Unavailable)';
+  const partialReasonsLine =
+    cov?.overallStatus !== 'complete' &&
+    cov?.details?.partialReasons &&
+    cov.details.partialReasons.length > 0
+      ? `\n- **部分的となった理由:** ${cov.details.partialReasons.map((r) => escapeMarkdownTableCell(r)).join(' / ')}`
+      : '';
   sections.push(`## 2. 調査範囲・完全性 (Coverage)
 
-- **完全性ステータス:** **${statusLabel}**
+- **完全性ステータス:** **${statusLabel}**${partialReasonsLine}
 - **DOM / HTML解析:** ${cov?.dom === 'complete' ? '✅ 取得成功' : '⚠️ 一部または未取得'}
 - **HTTPレスポンスヘッダー:** ${cov?.headers === 'complete' ? '✅ 取得成功' : '⚠️ 未取得 (キャッシュ/事前スキャンなし)'}
 - **Cookie属性情報:** ${cov?.cookies === 'complete' ? `✅ 取得成功 (${report.cookies.length} 個観測)` : '⚠️ 権限なし/未取得'}

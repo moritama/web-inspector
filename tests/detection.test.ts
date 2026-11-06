@@ -1506,6 +1506,140 @@ describe('DetectionEngine', () => {
         expect(phpCookieEvidences).toHaveLength(1);
       });
     });
+
+    describe('v1.7.1 T06 (N2): Angular / AngularJS / Drupal の検出ルール強化と陽性・否定コントロール', () => {
+      it('Angular: ビルドメタデータ付き ng-version="22.2.5+sha-d881689" や _nghost- / _ngcontent- / [ng-server-context] で検出され、無関係な属性や AngularJS [ng-app] では誤検出しないこと', () => {
+        // 陽性 1: ビルドメタデータ付き ng-version
+        const resVersion = engine.detect({
+          url: 'https://angular-app.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['ng-version="22.2.5+sha-d881689"'],
+          },
+        });
+        const ngWithVer = resVersion.find((r) => r.technology === 'Angular');
+        expect(ngWithVer).toBeDefined();
+        expect(ngWithVer?.version).toBe('22.2.5');
+        expect(ngWithVer?.confidence).toBe(95);
+
+        // 陽性 2: ViewEncapsulation / SSR 属性 (_nghost-, _ngcontent-, [ng-server-context])
+        const resAlt = engine.detect({
+          url: 'https://angular-ssr.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['_nghost-', '[ng-server-context]'],
+          },
+        });
+        const ngAlt = resAlt.find((r) => r.technology === 'Angular');
+        expect(ngAlt).toBeDefined();
+        expect(ngAlt?.confidence).toBe(85);
+
+        // 陰性（否定コントロール）: AngularJS の [ng-app] や類似文字列では Angular (v2+) は検出されないこと
+        const resNeg = engine.detect({
+          url: 'https://non-angular.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['[ng-app]', 'data-v-'],
+            htmlSnippets: ['ng-loading-indicator custom-nghost'],
+          },
+        });
+        expect(resNeg.find((r) => r.technology === 'Angular')).toBeUndefined();
+      });
+
+      it('AngularJS: [data-ng-app] / [data-ng-controller] / [ng-model] / .ng-scope / .ng-binding で検出され、loading-spinner や ng-loading では誤検出しないこと', () => {
+        // 陽性 1: HTML5 準拠の [data-ng-app]
+        const resDataNg = engine.detect({
+          url: 'https://angularjs-app.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['[data-ng-app]', '[data-ng-controller]'],
+          },
+        });
+        expect(resDataNg.find((r) => r.technology === 'AngularJS')).toBeDefined();
+
+        // 陽性 2: ランタイムが付与する .ng-scope / .ng-binding
+        const resScope = engine.detect({
+          url: 'https://angularjs-runtime.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['.ng-scope', '.ng-binding'],
+          },
+        });
+        expect(resScope.find((r) => r.technology === 'AngularJS')).toBeDefined();
+
+        // 陰性（否定コントロール）: スピナー等のクラス名や Angular v2+ の ng-version では AngularJS が検出されないこと
+        const resNeg = engine.detect({
+          url: 'https://non-angularjs.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['ng-version="22.2.5+sha-d881689"', '_nghost-'],
+            htmlSnippets: ['loading-spinner ng-loading-indicator'],
+          },
+        });
+        expect(resNeg.find((r) => r.technology === 'AngularJS')).toBeUndefined();
+      });
+
+      it('Drupal: x-drupal-dynamic-cache ヘッダー、data-drupal-* DOM 印、/core/misc/drupal.js、/core/themes/ リンクで検出され、一般的な /core/app.js や Fastly ページでは誤検出しないこと', () => {
+        // 陽性 1: x-drupal-dynamic-cache ヘッダー
+        const resHeader = engine.detect({
+          url: 'https://drupal-header.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://drupal-header.example.test/',
+            responseHeaders: {
+              'x-drupal-dynamic-cache': ['MISS'],
+            },
+            cookies: [],
+          },
+        });
+        expect(resHeader.find((r) => r.technology === 'Drupal')).toBeDefined();
+
+        // 陽性 2: data-drupal-* DOM 印
+        const resDom = engine.detect({
+          url: 'https://drupal-dom.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ['data-drupal-', '[data-drupal-selector]'],
+          },
+        });
+        expect(resDom.find((r) => r.technology === 'Drupal')).toBeDefined();
+
+        // 陽性 3: Drupal コアスクリプトとテーマ CSS リンク
+        const resAssets = engine.detect({
+          url: 'https://drupal-assets.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://drupal-assets.example.test/core/misc/drupal.js?v=10.2.4'],
+            linkUrls: [
+              {
+                rel: 'stylesheet',
+                href: 'https://drupal-assets.example.test/core/themes/olivero/css/base/base.css',
+              },
+            ],
+          },
+        });
+        expect(resAssets.find((r) => r.technology === 'Drupal')).toBeDefined();
+
+        // 陰性（否定コントロール）: 一般的な /core/app.js や /sites/main.css、Fastly Challenge スクリプトでは Drupal と誤検出しないこと
+        const resNeg = engine.detect({
+          url: 'https://non-drupal.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://non-drupal.example.test/core/app.js',
+              'https://non-drupal.example.test/_fs-ch-1T1wmsGaOgGaSxcX/script.js?reload=true',
+            ],
+            linkUrls: [
+              {
+                rel: 'stylesheet',
+                href: 'https://non-drupal.example.test/sites/style.css',
+              },
+            ],
+          },
+        });
+        expect(resNeg.find((r) => r.technology === 'Drupal')).toBeUndefined();
+      });
+    });
   });
 });
 

@@ -9,9 +9,14 @@
  * 4. /legacy-lib (IMP-03): 古い jQuery 2.2.4 & WordPress 5.2 (既知脆弱性・EOL検知確認用)
  */
 
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = 3000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SNAPSHOTS_DIR = path.resolve(__dirname, '..', 'tests', 'fixtures', 'snapshots');
 
 function createLayout(title, content) {
   return `<!DOCTYPE html>
@@ -744,6 +749,47 @@ const server = http.createServer((req, res) => {
   <script src="https://ssl.google-analytics.com/ga.js"></script>
 </body>
 </html>`);
+  }
+
+  // --- 20. /snapshots/<site> (v1.7.1 T06: 取得済みスナップショットのローカル配信) ---
+  if (pathname.startsWith('/snapshots/')) {
+    const rawSite = decodeURIComponent(pathname.slice('/snapshots/'.length)).replace(/\/+$/, '');
+    if (!rawSite || !/^[a-zA-Z0-9._-]+$/.test(rawSite) || rawSite.includes('..')) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Invalid snapshot site name');
+    }
+    const jsonPath = path.join(SNAPSHOTS_DIR, `${rawSite}.json`);
+    const htmlPath = path.join(SNAPSHOTS_DIR, `${rawSite}.html`);
+    if (!fs.existsSync(jsonPath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end(`Snapshot not found: ${rawSite}`);
+    }
+    const snap = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    const html =
+      typeof snap.html === 'string' && snap.html.length > 0
+        ? snap.html
+        : fs.existsSync(htmlPath)
+          ? fs.readFileSync(htmlPath, 'utf-8')
+          : '';
+    const skipHeaders = new Set([
+      'content-encoding',
+      'content-length',
+      'transfer-encoding',
+      'connection',
+    ]);
+    if (snap.responseHeaders && typeof snap.responseHeaders === 'object') {
+      for (const [k, v] of Object.entries(snap.responseHeaders)) {
+        if (skipHeaders.has(k.toLowerCase())) continue;
+        if (Array.isArray(v) && v.length > 0) {
+          res.setHeader(k, v.length === 1 ? v[0] : v);
+        }
+      }
+    }
+    if (!res.getHeader('content-type')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+    res.writeHead(typeof snap.statusCode === 'number' ? snap.statusCode : 200);
+    return res.end(html);
   }
 
   // --- 8. デフォルト (v1.1 テストページ) ---

@@ -43,8 +43,14 @@ export const DOM_SIGNAL_FIXTURES: Record<string, DomSignalHtmlFixture> = {
   'angular': {
     html: '<div ng-version="17.0.0"></div>',
   },
+  'angular::[_nghost-], [_ngcontent-], [ng-server-context]': {
+    html: '<div _nghost-ng-c123="" ng-server-context="ssg"><span _ngcontent-ng-c123=""></span></div>',
+  },
   'angularjs': {
     html: '<div ng-app="myApp"></div>',
+  },
+  'drupal': {
+    html: '<div data-drupal-messages=""><script type="application/json" data-drupal-selector="drupal-settings-json">{}</script></div>',
   },
   'svelte': {
     html: '<div class="svelte-1abcde"></div>',

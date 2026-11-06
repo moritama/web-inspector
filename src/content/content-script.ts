@@ -258,10 +258,26 @@ function inspectCssAssets(baseUri?: string): InspectedCssAsset[] {
 }
 
 /**
- * ページ内のDOM、スクリプト、メタ情報、混在コンテンツ、読み込み済みリソースを安全に抽出する (v1.7.1 T05)
+ * ページ内のDOM、スクリプト、メタ情報、混在コンテンツ、読み込み済みリソースを安全に抽出する (v1.7.1 T05 / T06)
  */
 export function extractDomSignals(baseUrlOverride?: string): DomSignals {
-  const baseUri = resolveDocumentBaseUri(baseUrlOverride);
+  const collectionErrors: string[] = [];
+  const runStep = (stepLabel: string, fn: () => void): void => {
+    try {
+      fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      collectionErrors.push(
+        `Content Script の DOM 収集 (${stepLabel}) が途中で失敗しました${msg ? `: ${msg}` : ''}`
+      );
+    }
+  };
+
+  let baseUri: string | undefined;
+  runStep('baseUri', () => {
+    baseUri = resolveDocumentBaseUri(baseUrlOverride);
+  });
+
   const pageUrl =
     baseUrlOverride ||
     (typeof window !== 'undefined' && /^https?:\/\//i.test(window.location?.href || '')
@@ -273,13 +289,15 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
 
   // 1. metaタグ収集
   const metaTags: Array<{ name?: string; property?: string; content: string }> = [];
-  document.querySelectorAll('meta').forEach((el) => {
-    const name = el.getAttribute('name') || undefined;
-    const property = el.getAttribute('property') || undefined;
-    const content = el.getAttribute('content') || '';
-    if (content) {
-      metaTags.push({ name, property, content });
-    }
+  runStep('meta', () => {
+    document.querySelectorAll('meta').forEach((el) => {
+      const name = el.getAttribute('name') || undefined;
+      const property = el.getAttribute('property') || undefined;
+      const content = el.getAttribute('content') || '';
+      if (content) {
+        metaTags.push({ name, property, content });
+      }
+    });
   });
 
   // 2. script src 収集（document.baseURI 基準の絶対URLに変換し、元の属性値は rawScriptUrls に保持）(v1.7.1 T05)
@@ -288,87 +306,93 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
   const domResourceUrls: string[] = [];
   const referenceOnlyUrls: ReferenceOnlyUrlItem[] = [];
 
-  document.querySelectorAll('script[src]').forEach((el) => {
-    const rawSrc = el.getAttribute('src');
-    if (rawSrc && rawSrc.trim()) {
-      const trimmed = rawSrc.trim();
-      rawScriptUrls.push(trimmed);
-      const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
-      scriptUrls.push(resolved || trimmed);
-      if (resolved && !isInInactiveContainer(el)) {
-        domResourceUrls.push(resolved);
+  runStep('script[src]', () => {
+    document.querySelectorAll('script[src]').forEach((el) => {
+      const rawSrc = el.getAttribute('src');
+      if (rawSrc && rawSrc.trim()) {
+        const trimmed = rawSrc.trim();
+        rawScriptUrls.push(trimmed);
+        const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
+        scriptUrls.push(resolved || trimmed);
+        if (resolved && !isInInactiveContainer(el)) {
+          domResourceUrls.push(resolved);
+        }
       }
-    }
+    });
   });
 
   // 3. link href 収集（対象 rel のみ linkUrls / domResourceUrls に入れ、alternate・canonical 等は referenceOnlyUrls に分離）(v1.7.1 T05)
   const rawLinkUrls: Array<{ rel: string; href: string }> = [];
   const linkUrls: Array<{ rel: string; href: string }> = [];
-  document.querySelectorAll('link[href]').forEach((el) => {
-    const rawHref = el.getAttribute('href');
-    const rel = el.getAttribute('rel') || '';
-    if (rawHref && rawHref.trim()) {
-      const trimmed = rawHref.trim();
-      rawLinkUrls.push({ rel, href: trimmed });
-      const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
-      if (isResourceLinkRel(rel)) {
-        linkUrls.push({ rel, href: resolved || trimmed });
-        if (resolved && !isInInactiveContainer(el)) {
-          domResourceUrls.push(resolved);
+  runStep('link[href]', () => {
+    document.querySelectorAll('link[href]').forEach((el) => {
+      const rawHref = el.getAttribute('href');
+      const rel = el.getAttribute('rel') || '';
+      if (rawHref && rawHref.trim()) {
+        const trimmed = rawHref.trim();
+        rawLinkUrls.push({ rel, href: trimmed });
+        const resolved = resolveToAbsoluteUrl(trimmed, baseUri);
+        if (isResourceLinkRel(rel)) {
+          linkUrls.push({ rel, href: resolved || trimmed });
+          if (resolved && !isInInactiveContainer(el)) {
+            domResourceUrls.push(resolved);
+          }
+        } else if (resolved) {
+          const relToken = rel.toLowerCase().trim().split(/\s+/).filter(Boolean)[0] || 'link';
+          referenceOnlyUrls.push({ sourceType: relToken, url: resolved });
         }
-      } else if (resolved) {
-        const relToken = rel.toLowerCase().trim().split(/\s+/).filter(Boolean)[0] || 'link';
-        referenceOnlyUrls.push({ sourceType: relToken, url: resolved });
       }
-    }
+    });
   });
 
   // 3b. その他のDOMサブリソース要素（img, iframe, video, audio, source, embed, object）の解決済みURL収集 (v1.7.1 T05)
-  document
-    .querySelectorAll('img[src], iframe[src], video[src], audio[src], source[src], embed[src]')
-    .forEach((el) => {
+  runStep('domResources', () => {
+    document
+      .querySelectorAll('img[src], iframe[src], video[src], audio[src], source[src], embed[src]')
+      .forEach((el) => {
+        if (isInInactiveContainer(el)) return;
+        const rawSrc = el.getAttribute('src');
+        const resolved = resolveToAbsoluteUrl(rawSrc, baseUri);
+        if (resolved) {
+          domResourceUrls.push(resolved);
+        }
+      });
+
+    document.querySelectorAll('img[srcset], source[srcset]').forEach((el) => {
       if (isInInactiveContainer(el)) return;
-      const rawSrc = el.getAttribute('src');
-      const resolved = resolveToAbsoluteUrl(rawSrc, baseUri);
+      if (el.getAttribute('src')) return;
+      const srcset = el.getAttribute('srcset');
+      if (!srcset) return;
+      const firstCandidate = srcset.split(',')[0]?.trim().split(/\s+/)[0];
+      const resolved = resolveToAbsoluteUrl(firstCandidate, baseUri);
       if (resolved) {
         domResourceUrls.push(resolved);
       }
     });
 
-  document.querySelectorAll('img[srcset], source[srcset]').forEach((el) => {
-    if (isInInactiveContainer(el)) return;
-    if (el.getAttribute('src')) return;
-    const srcset = el.getAttribute('srcset');
-    if (!srcset) return;
-    const firstCandidate = srcset.split(',')[0]?.trim().split(/\s+/)[0];
-    const resolved = resolveToAbsoluteUrl(firstCandidate, baseUri);
-    if (resolved) {
-      domResourceUrls.push(resolved);
-    }
-  });
+    document.querySelectorAll('object[data]').forEach((el) => {
+      if (isInInactiveContainer(el)) return;
+      const rawData = el.getAttribute('data');
+      const resolved = resolveToAbsoluteUrl(rawData, baseUri);
+      if (resolved) {
+        domResourceUrls.push(resolved);
+      }
+    });
 
-  document.querySelectorAll('object[data]').forEach((el) => {
-    if (isInInactiveContainer(el)) return;
-    const rawData = el.getAttribute('data');
-    const resolved = resolveToAbsoluteUrl(rawData, baseUri);
-    if (resolved) {
-      domResourceUrls.push(resolved);
-    }
-  });
-
-  // 3c. form[action] は送信先（参照のみ）として記録し、通信先には入れない (v1.7.1 T05)
-  document.querySelectorAll('form[action]').forEach((el) => {
-    if (isInInactiveContainer(el)) return;
-    const rawAction = el.getAttribute('action');
-    const resolved = resolveToAbsoluteUrl(rawAction, baseUri);
-    if (resolved) {
-      referenceOnlyUrls.push({ sourceType: 'form', url: resolved });
-    }
+    // 3c. form[action] は送信先（参照のみ）として記録し、通信先には入れない (v1.7.1 T05)
+    document.querySelectorAll('form[action]').forEach((el) => {
+      if (isInInactiveContainer(el)) return;
+      const rawAction = el.getAttribute('action');
+      const resolved = resolveToAbsoluteUrl(rawAction, baseUri);
+      if (resolved) {
+        referenceOnlyUrls.push({ sourceType: 'form', url: resolved });
+      }
+    });
   });
 
   // 3d. Performance Resource Timing API で実際に読み込まれたリソースを収集 (v1.7.1 T05 / E2)
   const resourceEntries: ObservedResourceEntry[] = [];
-  try {
+  runStep('resourceTiming', () => {
     if (typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function') {
       const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
       if (Array.isArray(entries)) {
@@ -387,17 +411,15 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
         }
       }
     }
-  } catch {
-    // Performance API 例外防止
-  }
+  });
 
   // 4. 特徴的なDOMマーカーの探査
   const domMarkers: string[] = [];
 
-  // 属性プレフィックス判定 (Vue data-v-, Astro data-astro-cid-, SvelteKit 等)
+  // 属性プレフィックス判定 (Vue data-v-, Astro data-astro-cid-, SvelteKit, Angular _nghost-/_ngcontent-, Drupal data-drupal- 等)
   const checkAttrPrefix = (prefix: string): boolean => {
     try {
-      if (typeof document.evaluate === 'function') {
+      if (typeof document.evaluate === 'function' && typeof XPathResult !== 'undefined') {
         const xpath = `//@*[starts-with(name(), '${prefix}')]`;
         const res = document.evaluate(xpath, document, null, XPathResult.BOOLEAN_TYPE, null);
         if (res.booleanValue) return true;
@@ -405,8 +427,10 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     } catch {
       // XPath例外防止
     }
-    const sampleNodes = document.querySelectorAll('body, div, main, header, section, [id], #app, #root');
-    for (let i = 0; i < Math.min(sampleNodes.length, 60); i++) {
+    const sampleNodes = document.querySelectorAll(
+      'body, div, main, header, section, form, script, [id], #app, #root, body > *, body > * > *'
+    );
+    for (let i = 0; i < Math.min(sampleNodes.length, 100); i++) {
       const attrs = sampleNodes[i].attributes;
       for (let j = 0; j < attrs.length; j++) {
         if (attrs[j].name.startsWith(prefix)) return true;
@@ -415,88 +439,103 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     return false;
   };
 
-  if (checkAttrPrefix('data-v-')) {
-    domMarkers.push('data-v-');
-  }
-  if (checkAttrPrefix('data-astro-cid-')) {
-    domMarkers.push('data-astro-cid-');
-  }
-  if (checkAttrPrefix('data-sveltekit-')) {
-    domMarkers.push('data-sveltekit-');
-  }
+  runStep('domMarkers', () => {
+    if (checkAttrPrefix('data-v-')) {
+      domMarkers.push('data-v-');
+    }
+    if (checkAttrPrefix('data-astro-cid-')) {
+      domMarkers.push('data-astro-cid-');
+    }
+    if (checkAttrPrefix('data-sveltekit-')) {
+      domMarkers.push('data-sveltekit-');
+    }
+    if (checkAttrPrefix('_nghost-')) {
+      domMarkers.push('_nghost-');
+    }
+    if (checkAttrPrefix('_ngcontent-')) {
+      domMarkers.push('_ngcontent-');
+    }
+    if (checkAttrPrefix('data-drupal-')) {
+      domMarkers.push('data-drupal-');
+    }
 
-  // noscript タグ内のテキスト走査 (JS有効時のGTM noscriptフォールバック要素探査)
-  try {
-    document.querySelectorAll('noscript').forEach((el) => {
-      const text = (el.textContent || '') + ' ' + (el.innerHTML || '');
-      if (text.includes('googletagmanager.com/ns.html')) {
-        domMarkers.push('googletagmanager.com/ns.html');
+    // noscript タグ内のテキスト走査 (JS有効時のGTM noscriptフォールバック要素探査)
+    try {
+      document.querySelectorAll('noscript').forEach((el) => {
+        const text = (el.textContent || '') + ' ' + (el.innerHTML || '');
+        if (text.includes('googletagmanager.com/ns.html')) {
+          domMarkers.push('googletagmanager.com/ns.html');
+        }
+      });
+    } catch {
+      // 例外防止
+    }
+
+    // 4b. 自動生成されたルール定義に基づくDOMマーカーセレクタの自動探査 (T06 / DOC-01)
+    const markerSelectors = Array.from(
+      new Set([...DOM_MARKER_SELECTORS, '#root', '#app', '#__next'])
+    );
+
+    markerSelectors.forEach((sel) => {
+      try {
+        const el = document.querySelector(sel);
+        if (el) {
+          if (sel === '[ng-version]') {
+            domMarkers.push(`ng-version="${el.getAttribute('ng-version')}"`);
+          } else if (sel === 'script#__NEXT_DATA__') {
+            domMarkers.push('__NEXT_DATA__');
+          } else if (sel === 'script#__NUXT_DATA__') {
+            domMarkers.push('__NUXT_DATA__');
+          } else if (sel === "meta[name='csrf-param']") {
+            // Rails meta[name='csrf-param'] は content属性値も含めてマーカーに追加 (T06 / DOC-01)
+            domMarkers.push(sel);
+            const content = el.getAttribute('content');
+            if (content) {
+              domMarkers.push(content);
+            }
+          } else if (sel === 'iframe') {
+            // GTM 等の iframe シグナル: セレクタ自体に加え、iframe の src 属性値もマーカーに含める
+            domMarkers.push(sel);
+            try {
+              const iframes = document.querySelectorAll('iframe');
+              iframes.forEach((iframeEl, idx) => {
+                if (idx < 10) {
+                  const src = iframeEl.getAttribute('src');
+                  if (src) {
+                    domMarkers.push(src);
+                  }
+                }
+              });
+            } catch {
+              // 例外防止
+            }
+          } else {
+            domMarkers.push(sel);
+          }
+        }
+      } catch {
+        // セレクタ評価例外防止（無効なセレクタ文字列等は安全にスキップ）
       }
     });
-  } catch {
-    // 例外防止
-  }
-
-  // 4b. 自動生成されたルール定義に基づくDOMマーカーセレクタの自動探査 (T06 / DOC-01)
-  const markerSelectors = Array.from(new Set([...DOM_MARKER_SELECTORS, '#root', '#app', '#__next']));
-
-  markerSelectors.forEach((sel) => {
-    try {
-      const el = document.querySelector(sel);
-      if (el) {
-        if (sel === '[ng-version]') {
-          domMarkers.push(`ng-version="${el.getAttribute('ng-version')}"`);
-        } else if (sel === 'script#__NEXT_DATA__') {
-          domMarkers.push('__NEXT_DATA__');
-        } else if (sel === 'script#__NUXT_DATA__') {
-          domMarkers.push('__NUXT_DATA__');
-        } else if (sel === "meta[name='csrf-param']") {
-          // Rails meta[name='csrf-param'] は content属性値も含めてマーカーに追加 (T06 / DOC-01)
-          domMarkers.push(sel);
-          const content = el.getAttribute('content');
-          if (content) {
-            domMarkers.push(content);
-          }
-        } else if (sel === 'iframe') {
-          // GTM 等の iframe シグナル: セレクタ自体に加え、iframe の src 属性値もマーカーに含める
-          domMarkers.push(sel);
-          try {
-            const iframes = document.querySelectorAll('iframe');
-            iframes.forEach((iframeEl, idx) => {
-              if (idx < 10) {
-                const src = iframeEl.getAttribute('src');
-                if (src) {
-                  domMarkers.push(src);
-                }
-              }
-            });
-          } catch {
-            // 例外防止
-          }
-        } else {
-          domMarkers.push(sel);
-        }
-      }
-    } catch {
-      // セレクタ評価例外防止（無効なセレクタ文字列等は安全にスキップ）
-    }
   });
 
   // 5. HTMLスニペット（Tailwind等のユーティリティクラス探査用）
   const htmlSnippets: string[] = [];
-  const sampleElements = document.querySelectorAll('body, div, nav, header, main, section');
-  sampleElements.forEach((el, index) => {
-    if (index < 30) {
-      const className = el.getAttribute('class');
-      if (className) {
-        htmlSnippets.push(className);
+  runStep('htmlSnippets', () => {
+    const sampleElements = document.querySelectorAll('body, div, nav, header, main, section');
+    sampleElements.forEach((el, index) => {
+      if (index < 30) {
+        const className = el.getAttribute('class');
+        if (className) {
+          htmlSnippets.push(className);
+        }
       }
-    }
+    });
   });
 
   // 5b. 特定要素テキスト収集 (T06 / DOC-01: Spring Boot Whitelabel Error Page 等のテキスト判定用)
   const elementTexts: string[] = [];
-  try {
+  runStep('elementTexts', () => {
     const textElements = document.querySelectorAll('h1, h2, [class*="error"], [id*="error"]');
     textElements.forEach((el, index) => {
       if (index < 10) {
@@ -506,120 +545,120 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
         }
       }
     });
-  } catch {
-    // テキスト取得例外防止
-  }
+  });
 
   // 6. 混在コンテンツ (Mixed Content) の収集 (v1.7.0 T07 / SPEC-15)
   const mixedContent: MixedContentItem[] = [];
   if (isPageHttps) {
-    const extractHttpUrlsFromSrcset = (srcset: string | null): string[] => {
-      if (!srcset) return [];
-      const urls: string[] = [];
-      srcset.split(',').forEach((candidate) => {
-        const trimmed = candidate.trim();
-        if (!trimmed) return;
-        const urlToken = trimmed.split(/\s+/)[0];
-        if (urlToken && urlToken.startsWith('http://')) {
-          urls.push(urlToken);
+    runStep('mixedContent', () => {
+      const extractHttpUrlsFromSrcset = (srcset: string | null): string[] => {
+        if (!srcset) return [];
+        const urls: string[] = [];
+        srcset.split(',').forEach((candidate) => {
+          const trimmed = candidate.trim();
+          if (!trimmed) return;
+          const urlToken = trimmed.split(/\s+/)[0];
+          if (urlToken && urlToken.startsWith('http://')) {
+            urls.push(urlToken);
+          }
+        });
+        return urls;
+      };
+
+      document.querySelectorAll('img[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'image', url: src });
         }
       });
-      return urls;
-    };
 
-    document.querySelectorAll('img[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'image', url: src });
-      }
-    });
-
-    document.querySelectorAll('img[srcset]').forEach((el) => {
-      const urls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
-      urls.forEach((url) => {
-        mixedContent.push({ resourceType: 'image', url });
-      });
-    });
-
-    document.querySelectorAll('video[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'video', url: src });
-      }
-    });
-
-    document.querySelectorAll('audio[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'audio', url: src });
-      }
-    });
-
-    document.querySelectorAll('source[src], source[srcset]').forEach((el) => {
-      const parentTag = el.parentElement?.tagName.toLowerCase();
-      const srcType: MixedContentItem['resourceType'] =
-        parentTag === 'audio' ? 'audio' : parentTag === 'picture' ? 'image' : 'video';
-
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: srcType, url: src });
-      }
-
-      const srcsetUrls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
-      srcsetUrls.forEach((url) => {
-        mixedContent.push({
-          resourceType: parentTag === 'audio' ? 'audio' : parentTag === 'video' ? 'video' : 'image',
-          url,
+      document.querySelectorAll('img[srcset]').forEach((el) => {
+        const urls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
+        urls.forEach((url) => {
+          mixedContent.push({ resourceType: 'image', url });
         });
       });
-    });
 
-    document.querySelectorAll('script[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'script', url: src });
-      }
-    });
+      document.querySelectorAll('video[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'video', url: src });
+        }
+      });
 
-    document.querySelectorAll('link[rel="stylesheet"][href]').forEach((el) => {
-      const href = el.getAttribute('href');
-      if (href && href.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'stylesheet', url: href });
-      }
-    });
+      document.querySelectorAll('audio[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'audio', url: src });
+        }
+      });
 
-    document.querySelectorAll('iframe[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'iframe', url: src });
-      }
-    });
+      document.querySelectorAll('source[src], source[srcset]').forEach((el) => {
+        const parentTag = el.parentElement?.tagName.toLowerCase();
+        const srcType: MixedContentItem['resourceType'] =
+          parentTag === 'audio' ? 'audio' : parentTag === 'picture' ? 'image' : 'video';
 
-    document.querySelectorAll('object[data]').forEach((el) => {
-      const data = el.getAttribute('data');
-      if (data && data.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'object', url: data });
-      }
-    });
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: srcType, url: src });
+        }
 
-    document.querySelectorAll('embed[src]').forEach((el) => {
-      const src = el.getAttribute('src');
-      if (src && src.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'embed', url: src });
-      }
-    });
+        const srcsetUrls = extractHttpUrlsFromSrcset(el.getAttribute('srcset'));
+        srcsetUrls.forEach((url) => {
+          mixedContent.push({
+            resourceType: parentTag === 'audio' ? 'audio' : parentTag === 'video' ? 'video' : 'image',
+            url,
+          });
+        });
+      });
 
-    document.querySelectorAll('form[action]').forEach((el) => {
-      const action = el.getAttribute('action');
-      if (action && action.startsWith('http://')) {
-        mixedContent.push({ resourceType: 'form', url: action });
-      }
+      document.querySelectorAll('script[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'script', url: src });
+        }
+      });
+
+      document.querySelectorAll('link[rel="stylesheet"][href]').forEach((el) => {
+        const href = el.getAttribute('href');
+        if (href && href.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'stylesheet', url: href });
+        }
+      });
+
+      document.querySelectorAll('iframe[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'iframe', url: src });
+        }
+      });
+
+      document.querySelectorAll('object[data]').forEach((el) => {
+        const data = el.getAttribute('data');
+        if (data && data.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'object', url: data });
+        }
+      });
+
+      document.querySelectorAll('embed[src]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (src && src.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'embed', url: src });
+        }
+      });
+
+      document.querySelectorAll('form[action]').forEach((el) => {
+        const action = el.getAttribute('action');
+        if (action && action.startsWith('http://')) {
+          mixedContent.push({ resourceType: 'form', url: action });
+        }
+      });
     });
   }
 
   // 7. document.cookieから名前のみ抽出 (値は除外)
   const cookiesFromDocument: string[] = [];
-  try {
+  runStep('cookiesFromDocument', () => {
     const rawCookies = document.cookie || '';
     if (rawCookies) {
       rawCookies.split(';').forEach((pair) => {
@@ -631,17 +670,18 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
         }
       });
     }
-  } catch {
-    // Cookie読み取り例外防止
-  }
+  });
 
   // 8. CSSアセット解析 (Version 1.1 ADD-02 / v1.7.1 T05)
-  const cssAssets = inspectCssAssets(baseUri);
+  let cssAssets: InspectedCssAsset[] = [];
+  runStep('cssAssets', () => {
+    cssAssets = inspectCssAssets(baseUri);
+  });
 
   // 9. meta CSP の収集 (Rev.2.1 IMP-05 / v1.7.0 T06: Report-Only を分離収集)
   const metaCsp: string[] = [];
   const metaCspReportOnly: string[] = [];
-  try {
+  runStep('metaCsp', () => {
     const metaCspElements = document.querySelectorAll<HTMLMetaElement>('meta[http-equiv]');
     metaCspElements.forEach((el) => {
       const httpEquiv = (el.getAttribute('http-equiv') || '').trim().toLowerCase();
@@ -653,13 +693,11 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
         metaCspReportOnly.push(content.trim());
       }
     });
-  } catch {
-    // meta取得例外防止
-  }
+  });
 
   return {
     url: pageUrl,
-    title: document.title || '',
+    title: typeof document !== 'undefined' ? document.title || '' : '',
     metaTags,
     scriptUrls,
     linkUrls,
@@ -676,5 +714,11 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     metaCsp,
     metaCspReportOnly,
     elementTexts,
+    ...(collectionErrors.length > 0
+      ? {
+          collectionPartial: true,
+          collectionErrors,
+        }
+      : {}),
   };
 }

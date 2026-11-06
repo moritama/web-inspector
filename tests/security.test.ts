@@ -523,4 +523,52 @@ describe('HTTPS & Mixed Content', () => {
       }
     }
   );
+
+  describe('v1.7.1 T06 (指摘 I): 混在コンテンツの観測値 (observed) への要素・マスク済み URL 出力', () => {
+    it('アクティブ・パッシブ混在コンテンツの observed に要素ラベルと URL が出力され、クエリ文字列・フラグメントがマスクされること', () => {
+      const checks = checkHttpsAndMixedContent('https://secure.example.test/', true, [
+        {
+          resourceType: 'script',
+          url: 'http://cdn.example.test/app.js?token=secret123#section',
+        },
+        {
+          resourceType: 'form',
+          url: 'http://form.example.test/submit?session=abc',
+        },
+        {
+          resourceType: 'image',
+          url: 'http://img.example.test/photo.jpg?sig=xyz#top',
+        },
+      ]);
+
+      const active = checks.find((c) => c.checkId === 'SEC-MIXED-ACTIVE');
+      expect(active).toBeDefined();
+      expect(active?.observed).toBe(
+        '2件 (script: http://cdn.example.test/app.js, form[action]: http://form.example.test/submit)'
+      );
+      expect(active?.observed).not.toContain('secret123');
+      expect(active?.observed).not.toContain('session=abc');
+
+      const passive = checks.find((c) => c.checkId === 'SEC-MIXED-PASSIVE');
+      expect(passive).toBeDefined();
+      expect(passive?.observed).toBe('1件 (img: http://img.example.test/photo.jpg)');
+      expect(passive?.observed).not.toContain('sig=xyz');
+    });
+
+    it('混在コンテンツが 3 件を超える場合、先頭 3 件の要素・URL に続けて「（他 ○ 件）」が出力されること', () => {
+      const checks = checkHttpsAndMixedContent('https://secure.example.test/', true, [
+        { resourceType: 'image', url: 'http://img.example.test/1.jpg' },
+        { resourceType: 'image', url: 'http://img.example.test/2.jpg' },
+        { resourceType: 'video', url: 'http://img.example.test/3.mp4' },
+        { resourceType: 'audio', url: 'http://img.example.test/4.mp3' },
+        { resourceType: 'image', url: 'http://img.example.test/5.jpg' },
+      ]);
+
+      const passive = checks.find((c) => c.checkId === 'SEC-MIXED-PASSIVE');
+      expect(passive).toBeDefined();
+      expect(passive?.observed).toBe(
+        '5件 (img: http://img.example.test/1.jpg, img: http://img.example.test/2.jpg, video: http://img.example.test/3.mp4（他 2 件）)'
+      );
+    });
+  });
 });

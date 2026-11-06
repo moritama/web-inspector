@@ -93,9 +93,28 @@
         "weight": 85
       },
       {
+        "type": "header",
+        "target": "x-drupal-dynamic-cache",
+        "pattern": ".*",
+        "weight": 85
+      },
+      {
+        "type": "dom",
+        "target": "[data-drupal-selector], [data-drupal-messages], [data-drupal-link-system-path], script[data-drupal-selector='drupal-settings-json']",
+        "pattern": "data-drupal-",
+        "weight": 85,
+        "detail": "DOM属性（data-drupal-* / drupal-settings-json）からDrupalを検出"
+      },
+      {
         "type": "script",
         "target": "src",
-        "pattern": "/sites/default/files/|/misc/drupal\\.js|/core/misc/drupal\\.js",
+        "pattern": "/sites/(?:default|all)/(?:files|themes|modules)/|/misc/drupal\\.js|/core/misc/drupal(?:\\.init)?\\.js|/core/assets/vendor/|/core/modules/",
+        "weight": 80
+      },
+      {
+        "type": "link",
+        "target": "href",
+        "pattern": "/sites/(?:default|all)/(?:files|themes|modules)/|/core/(?:themes|modules|assets)/",
         "weight": 80
       }
     ]

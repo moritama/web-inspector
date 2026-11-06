@@ -195,14 +195,14 @@ export function checkHttpHeaders(
   );
 
   if (hasCspFrameAncestors) {
-    // CSP frame-ancestors がある場合はブラウザ仕様どおり frame-ancestors を優先して判定
+    // CSP frame-ancestors がある場合はブラウザ仕様どおり frame-ancestors を優先して判定 (v1.7.1 T01: 項目名を統一し観測値で区別)
     results.push({
       checkId: 'SEC-XFO-00',
       category: 'http-headers',
-      name: validXfo ? 'X-Frame-Options' : 'クリックジャッキング対策 (frame-ancestors)',
+      name: 'X-Frame-Options',
       status: 'pass',
       severity: 'info',
-      observed: validXfo ? xfo! : 'CSP frame-ancestors により保護',
+      observed: validXfo ? `${xfo} (CSP frame-ancestors により保護)` : 'CSP frame-ancestors により保護',
       description: validXfo
         ? `X-Frame-Options (${xfo}) および CSP frame-ancestors が設定されています。`
         : 'モダンなCSP frame-ancestorsディレクティブによりiframe埋め込みが制御されています（CSP frame-ancestorsがある環境ではX-Frame-Optionsより優先されます）。',
@@ -214,7 +214,7 @@ export function checkHttpHeaders(
     results.push({
       checkId: 'SEC-XFO-01',
       category: 'http-headers',
-      name: 'X-Frame-Options (クリックジャッキング対策)',
+      name: 'X-Frame-Options',
       status: 'warning',
       severity: 'medium',
       observed: 'ヘッダー未設定',
@@ -229,7 +229,7 @@ export function checkHttpHeaders(
     results.push({
       checkId: 'SEC-XFO-02',
       category: 'http-headers',
-      name: 'X-Frame-Options (無効または非推奨な設定値)',
+      name: 'X-Frame-Options',
       status: 'warning',
       severity: 'medium',
       observed: xfo,
@@ -285,7 +285,7 @@ export function checkHttpHeaders(
     });
   }
 
-  // --- 5. Referrer-Policy (v1.7.0 T07 / SPEC-12) ---
+  // --- 5. Referrer-Policy (v1.7.0 T07 / SPEC-12 / v1.7.1 T01) ---
   const referrerPolicy = getHeader('referrer-policy');
   if (!referrerPolicy) {
     results.push({
@@ -293,7 +293,7 @@ export function checkHttpHeaders(
       category: 'http-headers',
       name: 'Referrer-Policy',
       status: 'info',
-      severity: 'low',
+      severity: 'info',
       observed: 'ヘッダー未設定 (ブラウザ既定値 strict-origin-when-cross-origin)',
       description:
         'Referrer-Policyが明示されていません。モダンブラウザでは既定値が適用されますが、明示的なポリシー指定が推奨されます。',

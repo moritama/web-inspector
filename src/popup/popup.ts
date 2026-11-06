@@ -16,6 +16,7 @@ import {
   formatCategory,
   formatMultiVersionSummary,
   renderCookieModalHtml,
+  renderSecurityCheckRowHtml,
   renderSecurityModalHtml,
   renderTechModalHtml,
 } from './render';
@@ -320,49 +321,7 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
   checks.forEach((c) => {
     const row = document.createElement('div');
     row.className = 'item-row';
-
-    let sevClass = 'sev-info';
-    let sevLabel = '情報';
-    if (c.status === 'unknown') {
-      sevClass = 'sev-unknown';
-      sevLabel = '未観測';
-    } else if (c.status === 'pass') {
-      sevClass = 'sev-pass';
-      sevLabel = '適正';
-    } else if (c.severity === 'critical') {
-      sevClass = 'sev-critical';
-      sevLabel = '緊急';
-    } else if (c.severity === 'high') {
-      sevClass = 'sev-high';
-      sevLabel = '危険';
-    } else if (c.severity === 'medium') {
-      sevClass = 'sev-medium';
-      sevLabel = '警告';
-    } else if (c.severity === 'low') {
-      sevClass = 'sev-low';
-      sevLabel = '注意';
-    }
-
-    const isAccepted =
-      c.exceptionStatus === 'accepted' ||
-      c.exceptionStatus === 'false-positive' ||
-      c.exceptionStatus === 'muted';
-    const exceptionBadge = isAccepted
-      ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:4px;">許容済</span>'
-      : '';
-
-    row.innerHTML = `
-      <div class="item-main">
-        <div class="item-texts">
-          <span class="item-name">${escapeHtml(c.name)}</span>
-          <span class="item-meta">${escapeHtml(c.observed.substring(0, 42))}</span>
-        </div>
-      </div>
-      <div class="item-side">
-        ${exceptionBadge}
-        <span class="badge ${sevClass}">${sevLabel}</span>
-      </div>
-    `;
+    row.innerHTML = renderSecurityCheckRowHtml(c);
 
     row.addEventListener('click', () => showSecurityModal(c));
     securityListEl.appendChild(row);

@@ -10,6 +10,10 @@ import {
 } from '../detection/advisory';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
+  getSecurityCheckDisplayBadge,
+  isFindingExcludedByException,
+} from '../shared/security-status';
+import {
   DetectedTechnology,
   InspectedCookieInfo,
   SecurityCheckResult,
@@ -340,13 +344,34 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
 }
 
 /**
+ * ポップアップのセキュリティ診断リスト行の内部HTML文字列を生成する (v1.7.1 T01)
+ */
+export function renderSecurityCheckRowHtml(check: SecurityCheckResult): string {
+  const { badgeClass, popupLabel } = getSecurityCheckDisplayBadge(check);
+  const isAccepted = isFindingExcludedByException(check);
+  const exceptionBadge = isAccepted
+    ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:4px;">許容済</span>'
+    : '';
+
+  return `
+      <div class="item-main">
+        <div class="item-texts">
+          <span class="item-name">${escapeHtml(check.name)}</span>
+          <span class="item-meta">${escapeHtml(check.observed)}</span>
+        </div>
+      </div>
+      <div class="item-side">
+        ${exceptionBadge}
+        <span class="badge ${badgeClass}">${popupLabel}</span>
+      </div>
+    `;
+}
+
+/**
  * セキュリティチェック詳細モーダルのHTML文字列を生成する
  */
 export function renderSecurityModalHtml(check: SecurityCheckResult): string {
-  const isAccepted =
-    check.exceptionStatus === 'accepted' ||
-    check.exceptionStatus === 'false-positive' ||
-    check.exceptionStatus === 'muted';
+  const isAccepted = isFindingExcludedByException(check);
 
   let exceptionSectionHtml = '';
   if (isAccepted) {

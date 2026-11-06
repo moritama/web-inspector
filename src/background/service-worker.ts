@@ -26,6 +26,7 @@ import {
   matchFindingException,
 } from '../storage/exceptions';
 import { generateFindingIdFromCheck } from '../shared/identity';
+import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
 import { analyzeExternalConnections, parseRegistrableDomain } from '../security/domain-analyzer';
 import { assessInspectionCoverage } from '../shared/coverage';
@@ -931,25 +932,8 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     }
   }
 
-  // 7. 統計集計 (許容・除外設定された項目は要確認カウントから除外)
-  const requiresAttentionCount = allSecurityChecks.filter((c) => {
-    const isIssue = c.status === 'warning' || c.status === 'fail';
-    if (!isIssue) return false;
-    const isAccepted =
-      c.exceptionStatus === 'accepted' ||
-      c.exceptionStatus === 'false-positive' ||
-      c.exceptionStatus === 'muted';
-    return !isAccepted;
-  }).length;
-
-  const securityFindings = {
-    critical: allSecurityChecks.filter((c) => c.severity === 'critical').length,
-    high: allSecurityChecks.filter((c) => c.severity === 'high').length,
-    medium: allSecurityChecks.filter((c) => c.severity === 'medium').length,
-    low: allSecurityChecks.filter((c) => c.severity === 'low').length,
-    info: allSecurityChecks.filter((c) => c.severity === 'info').length,
-    unknown: allSecurityChecks.filter((c) => c.severity === 'unknown').length,
-  };
+  // 7. 統計集計 (要確認と重大度別内訳の共通ルールに従い集計 - v1.7.1 T01)
+  const { requiresAttentionCount, securityFindings } = summarizeSecurityChecks(allSecurityChecks);
 
   const isHttps = url.toLowerCase().startsWith('https://');
 

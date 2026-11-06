@@ -10,6 +10,11 @@ import {
 } from '../detection/advisory';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
+  getSecurityCheckDisplayBadge,
+  isFindingExcludedByException,
+  isRequiresAttention,
+} from '../shared/security-status';
+import {
   DetectedTechnology,
   InspectionReport,
   SecurityAdvisory,
@@ -184,7 +189,7 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
  * 概要ビュー: セキュリティ注意項目一覧のHTML文字列を生成する
  */
 export function renderOverviewSecurityHtml(checks: SecurityCheckResult[]): string {
-  const issues = checks.filter((c) => c.status === 'warning' || c.status === 'fail');
+  const issues = checks.filter((c) => isRequiresAttention(c));
   if (issues.length === 0) {
     return '<div style="color:var(--success-color);padding:12px 0;">重大なセキュリティ設定不備は検出されませんでした。</div>';
   }
@@ -614,38 +619,12 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
   return checks
     .map(
       (c) => {
-        const isAccepted =
-          c.exceptionStatus === 'accepted' ||
-          c.exceptionStatus === 'false-positive' ||
-          c.exceptionStatus === 'muted';
+        const isAccepted = isFindingExcludedByException(c);
         const exceptionBadge = isAccepted
           ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:6px;">許容済</span>'
           : '';
 
-        let badgeClass = 'sev-medium';
-        let badgeText = c.severity.toUpperCase();
-        if (c.status === 'unknown') {
-          badgeClass = 'sev-unknown';
-          badgeText = '未観測';
-        } else if (c.status === 'pass') {
-          badgeClass = 'sev-pass';
-          badgeText = 'PASS';
-        } else if (c.severity === 'critical') {
-          badgeClass = 'sev-critical';
-          badgeText = 'CRITICAL';
-        } else if (c.severity === 'high') {
-          badgeClass = 'sev-high';
-          badgeText = 'HIGH';
-        } else if (c.severity === 'medium') {
-          badgeClass = 'sev-medium';
-          badgeText = 'MEDIUM';
-        } else if (c.severity === 'low') {
-          badgeClass = 'sev-low';
-          badgeText = 'LOW';
-        } else if (c.severity === 'info') {
-          badgeClass = 'sev-info';
-          badgeText = 'INFO';
-        }
+        const { badgeClass, dashLabel: badgeText } = getSecurityCheckDisplayBadge(c);
 
         const referencesHtml =
           c.referenceUrls && c.referenceUrls.length > 0

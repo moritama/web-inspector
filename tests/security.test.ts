@@ -4,10 +4,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { renderFullSecurityHtml } from '../src/dashboard/render';
+import { exportReportToCsv } from '../src/export/csv';
+import { generateMarkdownReport } from '../src/export/markdown';
+import { renderSecurityCheckRowHtml } from '../src/popup/render';
 import { checkCookies } from '../src/security/cookies';
 import { checkHttpHeaders } from '../src/security/headers';
 import { checkHttpsAndMixedContent } from '../src/security/https';
-import { InspectedCookieInfo } from '../src/shared/types';
+import { summarizeSecurityChecks } from '../src/shared/security-status';
+import { InspectedCookieInfo, InspectionReport, SecurityCheckResult } from '../src/shared/types';
 
 describe('Security Headers', () => {
   it('HSTSが未設定の場合にwarningを返すこと', () => {
@@ -138,6 +143,14 @@ describe('Security Headers', () => {
       },
       // Referrer-Policy
       {
+        label: 'Referrer-Policy: 未設定はブラウザ既定値で安全のため info (info) (v1.7.1 T01)',
+        headers: {},
+        prefix: 'SEC-REF-',
+        expectedId: 'SEC-REF-01',
+        expectedStatus: 'info',
+        expectedSeverity: 'info',
+      },
+      {
         label: 'Referrer-Policy: strict-origin-when-cross-origin は pass (info)',
         headers: { 'referrer-policy': ['strict-origin-when-cross-origin'] },
         prefix: 'SEC-REF-',
@@ -196,6 +209,257 @@ describe('Security Headers', () => {
       expect(target?.checkId).toBe(expectedId);
       expect(target?.status).toBe(expectedStatus);
       expect(target?.severity).toBe(expectedSeverity);
+    });
+  });
+
+  describe('v1.7.1 T01: X-Frame-Options の項目名統一と frame-ancestors 観測値区別', () => {
+    it('PASS・WARN・frame-ancestors 判定の 3 パターンすべてで name が同一であり、frame-ancestors 判定時は observed で区別できること', () => {
+      const passChecks = checkHttpHeaders(
+        { 'x-frame-options': ['DENY'] },
+        'https://app.example.test/',
+        true
+      );
+      const warnUnsetChecks = checkHttpHeaders({}, 'https://app.example.test/', true);
+      const warnInvalidChecks = checkHttpHeaders(
+        { 'x-frame-options': ['ALLOWALL'] },
+        'https://app.example.test/',
+        true
+      );
+      const frameAncestorsOnlyChecks = checkHttpHeaders(
+        { 'content-security-policy': ["default-src 'self'; frame-ancestors 'none'"] },
+        'https://app.example.test/',
+        true
+      );
+      const frameAncestorsWithXfoChecks = checkHttpHeaders(
+        {
+          'x-frame-options': ['SAMEORIGIN'],
+          'content-security-policy': ["default-src 'self'; frame-ancestors 'self'"],
+        },
+        'https://app.example.test/',
+        true
+      );
+
+      const passXfo = passChecks.find((c) => c.checkId.startsWith('SEC-XFO-'));
+      const warnUnsetXfo = warnUnsetChecks.find((c) => c.checkId.startsWith('SEC-XFO-'));
+      const warnInvalidXfo = warnInvalidChecks.find((c) => c.checkId.startsWith('SEC-XFO-'));
+      const faOnlyXfo = frameAncestorsOnlyChecks.find((c) => c.checkId.startsWith('SEC-XFO-'));
+      const faWithXfo = frameAncestorsWithXfoChecks.find((c) => c.checkId.startsWith('SEC-XFO-'));
+
+      expect(passXfo?.name).toBe('X-Frame-Options');
+      expect(warnUnsetXfo?.name).toBe('X-Frame-Options');
+      expect(warnInvalidXfo?.name).toBe('X-Frame-Options');
+      expect(faOnlyXfo?.name).toBe('X-Frame-Options');
+      expect(faWithXfo?.name).toBe('X-Frame-Options');
+
+      expect(passXfo?.observed).toBe('DENY');
+      expect(faOnlyXfo?.observed).toContain('CSP frame-ancestors により保護');
+      expect(faWithXfo?.observed).toContain('CSP frame-ancestors により保護');
+    });
+  });
+
+  describe('v1.7.1 T01: ステータス表示と件数の整合', () => {
+    it.each([
+      {
+        label: 'info の Referrer-Policy・Permissions-Policy・Report-Only CSP を含む標準ヘッダー構成',
+        checks: checkHttpHeaders(
+          { 'content-security-policy-report-only': ["default-src 'self'"] },
+          'https://portal.example.test/',
+          true
+        ),
+        expectedAttention: 3, // HSTS未設定(medium), XFO未設定(medium), XCTO未設定(low)
+        expectedCritical: 0,
+        expectedHigh: 0,
+        expectedMedium: 2,
+        expectedLow: 1,
+      },
+      {
+        label: '例外設定（accepted / false-positive / muted）で除外された項目を含むケース',
+        checks: [
+          {
+            checkId: 'SEC-CVE-JQUERY',
+            category: 'library-security',
+            name: 'jQuery (3.4.1) 既知脆弱性',
+            status: 'fail',
+            severity: 'critical',
+            observed: 'バージョン 3.4.1 に該当する既知脆弱性 3 件 (重大度: CRITICAL / 悪用確認済み（CISA KEV）)',
+            description: '既知の脆弱性が存在します。',
+            recommendation: '更新してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+            exceptionStatus: 'accepted',
+          },
+          {
+            checkId: 'SEC-HTTPS-01',
+            category: 'https-communication',
+            name: '暗号化通信未適用',
+            status: 'fail',
+            severity: 'high',
+            observed: 'http://portal.example.test/',
+            description: 'HTTP接続です。',
+            recommendation: 'HTTPS化してください。',
+            referenceUrls: [],
+            scope: 'http://portal.example.test/',
+            exceptionStatus: 'active',
+          },
+          {
+            checkId: 'SEC-HSTS-01',
+            category: 'http-headers',
+            name: 'HSTS (Strict-Transport-Security)',
+            status: 'warning',
+            severity: 'medium',
+            observed: 'ヘッダー未設定',
+            description: 'HSTSが未設定です。',
+            recommendation: '設定してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+            exceptionStatus: 'false-positive',
+          },
+          {
+            checkId: 'SEC-XCTO-01',
+            category: 'http-headers',
+            name: 'X-Content-Type-Options',
+            status: 'warning',
+            severity: 'low',
+            observed: 'ヘッダー未設定',
+            description: 'nosniffが未設定です。',
+            recommendation: '設定してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+            exceptionStatus: 'muted',
+          },
+          {
+            checkId: 'SEC-REF-01',
+            category: 'http-headers',
+            name: 'Referrer-Policy',
+            status: 'info',
+            severity: 'info',
+            observed: 'ヘッダー未設定 (ブラウザ既定値 strict-origin-when-cross-origin)',
+            description: 'Referrer-Policyが未設定です。',
+            recommendation: '検討してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+          },
+          {
+            checkId: 'SEC-PERM-01',
+            category: 'http-headers',
+            name: 'Permissions-Policy',
+            status: 'info',
+            severity: 'info',
+            observed: 'ヘッダー未設定',
+            description: 'Permissions-Policyが未設定です。',
+            recommendation: '検討してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+          },
+          {
+            checkId: 'SEC-XFO-00',
+            category: 'http-headers',
+            name: 'X-Frame-Options',
+            status: 'pass',
+            severity: 'info',
+            observed: 'DENY',
+            description: '適切に設定されています。',
+            recommendation: '維持してください。',
+            referenceUrls: [],
+            scope: 'https://portal.example.test/',
+          },
+        ] satisfies SecurityCheckResult[],
+        expectedAttention: 1, // SEC-HTTPS-01 のみ
+        expectedCritical: 0,
+        expectedHigh: 1,
+        expectedMedium: 0,
+        expectedLow: 0,
+      },
+    ])(
+      'summary.securityFindings の CRITICAL〜LOW 合計が requiresAttentionCount と常に一致すること: $label',
+      ({ checks, expectedAttention, expectedCritical, expectedHigh, expectedMedium, expectedLow }) => {
+        const { requiresAttentionCount, securityFindings } = summarizeSecurityChecks(checks);
+        const severitySum =
+          (securityFindings.critical ?? 0) +
+          securityFindings.high +
+          securityFindings.medium +
+          securityFindings.low;
+
+        expect(requiresAttentionCount).toBe(expectedAttention);
+        expect(severitySum).toBe(requiresAttentionCount);
+        expect(securityFindings.critical).toBe(expectedCritical);
+        expect(securityFindings.high).toBe(expectedHigh);
+        expect(securityFindings.medium).toBe(expectedMedium);
+        expect(securityFindings.low).toBe(expectedLow);
+
+        const expectedInfoCount = checks.filter((c) => c.status === 'pass' || c.status === 'info').length;
+        expect(securityFindings.info).toBe(expectedInfoCount);
+      }
+    );
+
+    it('status が info の項目が Markdown・CSV・ポップアップ・ダッシュボードで WARN と表示されないこと', () => {
+      const checks = checkHttpHeaders(
+        {
+          'strict-transport-security': ['max-age=31536000'],
+          'x-frame-options': ['DENY'],
+          'x-content-type-options': ['nosniff'],
+          'content-security-policy-report-only': ["default-src 'self'"],
+        },
+        'https://clean.example.test/',
+        true
+      );
+      const infoChecks = checks.filter((c) => c.status === 'info');
+      expect(infoChecks.length).toBeGreaterThanOrEqual(3); // Referrer-Policy, Permissions-Policy, CSP-Report-Only
+
+      const { requiresAttentionCount, securityFindings } = summarizeSecurityChecks(checks);
+      expect(requiresAttentionCount).toBe(0);
+
+      const report: InspectionReport = {
+        id: 'rep_t01_info_check',
+        url: 'https://clean.example.test/',
+        hostname: 'clean.example.test',
+        inspectedAt: '2026-11-07T00:00:00.000Z',
+        extensionVersion: '1.7.1',
+        rulesVersion: '2026.10.2',
+        technologies: [],
+        securityChecks: checks,
+        cookies: [],
+        cspPolicies: [],
+        mixedContent: [],
+        summary: {
+          totalTechnologies: 0,
+          requiresAttentionCount,
+          securityFindings,
+          librarySecurity: {
+            eolCount: 0,
+            vulnerableLibraryCount: 0,
+            mismatchCount: 0,
+          },
+          isHttps: true,
+          mixedContentCount: 0,
+        },
+      };
+
+      const md = generateMarkdownReport(report);
+      expect(md).toContain('| **INFO (情報)** | **' + securityFindings.info + '** | 参考情報・問題のない項目 |');
+      expect(md).not.toContain('**WARN**');
+      for (const infoCheck of infoChecks) {
+        expect(md).toContain(`| ${infoCheck.name} | INFO |`);
+      }
+
+      const csv = exportReportToCsv(report);
+      expect(csv).not.toContain(',WARN,');
+      expect(csv).toContain('"SEC-REF-01","http-headers","Referrer-Policy","info","info"');
+
+      for (const infoCheck of infoChecks) {
+        const popupRowHtml = renderSecurityCheckRowHtml(infoCheck);
+        expect(popupRowHtml).toContain('sev-info');
+        expect(popupRowHtml).toContain('>情報<');
+        expect(popupRowHtml).not.toContain('WARN');
+        expect(popupRowHtml).not.toContain('警告');
+        expect(popupRowHtml).not.toContain('注意');
+      }
+
+      const dashHtml = renderFullSecurityHtml(infoChecks);
+      expect(dashHtml).toContain('sev-info');
+      expect(dashHtml).toContain('>INFO<');
+      expect(dashHtml).not.toContain('WARN');
+      expect(dashHtml).not.toContain('>LOW<');
     });
   });
 });

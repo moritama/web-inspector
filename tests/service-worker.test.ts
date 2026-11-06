@@ -10,6 +10,8 @@ import {
   resolveTopLevelSite,
 } from '../src/background/service-worker';
 import { AdvisoryDatabase, setTestAdvisoryDatabase } from '../src/detection/advisory';
+import { generateMarkdownReport } from '../src/export/markdown';
+import { renderSecurityCheckRowHtml } from '../src/popup/render';
 import {
   generateFindingIdFromCheck,
   generateLegacyFindingIdFromCheck,
@@ -603,6 +605,55 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       expect(jqEolChecks[0].findingId).toContain('1.12.4');
       expect(jqEolChecks[1].findingId).toContain('2.2.4');
       expect(jqEolChecks[0].findingId).not.toBe(jqEolChecks[1].findingId);
+    });
+
+    it('v1.7.1 T01: 既知脆弱性 (SEC-CVE-*) の観測値で括弧が対になっており Markdown 出力やポップアップ描画でも閉じ括弧が欠けないこと、および summary 件数が一致すること', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+
+      const deps = createMockDeps({
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            metaTags: [],
+            scriptUrls: ['https://code.jquery.com/jquery-3.4.1.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.4.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://portal.example.test/',
+          headers: {},
+          observed: true,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-JQUERY');
+      expect(cveCheck).toBeDefined();
+
+      const observed = cveCheck!.observed;
+      const openHalf = (observed.match(/\(/g) || []).length;
+      const closeHalf = (observed.match(/\)/g) || []).length;
+      const openFull = (observed.match(/（/g) || []).length;
+      const closeFull = (observed.match(/）/g) || []).length;
+      expect(openHalf).toBeGreaterThan(0);
+      expect(openHalf).toBe(closeHalf);
+      expect(openFull).toBe(closeFull);
+
+      // Markdown 出力の表セル内でも観測値の閉じ括弧が欠けないこと
+      const md = generateMarkdownReport(report);
+      expect(md).toContain(`\`${observed}\``);
+
+      // ポップアップの行 HTML でも観測値の閉じ括弧が欠けないこと
+      const popupRowHtml = renderSecurityCheckRowHtml(cveCheck!);
+      expect(popupRowHtml).toContain(observed);
+
+      // summary.securityFindings の CRITICAL〜LOW 合計が requiresAttentionCount と一致すること
+      const sf = report.summary.securityFindings;
+      const severitySum = (sf.critical ?? 0) + sf.high + sf.medium + sf.low;
+      expect(severitySum).toBe(report.summary.requiresAttentionCount);
     });
   });
 

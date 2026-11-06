@@ -17,6 +17,7 @@ import {
   FindingException,
   InspectionReport,
 } from '../shared/types';
+import { formatMarkdownStatusBadge } from '../shared/security-status';
 import { compareReportsEnhanced } from '../storage/diff';
 
 /**
@@ -162,7 +163,7 @@ ${
 | **HIGH (危険)** | **${report.summary.securityFindings.high}** | 直ちに対応・修正が推奨される設定不備・脆弱性 |
 | **MEDIUM (警告)** | **${report.summary.securityFindings.medium}** | セキュリティ基準に抵触、またはサポート終了の技術 |
 | **LOW (注意)** | **${report.summary.securityFindings.low}** | 改善が望ましい設定上の軽微な不備 |
-| **INFO (情報)** | **${report.summary.securityFindings.info}** | 参考情報・セキュリティ良好な項目 |
+| **INFO (情報)** | **${report.summary.securityFindings.info}** | 参考情報・問題のない項目 |
 `);
 
   const expandedTechnologies = expandTechnologyInstances(report.technologies || []);
@@ -192,9 +193,9 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
 | 診断項目 | ステータス | 重大度 | 観測値 | 許容状態 |
 |---|:---:|:---:|---|:---:|
 ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
-  const statBadge = c.status === 'pass' ? 'PASS' : c.status === 'fail' ? '**FAIL**' : '**WARN**';
+  const statBadge = formatMarkdownStatusBadge(c.status);
   const exBadge = c.exceptionStatus === 'accepted' ? '🛡️ 許容済' : c.exceptionStatus === 'false-positive' ? '❌ 誤検知除外' : '-';
-  return `| ${escapeMarkdown(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | \`${escapeMarkdown(c.observed.substring(0, 60))}\` | ${exBadge} |`;
+  return `| ${escapeMarkdown(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | \`${escapeMarkdown(c.observed)}\` | ${exBadge} |`;
 }).join('\n') : '| なし | - | - | - | - |'}
 `);
 

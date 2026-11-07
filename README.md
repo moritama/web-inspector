@@ -72,19 +72,19 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ## 対応技術スタック & 診断カバレッジ (Coverage)
 
-本拡張機能が検出・診断に対応している全 70 技術の一覧です（`npm run spec:generate` により `src/detection/rules/*.json` および `data/advisories/catalog.json` から自動生成）。  
+本拡張機能が検出・診断に対応している全 74 技術の一覧です（`npm run spec:generate` により `src/detection/rules/*.json` および `data/advisories/catalog.json` から自動生成）。  
 ※「バージョン特定」はシグナル定義に `versionRegex` を持つ技術、またはページ実行時（MAIN world）からバージョンを取得できる技術のみ `✅` としています。  
 ※「EOL判定」「既知脆弱性 (CVE)」が `✅` の技術は、外部送信を行わず拡張機能内蔵のオフライン脆弱性データベース（`advisory-db.json`）と完全ローカルで照合されます。
 
 | 分類 | 対象技術名 | バージョン特定 | EOL判定 | 既知脆弱性 (CVE) | 主な検出手法 |
 |---|---|:---:|:---:|:---:|---|
 | **Webサーバー** | **Apache** (`apache`) | ✅ | ✅ | ✅ | header (server) |
+|  | Tomcat (`tomcat`) | ✅ | - | - | header (server) |
 |  | **Nginx** (`nginx`) | ✅ | ✅ | ✅ | header (server) |
 |  | Microsoft-IIS (`iis`) | ✅ | - | - | header (server) |
 |  | LiteSpeed (`litespeed`) | - | - | - | header (server) |
 |  | Caddy (`caddy`) | - | - | - | header (server) |
 | **プログラミング言語・ランタイム** | **PHP** (`php`) | ✅ | ✅ | ✅ | header (x-powered-by), header (server), cookie (PHPSESSID), url (path) |
-|  | ASP.NET (`aspnet`) | ✅ | - | - | header (x-aspnet-version), header (x-aspnetmvc-version), header (x-powered-by), cookie (.ASPXAUTH), cookie (ASP.NET_SessionId), url (path) |
 |  | Java (`java`) | - | - | - | cookie (JSESSIONID), cookie (XSRF-TOKEN), url (path), header (x-powered-by) |
 |  | Python (`python`) | ✅ | - | - | header (server) |
 |  | Ruby (`ruby`) | - | - | - | header (x-powered-by) |
@@ -102,7 +102,9 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 |  | NestJS (`nestjs`) | ✅ | - | - | header (x-powered-by) |
 |  | Fastify (`fastify`) | - | - | - | header (x-fastify-) |
 |  | CakePHP (`cakephp`) | - | - | - | cookie (CAKEPHP) |
-|  | Spring Security (`spring-security`) | - | - | - | dom (input[name='_csrf']) |
+|  | Spring Security (`spring-security`) | - | - | - | dom (input[name='_csrf']), cookie (SESSION) |
+|  | ASP.NET (`aspnet`) | ✅ | - | - | header (x-aspnet-version), header (x-aspnetmvc-version), header (x-powered-by), cookie (.ASPXAUTH), cookie (ASP.NET_SessionId), url (path) |
+|  | Classic ASP (`classic-asp`) | - | - | - | cookie (ASPSESSIONID), url (path) |
 | **CMS** | **WordPress** (`wordpress`) | ✅ | ✅ | ✅ | meta (generator), script (src), link (href), header (link) |
 |  | Drupal (`drupal`) | ✅ | - | - | meta (generator), header (x-generator), header (x-drupal-cache), header (x-drupal-dynamic-cache), dom ([data-drupal-selector], [data-drupal-messages], [data-drupal-link-system-path], script[data-drupal-selector='drupal-settings-json']), script (src), link (href) |
 |  | Joomla (`joomla`) | ✅ | - | - | meta (generator), script (src) |
@@ -136,11 +138,13 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 |  | Netlify (`netlify`) | - | - | - | header (server), header (x-nf-request-id) |
 |  | Firebase Hosting (`firebase-hosting`) | - | - | - | header (x-firebase-hosting) |
 |  | Azure App Service (`azure-app-service`) | - | - | - | cookie (ARRAffinity), cookie (ARRAffinitySameSite) |
+|  | Azure Application Gateway (`azure-app-gateway`) | - | - | - | cookie (ApplicationGatewayAffinity) |
 |  | AWS Application Load Balancer (`aws-alb`) | - | - | - | cookie (AWSALB), cookie (AWSALBCORS) |
 |  | AWS API Gateway (`aws-api-gateway`) | - | - | - | header (x-amzn-requestid), header (x-amz-apigw-id) |
 |  | Google Analytics (`google-analytics`) | - | - | - | script (src), cookie (_ga) |
 |  | Google Tag Manager (`google-tag-manager`) | - | - | - | script (src), dom (iframe) |
 |  | Microsoft Clarity (`microsoft-clarity`) | - | - | - | script (src), cookie (_clck) |
+|  | Application Insights (`application-insights`) | - | - | - | script (src), cookie (ai_session), cookie (ai_user) |
 |  | Sentry (`sentry`) | - | - | - | script (src) |
 |  | reCAPTCHA (`recaptcha`) | - | - | - | script (src), dom (.g-recaptcha) |
 |  | hCaptcha (`hcaptcha`) | - | - | - | script (src), dom (.h-captcha) |

@@ -27,6 +27,7 @@ export function formatCategory(cat: string): string {
   const map: Record<string, string> = {
     'web-server': 'Webサーバー',
     'programming-language': '開発言語・フレームワーク',
+    'framework': 'バックエンドフレームワーク',
     'cms': 'CMS',
     'js-framework': 'JSフレームワーク',
     'js-css-library': 'JS / CSSライブラリ',

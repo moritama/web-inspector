@@ -49,6 +49,7 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   { checkId: 'SEC-CORS-02', names: ['CORS設定 (クロスオリジン許可)'] },
   { checkId: 'SEC-DISC-01', names: ['Webサーバー詳細バージョン露出'] },
   { checkId: 'SEC-DISC-02', names: ['バックエンド技術情報露出 (X-Powered-By)'] },
+  { checkId: 'SEC-DISC-03', names: ['バックエンド技術情報露出 (X-AspNet-Version)'] },
   { checkId: 'SEC-HTTPS-00', names: ['HTTPS暗号化通信'] },
   { checkId: 'SEC-HTTPS-01', names: ['暗号化通信未適用 (平文HTTP接続)'] },
   {

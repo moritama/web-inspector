@@ -30,6 +30,7 @@ export function formatCategory(cat: string): string {
   const map: Record<string, string> = {
     'web-server': 'Webサーバー',
     'programming-language': '開発言語・フレームワーク',
+    'framework': 'バックエンドフレームワーク',
     'cms': 'CMS',
     'js-framework': 'JSフレームワーク',
     'js-css-library': 'JS / CSSライブラリ',
@@ -175,7 +176,7 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-color);">
           <div>
             <strong>${escapeHtml(t.technology)}${multiVerSummary ? ` ${escapeHtml(multiVerSummary)}` : ''}</strong>
-            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${multiVerSummary ? escapeHtml(multiVerSummary) : t.version ? `v${escapeHtml(t.version)}` : ''}</span>
+            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${multiVerSummary ? escapeHtml(multiVerSummary) : t.version ? (/^\d/.test(t.version) ? `v${escapeHtml(t.version)}` : escapeHtml(t.version)) : ''}</span>
             <div style="font-size:11px;color:var(--text-sub);">${escapeHtml(issues.join(' / '))}</div>
           </div>
           <div style="display:flex;gap:4px;align-items:center;">
@@ -339,7 +340,9 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
       const verDisplay = t.isCandidateGroup
         ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
         : t.version
-        ? `v${escapeHtml(t.version)}`
+        ? /^\d/.test(t.version)
+          ? `v${escapeHtml(t.version)}`
+          : escapeHtml(t.version)
         : '<span style="color:var(--text-muted);">不明</span>';
 
       return `

@@ -275,6 +275,9 @@ export function inferServiceCategory(hostname: string, registrableDomain: string
     h.includes('segment') ||
     h.includes('hotjar') ||
     h.includes('clarity.ms') ||
+    h === 'vo.msecnd.net' ||
+    h.endsWith('.vo.msecnd.net') ||
+    h === 'js.monitor.azure.com' ||
     d === 'google-analytics.com' ||
     d === 'googletagmanager.com' ||
     d === 'mixpanel.com'

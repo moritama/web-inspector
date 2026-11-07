@@ -462,6 +462,30 @@ describe('Security Headers', () => {
       expect(dashHtml).not.toContain('>LOW<');
     });
   });
+
+  describe('v1.7.1 T08 (指摘 D): X-AspNet-Version ヘッダー露出の診断 (SEC-DISC-03)', () => {
+    it('X-AspNet-Version が存在する場合に LOW (warning) の指摘 SEC-DISC-03 が追加されること（スナップショット testaspnet 検証含む）', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require('node:fs');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require('node:path');
+      const snapPath = path.resolve(
+        __dirname,
+        'fixtures',
+        'snapshots',
+        'testaspnet.vulnweb.com.json'
+      );
+      const snap = JSON.parse(fs.readFileSync(snapPath, 'utf-8'));
+
+      const checks = checkHttpHeaders(snap.responseHeaders, snap.url, false);
+      const aspNetDisc = checks.find((c) => c.checkId === 'SEC-DISC-03');
+      expect(aspNetDisc).toBeDefined();
+      expect(aspNetDisc?.category).toBe('information-disclosure');
+      expect(aspNetDisc?.status).toBe('warning');
+      expect(aspNetDisc?.severity).toBe('low');
+      expect(aspNetDisc?.observed).toBe('X-AspNet-Version: 2.0.50727');
+    });
+  });
 });
 
 describe('Cookie Security', () => {

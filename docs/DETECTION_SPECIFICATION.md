@@ -96,7 +96,7 @@ v1.6.0で導入されたImplication Engineでは、「検出方式（直接検�
 
 ---
 
-## 3. 全調査対象技術 判定基準カタログ (計70技術)
+## 3. 全調査対象技術 判定基準カタログ (計74技術)
 
 > [!NOTE]
 > **カタログの自動整合保証:**  
@@ -107,7 +107,8 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 
 | 技術ID | 技術名 | 判定シグナル | 照合パターン / 正規表現 | 重み |
 | :--- | :--- | :--- | :--- | :--- |
-| `apache` | **Apache** | `header`: `server` | Apache(?![-\w])(?:/([0-9.]+))? | 95 |
+| `apache` | **Apache** | `header`: `server` | Apache(?![-\w]\|\s+(?:Tomcat\|Coyote))(?:/([0-9.]+))? | 95 |
+| `tomcat` | **Tomcat** | `header`: `server` | Apache(?:-Coyote(?:/[0-9.]+)?\|[-\s]+Tomcat(?:(?:/\|\s+)([0-9.]+))?) | 95 |
 | `nginx` | **Nginx** | `header`: `server` | nginx(?:/([0-9.]+))? | 95 |
 | `iis` | **Microsoft-IIS** | `header`: `server` | Microsoft-IIS(?:/([0-9.]+))? | 95 |
 | `litespeed` | **LiteSpeed** | `header`: `server` | LiteSpeed | 95 |
@@ -124,7 +125,6 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | 技術ID | 技術名 | 判定シグナル | 照合パターン / 正規表現 | 重み |
 | :--- | :--- | :--- | :--- | :--- |
 | `php` | **PHP** | `header`: `x-powered-by`<br>`header`: `server`<br>`cookie`: `PHPSESSID`<br>`url`: `path` | PHP(?:/([0-9.]+))?<br>PHP(?:/([0-9.]+))?<br>^PHPSESSID$<br>\.php(?:$\|\?) | 95<br>85<br>55<br>50 |
-| `aspnet` | **ASP.NET** | `header`: `x-aspnet-version`<br>`header`: `x-aspnetmvc-version`<br>`header`: `x-powered-by`<br>`cookie`: `.ASPXAUTH`<br>`cookie`: `ASP.NET_SessionId`<br>`url`: `path` | ^([0-9.]+)$<br>^([0-9.]+)$<br>ASP\.NET<br>^\.ASPXAUTH$<br>^ASP\.NET_SessionId$<br>\.(?:aspx\|axd\|asmx)(?:$\|\?) | 95<br>95<br>90<br>70<br>65<br>60 |
 | `java` | **Java** | `cookie`: `JSESSIONID`<br>`cookie`: `XSRF-TOKEN`<br>`url`: `path`<br>`header`: `x-powered-by` | ^JSESSIONID$<br>^XSRF-TOKEN$<br>\.(?:jsp\|jspx\|do\|action)(?:$\|\?)<br>(?:Servlet\|JSP\|Tomcat\|JBoss\|WildFly) | 60<br>35<br>55<br>85 |
 | `python` | **Python** | `header`: `server` | Python(?:/([0-9.]+))? | 85 |
 | `ruby` | **Ruby** | `header`: `x-powered-by` | Phusion Passenger.*Ruby | 85 |
@@ -153,7 +153,9 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `nestjs` | **NestJS** | `header`: `x-powered-by` | Nest(?:/([0-9.]+))? | 90 | $\rightarrow$ **Node.js** (`unknown`) |
 | `fastify` | **Fastify** | `header`: `x-fastify-` | .* | 90 | $\rightarrow$ **Node.js** (`unknown`) |
 | `cakephp` | **CakePHP** | `cookie`: `CAKEPHP` | ^CAKEPHP$ | 85 | $\rightarrow$ **PHP** (`unknown`) |
-| `spring-security` | **Spring Security** | `dom`: `input[name='_csrf']` | _csrf | 60 | $\rightarrow$ **Java** (`unknown`) |
+| `spring-security` | **Spring Security** | `dom`: `input[name='_csrf']`<br>`cookie`: `SESSION` | _csrf<br>^SESSION$ | 60<br>45 | $\rightarrow$ **Java** (`unknown`) |
+| `aspnet` | **ASP.NET** | `header`: `x-aspnet-version`<br>`header`: `x-aspnetmvc-version`<br>`header`: `x-powered-by`<br>`cookie`: `.ASPXAUTH`<br>`cookie`: `ASP.NET_SessionId`<br>`url`: `path` | ^([0-9.]+)$<br>^([0-9.]+)$<br>ASP\.NET<br>^\.ASPXAUTH$<br>^ASP\.NET_SessionId$<br>\.(?:aspx\|axd\|asmx)(?:$\|\?) | 95<br>95<br>90<br>70<br>65<br>60 | - |
+| `classic-asp` | **Classic ASP** | `cookie`: `ASPSESSIONID`<br>`url`: `path` | ^ASPSESSIONID[A-Z0-9]*$<br>\.asp(?:$\|\?) | 85<br>60 | - |
 
 ---
 
@@ -208,11 +210,13 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `netlify` | **Netlify** | `hosting-cloud` | `header`: `server`<br>`header`: `x-nf-request-id` | ^Netlify$<br>.* | 95<br>95 |
 | `firebase-hosting` | **Firebase Hosting** | `hosting-cloud` | `header`: `x-firebase-hosting` | .* | 95 |
 | `azure-app-service` | **Azure App Service** | `hosting-cloud` | `cookie`: `ARRAffinity`<br>`cookie`: `ARRAffinitySameSite` | ^ARRAffinity$<br>^ARRAffinitySameSite$ | 90<br>90 |
+| `azure-app-gateway` | **Azure Application Gateway** | `hosting-cloud` | `cookie`: `ApplicationGatewayAffinity` | ^ApplicationGatewayAffinity[A-Za-z0-9_-]*$ | 90 |
 | `aws-alb` | **AWS Application Load Balancer** | `hosting-cloud` | `cookie`: `AWSALB`<br>`cookie`: `AWSALBCORS` | ^(?:AWSALB\|AWSELB)$<br>^(?:AWSALBCORS\|AWSELBCORS)$ | 90<br>90 |
 | `aws-api-gateway` | **AWS API Gateway** | `hosting-cloud` | `header`: `x-amzn-requestid`<br>`header`: `x-amz-apigw-id` | .*<br>.* | 85<br>95 |
 | `google-analytics` | **Google Analytics** | `analytics-tracking` | `script`: `src`<br>`cookie`: `_ga` | google-analytics\.com/(?:analytics\|ga)\.js\|googletagmanager\.com/gtag/js<br>^_ga$ | 90<br>85 |
 | `google-tag-manager` | **Google Tag Manager** | `analytics-tracking` | `script`: `src`<br>`dom`: `iframe` | googletagmanager\.com/gtm\.js<br>googletagmanager\.com/ns\.html | 95<br>95 |
 | `microsoft-clarity` | **Microsoft Clarity** | `analytics-tracking` | `script`: `src`<br>`cookie`: `_clck` | clarity\.ms/tag/<br>^_clck$ | 95<br>85 |
+| `application-insights` | **Application Insights** | `analytics-tracking` | `script`: `src`<br>`cookie`: `ai_session`<br>`cookie`: `ai_user` | (?:^\|//)(?:[a-z0-9-]+\.)+vo\.msecnd\.net(?:/\|$)\|(?:^\|//)js\.monitor\.azure\.com(?:/\|$)<br>^ai_session$<br>^ai_user$ | 90<br>85<br>85 |
 | `sentry` | **Sentry** | `security-service` | `script`: `src` | browser\.sentry-cdn\.com\|js\.sentry-cdn\.com | 95 |
 | `recaptcha` | **reCAPTCHA** | `security-service` | `script`: `src`<br>`dom`: `.g-recaptcha` | google\.com/recaptcha/api\.js\|recaptcha/enterprise\.js<br>g-recaptcha | 95<br>90 |
 | `hcaptcha` | **hCaptcha** | `security-service` | `script`: `src`<br>`dom`: `.h-captcha` | hcaptcha\.com/1/api\.js\|js\.hcaptcha\.com<br>h-captcha | 95<br>90 |
@@ -254,6 +258,7 @@ graph LR
     Drupal["Drupal"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
     Joomla["Joomla"] -->|"runtime-dependency (unknown, 0.95)"| PHP["PHP"]
     
+    Tomcat["Tomcat"] -->|"runtime-dependency (unknown, 0.95)"| Java["Java"]
     Spring["Spring Boot"] -->|"runtime-dependency (unknown, 0.95)"| Java["Java"]
     SpringSec["Spring Security"] -->|"runtime-dependency (unknown, 0.9)"| Java["Java"]
     FastAPI["FastAPI"] -->|"runtime-dependency (unknown, 0.95)"| Python["Python"]
@@ -283,6 +288,7 @@ graph LR
 | **WordPress** (`wordpress`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
 | **Drupal** (`drupal`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
 | **Joomla** (`joomla`) | **PHP** (`php`) | `runtime-dependency` | `unknown` | `0.95` |
+| **Tomcat** (`tomcat`) | **Java** (`java`) | `runtime-dependency` | `unknown` | `0.95` |
 | **Spring Boot** (`spring-boot`) | **Java** (`java`) | `runtime-dependency` | `unknown` | `0.95` |
 | **Spring Security** (`spring-security`) | **Java** (`java`) | `runtime-dependency` | `unknown` | `0.9` |
 | **FastAPI** (`fastapi`) | **Python** (`python`) | `runtime-dependency` | `unknown` | `0.95` |
@@ -350,7 +356,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **断定の回避**: バージョンが隠蔽されて特定できない場合は、「バージョン不明」として安全に扱い、**無関係なバージョンのCVEを誤報（False Positive）として出さない**安全機構（IMP-19）が働きます。
 - **Linuxディストリビューション版（バックポート修正）への配慮 (SPEC-02)**:
   `Server: Apache/2.4.41 (Ubuntu)` のように OS パッケージ版が使用されている場合、バージョン番号上は古く見えても、セキュリティパッチがバックポート（逆移植）されている可能性があります。そのため、診断レポート上では「バージョン表記上は該当。Linuxディストリビューション版（Ubuntu/RHEL等）の場合はバックポート修正済みの可能性あり（要確認）」と確度を分けてガイダンスします。
-  1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、バージョンを抽出したヘッダー値全文から括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）およびパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1` 等）を自動検出し、`DetectedTechnology.distroHint` を設定します。
+  1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、`Server` および `X-Powered-By` ヘッダー値から括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）および抽出されたバージョンの直後に続くパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1`, `.fc38` 等。Fedora の `fc` は `\.fc\d{2}\b` のみ）を自動検出し、`DetectedTechnology.distroHint` を設定します。
   2. **オフライン脆弱性照合での安全処理と上流件数の併記**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、あわせて `distroHint` が無いと仮定した場合（上流版として照合した場合）に一致する脆弱性件数を `upstreamAdvisoriesCount` として算出します。
   3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジと「参考: 上流版として照合すると N 件に該当」の案内を表示し、JSON / CSV / Markdown エクスポートにも `distroHint`・`upstreamAdvisoriesCount` および注記文を出力します。
 - **「収録 DB 上は該当なし」と収録範囲の明示 (SPEC-03)**:

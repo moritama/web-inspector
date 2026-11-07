@@ -1640,6 +1640,327 @@ describe('DetectionEngine', () => {
         expect(resNeg.find((r) => r.technology === 'Drupal')).toBeUndefined();
       });
     });
+
+    describe('v1.7.1 T08: サーバー・基盤・言語の検出 (指摘 4, D, G, N6, N9)', () => {
+      it('N6: x-vercel-id: hnd1::29cw8-1793972072729-626cb73fc75c を含む応答で distroHint が付かないこと', () => {
+        const results = engine.detect({
+          url: 'https://vercel-app.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://vercel-app.example.test/',
+            responseHeaders: {
+              server: ['Vercel'],
+              'x-vercel-id': ['hnd1::29cw8-1793972072729-626cb73fc75c'],
+            },
+            cookies: [],
+          },
+        });
+
+        const vercel = results.find((r) => r.technology === 'Vercel');
+        expect(vercel).toBeDefined();
+        expect(vercel?.distroHint).toBeUndefined();
+        for (const tech of results) {
+          expect(tech.distroHint).toBeUndefined();
+        }
+      });
+
+      it('N6: Apache/2.4.41 (Ubuntu)・nginx/1.10.3 (Ubuntu)・Apache/2.4.6 (CentOS)・PHP/8.1.2-1ubuntu2.14 が従来どおり動き、fc は .fc\\d{2}\\b のときだけ Fedora と判定されること', () => {
+        const cases: Array<{
+          headers: Record<string, string[]>;
+          tech: string;
+          expectedVer: string;
+          expectedHint: string;
+        }> = [
+          {
+            headers: { server: ['Apache/2.4.41 (Ubuntu)'] },
+            tech: 'Apache',
+            expectedVer: '2.4.41',
+            expectedHint: 'Ubuntu',
+          },
+          {
+            headers: { server: ['nginx/1.10.3 (Ubuntu)'] },
+            tech: 'Nginx',
+            expectedVer: '1.10.3',
+            expectedHint: 'Ubuntu',
+          },
+          {
+            headers: { server: ['Apache/2.4.6 (CentOS)'] },
+            tech: 'Apache',
+            expectedVer: '2.4.6',
+            expectedHint: 'CentOS',
+          },
+          {
+            headers: { 'x-powered-by': ['PHP/8.1.2-1ubuntu2.14'] },
+            tech: 'PHP',
+            expectedVer: '8.1.2',
+            expectedHint: 'Ubuntu',
+          },
+          {
+            headers: { 'x-powered-by': ['PHP/8.2.10-1.fc38'] },
+            tech: 'PHP',
+            expectedVer: '8.2.10',
+            expectedHint: 'Fedora',
+          },
+        ];
+
+        for (const c of cases) {
+          const res = engine.detect({
+            url: 'https://linux-pkg.example.test/',
+            dom: emptyDom,
+            network: {
+              url: 'https://linux-pkg.example.test/',
+              responseHeaders: c.headers,
+              cookies: [],
+            },
+          });
+          const found = res.find((r) => r.technology === c.tech);
+          expect(found).toBeDefined();
+          expect(found?.version).toBe(c.expectedVer);
+          expect(found?.distroHint).toBe(c.expectedHint);
+        }
+
+        // 陰性（否定コントロール）: バージョンが取れないヘッダーや .fc\d{2}\b でない fc 文字列では distroHint が付かない
+        const negRes = engine.detect({
+          url: 'https://no-distro.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://no-distro.example.test/',
+            responseHeaders: {
+              server: ['Apache'],
+              'x-powered-by': ['PHP/8.2.10-fc38'],
+            },
+            cookies: [],
+          },
+        });
+        expect(negRes.find((r) => r.technology === 'Apache')?.distroHint).toBeUndefined();
+        expect(negRes.find((r) => r.technology === 'PHP')?.distroHint).toBeUndefined();
+      });
+
+      it('N9: Server: Apache-Coyote/1.1 および Apache Tomcat から Tomcat と Java（推論）が検出され、Apache は検出されないこと', () => {
+        const coyoteResults = engine.detect({
+          url: 'https://tomcat-coyote.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://tomcat-coyote.example.test/',
+            responseHeaders: {
+              server: ['Apache-Coyote/1.1'],
+            },
+            cookies: [],
+          },
+        });
+
+        const tomcat = coyoteResults.find((r) => r.technology === 'Tomcat');
+        expect(tomcat).toBeDefined();
+        expect(tomcat?.category).toBe('web-server');
+        expect(tomcat?.detectionMethod).toBe('direct');
+        expect(tomcat?.version).toBeNull();
+
+        const java = coyoteResults.find((r) => r.technology === 'Java');
+        expect(java).toBeDefined();
+        expect(java?.detectionMethod).toBe('inferred');
+        expect(java?.inferredFrom).toBe('Tomcat');
+        expect(java?.runtimeStatus).toBe('unknown');
+
+        expect(coyoteResults.find((r) => r.technology === 'Apache')).toBeUndefined();
+
+        // Apache Tomcat/9.0.65 の陽性検証
+        const tomcatVerResults = engine.detect({
+          url: 'https://tomcat-ver.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://tomcat-ver.example.test/',
+            responseHeaders: {
+              server: ['Apache Tomcat/9.0.65'],
+            },
+            cookies: [],
+          },
+        });
+        const tomcatWithVer = tomcatVerResults.find((r) => r.technology === 'Tomcat');
+        expect(tomcatWithVer).toBeDefined();
+        expect(tomcatWithVer?.version).toBe('9.0.65');
+        expect(tomcatVerResults.find((r) => r.technology === 'Java')).toBeDefined();
+        expect(tomcatVerResults.find((r) => r.technology === 'Apache')).toBeUndefined();
+      });
+
+      it('旧 ASP と ASP.NET (指摘 D): スナップショット testasp・testaspnet でそれぞれ Classic ASP・ASP.NET（CLR 2.0 + EOL）になること', () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require('node:fs');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const path = require('node:path');
+        const snapDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+
+        const testAspSnap = JSON.parse(
+          fs.readFileSync(path.join(snapDir, 'testasp.vulnweb.com.json'), 'utf-8')
+        );
+        const testAspResults = engine.detect({
+          url: testAspSnap.finalUrl || testAspSnap.url,
+          dom: emptyDom,
+          network: {
+            url: testAspSnap.finalUrl || testAspSnap.url,
+            responseHeaders: testAspSnap.responseHeaders,
+            cookies: testAspSnap.cookies,
+          },
+        });
+
+        const classicAsp = testAspResults.find((r) => r.technology === 'Classic ASP');
+        expect(classicAsp).toBeDefined();
+        expect(classicAsp?.category).toBe('framework');
+        expect(testAspResults.find((r) => r.technology === 'ASP.NET')).toBeUndefined();
+
+        const testAspNetSnap = JSON.parse(
+          fs.readFileSync(path.join(snapDir, 'testaspnet.vulnweb.com.json'), 'utf-8')
+        );
+        const testAspNetResults = engine.detect({
+          url: testAspNetSnap.finalUrl || testAspNetSnap.url,
+          dom: emptyDom,
+          network: {
+            url: testAspNetSnap.finalUrl || testAspNetSnap.url,
+            responseHeaders: testAspNetSnap.responseHeaders,
+            cookies: testAspNetSnap.cookies,
+          },
+        });
+
+        const aspnet = testAspNetResults.find((r) => r.technology === 'ASP.NET');
+        expect(aspnet).toBeDefined();
+        expect(aspnet?.category).toBe('framework');
+        expect(aspnet?.version).toBe('.NET Framework 2.0〜3.5（CLR 2.0.50727）');
+        expect(aspnet?.supportStatus).toBe('EOL');
+        expect(testAspNetResults.find((r) => r.technology === 'Classic ASP')).toBeUndefined();
+
+        // CLR 4.0.30319 の表示形式確認
+        const clr4Results = engine.detect({
+          url: 'https://aspnet4.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://aspnet4.example.test/',
+            responseHeaders: {
+              'x-aspnet-version': ['4.0.30319'],
+            },
+            cookies: [],
+          },
+        });
+        const aspnet4 = clr4Results.find((r) => r.technology === 'ASP.NET');
+        expect(aspnet4?.version).toBe('.NET Framework 4.x（CLR 4.0.30319）');
+        expect(aspnet4?.supportStatus).toBe('Unknown');
+      });
+
+      it('指摘 4: 確信度 60% の Spring Security が「稼働確認済 (confirmed)」にならず、SESSION Cookie があると確信度が上がること', () => {
+        // 1. _csrf のみ (確信度 60%, medium)
+        const csrfOnlyResults = engine.detect({
+          url: 'https://spring.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ["input[name='_csrf']"],
+          },
+        });
+
+        const springCsrfOnly = csrfOnlyResults.find((r) => r.technology === 'Spring Security');
+        expect(springCsrfOnly).toBeDefined();
+        expect(springCsrfOnly?.category).toBe('framework');
+        expect(springCsrfOnly?.confidence).toBe(60);
+        expect(springCsrfOnly?.confidenceLevel).toBe('medium');
+        expect(springCsrfOnly?.runtimeStatus).toBe('possible');
+        expect(springCsrfOnly?.runtimeStatus).not.toBe('confirmed');
+
+        // 2. _csrf + SESSION Cookie がある場合、確信度が上がる
+        const withSessionResults = engine.detect({
+          url: 'https://spring.example.test/',
+          dom: {
+            ...emptyDom,
+            domMarkers: ["input[name='_csrf']"],
+          },
+          network: {
+            url: 'https://spring.example.test/',
+            responseHeaders: {},
+            cookies: [{ name: 'SESSION', value: 'spring-session-id' }],
+          },
+        });
+
+        const springWithSession = withSessionResults.find(
+          (r) => r.technology === 'Spring Security'
+        );
+        expect(springWithSession).toBeDefined();
+        expect(springWithSession!.confidence).toBeGreaterThan(springCsrfOnly!.confidence);
+
+        // 3. 陰性（否定コントロール）: 汎用的な SESSION Cookie 単独では Spring Security を誤検出しないこと
+        const sessionOnlyResults = engine.detect({
+          url: 'https://generic-session.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://generic-session.example.test/',
+            responseHeaders: {},
+            cookies: [{ name: 'SESSION', value: 'generic-id' }],
+          },
+        });
+        expect(sessionOnlyResults.find((r) => r.technology === 'Spring Security')).toBeUndefined();
+      });
+
+      it('Azure (指摘 G, A): ApplicationGatewayAffinity だけを返すページから Azure Application Gateway が検出され、ai_session/ai_user・スクリプトURLから Application Insights が検出されること', () => {
+        // 1. ApplicationGatewayAffinity のみ
+        const agwResults = engine.detect({
+          url: 'https://azure-gw.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://azure-gw.example.test/',
+            responseHeaders: {},
+            cookies: [{ name: 'ApplicationGatewayAffinity', value: 'hash123' }],
+          },
+        });
+
+        const agw = agwResults.find((r) => r.technology === 'Azure Application Gateway');
+        expect(agw).toBeDefined();
+        expect(agw?.category).toBe('hosting-cloud');
+
+        // 2. Application Insights (Cookie および スクリプト URL)
+        const aiCookieResults = engine.detect({
+          url: 'https://azure-ai.example.test/',
+          dom: emptyDom,
+          network: {
+            url: 'https://azure-ai.example.test/',
+            responseHeaders: {},
+            cookies: [
+              { name: 'ai_session', value: 'sess' },
+              { name: 'ai_user', value: 'usr' },
+            ],
+          },
+        });
+        const aiFromCookie = aiCookieResults.find((r) => r.technology === 'Application Insights');
+        expect(aiFromCookie).toBeDefined();
+        expect(aiFromCookie?.category).toBe('analytics-tracking');
+
+        const aiScriptResults = engine.detect({
+          url: 'https://azure-ai-script.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://az416426.vo.msecnd.net/scripts/a/ai.0.js'],
+          },
+        });
+        expect(
+          aiScriptResults.find((r) => r.technology === 'Application Insights')
+        ).toBeDefined();
+
+        // 3. 陰性（否定コントロール）: 類似Cookie名や別ドメインのスクリプトでは検出しない
+        const negResults = engine.detect({
+          url: 'https://non-azure.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://non-azure.example.test/vo.msecnd.net/fake.js'],
+          },
+          network: {
+            url: 'https://non-azure.example.test/',
+            responseHeaders: {},
+            cookies: [
+              { name: 'MyApplicationGatewayAffinity', value: '1' },
+              { name: 'ai_session_id', value: '2' },
+            ],
+          },
+        });
+        expect(
+          negResults.find((r) => r.technology === 'Azure Application Gateway')
+        ).toBeUndefined();
+        expect(negResults.find((r) => r.technology === 'Application Insights')).toBeUndefined();
+      });
+    });
   });
 });
 

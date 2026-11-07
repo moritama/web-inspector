@@ -170,6 +170,8 @@ describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
       expect(guessServiceCategory('www.google-analytics.com')).toBe('analytics');
       expect(guessServiceCategory('www.googletagmanager.com')).toBe('analytics');
       expect(guessServiceCategory('www.clarity.ms')).toBe('analytics');
+      expect(guessServiceCategory('az416426.vo.msecnd.net')).toBe('analytics');
+      expect(guessServiceCategory('js.monitor.azure.com')).toBe('analytics');
     });
 
     it('Webフォントサービスをfontsと判定すること', () => {

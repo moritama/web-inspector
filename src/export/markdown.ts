@@ -322,7 +322,7 @@ ${
 | 技術名 | カテゴリ | バージョン | ディストリ版 | 検出方式 | 連動元 / 種別 | ランタイム状態 | 確信度 | 整合性 |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
-  const ver = t.isCandidateGroup ? 'いずれかの可能性' : t.version ? `v${t.version}` : '不明';
+  const ver = t.isCandidateGroup ? 'いずれかの可能性' : t.version ? (/^\d/.test(t.version) ? `v${t.version}` : t.version) : '不明';
   const distro = t.distroHint ? formatMarkdownCodeSpan(t.distroHint, { inTable: true }) : '-';
   const method = t.isCandidateGroup || t.detectionMethod === 'associated' ? '候補・関連' : t.detectionMethod === 'inferred' ? '連動検知' : '直接検出';
   const relation = t.inferredFrom ? `${t.inferredFrom} (${t.implicationType || '連動'})` : '-';

@@ -8,7 +8,8 @@
  */
 export type TechnologyCategory =
   | 'web-server'             // Webサーバー
-  | 'programming-language'    // サーバーサイドプログラミング言語 / フレームワーク
+  | 'programming-language'    // サーバーサイドプログラミング言語 / ランタイム
+  | 'framework'              // バックエンドフレームワーク
   | 'cms'                     // コンテンツ管理システム (CMS)
   | 'js-framework'            // JavaScriptフレームワーク
   | 'js-css-library'          // JavaScript / CSSライブラリ

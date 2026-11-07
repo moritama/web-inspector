@@ -467,6 +467,73 @@ export function matchOfflineAdvisories(
   const { targetKey, targetEntry } = findLibraryEntry(technology, activeDb);
 
   try {
+    // 0. ASP.NET (CLR バージョン) の EOL 判定 (v1.7.1 T08 / 指摘D)
+    // CLR 2.0 系 (2.0.50727 / .NET Framework 2.0〜3.5) および CLR 1.x 系は EOL として扱う
+    const normTech = technology.trim().toLowerCase();
+    if ((normTech === 'asp.net' || normTech === 'aspnet') && version && version.trim() !== '') {
+      const trimmedVer = version.trim();
+      const isClr2Or1 =
+        /^(?:2\.0|1\.[01])(?:\.\d+)*$/i.test(trimmedVer) ||
+        /\.NET Framework (?:2\.0|1\.[01])/i.test(trimmedVer) ||
+        /CLR\s+(?:2\.0|1\.[01])\b/i.test(trimmedVer);
+      const isClr4 =
+        /^4\.\d+(?:\.\d+)*$/i.test(trimmedVer) ||
+        /\.NET Framework 4\.x/i.test(trimmedVer) ||
+        /CLR\s+4\.0\b/i.test(trimmedVer);
+
+      if (isClr2Or1) {
+        return {
+          technology,
+          version: trimmedVer,
+          matchStatus: 'No Data',
+          offlineMatchStatus: 'Not Covered',
+          isStale: freshnessInfo.isStale,
+          dbFreshness: freshnessInfo.freshness,
+          advisories: [],
+          maxCvss: null,
+          eolInfo: {
+            status: 'EOL',
+            eolDate: '2016-04-12',
+            source: 'Microsoft Lifecycle Policy',
+            sourceUrl: 'https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework',
+            recommendation:
+              'ASP.NET (CLR 2.0 / .NET Framework 2.0〜3.5) はサポート終了（EOL）として扱われます。サポート中の .NET Framework 4.8 または最新の .NET への移行を推奨します。',
+          },
+          updatedAt: now,
+          productAdvisoryCount: 0,
+          productSources: [],
+          advisoryDataVersion: coverageInfo.dataVersion,
+          advisoryStatusLabel: 'この技術の脆弱性は収録していません',
+        };
+      }
+
+      if (isClr4) {
+        return {
+          technology,
+          version: trimmedVer,
+          matchStatus: 'No Data',
+          offlineMatchStatus: 'Not Covered',
+          isStale: freshnessInfo.isStale,
+          dbFreshness: freshnessInfo.freshness,
+          advisories: [],
+          maxCvss: null,
+          eolInfo: {
+            status: 'Unknown',
+            eolDate: null,
+            source: 'Microsoft Lifecycle Policy',
+            sourceUrl: 'https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework',
+            recommendation:
+              'CLR 4.0 (4.0.30319) は .NET Framework 4.0〜4.8.1 で共通のため、外部からは詳細なマイナーバージョンを特定できません。サーバー側でサポート中の .NET Framework 4.8 以降が適用されているか確認してください。',
+          },
+          updatedAt: now,
+          productAdvisoryCount: 0,
+          productSources: [],
+          advisoryDataVersion: coverageInfo.dataVersion,
+          advisoryStatusLabel: 'この技術の脆弱性は収録していません',
+        };
+      }
+    }
+
     // 1. バージョン不明時 (空またはnull、あるいは解析不能文字列) -> Unknown Version / Needs Review (SPEC-06)
     if (!version || version.trim() === '' || parseVersionParts(version) === null) {
       return {

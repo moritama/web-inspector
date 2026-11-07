@@ -22,6 +22,26 @@ import { ALL_TECHNOLOGY_RULES, TechnologyRule } from './rules';
 /** 1技術あたりのインスタンス保持上限 (v1.7.0 T08 / SPEC-10) */
 const MAX_TECHNOLOGY_INSTANCES = 5;
 
+/**
+ * ASP.NET の X-AspNet-Version ヘッダー値（CLRバージョン）を表示用文字列に変換する (v1.7.1 T08 / 指摘D)
+ */
+export function formatAspNetClrVersion(rawVersion: string): string {
+  const trimmed = rawVersion.trim();
+  if (/^4\.0(?:\.\d+)?$/.test(trimmed) || /^4\.\d+(?:\.\d+)*$/.test(trimmed)) {
+    return `.NET Framework 4.x（CLR ${trimmed}）`;
+  }
+  if (/^2\.0(?:\.\d+)?$/.test(trimmed) || /^2\.\d+(?:\.\d+)*$/.test(trimmed)) {
+    return `.NET Framework 2.0〜3.5（CLR ${trimmed}）`;
+  }
+  if (/^1\.1(?:\.\d+)?$/.test(trimmed)) {
+    return `.NET Framework 1.1（CLR ${trimmed}）`;
+  }
+  if (/^1\.0(?:\.\d+)?$/.test(trimmed)) {
+    return `.NET Framework 1.0（CLR ${trimmed}）`;
+  }
+  return trimmed;
+}
+
 interface EvidenceEntry {
   evidence: Evidence;
   version: string | null;
@@ -67,8 +87,40 @@ export class DetectionEngine {
         }
       }
     }
+    if (input.network?.responseHeaders) {
+      for (const [k, vals] of Object.entries(input.network.responseHeaders)) {
+        if (k.toLowerCase() === 'set-cookie' && Array.isArray(vals)) {
+          for (const rawSetCookie of vals) {
+            const eqIdx = rawSetCookie.indexOf('=');
+            if (eqIdx > 0) {
+              const cName = rawSetCookie.slice(0, eqIdx).trim();
+              if (cName) {
+                uniqueCookieNames.add(cName);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 旧 ASP (Classic ASP) と ASP.NET の排他判定 (v1.7.1 T08)
+    // ASPSESSIONID* の Cookie があり ASP.NET_SessionId も X-AspNet-Version もない場合は Classic ASP とし、ASP.NET にしない
+    const cookieNameList = Array.from(uniqueCookieNames);
+    const hasAspSessionIdCookie = cookieNameList.some((n) => /^ASPSESSIONID[A-Z0-9]*$/i.test(n));
+    const hasAspNetSessionCookie = cookieNameList.some((n) => /^ASP\.NET_SessionId$/i.test(n));
+    const headersObj = input.network?.responseHeaders || {};
+    const hasXAspNetVersionHeader = Object.keys(headersObj).some(
+      (k) =>
+        k.toLowerCase() === 'x-aspnet-version' &&
+        (headersObj[k]?.some((v) => v.trim().length > 0) ?? false)
+    );
+    const isClassicAspOnly =
+      hasAspSessionIdCookie && !hasAspNetSessionCookie && !hasXAspNetVersionHeader;
 
     for (const rule of this.rules) {
+      if (rule.id === 'aspnet' && isClassicAspOnly) {
+        continue;
+      }
       const evidences: Evidence[] = [];
       const evidenceEntries: EvidenceEntry[] = [];
       const matchedCookieNames = new Set<string>();
@@ -258,18 +310,24 @@ export class DetectionEngine {
                   if (signal.versionRegex) {
                     const v = this.extractVersion(val, signal.versionRegex);
                     if (v) {
-                      headerVer = v;
+                      headerVer =
+                        rule.id === 'aspnet' && headerKey === 'x-aspnet-version'
+                          ? formatAspNetClrVersion(v)
+                          : v;
                       if (!detectedVersion) {
-                        detectedVersion = v;
+                        detectedVersion = headerVer;
                         versionSource = 'response-header';
                       }
                     }
                   }
 
-                  // ディストリビューション版ヒントの判定 (T04 / SPEC-02)
-                  const hint = this.detectDistroHint(val, headerVer || detectedVersion);
-                  if (!distroHint && hint) {
-                    distroHint = hint;
+                  // ディストリビューション版ヒントの判定 (T04 / SPEC-02, v1.7.1 T08 N6: Server と X-Powered-By のみ対象)
+                  let hint: string | undefined;
+                  if (headerKey === 'server' || headerKey === 'x-powered-by') {
+                    hint = this.detectDistroHint(val, headerVer);
+                    if (!distroHint && hint) {
+                      distroHint = hint;
+                    }
                   }
 
                   addEvidence(
@@ -292,6 +350,13 @@ export class DetectionEngine {
           }
 
           case 'cookie': {
+            if (
+              rule.id === 'classic-asp' &&
+              signal.target === 'ASPSESSIONID' &&
+              (hasAspNetSessionCookie || hasXAspNetVersionHeader)
+            ) {
+              break;
+            }
             for (const name of uniqueCookieNames) {
               if (matchedCookieNames.has(name)) {
                 continue;
@@ -621,7 +686,7 @@ export class DetectionEngine {
           description: rule.description,
           website: rule.website,
           detectionMethod: 'direct',
-          runtimeStatus: 'confirmed',
+          runtimeStatus: level === 'high' ? 'confirmed' : 'possible',
         });
       }
     }
@@ -1119,7 +1184,8 @@ export class DetectionEngine {
       const regex = new RegExp(regexPattern, 'i');
       const match = value.match(regex);
       if (match && match[1]) {
-        return match[1].trim();
+        const cleaned = match[1].trim().replace(/\.+$/, '');
+        return cleaned || null;
       }
     } catch {
       // 正規表現例外防止
@@ -1141,7 +1207,7 @@ export class DetectionEngine {
   }
 
   /**
-   * HTTPヘッダー値からLinuxディストリビューション版ヒントを検出する (T04 / SPEC-02)
+   * HTTPヘッダー値からLinuxディストリビューション版ヒントを検出する (T04 / SPEC-02, v1.7.1 T08 N6)
    */
   private detectDistroHint(headerValue: string, extractedVersion: string | null): string | undefined {
     // 1. 括弧内 OS 名の判定
@@ -1151,21 +1217,19 @@ export class DetectionEngine {
       return this.normalizeDistroName(osMatch[1]);
     }
 
-    // 2. パッケージ版の接尾辞（抽出バージョンの直後に続く部分）
-    const suffixRegex = /^[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i;
+    // 2. パッケージ版の接尾辞（抽出されたバージョン文字列の直後に続くときだけ一致させる。Fedora の fc は \.fc\d{2}\b のみ）
     if (extractedVersion) {
-      const idx = headerValue.indexOf(extractedVersion);
+      const cleanVer = extractedVersion.replace(/\.+$/, '');
+      const idx = headerValue.indexOf(cleanVer);
       if (idx !== -1) {
-        const sub = headerValue.slice(idx);
-        const pkgMatch = sub.match(suffixRegex);
-        if (pkgMatch) {
-          return this.resolveDistroHintFromSuffix(pkgMatch[1]);
+        const afterVer = headerValue.slice(idx + cleanVer.length);
+        const pkgMatch = afterVer.match(
+          /^(?:[-~+][0-9A-Za-z.~+-]*?(ubuntu|deb\d*|el\d+|amzn\d*|\.fc\d{2}\b)|(\.fc\d{2}\b))/i
+        );
+        const tag = pkgMatch?.[1] || pkgMatch?.[2];
+        if (tag) {
+          return this.resolveDistroHintFromSuffix(tag);
         }
-      }
-    } else {
-      const match = headerValue.match(/[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i);
-      if (match) {
-        return this.resolveDistroHintFromSuffix(match[1]);
       }
     }
 
@@ -1195,7 +1259,7 @@ export class DetectionEngine {
    * パッケージ接尾辞のタグ名からディストリビューション名を推定する
    */
   private resolveDistroHintFromSuffix(tag: string): string {
-    const lower = tag.toLowerCase();
+    const lower = tag.toLowerCase().replace(/^\./, '');
     if (lower.startsWith('ubuntu')) return 'Ubuntu';
     if (lower.startsWith('deb')) return 'Debian';
     if (lower.startsWith('el')) return 'RHEL';

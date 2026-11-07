@@ -176,6 +176,26 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(result.eolInfo.status).toBe('EOL');
   });
 
+  it('v1.7.1 T08 (指摘 D): ASP.NET の CLR 2.0 系が EOL として判定され、CLR 4.0 系は Unknown となること', () => {
+    const clr2Formatted = matchOfflineAdvisories(
+      'ASP.NET',
+      '.NET Framework 2.0〜3.5（CLR 2.0.50727）',
+      fixtureDb
+    );
+    expect(clr2Formatted.eolInfo.status).toBe('EOL');
+    expect(clr2Formatted.eolInfo.eolDate).toBe('2016-04-12');
+
+    const clr2Raw = matchOfflineAdvisories('ASP.NET', '2.0.50727', fixtureDb);
+    expect(clr2Raw.eolInfo.status).toBe('EOL');
+
+    const clr4Formatted = matchOfflineAdvisories(
+      'ASP.NET',
+      '.NET Framework 4.x（CLR 4.0.30319）',
+      fixtureDb
+    );
+    expect(clr4Formatted.eolInfo.status).toBe('Unknown');
+  });
+
   it('AngularJS 1.8.3 に対して全バージョン影響のCVE-2022-25869が検出され、修正版なし(null)および移行推奨案内が出力されること', () => {
     const result = matchOfflineAdvisories('AngularJS', '1.8.3', fixtureDb);
 

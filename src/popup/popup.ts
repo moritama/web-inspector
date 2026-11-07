@@ -273,7 +273,9 @@ function renderTechnologies(
       : multiVerSummary
       ? multiVerSummary
       : t.version
-      ? `v${t.version}`
+      ? /^\d/.test(t.version)
+        ? `v${t.version}`
+        : t.version
       : 'バージョン不明';
     if (!multiVerSummary && t.versionSource === 'runtime') {
       verLabel += ' (実行時)';

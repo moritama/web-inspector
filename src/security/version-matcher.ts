@@ -33,8 +33,8 @@ const PRERELEASE_RE = /^(alpha|beta|rc|next|pre|preview|dev|canary|nightly|exper
 export function isLinuxPackageVersion(version: string | null | undefined): boolean {
   if (!version) return false;
   const lower = version.toLowerCase().trim();
-  return /[-+~]([0-9]+)?(ubuntu|deb|debian|el[0-9]|rhel|amzn|redhat|centos|arch|alpine|suse|lp[0-9]|dfsg|fc[0-9]+)/i.test(lower)
-    || /\.(?:el\d|fc\d|amzn\d)/i.test(lower)
+  return /[-+~]([0-9]+)?(ubuntu|deb|debian|el[0-9]|rhel|amzn|redhat|centos|arch|alpine|suse|lp[0-9]|dfsg)/i.test(lower)
+    || /\.(?:el\d+|fc\d{2}\b|amzn\d*)/i.test(lower)
     || /\((?:ubuntu|debian|centos|red hat(?:\s+enterprise\s+linux)?|rhel|fedora|almalinux|rocky(?:\s+linux)?|amazon\s+linux|suse|alpine|arch|raspbian)[^)]*\)/i.test(lower);
 }
 

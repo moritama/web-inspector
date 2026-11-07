@@ -25,6 +25,7 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
   'cross-origin-resource-policy',
   'server',
   'x-powered-by',
+  'x-aspnet-version',
 ];
 
 /**
@@ -423,9 +424,10 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 8. 情報露出 (Server, X-Powered-By) ---
+  // --- 8. 情報露出 (Server, X-Powered-By, X-AspNet-Version) ---
   const server = getHeader('server');
   const xPoweredBy = getHeader('x-powered-by');
+  const xAspNetVersion = getHeader('x-aspnet-version');
 
   if (server && /[0-9]+\.[0-9]+/.test(server)) {
     results.push({
@@ -456,6 +458,23 @@ export function checkHttpHeaders(
         `バックエンドで使用しているプログラミング言語やフレームワーク（${xPoweredBy}）が明示されています。攻撃者に内部構成のヒントを与えてしまいます。`,
       recommendation:
         'Webサーバーまたはアプリケーションの設定（PHPのexpose_php = Off、Expressのapp.disable("x-powered-by")等）でヘッダーを削除してください。',
+      referenceUrls: ['https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework'],
+      scope: url,
+    });
+  }
+
+  if (xAspNetVersion) {
+    results.push({
+      checkId: 'SEC-DISC-03',
+      category: 'information-disclosure',
+      name: 'バックエンド技術情報露出 (X-AspNet-Version)',
+      status: 'warning',
+      severity: 'low',
+      observed: `X-AspNet-Version: ${xAspNetVersion}`,
+      description:
+        `ASP.NET の詳細な CLR バージョン情報（${xAspNetVersion}）が公開されています。攻撃者に内部構成やランタイム世代のヒントを与えてしまいます。`,
+      recommendation:
+        'Web.config の <httpRuntime enableVersionHeader="false" /> 設定等により X-AspNet-Version ヘッダーを非表示にすることを推奨します。',
       referenceUrls: ['https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework'],
       scope: url,
     });

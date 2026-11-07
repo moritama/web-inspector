@@ -92,6 +92,22 @@
     ]
   },
   {
+    "id": "azure-app-gateway",
+    "name": "Azure Application Gateway",
+    "category": "hosting-cloud",
+    "website": "https://learn.microsoft.com/azure/application-gateway/overview",
+    "description": "Microsoft Azureのレイヤー7 Webトラフィックロードバランサーおよびアプリケーションゲートウェイ",
+    "signals": [
+      {
+        "type": "cookie",
+        "target": "ApplicationGatewayAffinity",
+        "pattern": "^ApplicationGatewayAffinity[A-Za-z0-9_-]*$",
+        "weight": 90,
+        "detail": "Cookie「ApplicationGatewayAffinity*」からAzure Application Gatewayを検出"
+      }
+    ]
+  },
+  {
     "id": "aws-alb",
     "name": "AWS Application Load Balancer",
     "category": "hosting-cloud",
@@ -203,6 +219,36 @@
         "pattern": "^_clck$",
         "weight": 85,
         "detail": "Cookie「_clck」の存在からMicrosoft Clarityを検出"
+      }
+    ]
+  },
+  {
+    "id": "application-insights",
+    "name": "Application Insights",
+    "category": "analytics-tracking",
+    "website": "https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview",
+    "description": "Azure Monitorが提供するWebアプリケーションのパフォーマンス監視・テレメトリ解析サービス",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "(?:^|//)(?:[a-z0-9-]+\\.)+vo\\.msecnd\\.net(?:/|$)|(?:^|//)js\\.monitor\\.azure\\.com(?:/|$)",
+        "weight": 90,
+        "detail": "読み込まれたスクリプトからAzure Application Insights SDKを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "ai_session",
+        "pattern": "^ai_session$",
+        "weight": 85,
+        "detail": "Cookie「ai_session」からApplication Insightsを検出"
+      },
+      {
+        "type": "cookie",
+        "target": "ai_user",
+        "pattern": "^ai_user$",
+        "weight": 85,
+        "detail": "Cookie「ai_user」からApplication Insightsを検出"
       }
     ]
   },

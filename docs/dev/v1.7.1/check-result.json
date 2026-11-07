@@ -1,9 +1,9 @@
 {
-  "checkedAt": "2026-11-07T22:06:19.472Z",
+  "checkedAt": "2026-11-07T23:05:54.044Z",
   "targetVersion": "1.7.1",
   "baseRef": "v1.7.0",
-  "mode": "full",
-  "passed": 25,
+  "mode": "full+e2e",
+  "passed": 26,
   "failed": 0,
   "warned": 0,
   "results": [
@@ -156,6 +156,12 @@
       "title": "actionlint",
       "status": "PASS",
       "detail": ""
+    },
+    {
+      "id": "C11",
+      "title": "npm run test:e2e（テスト用サーバーを自動起動）",
+      "status": "PASS",
+      "detail": " (40s)"
     }
   ]
 }

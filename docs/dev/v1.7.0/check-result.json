@@ -1,0 +1,148 @@
+{
+  "checkedAt": "2026-11-03T17:09:50.111Z",
+  "targetVersion": "1.7.0",
+  "mode": "full",
+  "passed": 21,
+  "failed": 2,
+  "warned": 0,
+  "results": [
+    {
+      "id": "C01",
+      "title": "バージョンが 1.7.0 に統一されている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C02",
+      "title": "review-v1.6.5-acceptance.test.ts に it.skip / describe.skip が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C03",
+      "title": "T01 のテーブルテストがあり、Angular の暫定対応が撤去されている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C04a",
+      "title": "本物の DB を import するテストが invariants と pipeline だけ",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C05a",
+      "title": "NVD 5 製品が autoIngest:true、minExtensionVersion が 1.7.0",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C06",
+      "title": "GHSA だけの ID に GitHub Advisory のリンクを使う（静的な目安）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C07a",
+      "title": "manifest に content_scripts が無く、権限が v1.6.6.1 と同じ",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C08",
+      "title": "src/ 配下に HTML が無く、インラインイベントハンドラも無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C09",
+      "title": "完了報告書の件数・テスト名が REPORT_DATA.json と一致し、未記入が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10",
+      "title": "コミット対象に禁止語・キットへのリンク・変更禁止領域の変更が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10b",
+      "title": "WORKLOG に 16 タスクすべての記録がある",
+      "status": "PASS",
+      "detail": "記録済み: 16/16"
+    },
+    {
+      "id": "C13a",
+      "title": "T16 のスクリプト・テスト・ワークフローがある",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "K01",
+      "title": "キットが改変されていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C11a",
+      "title": "npm test (typecheck + links + vitest)",
+      "status": "PASS",
+      "detail": "Tests  431 passed (431) (4s)"
+    },
+    {
+      "id": "C11b",
+      "title": "npm run build",
+      "status": "PASS",
+      "detail": " (1s)"
+    },
+    {
+      "id": "C07b",
+      "title": "ビルド後の manifest に content_scripts が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C07c",
+      "title": "content-script.js に import / export 文が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C11c",
+      "title": "npm run advisories:validate",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C11d",
+      "title": "npm run advisories:verify-nvd",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C05b",
+      "title": "build-db --check（DB が手編集されていない）",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C04b",
+      "title": "NVD を全製品取り込んだ DB でもテストが通る",
+      "status": "PASS",
+      "detail": "Tests  372 passed (372) (1s)"
+    },
+    {
+      "id": "C04c",
+      "title": "各製品のエントリを半分にした DB でもテストが通る",
+      "status": "FAIL",
+      "detail": "Tests  2 failed | 370 passed (372) (1s)"
+    },
+    {
+      "id": "C13b",
+      "title": "actionlint",
+      "status": "FAIL",
+      "detail": ".github/workflows/release.yml:103:9: shellcheck reported issue in this script: SC2035:info:3:5: Use ./*glob* or -- *glob* so names with dashes won't become options [shellcheck]     | 103 |         run: |"
+    }
+  ]
+}

@@ -105,43 +105,93 @@ jobs:
         run: node scripts/advisories/bump-db-revision.mjs
 
       - name: Test & build
+        id: test
         if: steps.diff.outputs.classification != 'none'
         run: |
-          npm test
-          npm run build
+          set +e
+          npm test > "$RUNNER_TEMP/test-output.log" 2>&1
+          test_code=$?
+          cat "$RUNNER_TEMP/test-output.log"
+          npm run build > "$RUNNER_TEMP/build-output.log" 2>&1
+          build_code=$?
+          cat "$RUNNER_TEMP/build-output.log"
+          cat "$RUNNER_TEMP/build-output.log" >> "$RUNNER_TEMP/test-output.log"
+          set -e
+          if [ "$test_code" -eq 0 ] && [ "$build_code" -eq 0 ]; then
+            echo "tests_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests_passed=false" >> "$GITHUB_OUTPUT"
+            echo "::error::npm test または npm run build が失敗しました。db:tests-failing ラベル付きで PR を作成します"
+          fi
+
+      - name: Plan pull request
+        id: plan
+        if: steps.diff.outputs.classification != 'none'
+        env:
+          CLASSIFICATION: ${{ steps.diff.outputs.classification }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          TESTS_PASSED: ${{ steps.test.outputs.tests_passed }}
+          AUTO_MERGE: ${{ vars.ADVISORY_AUTO_MERGE }}
+          HAS_APP_TOKEN: ${{ steps.app-token.outputs.token != '' }}
+        run: |
+          node scripts/advisories/pr-plan.mjs \
+            --classification "$CLASSIFICATION" \
+            --version "$VERSION" \
+            --tests-passed "$TESTS_PASSED" \
+            --auto-merge "$AUTO_MERGE" \
+            --has-app-token "$HAS_APP_TOKEN" \
+            --diff-md "$RUNNER_TEMP/db-diff.md" \
+            --test-log "$RUNNER_TEMP/test-output.log" \
+            --out-body "$RUNNER_TEMP/pr-body.md" \
+            --out-json "$RUNNER_TEMP/pr-plan.json"
 
       - name: Create or update pull request
-        if: steps.diff.outputs.classification != 'none'
+        if: steps.diff.outputs.classification != 'none' && steps.plan.outputs.should_create_pr == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           CLASSIFICATION: ${{ steps.diff.outputs.classification }}
-          VERSION: ${{ steps.bump.outputs.version }}
+          PR_TITLE: ${{ steps.plan.outputs.title }}
+          PR_LABELS: ${{ steps.plan.outputs.labels }}
+          SHOULD_AUTO_MERGE: ${{ steps.plan.outputs.should_auto_merge }}
+          SHOULD_FAIL_JOB: ${{ steps.plan.outputs.should_fail_job }}
+          HAS_APP_TOKEN: ${{ steps.plan.outputs.has_app_token }}
           AUTO_MERGE: ${{ vars.ADVISORY_AUTO_MERGE }}
         run: |
           git config user.name "advisory-db-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BOT_BRANCH"
           git add data/advisories src/detection/advisory-db.json public/manifest.json
-          git commit -m "chore(advisory-db): 脆弱性DB自動更新 v${VERSION} [${CLASSIFICATION}]"
+          git commit -m "$PR_TITLE"
           git push --force-with-lease origin "$BOT_BRANCH"
 
           gh label create advisory-db --color 1f6feb --description "脆弱性DB自動更新" --force >/dev/null
           gh label create "db:${CLASSIFICATION}" --color "$([ "$CLASSIFICATION" = major ] && echo d73a4a || echo 0e8a16)" --force >/dev/null
-          title="chore(advisory-db): 脆弱性DB自動更新 v${VERSION} [${CLASSIFICATION}]"
+          gh label create db:tests-failing --color d93f0b --description "脆弱性DB更新時のテスト失敗" --force >/dev/null
+
           if gh pr view "$BOT_BRANCH" --json state -q .state 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$BOT_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/db-diff.md"
+            gh pr edit "$BOT_BRANCH" --title "$PR_TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
             gh pr edit "$BOT_BRANCH" --remove-label db:minor >/dev/null 2>&1 || true
             gh pr edit "$BOT_BRANCH" --remove-label db:major >/dev/null 2>&1 || true
-            gh pr edit "$BOT_BRANCH" --add-label "db:${CLASSIFICATION}" --add-label advisory-db
+            gh pr edit "$BOT_BRANCH" --remove-label db:tests-failing >/dev/null 2>&1 || true
+            gh pr edit "$BOT_BRANCH" --add-label "$PR_LABELS"
           else
-            gh pr create --head "$BOT_BRANCH" --base main --title "$title" --body-file "$RUNNER_TEMP/db-diff.md" \
-              --label advisory-db --label "db:${CLASSIFICATION}"
+            gh pr create --head "$BOT_BRANCH" --base main --title "$PR_TITLE" --body-file "$RUNNER_TEMP/pr-body.md" \
+              --label "$PR_LABELS"
           fi
 
-          if [ "$CLASSIFICATION" = "minor" ] && [ "$AUTO_MERGE" = "true" ]; then
+          if [ "$HAS_APP_TOKEN" != "true" ] && [ "$AUTO_MERGE" = "true" ]; then
+            echo "::warning::GitHub App トークンが未設定のため自動マージを行いません (BOT_APP_CLIENT_ID / BOT_APP_PRIVATE_KEY を設定してください)"
+          fi
+
+          if [ "$SHOULD_AUTO_MERGE" = "true" ]; then
             gh pr merge "$BOT_BRANCH" --auto --squash
           else
             gh pr merge "$BOT_BRANCH" --disable-auto >/dev/null 2>&1 || true
+          fi
+
+          if [ "$SHOULD_FAIL_JOB" = "true" ]; then
+            echo "::error::テストが失敗したためジョブを失敗として終了します (PR は db:tests-failing ラベル付きで作成・更新済み)"
+            exit 1
           fi
 
       - name: Upload diff & build report
@@ -152,6 +202,8 @@ jobs:
           path: |
             ${{ runner.temp }}/db-diff.md
             ${{ runner.temp }}/db-diff.json
+            ${{ runner.temp }}/pr-body.md
+            ${{ runner.temp }}/pr-plan.json
             data/advisories/build-report.json
             data/advisories/upstream/manifest.json
           if-no-files-found: ignore

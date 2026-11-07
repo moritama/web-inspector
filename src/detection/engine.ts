@@ -9,12 +9,227 @@ import {
   DetectedTechnology,
   DomSignals,
   Evidence,
+  EvidenceType,
   NetworkSignals,
+  SecurityAdvisory,
+  TechnologyInstance,
   VersionIntegrityInfo,
   VersionMismatchStatus,
+  WpExtensionInfo,
 } from '../shared/types';
+import { stripUrlQueryAndFragment } from '../shared/identity';
+import { compareVersions } from '../security/version-matcher';
 import { calculateConfidence } from './confidence';
 import { ALL_TECHNOLOGY_RULES, TechnologyRule } from './rules';
+
+/** 1技術あたりのインスタンス保持上限 (v1.7.0 T08 / SPEC-10) */
+const MAX_TECHNOLOGY_INSTANCES = 5;
+
+/** 1技術あたりのエビデンス保持上限 (v1.7.0 IMPL-06 / v1.7.1 T09 J) */
+const MAX_EVIDENCE_PER_TECH = 20;
+
+/**
+ * 相対アセットURLをページURL基準の絶対URLに解決する（解決不能な場合は元の文字列を返す）
+ */
+function resolveAssetUrlAgainstPage(rawUrl: string, pageUrl?: string): string {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (pageUrl && /^https?:\/\//i.test(pageUrl)) {
+    try {
+      return new URL(trimmed, pageUrl).href;
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+}
+
+/**
+ * Bootstrap 6 のレスポンシブ接頭辞付きクラス（lg:d-none, xl:container, lg:navbar-expand, lg:gap-1 等）かどうかを判定する (v1.7.1 T09 / N5)
+ */
+export function isBootstrapResponsiveClassToken(token: string): boolean {
+  const trimmed = token.trim();
+  if (!trimmed) return false;
+  return /^(?:sm|md|lg|xl|2xl):(?:container(?:-fluid|-(?:sm|md|lg|xl|xxl))?|d-(?:none|inline|inline-block|block|grid|inline-grid|table|table-cell|table-row|flex|inline-flex)|navbar(?:-expand)?(?:-[a-z0-9-]+)?|gap-\d+|row-gap-\d+|column-gap-\d+|flex-(?:row|column|row-reverse|column-reverse|wrap|nowrap|wrap-reverse|fill|grow-\d+|shrink-\d+|stretch)|(?:m|p)[tbesxy]?-(?:auto|\d+)|col(?:-(?:auto|\d+))?|offset-\d+|g[xy]?-\d+|align-(?:items|self|content)-[a-z-]+|justify-content-[a-z-]+|order-(?:first|last|\d+)|float-(?:start|end|none)|fs-(?:[1-6]|sm|md|lg|xl)|fw-[a-z]+|lh-[1a-z]+|text-(?:start|end|center|wrap|nowrap)|vstack|hstack)$/i.test(
+    trimmed
+  );
+}
+
+/**
+ * クラス文字列から Bootstrap 6 のレスポンシブ接頭辞クラスを除外した文字列を返す (v1.7.1 T09 / N5)
+ */
+function stripBootstrapResponsiveClasses(snippet: string): string {
+  return snippet
+    .split(/\s+/)
+    .filter((token) => token.length > 0 && !isBootstrapResponsiveClassToken(token))
+    .join(' ');
+}
+
+/**
+ * 汎用クラス（.container 等）のみを示す根拠かどうかを判定する (v1.7.1 T09 / J)
+ */
+export function isGenericClassEvidence(ev: Evidence): boolean {
+  if (!ev) return false;
+  if (ev.detail && ev.detail.includes('汎用クラス')) {
+    return true;
+  }
+  if (ev.type === 'html' || ev.type === 'dom-marker' || ev.type === 'pattern') {
+    const val = (ev.value || '').trim();
+    if (/^\.container\b/i.test(val) || /^(?:(?:sm|md|lg|xl|2xl):)?container$/i.test(val)) {
+      return true;
+    }
+    if (
+      ev.name === 'HTMLコンテンツ' &&
+      /\bcontainer\b/i.test(val) &&
+      !/(?:ng-|v-|hx-|x-|svelte|astro|mui|chakra|ant-)/i.test(val)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 汎用クラス（.container 等）だけの根拠は、ほかに根拠があるときは省略し、
+ * 同じ type と value の重複エビデンスを 1 件にまとめる (v1.7.1 T09 / J)
+ */
+export function filterDisplayEvidences(evidences: Evidence[]): Evidence[] {
+  if (!Array.isArray(evidences) || evidences.length === 0) return [];
+  const hasNonGeneric = evidences.some((e) => !isGenericClassEvidence(e));
+  const filtered = hasNonGeneric ? evidences.filter((e) => !isGenericClassEvidence(e)) : evidences;
+
+  const deduped: Evidence[] = [];
+  const seen = new Set<string>();
+  for (const ev of filtered) {
+    const key = `${ev.type}\0${(ev.value || '').trim()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(ev);
+    }
+  }
+  return deduped;
+}
+
+/**
+ * WordPress コアバージョンとして妥当なバージョン文字列かどうかを判定する (v1.7.1 T09 / K, E4)
+ * （タイムスタンプやハッシュ値、1.x/2.x 等のサードパーティライブラリバージョンを除外）
+ */
+function isValidWordPressCoreVersion(ver: string): boolean {
+  const trimmed = ver.trim();
+  if (!trimmed) return false;
+  // WordPress 3.x 〜 9.x (または 3.0 以降の x.y / x.y.z / x.y-beta 等)
+  if (!/^[3-9]\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)[0-9A-Za-z.-]*)?$/i.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * WordPress の wp-includes 配下のうち、独自バージョンを持つ同梱サードパーティライブラリかどうかを判定する
+ */
+function isWordPressBundledThirdPartyAsset(url: string): boolean {
+  return /\/wp-includes\/js\/(?:jquery\/|underscore|backbone|lodash|moment|tinymce\/|mediaelement\/|twemoji|clipboard|hoverIntent|imagesloaded|masonry|plupload\/|swfupload\/|thickbox\/|jcrop\/|imgareaselect\/|codemirror\/|colorpicker\/|farbtastic|iris|json2|sack|schedule|suggest|wp-ajax-response|dist\/)/i.test(
+    url
+  );
+}
+
+/**
+ * DOM シグナル内のアセット URL 群から WordPress のプラグインおよびテーマの名前と ver パラメータを収集する (v1.7.1 T09 / K)
+ */
+export function extractWordPressExtensions(dom?: DomSignals): {
+  wpPlugins: WpExtensionInfo[];
+  wpThemes: WpExtensionInfo[];
+} {
+  const pluginsMap = new Map<string, string | null>();
+  const themesMap = new Map<string, string | null>();
+
+  if (!dom) {
+    return { wpPlugins: [], wpThemes: [] };
+  }
+
+  const candidateUrls: string[] = [
+    ...(Array.isArray(dom.rawScriptUrls) ? dom.rawScriptUrls : []),
+    ...(Array.isArray(dom.scriptUrls) ? dom.scriptUrls : []),
+    ...(Array.isArray(dom.rawLinkUrls) ? dom.rawLinkUrls.map((l) => l?.href) : []),
+    ...(Array.isArray(dom.linkUrls) ? dom.linkUrls.map((l) => l?.href) : []),
+    ...(Array.isArray(dom.cssAssets) ? dom.cssAssets.map((c) => c?.href) : []),
+    ...(Array.isArray(dom.resourceEntries) ? dom.resourceEntries.map((r) => r?.url) : []),
+    ...(Array.isArray(dom.domResourceUrls) ? dom.domResourceUrls : []),
+  ];
+
+  const extractVerParam = (rawUrl: string): string | null => {
+    const m = rawUrl.match(/[?&]ver=([^&#\s]+)/i);
+    if (!m || !m[1]) return null;
+    try {
+      const decoded = decodeURIComponent(m[1]).trim();
+      return decoded.length > 0 && decoded.length <= 32 ? decoded : null;
+    } catch {
+      const raw = m[1].trim();
+      return raw.length > 0 && raw.length <= 32 ? raw : null;
+    }
+  };
+
+  for (const rawUrl of candidateUrls) {
+    if (!rawUrl || typeof rawUrl !== 'string') continue;
+
+    const pluginMatch = rawUrl.match(/\/wp-content\/plugins\/([a-zA-Z0-9._-]+)\//i);
+    if (pluginMatch && pluginMatch[1]) {
+      const slug = pluginMatch[1];
+      const ver = extractVerParam(rawUrl);
+      const existing = pluginsMap.get(slug);
+      if (existing === undefined || (existing === null && ver !== null)) {
+        pluginsMap.set(slug, ver);
+      }
+    }
+
+    const themeMatch = rawUrl.match(/\/wp-content\/themes\/([a-zA-Z0-9._-]+)\//i);
+    if (themeMatch && themeMatch[1]) {
+      const slug = themeMatch[1];
+      const ver = extractVerParam(rawUrl);
+      const existing = themesMap.get(slug);
+      if (existing === undefined || (existing === null && ver !== null)) {
+        themesMap.set(slug, ver);
+      }
+    }
+  }
+
+  const wpPlugins: WpExtensionInfo[] = Array.from(pluginsMap.entries()).map(([name, version]) =>
+    version ? { name, version } : { name }
+  );
+  const wpThemes: WpExtensionInfo[] = Array.from(themesMap.entries()).map(([name, version]) =>
+    version ? { name, version } : { name }
+  );
+
+  return { wpPlugins, wpThemes };
+}
+
+/**
+ * ASP.NET の X-AspNet-Version ヘッダー値（CLRバージョン）を表示用文字列に変換する (v1.7.1 T08 / 指摘D)
+ */
+export function formatAspNetClrVersion(rawVersion: string): string {
+  const trimmed = rawVersion.trim();
+  if (/^4\.0(?:\.\d+)?$/.test(trimmed) || /^4\.\d+(?:\.\d+)*$/.test(trimmed)) {
+    return `.NET Framework 4.x（CLR ${trimmed}）`;
+  }
+  if (/^2\.0(?:\.\d+)?$/.test(trimmed) || /^2\.\d+(?:\.\d+)*$/.test(trimmed)) {
+    return `.NET Framework 2.0〜3.5（CLR ${trimmed}）`;
+  }
+  if (/^1\.1(?:\.\d+)?$/.test(trimmed)) {
+    return `.NET Framework 1.1（CLR ${trimmed}）`;
+  }
+  if (/^1\.0(?:\.\d+)?$/.test(trimmed)) {
+    return `.NET Framework 1.0（CLR ${trimmed}）`;
+  }
+  return trimmed;
+}
+
+interface EvidenceEntry {
+  evidence: Evidence;
+  version: string | null;
+  versionSource?: string;
+  distroHint?: string;
+}
 
 export interface DetectionInput {
   url: string;
@@ -38,46 +253,123 @@ export class DetectionEngine {
     const urlObj = this.parseUrl(input.url);
     const runtime = input.runtimeVersions || input.dom?.runtimeVersions || {};
 
+    // IMPL-12: cookies API と document.cookie の両方から得た Cookie 名の重複を Set で除去する
+    const uniqueCookieNames = new Set<string>();
+    if (input.network?.cookies) {
+      for (const c of input.network.cookies) {
+        if (c.name) {
+          uniqueCookieNames.add(c.name);
+        }
+      }
+    }
+    if (input.dom?.cookiesFromDocument) {
+      for (const name of input.dom.cookiesFromDocument) {
+        if (name) {
+          uniqueCookieNames.add(name);
+        }
+      }
+    }
+    if (input.network?.responseHeaders) {
+      for (const [k, vals] of Object.entries(input.network.responseHeaders)) {
+        if (k.toLowerCase() === 'set-cookie' && Array.isArray(vals)) {
+          for (const rawSetCookie of vals) {
+            const eqIdx = rawSetCookie.indexOf('=');
+            if (eqIdx > 0) {
+              const cName = rawSetCookie.slice(0, eqIdx).trim();
+              if (cName) {
+                uniqueCookieNames.add(cName);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 旧 ASP (Classic ASP) と ASP.NET の排他判定 (v1.7.1 T08)
+    // ASPSESSIONID* の Cookie があり ASP.NET_SessionId も X-AspNet-Version もない場合は Classic ASP とし、ASP.NET にしない
+    const cookieNameList = Array.from(uniqueCookieNames);
+    const hasAspSessionIdCookie = cookieNameList.some((n) => /^ASPSESSIONID[A-Z0-9]*$/i.test(n));
+    const hasAspNetSessionCookie = cookieNameList.some((n) => /^ASP\.NET_SessionId$/i.test(n));
+    const headersObj = input.network?.responseHeaders || {};
+    const hasXAspNetVersionHeader = Object.keys(headersObj).some(
+      (k) =>
+        k.toLowerCase() === 'x-aspnet-version' &&
+        (headersObj[k]?.some((v) => v.trim().length > 0) ?? false)
+    );
+    const isClassicAspOnly =
+      hasAspSessionIdCookie && !hasAspNetSessionCookie && !hasXAspNetVersionHeader;
+
     for (const rule of this.rules) {
+      if (rule.id === 'aspnet' && isClassicAspOnly) {
+        continue;
+      }
       const evidences: Evidence[] = [];
+      const evidenceEntries: EvidenceEntry[] = [];
+      const matchedCookieNames = new Set<string>();
       let detectedVersion: string | null = null;
       let versionSource: string | undefined = undefined;
       let jsVersion: string | null = null;
       let cssVersion: string | null = null;
       let distroHint: string | undefined = undefined;
 
+      const addEvidence = (
+        evidence: Evidence,
+        version: string | null = null,
+        source?: string,
+        hint?: string
+      ): void => {
+        evidences.push(evidence);
+        evidenceEntries.push({
+          evidence,
+          version,
+          versionSource: source,
+          distroHint: hint,
+        });
+      };
+
       // --- A. JavaScript 実行時バージョンのチェック (ADD-01) ---
       if (rule.id === 'jquery' && runtime.jquery) {
         jsVersion = runtime.jquery;
         detectedVersion = runtime.jquery;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.jQuery.fn.jquery',
-          value: runtime.jquery,
-          source: 'window.jQuery.fn.jquery',
-          detail: `JavaScript実行環境からjQuery ${runtime.jquery} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.jQuery.fn.jquery',
+            value: runtime.jquery,
+            source: 'window.jQuery.fn.jquery',
+            detail: `JavaScript実行環境からjQuery ${runtime.jquery} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.jquery,
+          'runtime'
+        );
       }
 
       if (rule.id === 'bootstrap') {
-        const bsVer = runtime.bootstrap5 || runtime.bootstrap4;
+        const bsVer = runtime.bootstrap5 || runtime.bootstrap4 || runtime.bootstrap;
         if (bsVer) {
           jsVersion = bsVer;
           detectedVersion = bsVer;
           versionSource = 'runtime';
-          const srcName = runtime.bootstrap5 ? 'window.bootstrap.Modal.VERSION' : 'jQuery.fn.modal.Constructor.VERSION';
-          evidences.push({
-            type: 'runtime',
-            name: srcName,
-            value: bsVer,
-            source: srcName,
-            detail: `JavaScript実行環境からBootstrap JS ${bsVer} を直接検出`,
-            confidence: 'high',
-            weight: 100,
-          });
+          const srcName =
+            runtime.bootstrap5 || runtime.bootstrap
+              ? 'window.bootstrap.Modal.VERSION'
+              : 'jQuery.fn.modal.Constructor.VERSION';
+          addEvidence(
+            {
+              type: 'runtime',
+              name: srcName,
+              value: bsVer,
+              source: srcName,
+              detail: `JavaScript実行環境からBootstrap JS ${bsVer} を直接検出`,
+              confidence: 'high',
+              weight: 100,
+            },
+            bsVer,
+            'runtime'
+          );
         }
       }
 
@@ -85,60 +377,76 @@ export class DetectionEngine {
         jsVersion = runtime.vue;
         detectedVersion = runtime.vue;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.Vue.version',
-          value: runtime.vue,
-          source: 'window.Vue.version',
-          detail: `JavaScript実行環境からVue ${runtime.vue} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.Vue.version',
+            value: runtime.vue,
+            source: 'window.Vue.version',
+            detail: `JavaScript実行環境からVue ${runtime.vue} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.vue,
+          'runtime'
+        );
       }
 
       if (rule.id === 'lodash' && runtime.lodash) {
         jsVersion = runtime.lodash;
         detectedVersion = runtime.lodash;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window._.VERSION',
-          value: runtime.lodash,
-          source: 'window._.VERSION',
-          detail: `JavaScript実行環境からLodash ${runtime.lodash} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window._.VERSION',
+            value: runtime.lodash,
+            source: 'window._.VERSION',
+            detail: `JavaScript実行環境からLodash ${runtime.lodash} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.lodash,
+          'runtime'
+        );
       }
 
       if (rule.id === 'moment' && runtime.moment) {
         jsVersion = runtime.moment;
         detectedVersion = runtime.moment;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.moment.version',
-          value: runtime.moment,
-          source: 'window.moment.version',
-          detail: `JavaScript実行環境からMoment.js ${runtime.moment} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.moment.version',
+            value: runtime.moment,
+            source: 'window.moment.version',
+            detail: `JavaScript実行環境からMoment.js ${runtime.moment} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.moment,
+          'runtime'
+        );
       }
 
       if (rule.id === 'angularjs' && runtime.angularjs) {
         jsVersion = runtime.angularjs;
         detectedVersion = runtime.angularjs;
         versionSource = 'runtime';
-        evidences.push({
-          type: 'runtime',
-          name: 'window.angular.version.full',
-          value: runtime.angularjs,
-          source: 'window.angular.version.full',
-          detail: `JavaScript実行環境からAngularJS ${runtime.angularjs} を直接検出`,
-          confidence: 'high',
-          weight: 100,
-        });
+        addEvidence(
+          {
+            type: 'runtime',
+            name: 'window.angular.version.full',
+            value: runtime.angularjs,
+            source: 'window.angular.version.full',
+            detail: `JavaScript実行環境からAngularJS ${runtime.angularjs} を直接検出`,
+            confidence: 'high',
+            weight: 100,
+          },
+          runtime.angularjs,
+          'runtime'
+        );
       }
 
       // --- B. CSSアセット解析 (ADD-02) ---
@@ -157,15 +465,32 @@ export class DetectionEngine {
               }
             }
 
-            evidences.push({
-              type: css.evidenceType,
-              name: css.evidenceType === 'css-comment' ? 'CSSファイルコメント' : 'CSSファイルURL',
-              value: css.inferredVersion ? `${css.filename} (v${css.inferredVersion})` : css.filename,
-              source: css.href,
-              detail: `読み込まれたCSSアセットから${rule.name}の特徴を検出`,
-              confidence: css.confidence,
-              weight: css.confidence === 'high' ? 95 : 80,
-            });
+            // ファイル名だけ（バージョンなし）で Bootstrap を検出した場合は確信度を medium (70) に抑える (v1.7.1 T09 / E)
+            const cssWeight =
+              rule.id === 'bootstrap' && !css.inferredVersion
+                ? 70
+                : css.confidence === 'high'
+                  ? 95
+                  : css.inferredVersion
+                    ? 85
+                    : 80;
+
+            const resolvedCssHref = stripUrlQueryAndFragment(
+              resolveAssetUrlAgainstPage(css.href, input.url)
+            );
+            addEvidence(
+              {
+                type: css.evidenceType,
+                name: css.evidenceType === 'css-comment' ? 'CSSファイルコメント' : 'CSSファイルURL',
+                value: css.inferredVersion ? `${css.filename} (v${css.inferredVersion})` : css.filename,
+                source: resolvedCssHref || css.href,
+                detail: `読み込まれたCSSアセットから${rule.name}の特徴を検出`,
+                confidence: css.inferredVersion ? 'high' : css.confidence,
+                weight: cssWeight,
+              },
+              css.inferredVersion || null,
+              css.inferredVersion ? css.evidenceType : undefined
+            );
           }
         }
       }
@@ -179,30 +504,43 @@ export class DetectionEngine {
               const headerValues = input.network.responseHeaders[headerKey] || [];
               for (const val of headerValues) {
                 if (this.matchPattern(val, signal.pattern)) {
-                  evidences.push({
-                    type: 'response-header',
-                    name: signal.target,
-                    value: val,
-                    source: input.url,
-                    detail: signal.detail || `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
-                    weight: signal.weight,
-                  });
-
-                  if (signal.versionRegex && !detectedVersion) {
+                  let headerVer: string | null = null;
+                  if (signal.versionRegex) {
                     const v = this.extractVersion(val, signal.versionRegex);
                     if (v) {
-                      detectedVersion = v;
-                      versionSource = 'response-header';
+                      headerVer =
+                        rule.id === 'aspnet' && headerKey === 'x-aspnet-version'
+                          ? formatAspNetClrVersion(v)
+                          : v;
+                      if (!detectedVersion) {
+                        detectedVersion = headerVer;
+                        versionSource = 'response-header';
+                      }
                     }
                   }
 
-                  // ディストリビューション版ヒントの判定 (T04 / SPEC-02)
-                  if (!distroHint) {
-                    const hint = this.detectDistroHint(val, detectedVersion);
-                    if (hint) {
+                  // ディストリビューション版ヒントの判定 (T04 / SPEC-02, v1.7.1 T08 N6: Server と X-Powered-By のみ対象)
+                  let hint: string | undefined;
+                  if (headerKey === 'server' || headerKey === 'x-powered-by') {
+                    hint = this.detectDistroHint(val, headerVer);
+                    if (!distroHint && hint) {
                       distroHint = hint;
                     }
                   }
+
+                  addEvidence(
+                    {
+                      type: 'response-header',
+                      name: signal.target,
+                      value: val,
+                      source: input.url,
+                      detail: signal.detail || `HTTPレスポンスヘッダー「${signal.target}」にシグネチャを検出`,
+                      weight: signal.weight,
+                    },
+                    headerVer,
+                    headerVer ? 'response-header' : undefined,
+                    hint
+                  );
                 }
               }
             }
@@ -210,17 +548,20 @@ export class DetectionEngine {
           }
 
           case 'cookie': {
-            const cookieNames: string[] = [];
-            if (input.network?.cookies) {
-              cookieNames.push(...input.network.cookies.map((c) => c.name));
+            if (
+              rule.id === 'classic-asp' &&
+              signal.target === 'ASPSESSIONID' &&
+              (hasAspNetSessionCookie || hasXAspNetVersionHeader)
+            ) {
+              break;
             }
-            if (input.dom?.cookiesFromDocument) {
-              cookieNames.push(...input.dom.cookiesFromDocument);
-            }
-
-            for (const name of cookieNames) {
+            for (const name of uniqueCookieNames) {
+              if (matchedCookieNames.has(name)) {
+                continue;
+              }
               if (this.matchPattern(name, signal.pattern || signal.target)) {
-                evidences.push({
+                matchedCookieNames.add(name);
+                addEvidence({
                   type: 'cookie-name',
                   name,
                   value: name,
@@ -236,7 +577,7 @@ export class DetectionEngine {
           case 'url': {
             const pathAndQuery = urlObj ? `${urlObj.pathname}${urlObj.search}` : '';
             if (this.matchPattern(pathAndQuery, signal.pattern)) {
-              evidences.push({
+              addEvidence({
                 type: 'url-pattern',
                 name: 'URLパス',
                 value: pathAndQuery,
@@ -254,22 +595,30 @@ export class DetectionEngine {
                 const targetName = (meta.name || meta.property || '').toLowerCase();
                 if (targetName === signal.target.toLowerCase()) {
                   if (this.matchPattern(meta.content, signal.pattern)) {
-                    evidences.push({
-                      type: 'html',
-                      name: `meta[${targetName}]`,
-                      value: meta.content,
-                      source: input.url,
-                      detail: signal.detail || `metaタグ「${targetName}」にシグネチャを検出`,
-                      weight: signal.weight,
-                    });
-
-                    if (signal.versionRegex && !detectedVersion) {
+                    let metaVer: string | null = null;
+                    if (signal.versionRegex) {
                       const v = this.extractVersion(meta.content, signal.versionRegex);
                       if (v) {
-                        detectedVersion = v;
-                        versionSource = 'html';
+                        metaVer = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'html';
+                        }
                       }
                     }
+
+                    addEvidence(
+                      {
+                        type: 'html',
+                        name: `meta[${targetName}]`,
+                        value: meta.content,
+                        source: input.url,
+                        detail: signal.detail || `metaタグ「${targetName}」にシグネチャを検出`,
+                        weight: signal.weight,
+                      },
+                      metaVer,
+                      metaVer ? 'html' : undefined
+                    );
                   }
                 }
               }
@@ -278,63 +627,192 @@ export class DetectionEngine {
           }
 
           case 'script': {
-            if (input.dom?.scriptUrls) {
-              for (const scriptSrc of input.dom.scriptUrls) {
-                if (this.matchPattern(scriptSrc, signal.pattern)) {
-                  let scriptVersion: string | null = null;
-                  if (signal.versionRegex) {
-                    const v = this.extractVersion(scriptSrc, signal.versionRegex);
-                    if (v) {
-                      scriptVersion = v;
-                      if (!detectedVersion) {
-                        detectedVersion = v;
-                        versionSource = 'script-url';
-                      }
-                      if (!jsVersion) {
-                        jsVersion = v;
+            const scriptCandidates: string[] = [];
+            const pushScriptCandidate = (rawSrc: string | undefined) => {
+              if (!rawSrc || typeof rawSrc !== 'string') return;
+              const resolved = resolveAssetUrlAgainstPage(rawSrc, input.url);
+              if (resolved && !scriptCandidates.includes(resolved)) {
+                scriptCandidates.push(resolved);
+              }
+            };
+            if (Array.isArray(input.dom?.rawScriptUrls)) {
+              for (const rawSrc of input.dom.rawScriptUrls) {
+                pushScriptCandidate(rawSrc);
+              }
+            }
+            if (Array.isArray(input.dom?.scriptUrls)) {
+              for (const src of input.dom.scriptUrls) {
+                pushScriptCandidate(src);
+              }
+            }
+            if (Array.isArray(input.dom?.resourceEntries)) {
+              for (const entry of input.dom.resourceEntries) {
+                if (
+                  entry &&
+                  entry.initiatorType === 'script' &&
+                  typeof entry.url === 'string' &&
+                  entry.url
+                ) {
+                  pushScriptCandidate(entry.url);
+                }
+              }
+            }
+
+            for (const scriptSrc of scriptCandidates) {
+              if (this.matchPattern(scriptSrc, signal.pattern)) {
+                let scriptVersion: string | null = null;
+                if (signal.versionRegex) {
+                  // クエリを消す前に ver 等を取り出す (v1.7.1 T09 / K)
+                  const v = this.extractVersion(scriptSrc, signal.versionRegex);
+                  if (v) {
+                    const isValidVer =
+                      rule.id === 'wordpress'
+                        ? !isWordPressBundledThirdPartyAsset(scriptSrc) &&
+                          !/\/wp-content\/(?:plugins|themes)\//i.test(scriptSrc) &&
+                          isValidWordPressCoreVersion(v)
+                        : true;
+                    if (isValidVer) {
+                      // WordPress で既に meta[generator] からバージョンが特定されている場合はそちらを優先
+                      if (rule.id === 'wordpress' && detectedVersion && versionSource === 'html' && v !== detectedVersion) {
+                        scriptVersion = null;
+                      } else {
+                        scriptVersion = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'script-url';
+                        }
+                        if (!jsVersion) {
+                          jsVersion = v;
+                        }
                       }
                     }
                   }
+                }
 
-                  evidences.push({
+                const scriptWeight =
+                  rule.id === 'bootstrap' && !scriptVersion
+                    ? Math.min(signal.weight, 70)
+                    : signal.weight;
+                const cleanScriptUrl = stripUrlQueryAndFragment(scriptSrc);
+                const displayScriptUrl = this.truncateUrl(cleanScriptUrl);
+
+                addEvidence(
+                  {
                     type: 'script-url',
                     name: 'script[src]',
-                    value: scriptVersion ? `${this.truncateUrl(scriptSrc)} (v${scriptVersion})` : this.truncateUrl(scriptSrc),
-                    source: scriptSrc,
+                    value: scriptVersion ? `${displayScriptUrl} (v${scriptVersion})` : displayScriptUrl,
+                    source: cleanScriptUrl,
                     detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
-                    weight: signal.weight,
-                  });
-                }
+                    weight: scriptWeight,
+                  },
+                  scriptVersion,
+                  scriptVersion ? 'script-url' : undefined
+                );
               }
             }
             break;
           }
 
           case 'link': {
-            if (input.dom?.linkUrls) {
-              for (const link of input.dom.linkUrls) {
-                if (this.matchPattern(link.href, signal.pattern)) {
-                  let linkVersion: string | null = null;
-                  if (signal.versionRegex) {
-                    const v = this.extractVersion(link.href, signal.versionRegex);
-                    if (v) {
-                      linkVersion = v;
-                      if (!detectedVersion) {
-                        detectedVersion = v;
-                        versionSource = 'html';
+            const linkCandidates: Array<{ rel: string; href: string }> = [];
+            const seenLinkKey = new Set<string>();
+            const pushLinkCandidate = (rel: string, href: string) => {
+              if (!href) return;
+              const resolvedHref = resolveAssetUrlAgainstPage(href, input.url);
+              if (!resolvedHref) return;
+              const key = `${(rel || '').toLowerCase()}\0${resolvedHref}`;
+              if (!seenLinkKey.has(key)) {
+                seenLinkKey.add(key);
+                linkCandidates.push({ rel: rel || 'stylesheet', href: resolvedHref });
+              }
+            };
+
+            if (Array.isArray(input.dom?.rawLinkUrls)) {
+              for (const l of input.dom.rawLinkUrls) {
+                if (l && l.href) {
+                  pushLinkCandidate(l.rel, l.href);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.linkUrls)) {
+              for (const l of input.dom.linkUrls) {
+                if (l && l.href) {
+                  pushLinkCandidate(l.rel, l.href);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.referenceOnlyUrls)) {
+              for (const ref of input.dom.referenceOnlyUrls) {
+                if (ref && ref.url && ref.sourceType && ref.sourceType !== 'form') {
+                  pushLinkCandidate(ref.sourceType, ref.url);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.resourceEntries)) {
+              for (const entry of input.dom.resourceEntries) {
+                if (
+                  entry &&
+                  (entry.initiatorType === 'link' || entry.initiatorType === 'css') &&
+                  typeof entry.url === 'string' &&
+                  entry.url
+                ) {
+                  pushLinkCandidate('stylesheet', entry.url);
+                }
+              }
+            }
+
+            for (const link of linkCandidates) {
+              if (this.matchPattern(link.href, signal.pattern)) {
+                let linkVersion: string | null = null;
+                if (signal.versionRegex) {
+                  // クエリを消す前に ver 等を取り出す (v1.7.1 T09 / K)
+                  const v = this.extractVersion(link.href, signal.versionRegex);
+                  if (v) {
+                    const isValidVer =
+                      rule.id === 'wordpress'
+                        ? !isWordPressBundledThirdPartyAsset(link.href) &&
+                          !/\/wp-content\/(?:plugins|themes)\//i.test(link.href) &&
+                          isValidWordPressCoreVersion(v)
+                        : true;
+                    if (isValidVer) {
+                      if (rule.id === 'wordpress' && detectedVersion && versionSource === 'html' && v !== detectedVersion) {
+                        linkVersion = null;
+                      } else {
+                        linkVersion = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'html';
+                        }
+                        if (rule.id === 'bootstrap' && !cssVersion) {
+                          cssVersion = v;
+                        }
                       }
                     }
                   }
-
-                  evidences.push({
-                    type: 'css-url',
-                    name: `link[rel="${link.rel}"]`,
-                    value: linkVersion ? `${this.truncateUrl(link.href)} (v${linkVersion})` : this.truncateUrl(link.href),
-                    source: link.href,
-                    detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
-                    weight: signal.weight,
-                  });
                 }
+
+                const relTokens = (link.rel || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+                const isStylesheet = relTokens.length === 0 || relTokens.includes('stylesheet');
+                const evidenceType: EvidenceType = isStylesheet ? 'css-url' : 'link';
+                const linkWeight =
+                  rule.id === 'bootstrap' && !linkVersion
+                    ? Math.min(signal.weight, 70)
+                    : signal.weight;
+                const cleanLinkUrl = stripUrlQueryAndFragment(link.href);
+                const displayLinkUrl = this.truncateUrl(cleanLinkUrl);
+
+                addEvidence(
+                  {
+                    type: evidenceType,
+                    name: `link[rel="${link.rel}"]`,
+                    value: linkVersion ? `${displayLinkUrl} (v${linkVersion})` : displayLinkUrl,
+                    source: cleanLinkUrl,
+                    detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
+                    weight: linkWeight,
+                  },
+                  linkVersion,
+                  linkVersion ? (isStylesheet ? 'css-url' : 'html') : undefined
+                );
               }
             }
             break;
@@ -344,7 +822,7 @@ export class DetectionEngine {
             // ページタイトルの検査 (例: FastAPI Swagger UI)
             if (signal.target === 'title' && input.dom?.title) {
               if (this.matchPattern(input.dom.title, signal.pattern)) {
-                evidences.push({
+                addEvidence({
                   type: 'html',
                   name: 'ページタイトル',
                   value: input.dom.title,
@@ -359,22 +837,30 @@ export class DetectionEngine {
             if (input.dom?.domMarkers) {
               for (const marker of input.dom.domMarkers) {
                 if (this.matchPattern(marker, signal.pattern)) {
-                  evidences.push({
-                    type: 'html',
-                    name: 'DOMマーカー',
-                    value: marker,
-                    source: input.url,
-                    detail: signal.detail || `DOM構造に特有の属性または要素を検出`,
-                    weight: signal.weight,
-                  });
-
-                  if (signal.versionRegex && !detectedVersion) {
+                  let domVer: string | null = null;
+                  if (signal.versionRegex) {
                     const v = this.extractVersion(marker, signal.versionRegex);
                     if (v) {
-                      detectedVersion = v;
-                      versionSource = 'html';
+                      domVer = v;
+                      if (!detectedVersion) {
+                        detectedVersion = v;
+                        versionSource = 'html';
+                      }
                     }
                   }
+
+                  addEvidence(
+                    {
+                      type: 'html',
+                      name: 'DOMマーカー',
+                      value: marker,
+                      source: input.url,
+                      detail: signal.detail || `DOM構造に特有の属性または要素を検出`,
+                      weight: signal.weight,
+                    },
+                    domVer,
+                    domVer ? 'html' : undefined
+                  );
                 }
               }
             }
@@ -383,7 +869,7 @@ export class DetectionEngine {
             if (input.dom?.elementTexts && signal.pattern) {
               for (const text of input.dom.elementTexts) {
                 if (this.matchPattern(text, signal.pattern)) {
-                  evidences.push({
+                  addEvidence({
                     type: 'html',
                     name: `要素テキスト (${signal.target})`,
                     value: text.substring(0, 50),
@@ -400,7 +886,7 @@ export class DetectionEngine {
             if (input.dom?.htmlSnippets && signal.target !== 'title' && !isAttrSelector) {
               for (const snippet of input.dom.htmlSnippets) {
                 if (this.matchPattern(snippet, signal.pattern)) {
-                  evidences.push({
+                  addEvidence({
                     type: 'html',
                     name: 'HTMLコンテンツ',
                     value: snippet.substring(0, 50),
@@ -417,8 +903,11 @@ export class DetectionEngine {
           case 'css': {
             if (input.dom?.htmlSnippets) {
               for (const snippet of input.dom.htmlSnippets) {
-                if (this.matchPattern(snippet, signal.pattern)) {
-                  evidences.push({
+                // Tailwind CSS のクラスパターン判定では Bootstrap 6 のレスポンシブ接頭辞クラスを除外して評価する (v1.7.1 T09 / N5)
+                const effectiveSnippet =
+                  rule.id === 'tailwind' ? stripBootstrapResponsiveClasses(snippet) : snippet;
+                if (effectiveSnippet && this.matchPattern(effectiveSnippet, signal.pattern)) {
+                  addEvidence({
                     type: 'pattern',
                     name: 'CSSクラスパターン',
                     value: snippet.substring(0, 100),
@@ -434,9 +923,27 @@ export class DetectionEngine {
         }
       }
 
+      // エビデンスの重複排除と汎用クラス（.container 等）の省略 (v1.7.1 T09 / J)
+      const cleanedEntries = this.deduplicateEvidenceEntries(evidenceEntries);
+      const cleanedEvidences = cleanedEntries.map((e) => e.evidence);
+
       // エビデンスが1件以上検出された場合
-      if (evidences.length > 0) {
-        const { confidence, level } = calculateConfidence(evidences);
+      if (cleanedEvidences.length > 0) {
+        let { confidence, level } = calculateConfidence(cleanedEvidences);
+
+        // ファイル名だけ（バージョンなし、ほかの根拠なし）で Bootstrap を検出したときは確信度を medium (50〜79) にする (v1.7.1 T09 / E)
+        if (
+          rule.id === 'bootstrap' &&
+          !detectedVersion &&
+          !jsVersion &&
+          !cssVersion &&
+          cleanedEvidences.every((e) => e.type === 'css-url' || e.type === 'script-url')
+        ) {
+          if (confidence >= 80) {
+            confidence = 75;
+          }
+          level = confidence >= 50 ? 'medium' : 'low';
+        }
 
         // --- D. CSS・JavaScriptバージョン整合性判定 (ADD-03) ---
         let versionIntegrity: VersionIntegrityInfo | undefined = undefined;
@@ -444,37 +951,90 @@ export class DetectionEngine {
           versionIntegrity = this.evaluateVersionIntegrity(jsVersion, cssVersion);
         }
 
-        // --- E/F. オフラインEOL・既知脆弱性 (CVE) 照合 (IMP-03 / ADD-04 / ADD-05 / SPEC-02) ---
-        const offlineResult = matchOfflineAdvisories(rule.name, detectedVersion, undefined, { distroHint });
-        const eolInfo = offlineResult.eolInfo;
+        // --- E/F. バージョン別インスタンス構築 & オフラインEOL・既知脆弱性 (CVE) 照合 (T08 / SPEC-10) ---
+        const instances = this.buildInstances(rule.name, cleanedEntries, distroHint);
+        const primaryInstance = instances[0];
+        const primaryVersion = primaryInstance ? primaryInstance.version : detectedVersion;
+        const primaryVersionSource = primaryInstance?.versionSource || versionSource;
+        const primaryDistroHint = primaryInstance?.distroHint || distroHint;
+
+        const offlineResult = matchOfflineAdvisories(rule.name, primaryVersion, undefined, {
+          distroHint: primaryDistroHint,
+        });
+        const eolInfo = primaryInstance ? primaryInstance.eol : offlineResult.eolInfo;
+
+        // 全インスタンスの該当CVEを重複排除して集約
+        const mergedAdvisories: SecurityAdvisory[] = [];
+        const seenAdvIds = new Set<string>();
+        for (const inst of instances) {
+          for (const adv of inst.advisories) {
+            if (!seenAdvIds.has(adv.id)) {
+              seenAdvIds.add(adv.id);
+              mergedAdvisories.push(adv);
+            }
+          }
+        }
+
+        let aggregatedMaxCvss: number | null = offlineResult.maxCvss;
+        for (const inst of instances) {
+          if (typeof inst.maxCvss === 'number') {
+            aggregatedMaxCvss =
+              aggregatedMaxCvss === null ? inst.maxCvss : Math.max(aggregatedMaxCvss, inst.maxCvss);
+          }
+        }
+
+        const affectedInstance = instances.find((i) => i.advisoryMatchStatus === 'Potentially Affected');
+        const effectiveMatchStatus = affectedInstance
+          ? 'Potentially Affected'
+          : (primaryInstance?.advisoryMatchStatus ?? offlineResult.matchStatus);
+        const effectiveOfflineStatus = affectedInstance
+          ? 'Matched'
+          : (primaryInstance?.offlineMatchStatus ?? offlineResult.offlineMatchStatus);
+        const effectiveStatusLabel = affectedInstance
+          ? affectedInstance.advisoryStatusLabel
+          : (primaryInstance?.advisoryStatusLabel ?? offlineResult.advisoryStatusLabel);
+
+        // WordPress の場合はプラグインとテーマの一覧を収集して付与 (v1.7.1 T09 / K)
+        const wpExt =
+          rule.id === 'wordpress'
+            ? extractWordPressExtensions(input.dom)
+            : { wpPlugins: [], wpThemes: [] };
 
         results.push({
           technology: rule.name,
           category: rule.category,
           detected: true,
-          version: detectedVersion,
-          versionSource,
-          distroHint,
+          version: primaryVersion,
+          versionSource: primaryVersionSource,
+          distroHint: primaryDistroHint,
           confidence,
           confidenceLevel: level,
-          evidence: evidences,
+          evidence: cleanedEvidences,
+          instances,
+          ...(wpExt.wpPlugins.length > 0 ? { wpPlugins: wpExt.wpPlugins } : {}),
+          ...(wpExt.wpThemes.length > 0 ? { wpThemes: wpExt.wpThemes } : {}),
           cssVersion,
           jsVersion,
           versionIntegrity,
           supportStatus: eolInfo.status,
           eolDate: eolInfo.eolDate,
           eolInfo,
-          advisoryMatchStatus: offlineResult.matchStatus,
-          offlineMatchStatus: offlineResult.offlineMatchStatus,
+          advisoryMatchStatus: effectiveMatchStatus,
+          offlineMatchStatus: effectiveOfflineStatus,
           isStale: offlineResult.isStale,
           dbFreshness: offlineResult.dbFreshness,
-          advisories: offlineResult.advisories,
-          maxCvss: offlineResult.maxCvss,
+          advisories: mergedAdvisories,
+          maxCvss: aggregatedMaxCvss,
           advisoryDataUpdatedAt: offlineResult.updatedAt,
+          productAdvisoryCount: offlineResult.productAdvisoryCount,
+          productSources: offlineResult.productSources,
+          advisoryDataVersion: offlineResult.advisoryDataVersion,
+          upstreamAdvisoriesCount: primaryInstance?.upstreamAdvisoriesCount ?? offlineResult.upstreamAdvisoriesCount,
+          advisoryStatusLabel: effectiveStatusLabel,
           description: rule.description,
           website: rule.website,
           detectionMethod: 'direct',
-          runtimeStatus: 'confirmed',
+          runtimeStatus: level === 'high' ? 'confirmed' : 'possible',
         });
       }
     }
@@ -559,6 +1119,23 @@ export class DetectionEngine {
 
       // 2件以上が XSRF-TOKEN のみで競合している場合、1行に集約
       if (xsrfOnlyItems.length >= 2) {
+        const candidateDetailLabelMap: Record<string, string> = {
+          Java: 'Java (Spring Boot)',
+          Laravel: 'Laravel (PHP)',
+          'Node.js': 'Node.js (Express)',
+        };
+        const matchedTechSet = new Set(xsrfOnlyItems.map((i) => i.technology));
+        const matchedNames = candidateTechNames.filter((name) => matchedTechSet.has(name));
+        for (const item of xsrfOnlyItems) {
+          if (!matchedNames.includes(item.technology)) {
+            matchedNames.push(item.technology);
+          }
+        }
+        const groupLabel = `${matchedNames.join(' / ')} (候補)`;
+        const candidateTechnologies = matchedNames.map(
+          (name) => candidateDetailLabelMap[name] || name
+        );
+
         // 個別の候補を results から削除
         for (let i = results.length - 1; i >= 0; i--) {
           const item = results[i];
@@ -569,7 +1146,7 @@ export class DetectionEngine {
 
         // 1つの統合された候補技術オブジェクトを追加
         results.push({
-          technology: 'Java / Laravel / Node.js (候補)',
+          technology: groupLabel,
           category: 'programming-language',
           detected: true,
           version: null,
@@ -577,7 +1154,7 @@ export class DetectionEngine {
           confidence: 35,
           confidenceLevel: 'low',
           isCandidateGroup: true,
-          candidateTechnologies: ['Java (Spring Boot)', 'Laravel (PHP)', 'Node.js (Express)'],
+          candidateTechnologies,
           detectionMethod: 'associated',
           runtimeStatus: 'possible',
           evidence: [
@@ -586,8 +1163,7 @@ export class DetectionEngine {
               name: 'XSRF-TOKEN',
               value: 'XSRF-TOKEN',
               source: input.url,
-              detail:
-                'Cookie「XSRF-TOKEN」を検出（Spring Security, Laravel, Express等のSPA構成で広く使われるため、いずれかが稼働している可能性あり）',
+              detail: `Cookie「XSRF-TOKEN」を検出（${matchedNames.join(' / ')} 等のSPA構成で広く使われるため、いずれかが稼働している可能性あり）`,
               confidence: 'low',
               weight: 35,
             },
@@ -601,8 +1177,7 @@ export class DetectionEngine {
           },
           advisoryMatchStatus: 'No Data',
           offlineMatchStatus: 'Not Covered',
-          description:
-            'SPAと連携するバックエンドフレームワーク（Spring Boot, Laravel, Express等）で広く採用されているCSRF保護Cookie。いずれかのフレームワークが稼働している可能性があります。',
+          description: `SPAと連携するバックエンドフレームワーク（${candidateTechnologies.join(', ')}）で広く採用されているCSRF保護Cookie。いずれかのフレームワークが稼働している可能性があります。`,
         });
       }
     }
@@ -692,10 +1267,8 @@ export class DetectionEngine {
             relationLabel = '実行時依存';
           }
 
-          // 連動先確信度（トリガーが80%以上の場合は80% High、それ以外は係数適用）
-          const impliedWeight = trigger.confidence >= 80
-            ? 80
-            : Math.min(79, Math.max(50, Math.round(trigger.confidence * impDef.confidenceFactor)));
+          // 連動先確信度（仕様書 4.1 の Score_child = floor(Score_parent * Factor) に統一）
+          const impliedWeight = Math.floor(trigger.confidence * impDef.confidenceFactor);
 
           const impliedEvidence: Evidence = {
             type: 'pattern',
@@ -703,7 +1276,7 @@ export class DetectionEngine {
             value: trigger.technology,
             source: trigger.technology,
             detail: `${trigger.technology}（確信度${trigger.confidence}%）の検出に基づく連動判定 [${relationLabel}]`,
-            confidence: impliedWeight >= 80 ? 'high' : 'medium',
+            confidence: impliedWeight >= 80 ? 'high' : impliedWeight >= 50 ? 'medium' : 'low',
             weight: impliedWeight,
           };
 
@@ -719,6 +1292,9 @@ export class DetectionEngine {
             );
             if (!alreadyHasThisImplication) {
               existing.evidence.push(impliedEvidence);
+              if (existing.instances && existing.instances.length === 1) {
+                existing.instances[0].evidence.push(impliedEvidence);
+              }
               const recalculated = calculateConfidence(existing.evidence);
               existing.confidence = Math.max(existing.confidence, recalculated.confidence);
               existing.confidenceLevel = recalculated.level;
@@ -745,6 +1321,23 @@ export class DetectionEngine {
               confidence,
               confidenceLevel: level,
               evidence: [impliedEvidence],
+              instances: [
+                {
+                  version: null,
+                  versionSource: 'implication',
+                  evidence: [impliedEvidence],
+                  advisories: offlineResult.advisories,
+                  eol: eolInfo,
+                  eolInfo,
+                  supportStatus: eolInfo.status,
+                  eolDate: eolInfo.eolDate,
+                  advisoryMatchStatus: offlineResult.matchStatus,
+                  offlineMatchStatus: offlineResult.offlineMatchStatus,
+                  advisoryStatusLabel: offlineResult.advisoryStatusLabel,
+                  upstreamAdvisoriesCount: offlineResult.upstreamAdvisoriesCount,
+                  maxCvss: offlineResult.maxCvss,
+                },
+              ],
               supportStatus: eolInfo.status,
               eolDate: eolInfo.eolDate,
               eolInfo,
@@ -755,6 +1348,11 @@ export class DetectionEngine {
               advisories: offlineResult.advisories,
               maxCvss: offlineResult.maxCvss,
               advisoryDataUpdatedAt: offlineResult.updatedAt,
+              productAdvisoryCount: offlineResult.productAdvisoryCount,
+              productSources: offlineResult.productSources,
+              advisoryDataVersion: offlineResult.advisoryDataVersion,
+              upstreamAdvisoriesCount: offlineResult.upstreamAdvisoriesCount,
+              advisoryStatusLabel: offlineResult.advisoryStatusLabel,
               description: impliedRule.description,
               website: impliedRule.website,
               detectionMethod: 'inferred',
@@ -772,6 +1370,189 @@ export class DetectionEngine {
         break;
       }
     }
+  }
+
+  /**
+   * エビデンス一覧からバージョン別の TechnologyInstance を構築する (v1.7.0 T08 / SPEC-10)
+   * - 同一バージョンのエビデンスは 1 つのインスタンスに統合
+   * - 複数バージョンが存在する場合は古いバージョン順（昇順）にソート
+   * - 最大 MAX_TECHNOLOGY_INSTANCES (5) インスタンスまで保持
+   */
+  private buildInstances(
+    technologyName: string,
+    entries: EvidenceEntry[],
+    fallbackDistroHint?: string
+  ): TechnologyInstance[] {
+    const versionGroups = new Map<
+      string,
+      {
+        version: string;
+        evidences: Evidence[];
+        versionSource?: string;
+        distroHint?: string;
+      }
+    >();
+    const unversionedEvidences: Evidence[] = [];
+
+    for (const entry of entries) {
+      if (entry.version && entry.version.trim() !== '') {
+        const ver = entry.version.trim();
+        const existing = versionGroups.get(ver);
+        if (existing) {
+          existing.evidences.push(entry.evidence);
+          if (!existing.versionSource && entry.versionSource) {
+            existing.versionSource = entry.versionSource;
+          }
+          if (!existing.distroHint && entry.distroHint) {
+            existing.distroHint = entry.distroHint;
+          }
+        } else {
+          versionGroups.set(ver, {
+            version: ver,
+            evidences: [entry.evidence],
+            versionSource: entry.versionSource,
+            distroHint: entry.distroHint,
+          });
+        }
+      } else {
+        unversionedEvidences.push(entry.evidence);
+      }
+    }
+
+    if (versionGroups.size > 0) {
+      const groups = Array.from(versionGroups.values());
+      // 単一バージョン検出時はバージョンなしのエビデンスもそのインスタンスに含める
+      if (groups.length === 1 && unversionedEvidences.length > 0) {
+        groups[0].evidences.push(...unversionedEvidences);
+      }
+
+      // 古いバージョン（リスクが高い方）が先頭になるよう昇順ソート
+      groups.sort((a, b) => {
+        const cmp = compareVersions(a.version, b.version);
+        if (cmp !== null) return cmp;
+        return a.version.localeCompare(b.version, undefined, { numeric: true });
+      });
+
+      const capped = groups.slice(0, MAX_TECHNOLOGY_INSTANCES);
+      return capped.map((grp) => {
+        const effectiveDistroHint = grp.distroHint || fallbackDistroHint;
+        const advRes = matchOfflineAdvisories(technologyName, grp.version, undefined, {
+          distroHint: effectiveDistroHint,
+        });
+        return {
+          version: grp.version,
+          versionSource: grp.versionSource,
+          distroHint: effectiveDistroHint,
+          evidence: grp.evidences,
+          advisories: advRes.advisories,
+          eol: advRes.eolInfo,
+          eolInfo: advRes.eolInfo,
+          supportStatus: advRes.eolInfo.status,
+          eolDate: advRes.eolInfo.eolDate,
+          advisoryMatchStatus: advRes.matchStatus,
+          offlineMatchStatus: advRes.offlineMatchStatus,
+          advisoryStatusLabel: advRes.advisoryStatusLabel,
+          upstreamAdvisoriesCount: advRes.upstreamAdvisoriesCount,
+          maxCvss: advRes.maxCvss,
+        };
+      });
+    }
+
+    // バージョンが一切特定できなかった場合は version: null の単一インスタンスを生成
+    const advRes = matchOfflineAdvisories(technologyName, null, undefined, {
+      distroHint: fallbackDistroHint,
+    });
+    return [
+      {
+        version: null,
+        distroHint: fallbackDistroHint,
+        evidence: unversionedEvidences,
+        advisories: advRes.advisories,
+        eol: advRes.eolInfo,
+        eolInfo: advRes.eolInfo,
+        supportStatus: advRes.eolInfo.status,
+        eolDate: advRes.eolInfo.eolDate,
+        advisoryMatchStatus: advRes.matchStatus,
+        offlineMatchStatus: advRes.offlineMatchStatus,
+        advisoryStatusLabel: advRes.advisoryStatusLabel,
+        upstreamAdvisoriesCount: advRes.upstreamAdvisoriesCount,
+        maxCvss: advRes.maxCvss,
+      },
+    ];
+  }
+
+  /**
+   * 同一技術内のエビデンスから重複（同じ type と value、または同じアセット URL）を 1 件にまとめ、
+   * ほかに根拠がある場合は汎用クラス（.container 等）の根拠を省略する (v1.7.1 T09 / J)
+   */
+  private deduplicateEvidenceEntries(entries: EvidenceEntry[]): EvidenceEntry[] {
+    if (entries.length === 0) return [];
+
+    // 1. ほかに非汎用根拠があるときは汎用クラス根拠を省略
+    const hasNonGeneric = entries.some((e) => !isGenericClassEvidence(e.evidence));
+    const filtered = hasNonGeneric
+      ? entries.filter((e) => !isGenericClassEvidence(e.evidence))
+      : entries;
+
+    // 2. 同じ type と value（または同じアセット URL）のエビデンスを 1 件に統合
+    const result: EvidenceEntry[] = [];
+    const keyToIndex = new Map<string, number>();
+
+    const normalizeAssetKey = (entry: EvidenceEntry): string => {
+      const ev = entry.evidence;
+      if (ev.type === 'css-url' || ev.type === 'script-url' || ev.type === 'link') {
+        const rawSource = (ev.source || ev.value || '').trim();
+        const withoutVerSuffix = rawSource.replace(/\s+\(v[^)]+\)$/, '');
+        const stripped = stripUrlQueryAndFragment(withoutVerSuffix);
+        return `${ev.type}\0${stripped}`;
+      }
+      return `${ev.type}\0${(ev.value || '').trim()}`;
+    };
+
+    for (const entry of filtered) {
+      const key = normalizeAssetKey(entry);
+      const existingIdx = keyToIndex.get(key);
+      if (existingIdx === undefined) {
+        keyToIndex.set(key, result.length);
+        result.push({
+          ...entry,
+          evidence: { ...entry.evidence },
+        });
+      } else {
+        const existing = result[existingIdx];
+        const existingWeight = existing.evidence.weight ?? 0;
+        const incomingWeight = entry.evidence.weight ?? 0;
+        const hasExistingVer = Boolean(existing.version);
+        const hasIncomingVer = Boolean(entry.version);
+        const preferIncomingEvidence =
+          (!hasExistingVer && hasIncomingVer) ||
+          (hasExistingVer === hasIncomingVer &&
+            ((!existing.evidence.value.includes('/') && entry.evidence.value.includes('/')) ||
+              incomingWeight > existingWeight));
+
+        if (preferIncomingEvidence) {
+          result[existingIdx] = {
+            evidence: {
+              ...entry.evidence,
+              weight: Math.max(existingWeight, incomingWeight),
+            },
+            version: entry.version || existing.version,
+            versionSource: entry.versionSource || existing.versionSource,
+            distroHint: entry.distroHint || existing.distroHint,
+          };
+        } else {
+          if (!existing.version && entry.version) {
+            existing.version = entry.version;
+            existing.versionSource = entry.versionSource || existing.versionSource;
+          }
+          if ((entry.evidence.weight ?? 0) > (existing.evidence.weight ?? 0)) {
+            existing.evidence.weight = entry.evidence.weight;
+          }
+        }
+      }
+    }
+
+    return result.slice(0, MAX_EVIDENCE_PER_TECH);
   }
 
   /**
@@ -825,7 +1606,8 @@ export class DetectionEngine {
       const regex = new RegExp(regexPattern, 'i');
       const match = value.match(regex);
       if (match && match[1]) {
-        return match[1].trim();
+        const cleaned = match[1].trim().replace(/\.+$/, '');
+        return cleaned || null;
       }
     } catch {
       // 正規表現例外防止
@@ -847,7 +1629,7 @@ export class DetectionEngine {
   }
 
   /**
-   * HTTPヘッダー値からLinuxディストリビューション版ヒントを検出する (T04 / SPEC-02)
+   * HTTPヘッダー値からLinuxディストリビューション版ヒントを検出する (T04 / SPEC-02, v1.7.1 T08 N6)
    */
   private detectDistroHint(headerValue: string, extractedVersion: string | null): string | undefined {
     // 1. 括弧内 OS 名の判定
@@ -857,21 +1639,19 @@ export class DetectionEngine {
       return this.normalizeDistroName(osMatch[1]);
     }
 
-    // 2. パッケージ版の接尾辞（抽出バージョンの直後に続く部分）
-    const suffixRegex = /^[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i;
+    // 2. パッケージ版の接尾辞（抽出されたバージョン文字列の直後に続くときだけ一致させる。Fedora の fc は \.fc\d{2}\b のみ）
     if (extractedVersion) {
-      const idx = headerValue.indexOf(extractedVersion);
+      const cleanVer = extractedVersion.replace(/\.+$/, '');
+      const idx = headerValue.indexOf(cleanVer);
       if (idx !== -1) {
-        const sub = headerValue.slice(idx);
-        const pkgMatch = sub.match(suffixRegex);
-        if (pkgMatch) {
-          return this.resolveDistroHintFromSuffix(pkgMatch[1]);
+        const afterVer = headerValue.slice(idx + cleanVer.length);
+        const pkgMatch = afterVer.match(
+          /^(?:[-~+][0-9A-Za-z.~+-]*?(ubuntu|deb\d*|el\d+|amzn\d*|\.fc\d{2}\b)|(\.fc\d{2}\b))/i
+        );
+        const tag = pkgMatch?.[1] || pkgMatch?.[2];
+        if (tag) {
+          return this.resolveDistroHintFromSuffix(tag);
         }
-      }
-    } else {
-      const match = headerValue.match(/[0-9.]+[-~+][0-9A-Za-z.~+-]*(ubuntu|deb\d*|el\d+|amzn\d*|fc\d+)/i);
-      if (match) {
-        return this.resolveDistroHintFromSuffix(match[1]);
       }
     }
 
@@ -901,7 +1681,7 @@ export class DetectionEngine {
    * パッケージ接尾辞のタグ名からディストリビューション名を推定する
    */
   private resolveDistroHintFromSuffix(tag: string): string {
-    const lower = tag.toLowerCase();
+    const lower = tag.toLowerCase().replace(/^\./, '');
     if (lower.startsWith('ubuntu')) return 'Ubuntu';
     if (lower.startsWith('deb')) return 'Debian';
     if (lower.startsWith('el')) return 'RHEL';

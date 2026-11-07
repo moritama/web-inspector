@@ -11,11 +11,14 @@
 import { describe, expect, it } from 'vitest';
 import { executeInspection } from '../src/background/service-worker';
 import { extractDomSignals } from '../src/content/content-script';
-import { matchOfflineAdvisories } from '../src/detection/advisory';
+import { AdvisoryDatabase, matchOfflineAdvisories } from '../src/detection/advisory';
 import { DetectionEngine } from '../src/detection/engine';
 import { analyzeCSPPolicies, parseCSPPolicy } from '../src/security/csp-parser';
 import { checkHttpHeaders } from '../src/security/headers';
 import { DomSignals, NetworkSignals } from '../src/shared/types';
+import fixtureDbJson from './fixtures/advisory-db.fixture.json';
+
+const fixtureDb = fixtureDbJson as unknown as AdvisoryDatabase;
 
 const emptyDom = (): DomSignals => ({
   url: 'https://example.com/',
@@ -69,32 +72,32 @@ describe('SPEC-04: EOL 判定で未知の旧サイクルを Supported としな�
     ['Node.js', '0.12.18'],
     ['Bootstrap', '1.4.0'],
   ])('%s %s は Supported ではない (EOL もしくは Unknown)', (tech, version) => {
-    expect(matchOfflineAdvisories(tech, version).eolInfo.status).not.toBe('Supported');
+    expect(matchOfflineAdvisories(tech, version, fixtureDb).eolInfo.status).not.toBe('Supported');
   });
 });
 
 describe('SPEC-06: 解析不能なバージョン文字列で CVE を該当させない', () => {
   it('jQuery "custom-build" は Unknown Version / Needs Review', () => {
-    const r = matchOfflineAdvisories('jQuery', 'custom-build');
+    const r = matchOfflineAdvisories('jQuery', 'custom-build', fixtureDb);
     expect(r.advisories).toHaveLength(0);
     expect(r.offlineMatchStatus).toBe('Unknown Version');
   });
 });
 
 describe('SPEC-07 / SPEC-08: CSP 評価', () => {
-  it.skip('複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)', () => {
+  it('複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)', () => {
     const p1 = parseCSPPolicy("script-src 'self' 'unsafe-inline'", 'response-header', 'enforce');
     const p2 = parseCSPPolicy("script-src 'nonce-abc' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     const { results } = analyzeCSPPolicies([p1, p2], 'https://e.com/');
     expect(results.find((c) => c.checkId.startsWith('SEC-CSP'))?.severity).not.toBe('high');
   });
 
-  it.skip('scheme-source (https:) は任意ホスト許可として検出する', () => {
+  it('scheme-source (https:) は任意ホスト許可として検出する', () => {
     const p = parseCSPPolicy("script-src https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     expect(analyzeCSPPolicies([p], 'https://e.com/').issues.map((i) => i.id)).toContain('CSP-SCRIPT-WILDCARD');
   });
 
-  it.skip('nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)', () => {
+  it('nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)', () => {
     const p = parseCSPPolicy("script-src 'nonce-r4nd0m' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'", 'response-header', 'enforce');
     expect(analyzeCSPPolicies([p], 'https://e.com/').results[0].status).toBe('pass');
   });
@@ -119,7 +122,7 @@ describe('SPEC-09: 誤検知の抑制', () => {
 });
 
 describe('SPEC-10: 同一ライブラリの複数バージョン同居', () => {
-  it.skip('jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する', () => {
+  it('jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する', () => {
     const r = engine.detect({ url: 'https://e.com/', dom: { ...emptyDom(), scriptUrls: ['/js/jquery-1.12.4.min.js', '/js/jquery-3.7.1.min.js'] }, runtimeVersions: { jquery: '3.7.1' } });
     const ids = r.filter((t) => t.technology === 'jQuery').flatMap((t) => (t.advisories || []).map((a) => a.id));
     expect(ids).toContain('CVE-2020-11022');
@@ -127,7 +130,7 @@ describe('SPEC-10: 同一ライブラリの複数バージョン同居', () => {
 });
 
 describe('SPEC-12: ヘッダー値の妥当性', () => {
-  it.skip('X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上', () => {
+  it('X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上', () => {
     const r = checkHttpHeaders({ 'x-frame-options': ['ALLOWALL'], 'strict-transport-security': ['max-age=0'] }, 'https://e.com/', true);
     expect(r.find((c) => c.checkId.startsWith('SEC-XFO'))?.status).not.toBe('pass');
     expect(['medium', 'high']).toContain(r.find((c) => c.checkId.startsWith('SEC-HSTS'))?.severity);

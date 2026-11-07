@@ -214,4 +214,87 @@ describe('拡張差分比較 & 原因分析 (IMP-09)', () => {
     expect(diff.diffItems[0].diffCause).toBe('site-change');
     expect(diff.summary.resolvedCount).toBe(1);
   });
+
+  it('T08 (SPEC-10): 代表バージョン (version) が同じでもインスタンスが追加・削除された場合、Changed (site-change) として検知すること', () => {
+    const reportA = createDummyReport({
+      technologies: [
+        {
+          technology: 'jQuery',
+          category: 'js-css-library',
+          detected: true,
+          version: '1.12.4',
+          confidence: 95,
+          confidenceLevel: 'high',
+          evidence: [],
+          instances: [
+            {
+              version: '1.12.4',
+              evidence: [],
+              advisories: [],
+              eol: {
+                status: 'EOL',
+                eolDate: '2016-06',
+                source: 'Internal Policy',
+                recommendation: '移行推奨',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const reportB = createDummyReport({
+      technologies: [
+        {
+          technology: 'jQuery',
+          category: 'js-css-library',
+          detected: true,
+          version: '1.12.4',
+          confidence: 95,
+          confidenceLevel: 'high',
+          evidence: [],
+          instances: [
+            {
+              version: '1.12.4',
+              evidence: [],
+              advisories: [],
+              eol: {
+                status: 'EOL',
+                eolDate: '2016-06',
+                source: 'Internal Policy',
+                recommendation: '移行推奨',
+              },
+            },
+            {
+              version: '3.7.1',
+              evidence: [],
+              advisories: [],
+              eol: {
+                status: 'Supported',
+                eolDate: null,
+                source: 'Internal Policy',
+                recommendation: 'サポート継続中',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const diffAdded = compareReportsEnhanced(reportA, reportB);
+    expect(diffAdded.diffItems.length).toBe(1);
+    expect(diffAdded.diffItems[0].diffType).toBe('Changed');
+    expect(diffAdded.diffItems[0].diffCause).toBe('site-change');
+    expect(diffAdded.diffItems[0].before).toBe('1.12.4');
+    expect(diffAdded.diffItems[0].after).toBe('1.12.4 / 3.7.1');
+    expect(diffAdded.versionChanges.length).toBe(1);
+    expect(diffAdded.versionChanges[0].after).toBe('1.12.4 / 3.7.1');
+
+    // インスタンス削除方向（2個 -> 1個）も検知できること
+    const diffRemoved = compareReportsEnhanced(reportB, reportA);
+    expect(diffRemoved.diffItems.length).toBe(1);
+    expect(diffRemoved.diffItems[0].diffType).toBe('Changed');
+    expect(diffRemoved.diffItems[0].before).toBe('1.12.4 / 3.7.1');
+    expect(diffRemoved.diffItems[0].after).toBe('1.12.4');
+  });
 });

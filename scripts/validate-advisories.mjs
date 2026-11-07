@@ -25,7 +25,9 @@ const SUPPORTED_SCHEMA_VERSIONS = new Set(['2.1', '2.2']);
 
 const ID_PATTERN = /^(?:CVE-\d{4}-\d{4,7}|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|[A-Z]+-\d{4}-[0-9A-Za-z-]+)$/;
 const URL_PREFIXES = ['https://nvd.nist.gov/vuln/detail/', 'https://github.com/advisories/', 'https://osv.dev/vulnerability/'];
-const CLAUSE_RE = /^(<=|>=|<|>|=)\s*v?(\d+(?:\.\d+){0,3}(?:[-.][0-9A-Za-z.-]+)?)$/;
+const WILDCARD_CLAUSE_RE = /^(?:(?:=|==|!=)\s*)?v?\d+(?:\.\d+){0,2}\.(?:x|\*)$/i;
+const VERSION_CLAUSE_RE = /^(<=|>=|<|>|=|==|!=|\^|~)\s*v?(\d+(?:\.\d+){0,3})(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/;
+const PRERELEASE_RE = /^(alpha|beta|rc|next|pre|preview|dev|canary|nightly|experimental)(\d+)?(?:\.([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/i;
 const SEVERITIES = new Set(['critical', 'high', 'medium', 'low']);
 const EOL_STATUSES = new Set(['Supported', 'Maintenance', 'EOL', 'Unknown']);
 const FIX_STATUSES = new Set(['fixed', 'partial', 'none', 'unknown']);
@@ -41,12 +43,37 @@ function getExpectedSeverity(score) {
   return 'low';
 }
 
-function isValidRange(spec) {
+/**
+ * 単一の比較節が version-matcher で解釈可能か検証する
+ */
+function isValidRangeClause(clause) {
+  if (!clause) return false;
+  if (WILDCARD_CLAUSE_RE.test(clause)) return true;
+
+  const match = clause.match(VERSION_CLAUSE_RE);
+  if (!match) return false;
+
+  const pre = match[3];
+  if (pre !== undefined && !PRERELEASE_RE.test(pre)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * バージョン範囲式のすべての節が比較器で解釈可能か検証する
+ */
+export function isValidRange(spec) {
   if (typeof spec !== 'string' || !spec.trim()) return false;
-  if (spec.trim() === '*') return true;
-  return spec.split('||').every((b) => {
-    const clauses = b.split(',').map((c) => c.trim()).filter(Boolean);
-    return clauses.length > 0 && clauses.every((c) => CLAUSE_RE.test(c));
+  const trimmed = spec.trim();
+  if (trimmed === '*' || trimmed.toLowerCase() === 'all') return true;
+  const branches = trimmed.split('||').map((b) => b.trim());
+  if (branches.some((b) => !b)) return false;
+  return branches.every((b) => {
+    const clauses = b.split(',').map((c) => c.trim());
+    if (clauses.some((c) => !c)) return false;
+    return clauses.length > 0 && clauses.every((c) => isValidRangeClause(c));
   });
 }
 
@@ -164,6 +191,16 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
       if (!EOL_STATUSES.has(e.status)) throw new Error(`[${key}] eol.status が不正です: ${JSON.stringify(e)}`);
       if (db.schemaVersion === '2.2' && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
         throw new Error(`[${key}] eol.eolDate は YYYY-MM-DD または null である必要があります: ${JSON.stringify(e)}`);
+      }
+      if (e.label !== undefined) {
+        if (typeof e.label !== 'string' || !e.label || e.label.length > 120 || UNSAFE_TEXT.test(e.label)) {
+          throw new Error(`[${key} / eol ${e.cycle}] eol.label が不正（120文字超・空・HTML特殊文字・制御文字）です: ${JSON.stringify(e.label)}`);
+        }
+      }
+      if (e.note !== undefined) {
+        if (typeof e.note !== 'string' || !e.note || e.note.length > 300 || UNSAFE_TEXT.test(e.note)) {
+          throw new Error(`[${key} / eol ${e.cycle}] eol.note が不正（300文字超・空・HTML特殊文字・制御文字）です: ${JSON.stringify(e.note)}`);
+        }
       }
     }
   }

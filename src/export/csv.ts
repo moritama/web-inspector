@@ -4,7 +4,46 @@
  * Excel文字化け防止 UTF-8 BOM付き、数式インジェクション対策、Version 1.1 新規フィールド対応
  */
 
-import { InspectionReport } from '../shared/types';
+import {
+  formatAdvisoryRecommendation,
+  getEffectiveFixStatus,
+  resolveTechAdvisoryDisplayInfo,
+} from '../detection/advisory';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
+import { DetectedTechnology, InspectionReport } from '../shared/types';
+import { sanitizeReportUrls } from '../storage/history';
+
+/**
+ * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
+ */
+function expandTechnologyInstances(technologies: DetectedTechnology[]): DetectedTechnology[] {
+  const expanded: DetectedTechnology[] = [];
+  for (const rawTech of technologies) {
+    if (rawTech.instances && rawTech.instances.length > 0) {
+      for (const inst of rawTech.instances) {
+        expanded.push({
+          ...rawTech,
+          version: inst.version,
+          versionSource: inst.versionSource || rawTech.versionSource,
+          distroHint: inst.distroHint ?? rawTech.distroHint,
+          evidence: inst.evidence && inst.evidence.length > 0 ? inst.evidence : rawTech.evidence || [],
+          advisories: inst.advisories,
+          eolInfo: inst.eolInfo,
+          supportStatus: inst.supportStatus,
+          eolDate: inst.eolDate,
+          advisoryMatchStatus: inst.advisoryMatchStatus,
+          offlineMatchStatus: inst.offlineMatchStatus,
+          advisoryStatusLabel: inst.advisoryStatusLabel,
+          upstreamAdvisoriesCount: inst.upstreamAdvisoriesCount,
+          maxCvss: inst.maxCvss,
+        });
+      }
+    } else {
+      expanded.push(rawTech);
+    }
+  }
+  return expanded;
+}
 
 /**
  * CSVセルのエスケープ処理
@@ -27,16 +66,17 @@ function escapeCsv(cell: string | number | boolean | null | undefined): string {
 /**
  * 調査レポートからExcel対応UTF-8 BOM付きCSVを生成する (Version 1.1)
  */
-export function exportReportToCsv(report: InspectionReport): string {
+export function exportReportToCsv(rawReport: InspectionReport): string {
+  const report = sanitizeReportUrls(rawReport);
   const rows: string[] = [];
   const BOM = '\uFEFF';
 
   // 1. レポートヘッダーサマリー
-  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.2.0'})`].map(escapeCsv).join(','));
+  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.7.1'})`].map(escapeCsv).join(','));
   rows.push(['調査日時', report.inspectedAt].map(escapeCsv).join(','));
   rows.push(['調査対象URL', report.url].map(escapeCsv).join(','));
   rows.push(['ホスト名', report.hostname].map(escapeCsv).join(','));
-  rows.push(['ツールバージョン', report.extensionVersion || '1.2.0'].map(escapeCsv).join(','));
+  rows.push(['ツールバージョン', report.extensionVersion || '1.7.1'].map(escapeCsv).join(','));
   rows.push(['ルールバージョン', report.rulesVersion].map(escapeCsv).join(','));
   rows.push(['脆弱性DBバージョン', report.advisoryDatabaseVersion || '2026.10'].map(escapeCsv).join(','));
   rows.push(['HTTPS利用', report.summary.isHttps ? 'はい' : 'いいえ (HTTP)'].map(escapeCsv).join(','));
@@ -67,22 +107,43 @@ export function exportReportToCsv(report: InspectionReport): string {
       '脆弱性照合状態',
       '該当CVE/GHSA識別子',
       '最大CVSS',
+      '修正状況 (fixStatus)',
+      'CISA KEV',
       '判定根拠の概要',
       '推奨対応',
     ].map(escapeCsv).join(',')
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
-    for (const tech of report.technologies) {
-      const evidenceSummary = tech.evidence
+    const expandedTechnologies = expandTechnologyInstances(report.technologies);
+    for (const tech of expandedTechnologies) {
+      const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
+      const evidenceSummary = (tech.evidence || [])
         .map((e) => `[${e.type}] ${e.name}: ${e.value}`)
         .join('; ');
 
       const advisoryIds = tech.advisories && tech.advisories.length > 0
         ? tech.advisories.map((a) => a.id).join('; ')
-        : 'なし';
+        : displayInfo.isZeroCoverage
+        ? 'この技術の脆弱性は収録していません'
+        : displayInfo.isDistro
+        ? displayInfo.statusLabel
+        : '収録 DB 上は該当なし';
+
+      const fixStatusText = tech.advisories && tech.advisories.length > 0
+        ? Array.from(new Set(tech.advisories.map((a) => getEffectiveFixStatus(a)))).join('; ')
+        : '-';
+
+      const kevIds = tech.advisories
+        ? tech.advisories.filter((a) => a.kev === true).map((a) => a.id)
+        : [];
+      const kevText = tech.advisories && tech.advisories.length > 0
+        ? kevIds.length > 0
+          ? `true (CISA KEV: ${kevIds.join('; ')})`
+          : 'false'
+        : '-';
 
       const mismatchStatusText = tech.versionIntegrity
         ? tech.versionIntegrity.status === 'match'
@@ -93,9 +154,16 @@ export function exportReportToCsv(report: InspectionReport): string {
         : '-';
 
       const recommendation = tech.advisories && tech.advisories.length > 0
-        ? `脆弱性あり: ${tech.advisories[0].fixedVersion ? `v${tech.advisories[0].fixedVersion}以上へ更新` : '更新検討'}`
+        ? formatAdvisoryRecommendation(tech.version, tech.advisories, {
+            isEol: tech.supportStatus === 'EOL',
+            technologyName: tech.technology,
+          })
+        : tech.eolInfo?.note
+        ? tech.eolInfo.note
         : tech.supportStatus === 'EOL'
         ? 'EOLのため移行・更新推奨'
+        : displayInfo.isDistro
+        ? `${tech.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${typeof displayInfo.upstreamAdvisoriesCount === 'number' ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）` : ''}`
         : '現状維持';
 
       const detectionMethodText = tech.isCandidateGroup || tech.detectionMethod === 'associated'
@@ -130,11 +198,13 @@ export function exportReportToCsv(report: InspectionReport): string {
           tech.cssVersion || '-',
           tech.jsVersion || '-',
           mismatchStatusText,
-          tech.supportStatus || 'Unknown',
+          tech.eolInfo?.label || tech.supportStatus || 'Unknown',
           tech.eolDate || '-',
-          tech.advisoryMatchStatus || 'No Data',
+          displayInfo.statusLabel,
           advisoryIds,
           tech.maxCvss ?? '-',
+          fixStatusText,
+          kevText,
           evidenceSummary,
           recommendation,
         ].map(escapeCsv).join(',')
@@ -172,15 +242,17 @@ export function exportReportToCsv(report: InspectionReport): string {
   if (report.cookies && report.cookies.length > 0) {
     rows.push(['--- 観測されたCookie属性 (値は非保持) ---'].map(escapeCsv).join(','));
     rows.push(
-      ['Cookie名', 'ドメイン', 'パス', 'Secure', 'HttpOnly', 'SameSite', '種別', '検出された課題'].map(escapeCsv).join(',')
+      ['Cookie名', 'ドメイン', 'パス', '用途分類', 'Secure', 'HttpOnly', 'SameSite', '種別', '検出された課題'].map(escapeCsv).join(',')
     );
 
     for (const c of report.cookies) {
+      const cat = normalizeCookieCategory(c.category);
       rows.push(
         [
           c.name,
           c.domain || '',
           c.path || '',
+          `${formatCookieCategory(cat)} (${cat})`,
           c.secure ? '有効' : '未設定',
           c.httpOnly ? '有効' : '未設定',
           c.sameSite || '',

@@ -7,17 +7,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AdvisoryDatabase,
   calculateDbFreshness,
   formatAdvisoryRecommendation,
   getAdvisoryDbMetadata,
   matchOfflineAdvisories,
   resolveRecommendedVersion,
 } from '../src/detection/advisory';
+import fixtureDbJson from './fixtures/advisory-db.fixture.json';
+
+const fixtureDb = fixtureDbJson as unknown as AdvisoryDatabase;
 
 describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / D11-D20)', () => {
   // D16: Matched テスト
   it('D16: 古いjQuery 2.2.4 に対して脆弱性とEOLが正確に検出され Matched となること', () => {
-    const result = matchOfflineAdvisories('jQuery', '2.2.4');
+    const result = matchOfflineAdvisories('jQuery', '2.2.4', fixtureDb);
 
     expect(result.technology).toBe('jQuery');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -30,7 +34,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('サポート終了済みの古いPHP 7.4.30 に対してEOLおよび脆弱性が照合され Matched となること', () => {
-    const result = matchOfflineAdvisories('PHP', '7.4.30');
+    const result = matchOfflineAdvisories('PHP', '7.4.30', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Matched');
     expect(result.eolInfo.status).toBe('EOL');
@@ -40,7 +44,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D12: No Match テスト
   it('D12: 安全な最新Bootstrap 5.3.3 に対して脆弱性なし (No Match / Not Affected) と判定されること', () => {
-    const result = matchOfflineAdvisories('Bootstrap', '5.3.3');
+    const result = matchOfflineAdvisories('Bootstrap', '5.3.3', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('No Match');
     expect(result.matchStatus).toBe('Not Affected');
@@ -50,7 +54,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D11: Not Covered テスト
   it('D11: 未登録の技術の場合は Not Covered (No Data) となること', () => {
-    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0');
+    const result = matchOfflineAdvisories('UnknownCustomLib', '1.0.0', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Not Covered');
     expect(result.matchStatus).toBe('No Data');
@@ -60,13 +64,13 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
 
   // D15: Unknown Version テスト
   it('D15: バージョンが不明 (null または空文字) の場合、Unknown Version (Needs Review) となること', () => {
-    const resultNull = matchOfflineAdvisories('jQuery', null);
+    const resultNull = matchOfflineAdvisories('jQuery', null, fixtureDb);
     expect(resultNull.offlineMatchStatus).toBe('Unknown Version');
     expect(resultNull.matchStatus).toBe('Needs Review');
     expect(resultNull.advisories.length).toBe(0);
     expect(resultNull.eolInfo.status).toBe('Unknown');
 
-    const resultEmpty = matchOfflineAdvisories('jQuery', '   ');
+    const resultEmpty = matchOfflineAdvisories('jQuery', '   ', fixtureDb);
     expect(resultEmpty.offlineMatchStatus).toBe('Unknown Version');
     expect(resultEmpty.matchStatus).toBe('Needs Review');
   });
@@ -75,7 +79,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   it('D14: Ubuntu/Debianパッケージバージョン (例: 2.4.52-1ubuntu4) は誤検知を避けて Unknown Version / Needs Review となること', () => {
     // 通常の SemVer "2.4.52" なら脆弱性 CVE-2021-44790 (< 2.4.52) に一致するが、
     // パッケージ版ではバックポート修正されている可能性が高いため断定を避ける
-    const result = matchOfflineAdvisories('Apache', '2.4.52-1ubuntu4');
+    const result = matchOfflineAdvisories('Apache', '2.4.52-1ubuntu4', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
@@ -84,14 +88,14 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('D14: Debianパッケージバージョン (例: 1.18.0-0ubuntu1.4) に対しても安全側に倒すこと', () => {
-    const result = matchOfflineAdvisories('Nginx', '1.18.0-0ubuntu1.4');
+    const result = matchOfflineAdvisories('Nginx', '1.18.0-0ubuntu1.4', fixtureDb);
 
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
   });
 
   it('SPEC-02: distroHint オプション指定時は Unknown Version / Needs Review となりディストリ固有注記が返ること', () => {
-    const result = matchOfflineAdvisories('Apache', '2.4.41', undefined, { distroHint: 'Ubuntu' });
+    const result = matchOfflineAdvisories('Apache', '2.4.41', fixtureDb, { distroHint: 'Ubuntu' });
     expect(result.offlineMatchStatus).toBe('Unknown Version');
     expect(result.matchStatus).toBe('Needs Review');
     expect(result.advisories.length).toBe(0);
@@ -104,6 +108,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     // 40日前の日付
     const oldDate = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
     const result = matchOfflineAdvisories('jQuery', '2.2.4', {
+      ...fixtureDb,
       generatedAt: oldDate,
     });
 
@@ -155,7 +160,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('古いLaravel 8.0.0 に対してEOLおよびCVE-2021-3129が検出されること', () => {
-    const result = matchOfflineAdvisories('Laravel', '8.0.0');
+    const result = matchOfflineAdvisories('Laravel', '8.0.0', fixtureDb);
 
     expect(result.technology).toBe('Laravel');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -164,15 +169,42 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   });
 
   it('サポート終了済みの古いNode.js 16.14.0 に対してEOLが検出されること', () => {
-    const result = matchOfflineAdvisories('Node.js', '16.14.0');
+    const result = matchOfflineAdvisories('Node.js', '16.14.0', fixtureDb);
 
     expect(result.technology).toBe('Node.js');
     expect(result.offlineMatchStatus).toBe('Matched');
     expect(result.eolInfo.status).toBe('EOL');
   });
 
+  it('v1.7.1 T08 / T11 修正 (指摘 D): ASP.NET の CLR 2.0 系・CLR 4.0 系がともに Unknown となり、CLR 2.0 の詳細にサポート期限が記載されること', () => {
+    const clr2Formatted = matchOfflineAdvisories(
+      'ASP.NET',
+      '.NET Framework 2.0〜3.5（CLR 2.0.50727）',
+      fixtureDb
+    );
+    expect(clr2Formatted.eolInfo.status).toBe('Unknown');
+    expect(clr2Formatted.eolInfo.eolDate).toBeNull();
+    expect(clr2Formatted.eolInfo.note).toContain('2011-07-12');
+    expect(clr2Formatted.eolInfo.note).toContain('2029-01-09');
+    expect(clr2Formatted.eolInfo.recommendation).toContain('2011-07-12');
+    expect(clr2Formatted.eolInfo.recommendation).toContain('2029-01-09');
+
+    const clr2Raw = matchOfflineAdvisories('ASP.NET', '2.0.50727', fixtureDb);
+    expect(clr2Raw.eolInfo.status).toBe('Unknown');
+    expect(clr2Raw.eolInfo.eolDate).toBeNull();
+    expect(clr2Raw.eolInfo.note).toContain('.NET Framework 2.0・3.0 は 2011-07-12 にサポート終了');
+    expect(clr2Raw.eolInfo.note).toContain('3.5 SP1 は 2029-01-09 まで');
+
+    const clr4Formatted = matchOfflineAdvisories(
+      'ASP.NET',
+      '.NET Framework 4.x（CLR 4.0.30319）',
+      fixtureDb
+    );
+    expect(clr4Formatted.eolInfo.status).toBe('Unknown');
+  });
+
   it('AngularJS 1.8.3 に対して全バージョン影響のCVE-2022-25869が検出され、修正版なし(null)および移行推奨案内が出力されること', () => {
-    const result = matchOfflineAdvisories('AngularJS', '1.8.3');
+    const result = matchOfflineAdvisories('AngularJS', '1.8.3', fixtureDb);
 
     expect(result.technology).toBe('AngularJS');
     expect(result.offlineMatchStatus).toBe('Matched');
@@ -189,7 +221,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
   // 複数ブランチ・複数アドバイザリ対応の推奨版導出テスト (レビュー 2-4 対応)
   describe('複数ブランチ・複数アドバイザリ推奨版解決テスト (レビュー 2-4 準拠)', () => {
     it('Apache 2.4.49 検出時に、複数の脆弱性 (CVE-2021-41773: 2.4.50, CVE-2021-42013: 2.4.51, CVE-2021-44790: 2.4.52) の中で全てを解消できる最高バージョン (2.4.52) が推奨されること', () => {
-      const result = matchOfflineAdvisories('Apache', '2.4.49');
+      const result = matchOfflineAdvisories('Apache', '2.4.49', fixtureDb);
       expect(result.advisories.length).toBeGreaterThanOrEqual(2);
 
       // 先頭エントリの 2.4.50 ではなく、全てを解消する 2.4.52 が導出されること
@@ -239,13 +271,13 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     });
 
     it('PHP 8.0.10 実DB照合時: 8.0系パッチが存在しない CVE-2024-4577 (8.1.29) と CVE-2022-31628 (8.0.24) が同時にヒットした場合、全体を解消できる 8.1.29 以上が推奨されること', () => {
-      const result = matchOfflineAdvisories('PHP', '8.0.10');
+      const result = matchOfflineAdvisories('PHP', '8.0.10', fixtureDb);
       const recommended = resolveRecommendedVersion('8.0.10', result.advisories);
       expect(recommended).toBe('8.1.29');
     });
 
     it('Bootstrap 4.3.0 検出時に、複数ブランチ修正版 (3.4.1 / 4.3.1) から 4.3 系列の 4.3.1 が正確に抽出されること', () => {
-      const result = matchOfflineAdvisories('Bootstrap', '4.3.0');
+      const result = matchOfflineAdvisories('Bootstrap', '4.3.0', fixtureDb);
       expect(result.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
 
       const recommended = resolveRecommendedVersion('4.3.0', result.advisories);
@@ -257,6 +289,342 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
       });
       expect(recText).toContain('v4.3.1 以上');
       expect(recText).not.toContain('3.4.1 / 4.3.1');
+    });
+  });
+
+  describe('T03 (SPEC-13): fixStatus・KEV・重大度4段階・GHSA参照URLの検証', () => {
+    const spec13TestDb: Partial<AdvisoryDatabase> = {
+      version: '2026.10-test',
+      generatedAt: new Date().toISOString(),
+      libraries: {
+        'test-lib': {
+          aliases: ['test-lib'],
+          versions: [
+            {
+              range: '>= 1.0.0, < 1.1.0',
+              cve: 'CVE-2026-0001',
+              cvssScore: 9.0,
+              severity: 'critical',
+              title: 'Fixed critical vulnerability',
+              fixedVersion: '1.1.0',
+              fixStatus: 'fixed',
+              kev: false,
+            },
+            {
+              range: '>= 2.0.0, < 3.0.0',
+              cve: 'CVE-2026-0002',
+              cvssScore: 7.5,
+              severity: 'high',
+              title: 'Partial fix vulnerability',
+              fixedVersion: '2.5.1 / 3.1.0',
+              fixStatus: 'partial',
+              kev: false,
+            },
+            {
+              range: '>= 3.0.0, < 3.5.0',
+              cve: 'CVE-2026-0003',
+              cvssScore: 5.3,
+              severity: 'medium',
+              title: 'No fix vulnerability',
+              fixedVersion: null,
+              fixStatus: 'none',
+              kev: false,
+            },
+            {
+              range: '>= 4.0.0, < 4.5.0',
+              cve: 'CVE-2026-0004',
+              cvssScore: 3.1,
+              severity: 'low',
+              title: 'Unknown fix vulnerability',
+              fixedVersion: null,
+              fixStatus: 'unknown',
+              kev: false,
+            },
+            {
+              range: '>= 5.0.0, < 5.1.0',
+              cve: 'GHSA-5cp4-xmrw-59wf',
+              ghsa: 'GHSA-5cp4-xmrw-59wf',
+              cvssScore: 6.1,
+              severity: 'medium',
+              title: 'GHSA-only advisory',
+              fixedVersion: '5.1.0',
+              fixStatus: 'fixed',
+              kev: true,
+              kevDateAdded: '2025-01-23',
+            },
+          ],
+          eol: [],
+        },
+      },
+    };
+
+    it('fixStatus の 4 値 (fixed / partial / none / unknown) で推奨文言が 4 パターンに分かれ、unknown のみのヒット時に「公式の修正版はありません」が出ないこと', () => {
+      // 1. fixed
+      const resFixed = matchOfflineAdvisories('test-lib', '1.0.5', spec13TestDb);
+      expect(resFixed.advisories[0].fixStatus).toBe('fixed');
+      expect(resFixed.advisories[0].severity).toBe('critical');
+      const recFixed = formatAdvisoryRecommendation('1.0.5', resFixed.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recFixed).toContain('v1.1.0 以上');
+      expect(recFixed).not.toContain('公式の修正版はありません');
+
+      // 2. partial
+      const resPartial = matchOfflineAdvisories('test-lib', '2.1.0', spec13TestDb);
+      expect(resPartial.advisories[0].fixStatus).toBe('partial');
+      expect(resPartial.advisories[0].severity).toBe('high');
+      const recPartial = formatAdvisoryRecommendation('2.1.0', resPartial.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recPartial).toContain('一部の系列には修正版がありません');
+      expect(recPartial).not.toContain('公式の修正版はありません');
+
+      // 3. none
+      const resNone = matchOfflineAdvisories('test-lib', '3.1.0', spec13TestDb);
+      expect(resNone.advisories[0].fixStatus).toBe('none');
+      expect(resNone.advisories[0].severity).toBe('medium');
+      const recNone = formatAdvisoryRecommendation('3.1.0', resNone.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recNone).toContain('公式の修正版はありません');
+
+      // 4. unknown (isEol: false および isEol: true の両方で「公式の修正版はありません」が出ないこと)
+      const resUnknown = matchOfflineAdvisories('test-lib', '4.1.0', spec13TestDb);
+      expect(resUnknown.advisories[0].fixStatus).toBe('unknown');
+      expect(resUnknown.advisories[0].severity).toBe('low');
+      const recUnknownNonEol = formatAdvisoryRecommendation('4.1.0', resUnknown.advisories, {
+        isEol: false,
+        technologyName: 'test-lib',
+      });
+      expect(recUnknownNonEol).toContain('修正版の情報が DB にありません。ベンダーの情報を確認してください');
+      expect(recUnknownNonEol).not.toContain('公式の修正版はありません');
+
+      const recUnknownEol = formatAdvisoryRecommendation('4.1.0', resUnknown.advisories, {
+        isEol: true,
+        technologyName: 'test-lib',
+      });
+      expect(recUnknownEol).toContain('修正版の情報が DB にありません。ベンダーの情報を確認してください');
+      expect(recUnknownEol).not.toContain('公式の修正版はありません');
+    });
+
+    it('GHSA のみの ID にヒットしたとき、referenceUrls に GitHub Advisories の URL が入り NVD+GHSA の URL が入らないこと', () => {
+      const resGhsa = matchOfflineAdvisories('test-lib', '5.0.2', spec13TestDb);
+      expect(resGhsa.advisories).toHaveLength(1);
+      const adv = resGhsa.advisories[0];
+      expect(adv.id).toBe('GHSA-5cp4-xmrw-59wf');
+      expect(adv.kev).toBe(true);
+      expect(adv.kevDateAdded).toBe('2025-01-23');
+      expect(adv.referenceUrls).toContain('https://github.com/advisories/GHSA-5cp4-xmrw-59wf');
+      expect(adv.referenceUrls.some((u) => u.includes('nvd.nist.gov/vuln/detail/GHSA-'))).toBe(false);
+    });
+
+    it('固定 DB の jQuery 3.4.1 で CVE-2020-11023 の kev: true と kevDateAdded が保持されること', () => {
+      const res = matchOfflineAdvisories('jQuery', '3.4.1', fixtureDb);
+      const kevAdv = res.advisories.find((a) => a.id === 'CVE-2020-11023');
+      expect(kevAdv).toBeDefined();
+      expect(kevAdv?.kev).toBe(true);
+      expect(kevAdv?.kevDateAdded).toBe('2025-01-23');
+      expect(kevAdv?.fixStatus).toBe('fixed');
+    });
+  });
+
+  // --- T04 (SPEC-03): 「収録 DB 上は該当なし」・収録範囲・多件数優先ソート・ディストリ版上流参考件数 ---
+  describe('T04 (SPEC-03): 収録 DB 範囲メタデータ・優先順位ソート・ディストリ版上流件数', () => {
+    it('固定 DB で Apache 2.4.62 を照合したとき、収録件数・取得元・dataVersion・「収録 DB 上は該当なし」が返ること', () => {
+      const res = matchOfflineAdvisories('Apache', '2.4.62', fixtureDb);
+      expect(res.matchStatus).toBe('Not Affected');
+      expect(res.advisories).toHaveLength(0);
+      expect(res.productAdvisoryCount).toBe(3);
+      expect(res.productSources).toEqual(['curated', 'NVD']);
+      expect(res.advisoryDataVersion).toBe('20261031');
+      expect(res.advisoryStatusLabel).toContain('収録 DB 上は該当なし');
+    });
+
+    it('収録件数 0 の技術（Tailwind CSS）を照合したとき、productAdvisoryCount=0 と「この技術の脆弱性は収録していません」が返ること', () => {
+      const res = matchOfflineAdvisories('Tailwind CSS', '3.4.1', fixtureDb);
+      expect(res.matchStatus).toBe('No Data');
+      expect(res.productAdvisoryCount).toBe(0);
+      expect(res.productSources).toEqual([]);
+      expect(res.advisoryStatusLabel).toBe('この技術の脆弱性は収録していません');
+    });
+
+    it('ディストリ版 Apache/2.4.41 (Ubuntu) で Needs Review のまま、上流版での該当件数 (upstreamAdvisoriesCount) が算出されること', () => {
+      const res = matchOfflineAdvisories('Apache', '2.4.41 (Ubuntu)', fixtureDb);
+      expect(res.matchStatus).toBe('Needs Review');
+      expect(res.advisories).toHaveLength(0);
+      expect(res.upstreamAdvisoriesCount).toBe(1);
+      expect(res.productAdvisoryCount).toBe(3);
+
+      const resWithPrefix = matchOfflineAdvisories('Apache', 'Apache/2.4.41 (Ubuntu)', fixtureDb);
+      expect(resWithPrefix.matchStatus).toBe('Needs Review');
+      expect(resWithPrefix.advisories).toHaveLength(0);
+      expect(resWithPrefix.upstreamAdvisoriesCount).toBe(1);
+    });
+
+    it('12 件該当するとき、KEV → 重大度 → CVSS の順にソートされ、推奨版は全件から最大バージョンが計算されること', () => {
+      const manyDb = {
+        dataVersion: '20261031',
+        generatedAt: '2026-10-31T00:00:00Z',
+        coverage: {
+          byProduct: {
+            'many-lib': { count: 12, sources: ['curated', 'OSV', 'NVD'] },
+          },
+        },
+        libraries: {
+          'many-lib': {
+            aliases: ['many-lib'],
+            eol: [{ cycle: '1.x', eolDate: null, status: 'Supported' }],
+            versions: [
+              // 1〜11件目: KEV なし、さまざまな重大度・CVSS・fixedVersion
+              ...Array.from({ length: 11 }, (_, i) => ({
+                range: '< 2.0.0',
+                cve: `CVE-2026-00${String(i + 1).padStart(2, '0')}`,
+                cvssScore: 5.0 + (i % 5) * 0.5,
+                severity: i === 0 ? 'critical' : i < 4 ? 'high' : 'medium',
+                title: `Vuln ${i + 1}`,
+                fixedVersion: i === 10 ? '1.9.9' : `1.0.${i + 1}`,
+                fixStatus: 'fixed' as const,
+                kev: false,
+                origin: 'auto',
+              })),
+              // 12件目: CVSS は中程度だが KEV=true のエントリ（ソート後は先頭に来るべき）
+              {
+                range: '< 2.0.0',
+                cve: 'CVE-2026-9999',
+                cvssScore: 7.2,
+                severity: 'high',
+                title: 'KEV Exploited Vulnerability',
+                fixedVersion: '1.2.0',
+                fixStatus: 'fixed' as const,
+                kev: true,
+                kevDateAdded: '2026-05-01',
+                origin: 'curated',
+              },
+            ],
+          },
+        },
+      };
+
+      const res = matchOfflineAdvisories('many-lib', '1.0.0', manyDb as unknown as AdvisoryDatabase);
+      expect(res.advisories).toHaveLength(12);
+      // 先頭は KEV エントリ
+      expect(res.advisories[0].id).toBe('CVE-2026-9999');
+      expect(res.advisories[0].kev).toBe(true);
+      // 2番目は critical のエントリ
+      expect(res.advisories[1].id).toBe('CVE-2026-0001');
+      expect(res.advisories[1].severity).toBe('critical');
+      // 推奨版は下位（11件目）にあった 1.9.9 も含めて全件から計算されていること
+      expect(formatAdvisoryRecommendation('1.0.0', res.advisories)).toContain('1.9.9');
+    });
+  });
+
+  // --- T14 (D1 / D2 / D5): 判断の反映 ---
+  describe('T14 (D1 / D2 / D5): 判断の反映（React 18 cycleOverrides・Bootstrap CVE-2019-8331・Angular 暫定対応撤去）', () => {
+    it('D1: React 18.3.1 を照合すると Maintenance / Limited Support (Maintenance) / 指定補足文になり、React 17.0.2 は EOL のままで、他製品の EOL は変わらないこと', () => {
+      const expectedNote =
+        'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。';
+
+      const r18 = matchOfflineAdvisories('React', '18.3.1', fixtureDb);
+      expect(r18.eolInfo.status).toBe('Maintenance');
+      expect(r18.eolInfo.label).toBe('Limited Support (Maintenance)');
+      expect(r18.eolInfo.note).toBe(expectedNote);
+      expect(r18.eolInfo.recommendation).toBe(expectedNote);
+
+      const r17 = matchOfflineAdvisories('React', '17.0.2', fixtureDb);
+      expect(r17.eolInfo.status).toBe('EOL');
+      expect(r17.eolInfo.label).toBeUndefined();
+
+      const r19 = matchOfflineAdvisories('React', '19.0.0', fixtureDb);
+      expect(r19.eolInfo.status).toBe('Supported');
+      expect(r19.eolInfo.label).toBeUndefined();
+
+      // cycleOverrides のない製品の EOL は変わらない
+      const bs4 = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
+      expect(bs4.eolInfo.status).toBe('EOL');
+      expect(bs4.eolInfo.label).toBeUndefined();
+    });
+
+    it('D2: Bootstrap 4.2.1 が CVE-2019-8331 (< 3.4.1 || >= 4.0.0, < 4.3.1) に該当すること', () => {
+      const res421 = matchOfflineAdvisories('Bootstrap', '4.2.1', fixtureDb);
+      expect(res421.matchStatus).toBe('Potentially Affected');
+      const cve8331 = res421.advisories.find((a) => a.id === 'CVE-2019-8331');
+      expect(cve8331).toBeDefined();
+      expect(cve8331?.affectedRange).toBe('< 3.4.1 || >= 4.0.0, < 4.3.1');
+
+      const res400 = matchOfflineAdvisories('Bootstrap', '4.0.0', fixtureDb);
+      expect(res400.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(true);
+
+      const res431 = matchOfflineAdvisories('Bootstrap', '4.3.1', fixtureDb);
+      expect(res431.advisories.some((a) => a.id === 'CVE-2019-8331')).toBe(false);
+    });
+
+    it('D5: Angular の暫定対応 7 件撤去後の OSV auto 範囲でも T01 の受け入れ条件 (Angular 20.3.17 で 6 件該当・3 件非該当) を満たすこと', () => {
+      const res = matchOfflineAdvisories('Angular', '20.3.17', fixtureDb);
+      const ids = res.advisories.map((a) => a.id);
+      expect(ids).toEqual(
+        expect.arrayContaining([
+          'CVE-2026-32635',
+          'CVE-2026-88057',
+          'CVE-2026-69151',
+          'CVE-2026-54267',
+          'CVE-2026-52725',
+          'CVE-2026-50557',
+        ])
+      );
+      expect(ids).toHaveLength(6);
+      expect(ids).not.toContain('CVE-2026-27970');
+      expect(ids).not.toContain('CVE-2026-22610');
+      expect(ids).not.toContain('CVE-2021-4231');
+    });
+  });
+
+  describe('v1.7.1 T11 (指摘 C): fixed と none が混在する場合の推奨対応の内訳表示', () => {
+    it('AngularJS 1.5.8 のフィクスチャで、推奨対応に解消できる件数と修正版のない件数があり、合計が該当 CVE 数と一致すること', () => {
+      const res = matchOfflineAdvisories('AngularJS', '1.5.8', fixtureDb);
+      expect(res.advisories.length).toBeGreaterThan(0);
+
+      const rec = formatAdvisoryRecommendation('1.5.8', res.advisories, {
+        isEol: res.eolInfo.status === 'EOL',
+        technologyName: 'AngularJS',
+      });
+
+      expect(rec).toContain('最終版 1.8.3');
+      expect(rec).toContain('移行');
+      expect(rec).toContain('緩和策');
+      expect(rec).not.toContain('更新');
+
+      const countMatch = rec.match(/(\d+)\s*件解消、残り\s*(\d+)\s*件は修正版なし/);
+      expect(countMatch).not.toBeNull();
+      const resolvedCount = Number(countMatch![1]);
+      const noneCount = Number(countMatch![2]);
+      expect(resolvedCount).toBeGreaterThan(0);
+      expect(noneCount).toBeGreaterThan(0);
+      expect(resolvedCount + noneCount).toBe(res.advisories.length);
+    });
+
+    it('他の技術（Bootstrap 3.3.7 など）でも fixed と none が混在する場合に同じ内訳形式になり、合計が該当 CVE 数と一致すること', () => {
+      const res = matchOfflineAdvisories('Bootstrap', '3.3.7', fixtureDb);
+      expect(res.advisories.length).toBeGreaterThan(0);
+
+      const rec = formatAdvisoryRecommendation('3.3.7', res.advisories, {
+        isEol: res.eolInfo.status === 'EOL',
+        technologyName: 'Bootstrap',
+      });
+
+      expect(rec).toContain('v3.4.1 で');
+      expect(rec).toContain('移行');
+      expect(rec).toContain('緩和策');
+
+      const countMatch = rec.match(/(\d+)\s*件解消、残り\s*(\d+)\s*件は修正版なし/);
+      expect(countMatch).not.toBeNull();
+      const resolvedCount = Number(countMatch![1]);
+      const noneCount = Number(countMatch![2]);
+      expect(resolvedCount).toBeGreaterThan(0);
+      expect(noneCount).toBeGreaterThan(0);
+      expect(resolvedCount + noneCount).toBe(res.advisories.length);
     });
   });
 });

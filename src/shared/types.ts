@@ -8,7 +8,8 @@
  */
 export type TechnologyCategory =
   | 'web-server'             // Webサーバー
-  | 'programming-language'    // サーバーサイドプログラミング言語 / フレームワーク
+  | 'programming-language'    // サーバーサイドプログラミング言語 / ランタイム
+  | 'framework'              // バックエンドフレームワーク
   | 'cms'                     // コンテンツ管理システム (CMS)
   | 'js-framework'            // JavaScriptフレームワーク
   | 'js-css-library'          // JavaScript / CSSライブラリ
@@ -71,6 +72,7 @@ export type EvidenceType =
   | 'html'                  // HTML要素・属性 (ng-version, data-reactroot等)
   | 'script-url'            // JavaScriptファイルURL
   | 'css-url'               // CSSファイルURL
+  | 'link'                  // link要素 (rel=alternate 等)
   | 'css-comment'           // CSSファイル内のコメント
   | 'response-header'       // HTTPレスポンスヘッダー
   | 'cookie-name'           // Cookie名
@@ -117,6 +119,10 @@ export interface EolInfo {
   source: string;               // 公式ポリシーまたはendoflife.date
   sourceUrl?: string;
   recommendation: string;       // 推奨対応
+  /** 表示用カスタムラベル (v1.7.0 T14 / D1) */
+  label?: string;
+  /** カスタム補足説明・推奨文 (v1.7.0 T14 / D1) */
+  note?: string;
 }
 
 /**
@@ -144,6 +150,14 @@ export type OfflineMatchStatus =
 export type DbFreshnessLevel = 'fresh' | 'moderate' | 'stale' | 'unknown';
 
 /**
+ * 製品ごとの脆弱性DB収録情報 (v1.7.0 T04 / SPEC-03)
+ */
+export interface AdvisoryProductCoverage {
+  count: number;
+  sources: string[];
+}
+
+/**
  * 脆弱性DBスナップショットメタデータ (Rev.2.1 IMP-06 / 5.4)
  */
 export interface AdvisoryDbMetadata {
@@ -153,6 +167,8 @@ export interface AdvisoryDbMetadata {
   sources: string[];
   coverage: {
     technologies: string[];
+    totalAdvisories?: number;
+    byProduct?: Record<string, AdvisoryProductCoverage | number>;
   };
   advisoryCount: number;
   productCount: number;
@@ -170,16 +186,41 @@ export type AdvisoryMatchStatus =
   | 'Lookup Failed';        // 情報取得に失敗 (Lookup Error)
 
 /**
+ * 脆弱性修正版提供ステータス (v1.7.0 T03 / SPEC-13)
+ * - fixed: 全影響系列に修正版あり
+ * - partial: 一部の系列のみ修正版あり（古い系列には修正版なし）
+ * - none: 公式の修正版なし（全バージョン影響またはEOL）
+ * - unknown: 修正版の情報がDBになし
+ */
+export type AdvisoryFixStatus = 'fixed' | 'partial' | 'none' | 'unknown';
+
+/**
  * 脆弱性 (CVE / GHSA) 詳細アイテム
  */
 export interface SecurityAdvisory {
   id: string;               // 例: "CVE-2019-8331", "GHSA-xxxx"
   aliases?: string[];       // 関連CVE/GHSA ID
   title: string;
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+  severity:
+    | 'critical'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'unknown'
+    | 'CRITICAL'
+    | 'HIGH'
+    | 'MEDIUM'
+    | 'LOW'
+    | 'UNKNOWN';
   cvssScore?: number | null;
   affectedRange: string;    // 例: "< 4.3.1", ">= 4.0.0, < 4.3.1"
   fixedVersion: string | null; // 例: "4.3.1"
+  /** 修正版の提供状態 (v1.7.0 T03 / SPEC-13) */
+  fixStatus?: AdvisoryFixStatus;
+  /** CISA KEV（悪用確認済み脆弱性カタログ）掲載フラグ (v1.7.0 T03 / SPEC-13) */
+  kev?: boolean;
+  /** CISA KEV 掲載日 (YYYY-MM-DD) (v1.7.0 T03 / SPEC-13) */
+  kevDateAdded?: string | null;
   summary: string;
   publishedDate?: string;
   referenceUrls: string[];
@@ -206,6 +247,50 @@ export interface VersionIntegrityInfo {
 }
 
 /**
+ * 同一技術のバージョン別検出インスタンス (v1.7.0 T08 / SPEC-10)
+ */
+export interface TechnologyInstance {
+  /** 検出されたバージョン（不明な場合は null） */
+  version: string | null;
+  /** バージョン取得元 */
+  versionSource?: string;
+  /** Linuxディストリビューション版ヒント */
+  distroHint?: string;
+  /** このインスタンスの検出根拠リスト */
+  evidence: Evidence[];
+  /** 該当する既知脆弱性一覧 */
+  advisories: SecurityAdvisory[];
+  /** EOL詳細情報 */
+  eol: EolInfo;
+  /** EOL詳細情報（DetectedTechnology互換エイリアス） */
+  eolInfo?: EolInfo;
+  /** EOLサポート状況 */
+  supportStatus?: SupportStatus;
+  /** EOL日 */
+  eolDate?: string | null;
+  /** 脆弱性照合ステータス */
+  advisoryMatchStatus?: AdvisoryMatchStatus;
+  /** オフライン照合ステータス */
+  offlineMatchStatus?: OfflineMatchStatus;
+  /** ユーザー向け脆弱性照合ステータス表示ラベル */
+  advisoryStatusLabel?: string;
+  /** ディストリビューション版のときの上流版での参考該当件数 */
+  upstreamAdvisoriesCount?: number;
+  /** 最大CVSSスコア */
+  maxCvss?: number | null;
+}
+
+/**
+ * WordPress プラグイン・テーマの検出情報 (v1.7.1 T09 / K)
+ */
+export interface WpExtensionInfo {
+  /** プラグインまたはテーマのスラッグ名 */
+  name: string;
+  /** アセットURLの ver クエリパラメータ（観測された場合） */
+  version?: string | null;
+}
+
+/**
  * 検出されたWeb技術 (Version 1.1 拡張)
  */
 export interface DetectedTechnology {
@@ -215,7 +300,7 @@ export interface DetectedTechnology {
   category: TechnologyCategory;
   /** 検出フラグ */
   detected: boolean;
-  /** 特定された代表バージョン */
+  /** 特定された代表バージョン（複数バージョン検出時は最も古いバージョン） */
   version: string | null;
   /** バージョン取得元 ('runtime' | 'css-url' | 'css-comment' | 'script-url' | 'header' | 'meta' | 'pattern') */
   versionSource?: string;
@@ -227,6 +312,12 @@ export interface DetectedTechnology {
   confidenceLevel: ConfidenceLevel;
   /** 判定根拠リスト */
   evidence: Evidence[];
+  /** 同一技術のバージョン別インスタンス一覧（最大5件、古いバージョン順） (v1.7.0 T08 / SPEC-10) */
+  instances?: TechnologyInstance[];
+  /** WordPress プラグイン一覧（WordPress 検出時のみ。脆弱性DBとは照合しない） (v1.7.1 T09 / K) */
+  wpPlugins?: WpExtensionInfo[];
+  /** WordPress テーマ一覧（WordPress 検出時のみ。脆弱性DBとは照合しない） (v1.7.1 T09 / K) */
+  wpThemes?: WpExtensionInfo[];
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */
@@ -254,6 +345,16 @@ export interface DetectedTechnology {
   maxCvss?: number | null;
   /** 脆弱性データ更新日時 */
   advisoryDataUpdatedAt?: string;
+  /** DB内のこの技術の脆弱性収録件数 (v1.7.0 T04 / SPEC-03) */
+  productAdvisoryCount?: number;
+  /** この技術の脆弱性の取得元リスト (curated / OSV / NVD) (v1.7.0 T04 / SPEC-03) */
+  productSources?: string[];
+  /** 照合に使用したDBのdataVersion (v1.7.0 T04 / SPEC-03) */
+  advisoryDataVersion?: string;
+  /** ディストリビューション版のときの上流版での参考該当件数 (v1.7.0 T04 / SPEC-03) */
+  upstreamAdvisoriesCount?: number;
+  /** ユーザー向け脆弱性照合ステータス表示ラベル (v1.7.0 T04 / SPEC-03) */
+  advisoryStatusLabel?: string;
 
   /** 技術の概要 */
   description?: string;
@@ -299,7 +400,7 @@ export type SecurityStatus = 'pass' | 'warning' | 'fail' | 'info' | 'unknown';
 /**
  * セキュリティ診断重大度
  */
-export type SecuritySeverity = 'high' | 'medium' | 'low' | 'info' | 'unknown';
+export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low' | 'info' | 'unknown';
 
 /**
  * セキュリティ診断チェック結果
@@ -399,6 +500,8 @@ export type ExceptionStatus =
 export interface FindingException {
   id: string;               // UUID
   findingId: string;        // 安定ID (FindingIdentity / checkId / checkId:resource)
+  checkId?: string;         // 診断項目ID (v1.7.0 T10 / IMPL-09)
+  resourceKey?: string;     // リソース識別キー (v1.7.0 T10 / IMPL-09)
   targetUrl?: string;       // 適用対象URL (空ならホスト全体または全サイト)
   targetHost?: string;      // 適用対象ホスト名
   status: 'accepted' | 'false-positive' | 'muted';
@@ -409,12 +512,14 @@ export interface FindingException {
 }
 
 /**
- * Cookieの用途別カテゴリ (Version 1.2 IMP-01)
+ * Cookieの用途別カテゴリ (Version 1.2 IMP-01 / v1.7.1 T07)
  */
 export type CookieCategory =
   | 'authentication'  // 認証・セッション
   | 'csrf'            // CSRF保護トークン
   | 'analytics'       // トラッキング・アクセス解析
+  | 'advertising'     // 広告・マーケティング
+  | 'consent'         // 同意管理
   | 'preferences'     // UI・表示設定
   | 'general';        // 一般・その他
 
@@ -556,6 +661,8 @@ export interface InspectionCoverage {
     domItemCount?: number;
     headerCount?: number;
     cookieCount?: number;
+    /** 完全性が「部分的 (partial)」となった理由一覧 (v1.7.1 T06) */
+    partialReasons?: string[];
   };
 }
 
@@ -575,7 +682,18 @@ export interface DetectionEvidence {
  * 混在コンテンツ (Mixed Content)
  */
 export interface MixedContentItem {
-  resourceType: 'image' | 'script' | 'stylesheet' | 'iframe' | 'fetch' | 'other';
+  resourceType:
+    | 'image'
+    | 'script'
+    | 'stylesheet'
+    | 'iframe'
+    | 'video'
+    | 'audio'
+    | 'object'
+    | 'embed'
+    | 'form'
+    | 'fetch'
+    | 'other';
   url: string;
   elementHtml?: string;
 }
@@ -594,6 +712,26 @@ export interface InspectedCssAsset {
 }
 
 /**
+ * Performance Resource Timing API から観測された読み込み済みリソース項目 (v1.7.1 T05 / E2)
+ */
+export interface ObservedResourceEntry {
+  /** 解決済みのリソース絶対URL (entry.name) */
+  url: string;
+  /** 読み込み元種別 (entry.initiatorType: script, link, img, fetch, xmlhttprequest, css, other 等) */
+  initiatorType: string;
+}
+
+/**
+ * 通信先には含めない参照のみのURL項目（alternate, canonical, dns-prefetch, preconnect, form action 等）(v1.7.1 T05)
+ */
+export interface ReferenceOnlyUrlItem {
+  /** 参照種別 (alternate, canonical, prev, next, dns-prefetch, preconnect, form 等) */
+  sourceType: string;
+  /** 解決済みの絶対URL */
+  url: string;
+}
+
+/**
  * Content ScriptおよびMAIN WorldがDOMから収集するシグナル
  */
 export interface DomSignals {
@@ -602,6 +740,16 @@ export interface DomSignals {
   metaTags: Array<{ name?: string; property?: string; content: string }>;
   scriptUrls: string[];
   linkUrls: Array<{ rel: string; href: string }>;
+  /** script要素のsrc属性の元の属性値一覧（検出ルール・互換用）(v1.7.1 T05) */
+  rawScriptUrls?: string[];
+  /** link要素のrel/href属性の元の属性値一覧（検出ルール・互換用）(v1.7.1 T05) */
+  rawLinkUrls?: Array<{ rel: string; href: string }>;
+  /** Performance Resource Timing API で観測された読み込み済みリソース一覧 (v1.7.1 T05 / E2) */
+  resourceEntries?: ObservedResourceEntry[];
+  /** DOM要素（script, 対象link, img, iframe, media等）から解決されたサブリソースURL一覧（補完用）(v1.7.1 T05) */
+  domResourceUrls?: string[];
+  /** 通信先には含めない参照のみURL一覧（alternate, canonical, form action 等）(v1.7.1 T05) */
+  referenceOnlyUrls?: ReferenceOnlyUrlItem[];
   domMarkers: string[];
   htmlSnippets: string[];
   mixedContent: MixedContentItem[];
@@ -611,8 +759,14 @@ export interface DomSignals {
   runtimeVersions?: Record<string, string | null>; // window.jQuery, window.bootstrap等
   // Rev.2.1 追加
   metaCsp?: string[];
+  // v1.7.0 T06 (SPEC-07): meta 要素の Content-Security-Policy-Report-Only（仕様上無効な指定）
+  metaCspReportOnly?: string[];
   // T06 / DOC-01 追加: 特定DOM要素のテキスト先頭200文字 (例: Spring Boot Whitelabel Error Page)
   elementTexts?: string[];
+  /** Content Script のシグナル収集が途中で失敗またはフォールバックしたか (v1.7.1 T06) */
+  collectionPartial?: boolean;
+  /** Content Script の収集が部分的になった理由一覧 (v1.7.1 T06) */
+  collectionErrors?: string[];
 }
 
 /**
@@ -639,6 +793,7 @@ export type ExternalServiceCategory =
   | 'advertising'   // 広告・マーケティング配信 (DoubleClick, Ads等)
   | 'fonts'         // Webフォント (Google Fonts, Adobe Typekit等)
   | 'social'        // SNSウィジェット・埋め込み (X/Twitter, Facebook等)
+  | 'security'      // セキュリティ・CAPTCHA・Bot対策 (reCAPTCHA等)
   | 'api'           // 外部API・バックエンドサービス
   | 'other';        // その他
 
@@ -662,7 +817,7 @@ export interface ExternalConnectionsAnalysis {
   totalConnections: number;
   firstPartyCount: number;
   thirdPartyCount: number;
-  categoryBreakdown: Record<ExternalServiceCategory, number>;
+  categoryBreakdown: Record<Exclude<ExternalServiceCategory, 'security'>, number> & { security?: number };
   connections: ExternalConnectionItem[];
 }
 
@@ -682,6 +837,7 @@ export interface InspectionReport {
     totalTechnologies: number;
     requiresAttentionCount: number;
     securityFindings: {
+      critical?: number;
       high: number;
       medium: number;
       low: number;
@@ -703,6 +859,10 @@ export interface InspectionReport {
   mixedContent: MixedContentItem[];
   /** 外部通信先・サードパーティ分析結果 (Rev.2.1 IMP-11) */
   externalConnections?: ExternalConnectionsAnalysis;
+  /** 履歴保存に失敗したかどうかのフラグ (v1.7.0 T10 / IMPL-06) */
+  historySaveFailed?: boolean;
+  /** 履歴保存失敗などのストレージ関連警告メッセージ (v1.7.0 T10 / IMPL-06) */
+  storageWarning?: string;
 }
 
 /**
@@ -741,6 +901,9 @@ export type ExtensionMessage =
   | { type: 'GET_HISTORY' }
   | { type: 'DELETE_HISTORY_ITEM'; id: string }
   | { type: 'CLEAR_HISTORY' }
+  | { type: 'GET_FINDING_EXCEPTIONS' }
+  | { type: 'SAVE_FINDING_EXCEPTION'; exception: FindingException }
+  | { type: 'DELETE_FINDING_EXCEPTION'; id: string }
   | { type: 'QUERY_ONLINE_ADVISORY'; technology: string; version: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SAVE_SETTINGS'; payload: Partial<ExtensionSettings> };

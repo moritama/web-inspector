@@ -9,8 +9,11 @@
  *   none  : メタデータ以外に変更なし → PR を作成しない
  *   minor : 追加・スコア/範囲の軽微な更新のみ → 自動マージ可 (リポジトリ変数 ADVISORY_AUTO_MERGE=true の場合)
  *   major : 人間のレビュー必須
+ *           - schemaVersion または minExtensionVersion の変更
  *           - curated エントリの削除 / 製品の削除
  *           - auto エントリの大量削除 (max(3件, 10%) 超)
+ *           - 範囲・スコアの変更が 20 件を超える場合
+ *           - KEV (悪用確認済み) フラグの解除 (true → false)
  *           - EOL → Supported への逆行 (上流データ異常の典型)
  *           - 取得失敗ソースあり (syncStatus=partial)
  *           - DB サイズ 50% 超の増加
@@ -59,18 +62,34 @@ export function diffDatabases(base, head, { baseSize = 0, headSize = 0, refreshD
     else if (o.status !== v.status || o.eolDate !== v.eolDate) eolChanged.push({ key: v.key, cycle: v.cycle, before: o.status, after: v.status, eolDate: v.eolDate });
   }
 
+  if (base?.schemaVersion !== head?.schemaVersion) {
+    reasonsMajor.push(`schemaVersion が変更されました: ${base?.schemaVersion ?? '(未定義)'} → ${head?.schemaVersion ?? '(未定義)'}`);
+  }
+  if (base?.minExtensionVersion !== head?.minExtensionVersion) {
+    reasonsMajor.push(`minExtensionVersion が変更されました: ${base?.minExtensionVersion ?? '(未定義)'} → ${head?.minExtensionVersion ?? '(未定義)'}`);
+  }
   for (const p of b.products) if (!h.products.has(p)) reasonsMajor.push(`製品が削除されました: ${p}`);
   const removedCurated = removed.filter((r) => r.origin === 'curated' || !r.origin);
   if (removedCurated.length) reasonsMajor.push(`レビュー済み (curated/旧DB) エントリの削除: ${removedCurated.map((r) => r.cve).join(', ')}`);
   const baseAuto = [...b.advisories.values()].filter((v) => v.origin === 'auto').length;
   const removedAuto = removed.filter((r) => r.origin === 'auto').length;
   if (removedAuto > Math.max(3, Math.ceil(baseAuto * 0.1))) reasonsMajor.push(`自動取得エントリの大量削除: ${removedAuto} 件`);
+  const rangeOrScoreChanged = changed.filter((c) => c.fields.includes('range') || c.fields.includes('cvssScore'));
+  if (rangeOrScoreChanged.length > 20) reasonsMajor.push(`範囲・スコアの変更が20件を超えています: ${rangeOrScoreChanged.length} 件`);
+  const kevCleared = changed.filter((c) => c.before?.kev === true && !c.after?.kev);
+  if (kevCleared.length) reasonsMajor.push(`KEV (悪用確認済み) フラグの解除: ${kevCleared.map((c) => c.cve).join(', ')}`);
   const regressions = eolChanged.filter((e) => e.before === 'EOL' && e.after === 'Supported');
   if (regressions.length) reasonsMajor.push(`EOL → Supported への逆行: ${regressions.map((e) => `${e.key} ${e.cycle}`).join(', ')}`);
   if (head?.syncStatus && head.syncStatus !== 'success') reasonsMajor.push(`一部ソースの取得に失敗 (syncStatus=${head.syncStatus})`);
-  if (baseSize > 0 && headSize > baseSize * 1.5) reasonsMajor.push(`DBサイズが50%超増加: ${baseSize} → ${headSize} bytes`);
+  const effectiveBaseSize = baseSize > 0 ? baseSize : b.advisories.size >= 50 ? JSON.stringify(base).length : 0;
+  const effectiveHeadSize = headSize > 0 ? headSize : b.advisories.size >= 50 ? JSON.stringify(head).length : 0;
+  if (effectiveBaseSize > 0 && effectiveHeadSize > effectiveBaseSize * 1.5) reasonsMajor.push(`DBサイズが50%超増加: ${effectiveBaseSize} → ${effectiveHeadSize} bytes`);
 
-  const hasChange = added.length + removed.length + changed.length + eolChanged.length > 0 || base?.schemaVersion !== head?.schemaVersion;
+  const hasChange =
+    added.length + removed.length + changed.length + eolChanged.length > 0 ||
+    base?.schemaVersion !== head?.schemaVersion ||
+    base?.minExtensionVersion !== head?.minExtensionVersion ||
+    reasonsMajor.length > 0;
   let classification = !hasChange ? 'none' : reasonsMajor.length ? 'major' : 'minor';
   // 内容に変化がなくても、出荷中DBの生成日が古くなりすぎた場合は鮮度更新として minor 扱いにする
   // (拡張機能は generatedAt から 31 日超で「DB鮮度」警告を表示するため)
@@ -82,7 +101,17 @@ export function diffDatabases(base, head, { baseSize = 0, headSize = 0, refreshD
       freshnessRefresh = true;
     }
   }
-  return { classification, freshnessRefresh, reasonsMajor, added, removed, changed, eolChanged, base: { dataVersion: base?.dataVersion, schemaVersion: base?.schemaVersion }, head: { dataVersion: head?.dataVersion, schemaVersion: head?.schemaVersion, syncStatus: head?.syncStatus } };
+  return {
+    classification,
+    freshnessRefresh,
+    reasonsMajor,
+    added,
+    removed,
+    changed,
+    eolChanged,
+    base: { dataVersion: base?.dataVersion, schemaVersion: base?.schemaVersion, minExtensionVersion: base?.minExtensionVersion },
+    head: { dataVersion: head?.dataVersion, schemaVersion: head?.schemaVersion, minExtensionVersion: head?.minExtensionVersion, syncStatus: head?.syncStatus },
+  };
 }
 
 export function renderMarkdown(d) {

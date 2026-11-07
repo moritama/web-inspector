@@ -14,15 +14,148 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_PATH = path.join(ROOT_DIR, 'dist');
+const TEST_SERVER_PORT = 3000;
+const TEST_SERVER_URL = `http://localhost:${TEST_SERVER_PORT}/`;
+const TEST_SERVER_SCRIPT = path.join(ROOT_DIR, 'test-server', 'server.mjs');
 
-async function runSmokeTest() {
+/**
+ * 指定 URL (既定は http://localhost:3000/) が HTTP 応答を返すか確認する
+ *
+ * @param {string} [url=TEST_SERVER_URL] - 確認先 URL
+ * @param {number} [timeoutMs=1000] - タイムアウトミリ秒
+ * @returns {Promise<boolean>} 応答があれば true
+ */
+export function checkServerResponding(url = TEST_SERVER_URL, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const req = http.get(url, { timeout: timeoutMs }, (res) => {
+      res.resume();
+      resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 500);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * テスト用サーバーが未起動であれば子プロセスで起動し、ポート 3000 の応答を待つ。
+ * すでに起動中であれば既存のサーバーをそのまま利用する。
+ *
+ * @param {object} [options] - 起動オプション
+ * @param {string} [options.url=TEST_SERVER_URL] - 応答確認 URL
+ * @param {string} [options.scriptPath=TEST_SERVER_SCRIPT] - サーバースクリプトのパス
+ * @param {number} [options.timeoutMs=15000] - 起動待機タイムアウトミリ秒
+ * @param {number} [options.pollIntervalMs=150] - ポーリング間隔ミリ秒
+ * @returns {Promise<{ child: import('node:child_process').ChildProcess | null, reused: boolean, url: string, onExitCleanup?: () => void }>}
+ */
+export async function ensureTestServer({
+  url = TEST_SERVER_URL,
+  scriptPath = TEST_SERVER_SCRIPT,
+  timeoutMs = 15000,
+  pollIntervalMs = 150,
+} = {}) {
+  if (await checkServerResponding(url)) {
+    console.log(`[e2e-smoke] 既存のテスト用サーバー (${url}) が起動中のためそのまま使用します。`);
+    return { child: null, reused: true, url };
+  }
+
+  console.log(`[e2e-smoke] テスト用サーバーを子プロセスで起動します (${scriptPath})...`);
+  const child = spawn(process.execPath, [scriptPath], {
+    cwd: ROOT_DIR,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let stderrBuf = '';
+  child.stdout?.on('data', () => {
+    // バッファ詰まりを防ぐため読み捨てる
+  });
+  child.stderr?.on('data', (chunk) => {
+    stderrBuf += String(chunk);
+  });
+
+  const onExitCleanup = () => {
+    if (child.exitCode === null && !child.killed) {
+      try {
+        child.kill('SIGTERM');
+      } catch {}
+    }
+  };
+  process.once('exit', onExitCleanup);
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (child.exitCode !== null) {
+      process.removeListener('exit', onExitCleanup);
+      throw new Error(`テスト用サーバーが応答待機中に終了しました (code=${child.exitCode}): ${stderrBuf.trim()}`);
+    }
+    if (await checkServerResponding(url)) {
+      console.log(`[e2e-smoke] テスト用サーバーの応答を確認しました (${url})。`);
+      return { child, reused: false, url, onExitCleanup };
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+
+  await stopTestServer({ child, reused: false, url, onExitCleanup });
+  throw new Error(`テスト用サーバーの起動がタイムアウトしました (${timeoutMs}ms): ${stderrBuf.trim()}`);
+}
+
+/**
+ * 子プロセスで起動したテスト用サーバーを停止し、ポートが閉じるまで待機する。
+ * 既存サーバーを再利用した場合 (reused: true) は何もしない。
+ *
+ * @param {{ child?: import('node:child_process').ChildProcess | null, reused?: boolean, url?: string, onExitCleanup?: () => void } | null | undefined} serverHandle
+ */
+export async function stopTestServer(serverHandle) {
+  if (!serverHandle || !serverHandle.child) return;
+  const { child, url = TEST_SERVER_URL, onExitCleanup } = serverHandle;
+  if (onExitCleanup) {
+    process.removeListener('exit', onExitCleanup);
+  }
+
+  if (child.exitCode === null && !child.killed) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {}
+        resolve();
+      }, 3000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  }
+
+  // ポートが完全に解放されるまで待機
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 3000) {
+    if (!(await checkServerResponding(url, 300))) {
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  console.log('[e2e-smoke] 子プロセスのテスト用サーバーを停止しました。');
+}
+
+export async function runSmokeTest() {
   console.log('[e2e-smoke] 拡張機能 包括的スモークE2Eテストを開始します...');
 
   if (!fs.existsSync(DIST_PATH)) {
@@ -31,8 +164,10 @@ async function runSmokeTest() {
 
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-smoke-'));
 
+  let serverHandle = null;
   let context;
   try {
+    serverHandle = await ensureTestServer();
     context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       acceptDownloads: true,
@@ -44,6 +179,10 @@ async function runSmokeTest() {
 
     console.log('[e2e-smoke] Chromiumを起動し、dist/ 拡張機能をロードしました。');
 
+    // T11 (IMPL-08): 拡張機能の初期化前に既に開かれていた初期タブでのページ読み込み
+    const preOpenedPage = context.pages()[0] || (await context.newPage());
+    await preOpenedPage.goto('http://localhost:3000/react18-app', { waitUntil: 'networkidle' });
+
     // 1. Service Worker の起動待機
     let serviceWorker = context.serviceWorkers()[0];
     if (!serviceWorker) {
@@ -54,12 +193,36 @@ async function runSmokeTest() {
     const extensionId = serviceWorker.url().split('/')[2];
     console.log('[e2e-smoke] 拡張機能ID:', extensionId);
 
+    // T11 (IMPL-08): 初期タブ（既に開かれていたページ）に対してオンデマンド注入で調査が成功することを検証
+    await preOpenedPage.waitForTimeout(500);
+    const preOpenedReport = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      if (tabs.length === 0) throw new Error('初期タブが見つかりません');
+      return await globalThis.runInspection(tabs[0].id);
+    });
+    const preOpenedReact = preOpenedReport?.technologies?.find((t) => t.technology === 'React');
+    if (!preOpenedReact || preOpenedReact.version !== '18.2.0') {
+      throw new Error(`初期タブ (/react18-app) のオンデマンド注入調査に失敗しました (実際: ${JSON.stringify(preOpenedReact)})`);
+    }
+    console.log('  ✓ 初期タブ（読み込み前から開いていたページ）のオンデマンド注入調査が成功');
+
+    // 新規タブ（拡張機能読み込み後に開いたページ）を作成し、初期タブを閉じる
     const page = await context.newPage();
+    await preOpenedPage.close();
 
     // 補助関数: 指定URLに遷移してService WorkerのrunInspectionを実行
     async function inspectUrl(url) {
       await page.goto(url, { waitUntil: 'networkidle' });
       await page.waitForTimeout(800);
+      return await serviceWorker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+        if (tabs.length === 0) throw new Error('localhost タブが見つかりません');
+        return await globalThis.runInspection(tabs[0].id);
+      });
+    }
+
+    // 補助関数: 現在のページを再読み込みせずそのまま再調査を実行 (T11: 二重注入防止・evidence重複なし検証用)
+    async function inspectCurrentTabAgain() {
       return await serviceWorker.evaluate(async () => {
         const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
         if (tabs.length === 0) throw new Error('localhost タブが見つかりません');
@@ -80,6 +243,16 @@ async function runSmokeTest() {
       throw new Error(`/react18-app: React 18.2.0 (confirmed) が検出されませんでした (実際: ${JSON.stringify(reactTech)})`);
     }
     console.log(`  ✓ React 18.2.0 (confirmed) を正常検出`);
+
+    // T11 (IMPL-08): 同じページを2回調査しても evidence が重複しないこと
+    const reactReport2 = await inspectCurrentTabAgain();
+    const reactTech2 = reactReport2.technologies.find((t) => t.technology === 'React');
+    if (!reactTech2 || reactTech2.evidence.length !== reactTech.evidence.length) {
+      throw new Error(
+        `/react18-app: 同じページを2回調査した際に React の evidence 件数が変化しました (1回目: ${reactTech.evidence.length}, 2回目: ${reactTech2?.evidence?.length})`
+      );
+    }
+    console.log(`  ✓ 同一ページの2回連続調査で evidence が重複しないことを確認 (${reactTech2.evidence.length}件)`);
 
     // -------------------------------------------------------------
     // 検証 2: 肯定コントロール (/apache-positive, /laravel-positive)
@@ -109,7 +282,23 @@ async function runSmokeTest() {
     if (!laravelTech || laravelTech.confidence < 80) {
       throw new Error(`/laravel-positive: Laravel が未検出または確信度不足です (実際: ${JSON.stringify(laravelTech)})`);
     }
-    console.log(`  ✓ Laravel (Cookie直接, 確信度=${laravelTech.confidence}%) を正常検出`);
+    // T11 (IMPL-12): Cookie と document.cookie の両方から来ても同名 Cookie の根拠が重複しないこと、および2回調査でも重複しないこと
+    const laravelSessionEvidences = laravelTech.evidence.filter(
+      (e) => e.type === 'cookie-name' && e.name === 'laravel_session'
+    );
+    if (laravelSessionEvidences.length !== 1) {
+      throw new Error(
+        `/laravel-positive: laravel_session の根拠件数が 1 件ではありません (実際: ${laravelSessionEvidences.length})`
+      );
+    }
+    const laravelReport2 = await inspectCurrentTabAgain();
+    const laravelTech2 = laravelReport2.technologies.find((t) => t.technology === 'Laravel');
+    if (!laravelTech2 || laravelTech2.evidence.length !== laravelTech.evidence.length) {
+      throw new Error(
+        `/laravel-positive: 2回目の調査で Laravel の根拠件数が変化しました (1回目: ${laravelTech.evidence.length}, 2回目: ${laravelTech2?.evidence?.length})`
+      );
+    }
+    console.log(`  ✓ Laravel (Cookie直接, 確信度=${laravelTech.confidence}%, 根拠重複なし) を正常検出`);
 
     // 3-1 実機E2E: /next-ssr-positive (X-Powered-By: Next.js + x-nextjs-cache: HIT -> Node.js推論)
     console.log('[e2e-smoke] [3-1] Next.js SSR連動推論 (/next-ssr-positive & /next-static-negative) を検証中...');
@@ -148,6 +337,26 @@ async function runSmokeTest() {
       throw new Error(`/distro-apache: Apache の advisoryMatchStatus が 'Needs Review' ではありません (実際: ${distroApacheTech.advisoryMatchStatus})`);
     }
     console.log(`  ✓ Apache 2.4.41 (Server: Apache/2.4.41 (Ubuntu)) が Needs Review (distroHint: ${distroApacheTech.distroHint}) として正常判定されました`);
+
+    // 2-3 実機E2E: /jquery-multi (同一ライブラリの複数バージョン照合: SPEC-10 / T08)
+    console.log('[e2e-smoke] [2-3] 複数バージョン照合: /jquery-multi を検証中...');
+    const jqMultiReport = await inspectUrl('http://localhost:3000/jquery-multi');
+    const jqMultiTech = jqMultiReport.technologies.find((t) => t.technology === 'jQuery');
+    if (!jqMultiTech || !Array.isArray(jqMultiTech.instances) || jqMultiTech.instances.length < 2) {
+      throw new Error(`/jquery-multi: jQuery の 2 インスタンスが検出されませんでした (実際: ${JSON.stringify(jqMultiTech)})`);
+    }
+    const instVersions = jqMultiTech.instances.map((i) => i.version);
+    if (!instVersions.includes('1.12.4') || !instVersions.includes('3.7.1')) {
+      throw new Error(`/jquery-multi: jQuery インスタンスに 1.12.4 と 3.7.1 が含まれていません (実際: ${JSON.stringify(instVersions)})`);
+    }
+    if (jqMultiTech.version !== '1.12.4') {
+      throw new Error(`/jquery-multi: 代表バージョン (version) が古い方の '1.12.4' になっていません (実際: ${jqMultiTech.version})`);
+    }
+    const inst1124 = jqMultiTech.instances.find((i) => i.version === '1.12.4');
+    if (!inst1124 || !Array.isArray(inst1124.advisories) || !inst1124.advisories.some((a) => a.id === 'CVE-2020-11022')) {
+      throw new Error(`/jquery-multi: 1.12.4 インスタンスで CVE-2020-11022 が検出されませんでした (実際: ${JSON.stringify(inst1124)})`);
+    }
+    console.log(`  ✓ jQuery 複数バージョン (${instVersions.join(' / ')}) 検出 & 1.12.4 の CVE-2020-11022 照合を確認`);
 
     // -------------------------------------------------------------
     // 検証 3: 否定コントロール & エッジケース (/edge-cases, /rails-session, /negative-angular)
@@ -212,6 +421,18 @@ async function runSmokeTest() {
     }
     console.log(`  ✓ 否定: /bootstrap-only から Tailwind CSS が除外されていることを確認`);
 
+    // 否定: Bootstrap 6 のページ (lg:d-none 等のレスポンシブクラス) で Bootstrap 6.0 が検出され、Tailwind CSS が誤検出されないこと (v1.7.1 T09 / N5)
+    const bootstrap6Report = await inspectUrl('http://localhost:3000/bootstrap6-only');
+    const bs6Tech = bootstrap6Report.technologies.find((t) => t.technology === 'Bootstrap');
+    if (!bs6Tech || bs6Tech.version !== '6.0') {
+      throw new Error(`/bootstrap6-only: Bootstrap 6.0 が検出されませんでした (実際: ${JSON.stringify(bs6Tech)})`);
+    }
+    const falseTailwindBs6 = bootstrap6Report.technologies.find((t) => t.technology === 'Tailwind CSS');
+    if (falseTailwindBs6) {
+      throw new Error(`/bootstrap6-only: Bootstrap 6 のページで Tailwind CSS が誤検出されました (検出: ${JSON.stringify(falseTailwindBs6)})`);
+    }
+    console.log(`  ✓ 否定: Bootstrap 6 のページ (/bootstrap6-only) で Bootstrap 6.0 検出 & Tailwind CSS 未検出を確認`);
+
     // -------------------------------------------------------------
     // 検証 4: AngularJS EOL & CVE-2022-25869 修正版なし案内 (assert)
     // -------------------------------------------------------------
@@ -246,6 +467,33 @@ async function runSmokeTest() {
       throw new Error(`AngularJS CVE observed に「重大度」が含まれていません: "${cveCheck.observed}"`);
     }
     console.log(`  ✓ AngularJS CVE observed文言のassert合格: "${cveCheck.observed}"`);
+
+    // -------------------------------------------------------------
+    // 検証 4-2: 相対 URL ページ (/relative-urls-only) の外部通信先・非通信参照除外検証 (v1.7.1 T05)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [4-2] 相対URLページ (/relative-urls-only) の通信先集計・非通信参照除外を検証中...');
+    const relReport = await inspectUrl('http://localhost:3000/relative-urls-only');
+    const selfHost = new URL(relReport.url).hostname;
+    const relConnections = relReport?.externalConnections?.connections || [];
+    const selfConn = relConnections.find((c) => c.hostname === selfHost);
+    if (!selfConn) {
+      throw new Error(`/relative-urls-only: 自ホスト (${selfHost}) が externalConnections に含まれていません (実際: ${JSON.stringify(relConnections)})`);
+    }
+    if (selfConn.resourceCount !== 3) {
+      throw new Error(`/relative-urls-only: 自ホスト (${selfHost}) の resourceCount が読み込み数 (3 = ページ本体 + CSS + JS) と一致しません (実際: ${selfConn.resourceCount})`);
+    }
+    const excludedHosts = [
+      'en.relative.example.test',
+      'fr.relative.example.test',
+      'canonical.relative.example.test',
+      'form.relative.example.test',
+    ];
+    for (const exHost of excludedHosts) {
+      if (relConnections.some((c) => c.hostname === exHost)) {
+        throw new Error(`/relative-urls-only: 読み込みを伴わない参照 (${exHost}) が externalConnections に混入しています`);
+      }
+    }
+    console.log(`  ✓ /relative-urls-only: 自ホスト (${selfHost}) が resourceCount=3 で通信先に載り、alternate/canonical/form送信先は除外されていることを確認`);
 
     // -------------------------------------------------------------
     // 検証 5: エクスポート保存 (Markdown, CSV, JSON) 実動テスト
@@ -479,15 +727,20 @@ async function runSmokeTest() {
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {
-      await context.close();
+      try {
+        await context.close();
+      } catch {}
     }
     try {
       fs.rmSync(userDataDir, { recursive: true, force: true });
     } catch {}
+    await stopTestServer(serverHandle);
   }
 }
 
-runSmokeTest().catch((err) => {
-  console.error('[e2e-smoke] ❌ スモークテスト失敗:', err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runSmokeTest().catch((err) => {
+    console.error('[e2e-smoke] ❌ スモークテスト失敗:', err);
+    process.exit(1);
+  });
+}

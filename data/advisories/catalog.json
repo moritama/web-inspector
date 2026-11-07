@@ -28,6 +28,13 @@
       "eol": {
         "slug": "react",
         "supportedLatestCycles": 1,
+        "cycleOverrides": {
+          "18": {
+            "status": "Maintenance",
+            "label": "Limited Support (Maintenance)",
+            "note": "React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。"
+          }
+        },
         "_note": "React 公式は最新メジャーのみ修正を提供。endoflife.date 上で eol=false のまま残る旧サイクルを EOL とみなす (レビュー指摘 DB-EOL-1)"
       }
     },
@@ -58,22 +65,22 @@
     },
     "wordpress": {
       "aliases": ["wordpress"],
-      "nvd": { "targets": ["wordpress:wordpress"], "autoIngest": false },
+      "nvd": { "targets": ["wordpress:wordpress"], "autoIngest": true },
       "eol": { "slug": "wordpress" }
     },
     "php": {
       "aliases": ["php"],
-      "nvd": { "targets": ["php:php"], "autoIngest": false },
+      "nvd": { "targets": ["php:php"], "autoIngest": true },
       "eol": { "slug": "php" }
     },
     "nginx": {
       "aliases": ["nginx"],
-      "nvd": { "targets": ["f5:nginx", "nginx:nginx"], "autoIngest": false },
+      "nvd": { "targets": ["f5:nginx", "nginx:nginx"], "autoIngest": true },
       "eol": { "slug": "nginx" }
     },
     "apache": {
       "aliases": ["apache", "apache-httpd", "httpd"],
-      "nvd": { "targets": ["apache:http_server"], "autoIngest": false },
+      "nvd": { "targets": ["apache:http_server"], "autoIngest": true },
       "eol": { "slug": "apache-http-server" }
     },
     "laravel": {
@@ -83,7 +90,7 @@
     },
     "nodejs": {
       "aliases": ["node", "nodejs", "node.js"],
-      "nvd": { "targets": ["nodejs:node.js"], "autoIngest": false },
+      "nvd": { "targets": ["nodejs:node.js"], "autoIngest": true },
       "eol": { "slug": "nodejs" }
     }
   }

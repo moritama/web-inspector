@@ -14,7 +14,9 @@ import {
 import {
   escapeHtml,
   formatCategory,
+  formatMultiVersionSummary,
   renderCookieModalHtml,
+  renderSecurityCheckRowHtml,
   renderSecurityModalHtml,
   renderTechModalHtml,
 } from './render';
@@ -57,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.6';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.1';
     versionEl.textContent = `v${ver}`;
   }
 }
@@ -161,7 +163,7 @@ function renderReport(report: InspectionReport): void {
   tabCookieCountEl.textContent = String(report.cookies.length);
 
   // 1. 使用技術一覧
-  renderTechnologies(report.technologies, report.coverage);
+  renderTechnologies(report.technologies, report.coverage, report.storageWarning);
 
   // 2. セキュリティ診断一覧
   renderSecurityChecks(report.securityChecks);
@@ -177,8 +179,20 @@ function renderReport(report: InspectionReport): void {
   }
 }
 
-function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
+function renderTechnologies(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  storageWarning?: string
+): void {
   techsListEl.innerHTML = '';
+
+  if (storageWarning) {
+    const storageBanner = document.createElement('div');
+    storageBanner.className = 'notice-banner storage-warning-banner';
+    storageBanner.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-color, #ef4444); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--danger-color, #ef4444); line-height: 1.4;';
+    storageBanner.innerHTML = `⚠️ <strong>履歴保存通知</strong>: ${escapeHtml(storageWarning)}`;
+    techsListEl.appendChild(storageBanner);
+  }
 
   if (coverage && coverage.networkHeadersObserved === false) {
     const banner = document.createElement('div');
@@ -224,15 +238,19 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
     // EOLバッジ
     let eolBadgeHtml = '';
     if (t.supportStatus === 'EOL') {
-      eolBadgeHtml = '<span class="badge badge-eol">EOL</span>';
+      eolBadgeHtml = `<span class="badge badge-eol">${escapeHtml(t.eolInfo?.label || 'EOL')}</span>`;
     } else if (t.supportStatus === 'Maintenance') {
-      eolBadgeHtml = '<span class="badge badge-medium">保守</span>';
+      eolBadgeHtml = `<span class="badge badge-medium">${escapeHtml(t.eolInfo?.label || '保守')}</span>`;
+    } else if (t.eolInfo?.label) {
+      eolBadgeHtml = `<span class="badge badge-high">${escapeHtml(t.eolInfo.label)}</span>`;
     }
 
-    // CVEバッジ
+    // CVEバッジ・KEVバッジ (T03 / SPEC-13)
     let cveBadgeHtml = '';
     if (t.advisories && t.advisories.length > 0) {
-      cveBadgeHtml = `<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
+      const hasKev = t.advisories.some((a) => a.kev === true);
+      const kevBadge = hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : '';
+      cveBadgeHtml = `${kevBadge}<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
     }
 
     // 不一致バッジ
@@ -247,13 +265,19 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
       distroBadgeHtml = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
     }
 
-    // バージョン表示
+    // バージョン表示 (v1.7.0 T08 / SPEC-10: 複数バージョン検出時は「jQuery 1.12.4 / 3.7.1（2 つのバージョン）」形式で表示)
+    const multiVerSummary = formatMultiVersionSummary(t);
+    const displayName = multiVerSummary ? `${t.technology} ${multiVerSummary}` : t.technology;
     let verLabel = t.isCandidateGroup
       ? 'いずれかの可能性あり'
+      : multiVerSummary
+      ? multiVerSummary
       : t.version
-      ? `v${escapeHtml(t.version)}`
+      ? /^\d/.test(t.version)
+        ? `v${t.version}`
+        : t.version
       : 'バージョン不明';
-    if (t.versionSource === 'runtime') {
+    if (!multiVerSummary && t.versionSource === 'runtime') {
       verLabel += ' (実行時)';
     }
 
@@ -265,7 +289,7 @@ function renderTechnologies(techs: DetectedTechnology[], coverage?: any): void {
         <div class="tech-icon-badge">${escapeHtml(iconText)}</div>
         <div class="item-texts">
           <div style="display:flex;align-items:center;gap:6px;">
-            <span class="item-name">${escapeHtml(t.technology)}</span>
+            <span class="item-name">${escapeHtml(displayName)}</span>
             ${methodBadgeHtml}
             ${runtimeBadgeHtml}
           </div>
@@ -299,46 +323,7 @@ function renderSecurityChecks(checks: SecurityCheckResult[]): void {
   checks.forEach((c) => {
     const row = document.createElement('div');
     row.className = 'item-row';
-
-    let sevClass = 'sev-info';
-    let sevLabel = '情報';
-    if (c.status === 'unknown') {
-      sevClass = 'sev-unknown';
-      sevLabel = '未観測';
-    } else if (c.status === 'pass') {
-      sevClass = 'sev-pass';
-      sevLabel = '適正';
-    } else if (c.severity === 'high') {
-      sevClass = 'sev-high';
-      sevLabel = '危険';
-    } else if (c.severity === 'medium') {
-      sevClass = 'sev-medium';
-      sevLabel = '警告';
-    } else if (c.severity === 'low') {
-      sevClass = 'sev-low';
-      sevLabel = '注意';
-    }
-
-    const isAccepted =
-      c.exceptionStatus === 'accepted' ||
-      c.exceptionStatus === 'false-positive' ||
-      c.exceptionStatus === 'muted';
-    const exceptionBadge = isAccepted
-      ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:4px;">許容済</span>'
-      : '';
-
-    row.innerHTML = `
-      <div class="item-main">
-        <div class="item-texts">
-          <span class="item-name">${escapeHtml(c.name)}</span>
-          <span class="item-meta">${escapeHtml(c.observed.substring(0, 42))}</span>
-        </div>
-      </div>
-      <div class="item-side">
-        ${exceptionBadge}
-        <span class="badge ${sevClass}">${sevLabel}</span>
-      </div>
-    `;
+    row.innerHTML = renderSecurityCheckRowHtml(c);
 
     row.addEventListener('click', () => showSecurityModal(c));
     securityListEl.appendChild(row);
@@ -404,6 +389,7 @@ function showSecurityModal(check: SecurityCheckResult): void {
         exception: {
           id: `ex_${Date.now()}`,
           findingId: check.findingId,
+          checkId: check.checkId,
           targetUrl: currentReport?.url,
           status: 'accepted',
           reason,
@@ -424,6 +410,7 @@ function showSecurityModal(check: SecurityCheckResult): void {
         exception: {
           id: `ex_${Date.now()}`,
           findingId: check.findingId,
+          checkId: check.checkId,
           targetUrl: currentReport?.url,
           status: 'false-positive',
           reason,

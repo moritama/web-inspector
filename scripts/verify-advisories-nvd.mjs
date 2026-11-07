@@ -61,55 +61,12 @@ export const KNOWN_DEVIATIONS = {
     reason: 'NVDにCVSSスコア(6.1)は登録されているが、CPE該当範囲情報が未定義のため、一次情報としてGitHub Advisory Database (GHSA-prc3-vjfx-vhm9: <= 1.8.3) を採用。EOLのため公式パッチなし (fixedVersion: null)。',
     sourceUrl: 'https://github.com/advisories/GHSA-prc3-vjfx-vhm9'
   },
-  // --- Angular 暫定対応 (2026-11-01): v1.7.0 の T14 で curated と合わせて削除する ---
-  'CVE-2026-32635': {
-    software: 'angular',
-    expectedDbRange: '>= 17.0.0, <= 18.2.14 || >= 19.0.0, < 19.2.20 || >= 20.0.0, < 20.3.18 || >= 21.0.0, < 21.2.4',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-g93w-mfhg-p222'
-  },
-  'CVE-2026-69151': {
-    software: 'angular',
-    expectedDbRange: '<= 19.2.25 || >= 20.0.0, < 20.3.27 || >= 21.0.0, < 21.2.19 || >= 22.0.0, < 22.0.1',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-jj27-h5hq-8x99'
-  },
-  'CVE-2026-54267': {
-    software: 'angular',
-    expectedDbRange: '<= 19.2.25 || >= 20.0.0, < 20.3.25 || >= 21.0.0, < 21.2.17 || >= 22.0.0, < 22.0.1',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-rgjc-h3x7-9mwg'
-  },
-  'CVE-2026-52725': {
-    software: 'angular',
-    expectedDbRange: '<= 18.2.14 || >= 19.0.0, < 19.2.23 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-692r-grfm-v8x7'
-  },
-  'CVE-2026-50557': {
-    software: 'angular',
-    expectedDbRange: '<= 18.2.14 || >= 19.0.0, < 19.2.22 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-f3m7-gqxr-g87x'
-  },
-  'CVE-2026-27970': {
-    software: 'angular',
-    expectedDbRange: '<= 18.2.14 || >= 19.0.0, < 19.2.19 || >= 20.0.0, < 20.3.17 || >= 21.0.0, < 21.1.6',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-prjf-86w9-mfqv'
-  },
-  'CVE-2026-22610': {
-    software: 'angular',
-    expectedDbRange: '<= 18.2.14 || >= 19.0.0, < 19.2.18 || >= 20.0.0, < 20.3.16 || >= 21.0.0, < 21.0.7',
-    expectedNvdRange: '(NVD未登録)',
-    reason: 'Angular は NVD の取得対象外 (OSV/GHSA が一次情報)。上流の範囲の -next 表記を v1.6.x の version-matcher が誤判定するため、正式版のみの範囲で curated に暫定登録。',
-    sourceUrl: 'https://github.com/advisories/GHSA-jrmj-c5cx-3cw6'
+  'CVE-2019-8331': {
+    software: 'bootstrap',
+    expectedDbRange: '< 3.4.1 || >= 4.0.0, < 4.3.1',
+    expectedNvdRange: '< 3.4.1 || >= 4.3.0, < 4.3.1',
+    reason: 'NVD CPEの4系範囲は>= 4.3.0, < 4.3.1だが、Bootstrap公式リリースノート(v4.3.1)およびGitHub Advisory(GHSA-9v3m-8fp8-mj99)では4.0.0〜4.3.0すべてが影響範囲であるため、>= 4.0.0, < 4.3.1を採用。',
+    sourceUrl: 'https://github.com/advisories/GHSA-9v3m-8fp8-mj99'
   }
 };
 

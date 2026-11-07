@@ -464,6 +464,24 @@ body {
 }
 
 /* セキュリティ重大度バッジ */
+.sev-critical {
+  background: rgba(220, 38, 38, 0.28);
+  color: #FCA5A5;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+}
+
+.badge-kev {
+  background: rgba(220, 38, 38, 0.3);
+  color: #FCA5A5;
+  border: 1px solid rgba(239, 68, 68, 0.65);
+}
+
+.badge-fix-status {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
 .sev-high {
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger-color);

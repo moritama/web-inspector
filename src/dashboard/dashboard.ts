@@ -10,7 +10,6 @@ import { compareReportsEnhanced } from '../storage/diff';
 import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
-  ExternalServiceCategory,
   FindingException,
   InspectionReport,
   SecurityCheckResult,
@@ -18,6 +17,7 @@ import {
 import {
   escapeHtml,
   renderCookiesTableHtml,
+  renderExternalConnectionsHtml,
   renderFullSecurityHtml,
   renderFullTechnologiesHtml,
   renderHistoryListHtml,
@@ -121,7 +121,7 @@ if (typeof document !== 'undefined') {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.6.6';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.1';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -226,7 +226,12 @@ async function loadDashboardData(): Promise<void> {
 
 function renderDashboard(report: InspectionReport): void {
   if (currentHostnameEl) currentHostnameEl.textContent = report.hostname;
-  if (inspectedAtTimeEl) inspectedAtTimeEl.textContent = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+  if (inspectedAtTimeEl) {
+    const baseText = `調査日時: ${new Date(report.inspectedAt).toLocaleString('ja-JP')}`;
+    inspectedAtTimeEl.textContent = report.storageWarning
+      ? `${baseText} （⚠️ ${report.storageWarning}）`
+      : baseText;
+  }
   if (dashAdvisoryDbDateEl) {
     dashAdvisoryDbDateEl.textContent = `🛡️ 脆弱性DB: ${report.advisoryDatabaseVersion || '2026-10-23'}`;
   }
@@ -373,7 +378,7 @@ function handleCompare(): void {
 
   compareResultContainer.innerHTML = `
     <div class="diff-box">
-      <div class="diff-title">差分分析サマリー (Rev.2.1 IMP-09)</div>
+      <div class="diff-title">差分分析サマリー</div>
       <div style="margin-bottom:8px;">
         検出された変化: <strong>${diff.diffItems.length} 件</strong>
         (新規: ${diff.summary.addedCount}, 消失: ${diff.summary.removedCount}, 変更: ${diff.summary.changedCount}, 解消: ${diff.summary.resolvedCount}, 新規警告: ${diff.summary.regressedCount})
@@ -485,89 +490,20 @@ async function loadExceptionsData(): Promise<void> {
 }
 
 /**
- * 外部通信先・サードパーティドメイン分析ビューの描画 (Rev.2.1 IMP-11)
+ * 外部通信先・サードパーティドメイン分析ビューの描画 (Rev.2.1 IMP-11, v1.7.1 T05)
  */
 function renderExternalConnectionsView(analysis?: ExternalConnectionsAnalysis): void {
-  if (!domainsContainerEl) return;
-  if (!analysis || !analysis.connections || analysis.connections.length === 0) {
-    domainsContainerEl.innerHTML = '<div class="empty-state">外部通信先情報はまだ解析されていません。</div>';
-    return;
+  const titleEl = document.querySelector('#domainsView .card-title');
+  if (titleEl) {
+    titleEl.textContent = '外部通信先・サードパーティドメイン分析（読み込まれたリソースの取得元 / eTLD+1）';
   }
-
-  const catLabels: Record<ExternalServiceCategory, string> = {
-    cdn: 'CDN・静的配信',
-    analytics: 'アクセス解析',
-    advertising: '広告・マーケティング',
-    fonts: 'Webフォント',
-    social: 'SNSウィジェット',
-    api: '外部API',
-    other: 'その他',
-  };
-
-  const categoryChips = (Object.entries(analysis.categoryBreakdown) as [ExternalServiceCategory, number][])
-    .filter(([_, count]) => count > 0)
-    .map(([cat, count]) => `<span class="badge badge-medium" style="margin-right:6px;display:inline-block;margin-top:4px;">${escapeHtml(catLabels[cat] || cat)}: ${count}件</span>`)
-    .join('');
-
-  domainsContainerEl.innerHTML = `
-    <div class="diff-box">
-      <div class="diff-title">通信先ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
-      <div style="margin-bottom:8px;">
-        検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
-        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
-      </div>
-      <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
-    </div>
-
-    <div class="diff-box">
-      <div class="diff-title">通信先ホスト一覧</div>
-      <div class="table-responsive">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ホスト名</th>
-              <th>eTLD+1 (組織ドメイン)</th>
-              <th>分類</th>
-              <th>用途カテゴリ</th>
-              <th>リソース数</th>
-              <th>サンプルURL</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${analysis.connections
-              .map((item) => {
-                let badgeClass = 'badge-medium';
-                let partyLabel = 'Third-Party';
-                if (item.partyType === 'first-party') {
-                  badgeClass = 'badge-high';
-                  partyLabel = 'First-Party (自社)';
-                } else if (item.partyType === 'local') {
-                  badgeClass = 'badge-low';
-                  partyLabel = 'Local (内部)';
-                } else {
-                  badgeClass = 'badge-medium';
-                  partyLabel = 'Third-Party (外部)';
-                }
-
-                const sampleUrl = item.sampleUrls.length > 0 ? item.sampleUrls[0] : '';
-
-                return `
-                  <tr>
-                    <td><strong>${escapeHtml(item.hostname)}</strong></td>
-                    <td><code>${escapeHtml(item.registrableDomain || '-')}</code></td>
-                    <td><span class="badge ${badgeClass}">${partyLabel}</span></td>
-                    <td><span class="badge" style="background:var(--bg-hover);">${escapeHtml(catLabels[item.category] || item.category)}</span></td>
-                    <td>${item.resourceCount}</td>
-                    <td style="font-size:11px;color:var(--text-sub);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(sampleUrl)}">${escapeHtml(sampleUrl || '-')}</td>
-                  </tr>
-                `;
-              })
-              .join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+  const descEl = document.querySelector('#domainsView .card-desc');
+  if (descEl) {
+    descEl.textContent =
+      'ページ本体および実際に読み込まれたサブリソース（Resource Timing API・script・stylesheet・画像等）の取得元ホストを組織単位（eTLD+1）で集計し、First-Party（自社）と Third-Party（外部サービス）に分類します。alternate リンクや form の送信先など読み込みを伴わない参照は通信先に含めません。';
+  }
+  if (!domainsContainerEl) return;
+  domainsContainerEl.innerHTML = renderExternalConnectionsHtml(analysis);
 }
 
 

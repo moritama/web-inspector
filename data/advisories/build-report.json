@@ -12,8 +12,8 @@
       }
     },
     "bootstrap": {
-      "curated": 3,
-      "auto": 6,
+      "curated": 2,
+      "auto": 7,
       "nvdCandidates": 0,
       "nvdAutoIngest": false,
       "eolSource": "endoflife.date",
@@ -38,8 +38,8 @@
       "skipped": {}
     },
     "angular": {
-      "curated": 7,
-      "auto": 2,
+      "curated": 0,
+      "auto": 9,
       "nvdCandidates": 0,
       "nvdAutoIngest": false,
       "eolSource": "endoflife.date",
@@ -73,35 +73,50 @@
     },
     "wordpress": {
       "curated": 1,
-      "auto": 0,
+      "auto": 34,
       "nvdCandidates": 35,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 420,
+        "filtered": 128,
+        "no-cpe-range": 1
+      }
     },
     "php": {
       "curated": 2,
-      "auto": 0,
+      "auto": 99,
       "nvdCandidates": 100,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 416,
+        "filtered": 240,
+        "no-cpe-range": 4
+      }
     },
     "nginx": {
       "curated": 2,
-      "auto": 0,
+      "auto": 8,
       "nvdCandidates": 10,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 19,
+        "filtered": 12
+      }
     },
     "apache": {
       "curated": 3,
-      "auto": 0,
+      "auto": 100,
       "nvdCandidates": 103,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 196,
+        "filtered": 71,
+        "no-cpe-range": 1
+      }
     },
     "laravel": {
       "curated": 2,
@@ -115,11 +130,15 @@
     },
     "nodejs": {
       "curated": 2,
-      "auto": 0,
+      "auto": 88,
       "nvdCandidates": 90,
-      "nvdAutoIngest": false,
+      "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
-      "skipped": {}
+      "skipped": {
+        "unscored": 5,
+        "filtered": 93,
+        "no-cpe-range": 1
+      }
     }
   },
   "drift": [
@@ -164,117 +183,13 @@
     },
     {
       "product": "bootstrap",
-      "id": "CVE-2016-10735",
-      "curated": {
-        "range": ">= 3.0.0, < 3.4.0",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": ">= 2.0.4, < 3.4.0 || >= 4.0.0-beta, < 4.0.0-beta.2",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "bootstrap",
       "id": "CVE-2019-8331",
       "curated": {
-        "range": "< 3.4.1 || >= 4.3.0, < 4.3.1",
+        "range": "< 3.4.1 || >= 4.0.0, < 4.3.1",
         "cvssScore": 6.1
       },
       "upstream": {
         "range": ">= 3.0.0, < 3.4.1 || >= 4.0.0, < 4.3.1",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-52725",
-      "curated": {
-        "range": "<= 18.2.14 || >= 19.0.0, < 19.2.23 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.23 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-50557",
-      "curated": {
-        "range": "<= 18.2.14 || >= 19.0.0, < 19.2.22 || >= 20.0.0, < 20.3.22 || >= 21.0.0, < 21.2.15",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.22 || >= 20.0.0-next.0, < 20.3.22 || >= 21.0.0-next.0, < 21.2.15 || >= 22.0.0-next.0, < 22.0.0-rc.2",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-32635",
-      "curated": {
-        "range": ">= 17.0.0, <= 18.2.14 || >= 19.0.0, < 19.2.20 || >= 20.0.0, < 20.3.18 || >= 21.0.0, < 21.2.4",
-        "cvssScore": 9
-      },
-      "upstream": {
-        "range": ">= 17.0.0-next.0, <= 18.2.14 || >= 19.0.0-next.0, < 19.2.20 || >= 20.0.0-next.0.0.0, < 20.3.18 || >= 21.0.0-next.0, < 21.2.4 || >= 22.0.0-next.0, < 22.0.0-next.3",
-        "cvssScore": 9,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-69151",
-      "curated": {
-        "range": "<= 19.2.25 || >= 20.0.0, < 20.3.27 || >= 21.0.0, < 21.2.19 || >= 22.0.0, < 22.0.1",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.27 || >= 21.0.0-next.0, < 21.2.19 || >= 22.0.0-next.0, < 22.0.1",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-22610",
-      "curated": {
-        "range": "<= 18.2.14 || >= 19.0.0, < 19.2.18 || >= 20.0.0, < 20.3.16 || >= 21.0.0, < 21.0.7",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.18 || >= 20.0.0-next.0, < 20.3.16 || >= 21.0.0-next.0, < 21.0.7 || >= 21.1.0-next.0, < 21.1.0-rc.0",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-27970",
-      "curated": {
-        "range": "<= 18.2.14 || >= 19.0.0, < 19.2.19 || >= 20.0.0, < 20.3.17 || >= 21.0.0, < 21.1.6",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 18.2.14 || >= 19.0.0-next.0, < 19.2.19 || >= 20.0.0-next.0, < 20.3.17 || >= 21.0.0-next.0, < 21.1.6 || >= 21.2.0-next.0, < 21.2.0",
-        "cvssScore": 6.1,
-        "source": "osv"
-      }
-    },
-    {
-      "product": "angular",
-      "id": "CVE-2026-54267",
-      "curated": {
-        "range": "<= 19.2.25 || >= 20.0.0, < 20.3.25 || >= 21.0.0, < 21.2.17 || >= 22.0.0, < 22.0.1",
-        "cvssScore": 6.1
-      },
-      "upstream": {
-        "range": "<= 19.2.25 || >= 20.0.0-next.0, < 20.3.25 || >= 21.0.0-next.0, < 21.2.17 || >= 22.0.0-next.0, < 22.0.1",
         "cvssScore": 6.1,
         "source": "osv"
       }
@@ -346,19 +261,6 @@
     },
     {
       "product": "nodejs",
-      "id": "CVE-2023-39332",
-      "curated": {
-        "range": ">= 20.0.0, < 20.8.1",
-        "cvssScore": 9.8
-      },
-      "upstream": {
-        "range": ">= 20.0.0, < 20.8.0",
-        "cvssScore": 9.8,
-        "source": "nvd"
-      }
-    },
-    {
-      "product": "nodejs",
       "id": "CVE-2023-23918",
       "curated": {
         "range": ">= 14.0.0, < 14.21.3 || >= 16.0.0, < 16.19.1 || >= 18.0.0, < 18.14.1 || >= 19.0.0, < 19.6.1",
@@ -369,11 +271,26 @@
         "cvssScore": 7.5,
         "source": "nvd"
       }
+    },
+    {
+      "product": "nodejs",
+      "id": "CVE-2023-39332",
+      "curated": {
+        "range": ">= 20.0.0, < 20.8.1",
+        "cvssScore": 9.8
+      },
+      "upstream": {
+        "range": ">= 20.0.0, < 20.8.0",
+        "cvssScore": 9.8,
+        "source": "nvd"
+      }
     }
   ],
   "excluded": [],
   "skippedSummary": {
-    "unscored": 12
+    "unscored": 1068,
+    "filtered": 544,
+    "no-cpe-range": 7
   },
   "staleSources": []
 }

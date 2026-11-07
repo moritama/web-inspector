@@ -8,8 +8,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initDashboard } from '../src/dashboard/dashboard';
-import { renderHistoryListHtml } from '../src/dashboard/render';
-import { InspectionReport } from '../src/shared/types';
+import {
+  renderCookiesTableHtml,
+  renderFullTechnologiesHtml,
+  renderHistoryListHtml,
+  renderLibrarySecurityTableHtml,
+  renderOverviewLibrarySecHtml,
+} from '../src/dashboard/render';
+import { renderCookieModalHtml, renderTechModalHtml } from '../src/popup/render';
+import { DetectedTechnology, InspectionReport } from '../src/shared/types';
 
 const createMockReport = (overrides: Partial<InspectionReport> = {}): InspectionReport => ({
   id: 'rep-001',
@@ -195,5 +202,245 @@ describe('IMPL-01: ダッシュボード初期化とイベント委譲による�
 
     const overviewNav = document.querySelector('.nav-item[data-view="overviewView"]');
     expect(overviewNav?.classList.contains('active')).toBe(true);
+  });
+
+  it('T08 (SPEC-10): 複数バージョンがある技術は「jQuery 1.12.4 / 3.7.1（2 つのバージョン）」と表示され、展開時にインスタンスごとの結果が見られること、および instances がない v1.6.6 形式の履歴もエラーにならず表示できること', () => {
+    const multiVerTech: DetectedTechnology = {
+      technology: 'jQuery',
+      category: 'js-css-library',
+      detected: true,
+      version: '1.12.4',
+      confidence: 95,
+      confidenceLevel: 'high',
+      supportStatus: 'EOL',
+      eolDate: '2016-06',
+      advisories: [
+        {
+          id: 'CVE-2020-11022',
+          title: 'XSS in jQuery',
+          severity: 'medium',
+          affectedRange: '< 3.5.0',
+          fixedVersion: '3.5.0',
+          summary: 'XSS',
+          referenceUrls: [],
+        },
+      ],
+      evidence: [
+        {
+          type: 'script-url',
+          name: 'Script URL (jQuery)',
+          value: '/js/jquery-1.12.4.min.js',
+          source: 'https://example.com/',
+          weight: 90,
+        },
+      ],
+      instances: [
+        {
+          version: '1.12.4',
+          evidence: [
+            {
+              type: 'script-url',
+              name: 'Script URL (jQuery)',
+              value: '/js/jquery-1.12.4.min.js',
+              source: 'https://example.com/',
+              weight: 90,
+            },
+          ],
+          advisories: [
+            {
+              id: 'CVE-2020-11022',
+              title: 'XSS in jQuery',
+              severity: 'medium',
+              affectedRange: '< 3.5.0',
+              fixedVersion: '3.5.0',
+              summary: 'XSS',
+              referenceUrls: [],
+            },
+          ],
+          eol: {
+            status: 'EOL',
+            eolDate: '2016-06',
+            source: 'Internal Policy',
+            recommendation: '移行推奨',
+          },
+          supportStatus: 'EOL',
+          eolDate: '2016-06',
+        },
+        {
+          version: '3.7.1',
+          evidence: [
+            {
+              type: 'script-url',
+              name: 'Script URL (jQuery)',
+              value: '/js/jquery-3.7.1.min.js',
+              source: 'https://example.com/',
+              weight: 90,
+            },
+          ],
+          advisories: [],
+          eol: {
+            status: 'Supported',
+            eolDate: null,
+            source: 'Internal Policy',
+            recommendation: 'サポート継続中',
+          },
+          supportStatus: 'Supported',
+        },
+      ],
+    };
+
+    // 1. ダッシュボード技術詳細・ライブラリセキュリティ表・概要・ポップアップ詳細モーダルでの複数バージョン表示
+    const fullTechHtml = renderFullTechnologiesHtml([multiVerTech]);
+    expect(fullTechHtml).toContain('jQuery 1.12.4 / 3.7.1（2 つのバージョン）');
+    expect(fullTechHtml).toContain('v1.12.4');
+    expect(fullTechHtml).toContain('v3.7.1');
+    expect(fullTechHtml).toContain('CVE-2020-11022');
+
+    const libSecTableHtml = renderLibrarySecurityTableHtml([multiVerTech]);
+    expect(libSecTableHtml).toContain('jQuery 1.12.4 / 3.7.1（2 つのバージョン）');
+    expect(libSecTableHtml).toContain('v1.12.4');
+    expect(libSecTableHtml).toContain('v3.7.1');
+
+    const overviewLibHtml = renderOverviewLibrarySecHtml([multiVerTech]);
+    expect(overviewLibHtml).toContain('jQuery 1.12.4 / 3.7.1（2 つのバージョン）');
+
+    const popupModalHtml = renderTechModalHtml(multiVerTech);
+    expect(popupModalHtml).toContain('1.12.4 / 3.7.1（2 つのバージョン）');
+    expect(popupModalHtml).toContain('v1.12.4');
+    expect(popupModalHtml).toContain('v3.7.1');
+
+    // 2. instances フィールドが存在しない v1.6.6 形式の過去履歴データでもエラーにならず描画できること
+    const legacyV166Tech: DetectedTechnology = {
+      technology: 'Bootstrap',
+      category: 'js-css-library',
+      detected: true,
+      version: '4.3.1',
+      confidence: 90,
+      confidenceLevel: 'high',
+      evidence: [
+        {
+          type: 'css-url',
+          name: 'Stylesheet URL',
+          value: '/css/bootstrap-4.3.1.min.css',
+          source: 'https://example.com/',
+          weight: 90,
+        },
+      ],
+    };
+
+    expect(() => renderFullTechnologiesHtml([legacyV166Tech])).not.toThrow();
+    expect(() => renderLibrarySecurityTableHtml([legacyV166Tech])).not.toThrow();
+    expect(() => renderOverviewLibrarySecHtml([legacyV166Tech])).not.toThrow();
+    expect(() => renderTechModalHtml(legacyV166Tech)).not.toThrow();
+    expect(renderFullTechnologiesHtml([legacyV166Tech])).toContain('Bootstrap');
+    expect(renderFullTechnologiesHtml([legacyV166Tech])).toContain('v4.3.1');
+  });
+
+  it('v1.7.1 T07: v1.7.0 形式の履歴（新しい用途を含まない・category 未設定）および新用途 (advertising / consent) や未知の用途をダッシュボードで表示できること', async () => {
+    const v170HistoryReport = createMockReport({
+      id: 'rep-v170-cookies',
+      extensionVersion: '1.7.0',
+      rulesVersion: '1.7.0',
+      cookies: [
+        {
+          name: 'PHPSESSID',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'lax',
+          session: true,
+          category: 'authentication',
+          issues: [],
+        },
+        {
+          name: '_ga',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'analytics',
+          issues: [],
+        },
+        {
+          // category が未設定の古い履歴エントリ
+          name: 'old_cookie_without_cat',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          session: false,
+          issues: [],
+        },
+        {
+          // 未知の用途値が入ったデータ
+          name: 'unknown_cat_cookie',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: false,
+          httpOnly: false,
+          sameSite: 'unspecified',
+          session: true,
+          category: 'some_unknown_category' as any,
+          issues: ['Secure属性未設定'],
+        },
+        {
+          // v1.7.1 の新用途
+          name: '_fbp',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'advertising',
+          issues: [],
+        },
+        {
+          name: 'OptanonConsent',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'consent',
+          issues: [],
+        },
+      ],
+    });
+
+    sendMessageMock.mockImplementation((message: { type: string }) => {
+      if (message.type === 'GET_ALL_REPORTS') {
+        return Promise.resolve({
+          success: true,
+          reports: [v170HistoryReport],
+        });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    await initDashboard();
+
+    const cookiesTableBody = document.getElementById('cookiesTableBody');
+    expect(cookiesTableBody).not.toBeNull();
+    const tableHtml = cookiesTableBody?.innerHTML || '';
+    expect(tableHtml).toContain('PHPSESSID');
+    expect(tableHtml).toContain('認証・セッション (authentication)');
+    expect(tableHtml).toContain('トラッキング・解析 (analytics)');
+    expect(tableHtml).toContain('old_cookie_without_cat');
+    expect(tableHtml).toContain('unknown_cat_cookie');
+    expect(tableHtml).toContain('一般・未分類 (general)');
+    expect(tableHtml).toContain('広告・マーケティング (advertising)');
+    expect(tableHtml).toContain('同意管理 (consent)');
+
+    // 純粋描画関数でも例外なく描画できること
+    expect(() => renderCookiesTableHtml(v170HistoryReport.cookies)).not.toThrow();
+    for (const cookie of v170HistoryReport.cookies) {
+      expect(() => renderCookieModalHtml(cookie)).not.toThrow();
+    }
   });
 });

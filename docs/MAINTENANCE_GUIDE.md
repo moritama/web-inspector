@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector - 保守・リリース運用ガイド
 
-本書は、『Web Technology & Security Inspector』のバージョンアップ手順、内蔵オフライン脆弱性データベース（`advisory-db.json`）の更新手順、および配布用パッケージ作成・ストア申請フローをまとめた開発者・メンテナー向け運用ガイドです。
+本書は、『Web Technology & Security Inspector』のバージョンアップ手順、内蔵オフライン脆弱性データベース（`advisory-db.json`）の更新手順、配布用パッケージ作成・ストア申請フロー、および診断レポートの一括取得スクリプト・整合性チェッカーの運用手順をまとめた開発者・メンテナー向け運用ガイドです。
 
 ---
 
@@ -25,7 +25,7 @@ flowchart TD
 
     subgraph SyncNeeded ["手動で更新が必要な関連ファイル"]
         Rules["src/detection/rules/index.ts<br>(RULES_VERSION 定数: レポート出力用)"]
-        SW["src/background/service-worker.ts<br>(EXTENSION_VERSION フォールバック)"]
+        SW["src/background/service-worker.ts 等<br>(EXTENSION_VERSION フォールバック)"]
         HTML["popup.html / dashboard.html<br>(JS実行前の初期HTMLテキスト)"]
         Docs["README.md / ドキュメント<br>(バッジ・見出しの表記)"]
     end
@@ -35,26 +35,26 @@ flowchart TD
     MasterSources -.->|整合性維持| SyncNeeded
 ```
 
-- **画面バッジの自動取得**: ポップアップ画面やダッシュボード画面のバージョンバッジ（`v1.6.0` 等）は、実行時に `chrome.runtime.getManifest().version` から動的に読み込まれます。
+- **画面バッジの自動取得**: ポップアップ画面やダッシュボード画面のバージョンバッジ（`v1.7.1` 等）は、実行時に `chrome.runtime.getManifest().version` から動的に読み込まれます。
 - **ZIPファイル名の自動連動**: `npm run package` 実行時、`scripts/package.mjs` が `package.json` の `version` を読み取り、自動的に `release/web-inspector-v{version}.zip` を出力します。
 
 ---
 
 ### 1.2 バージョン変更時の更新対象ファイル・チェックリスト
 
-バージョン（例: `1.6.0` $\rightarrow$ `1.7.0`）を変更する際は、以下のファイルを更新します。
+バージョン（例: `1.7.0` $\rightarrow$ `1.7.1`）を変更する際は、以下のファイルを更新します（※ `src/popup/popup.html` および `src/dashboard/dashboard.html` は v1.7.0 で廃止され、ルート直下の `popup.html` / `dashboard.html` に一本化されました。また、オフライン脆弱性 DB のスキーマ互換性が変わらないマイナー・パッチ更新では、`src/detection/advisory-db.json` の `minExtensionVersion` は `"1.7.0"` のまま変更しません）。
 
 | No | ファイルパス | 役割・更新内容 | 必須区分 |
 |:---:|---|---|:---:|
 | 1 | [`public/manifest.json`](../public/manifest.json) | `"version": "X.X.X"`（Chrome Web Store認識用） | **【必須】** |
-| 2 | [`package.json`](../package.json) | `"version": "X.X.X"`（ZIP出力スクリプト用） | **【必須】** |
+| 2 | [`package.json`](../package.json) / [`package-lock.json`](../package-lock.json) | `"version": "X.X.X"`（ZIP出力スクリプト・npm管理用） | **【必須】** |
 | 3 | [`src/detection/rules/index.ts`](../src/detection/rules/index.ts) | `export const RULES_VERSION = 'X.X.X';`（レポート記録用） | **【必須】** |
 | 4 | [`src/background/service-worker.ts`](../src/background/service-worker.ts) | `EXTENSION_VERSION` のフォールバック文字列 | 推奨 |
-| 5 | [`src/popup/popup.ts`](../src/popup/popup.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
-| 6 | [`src/dashboard/dashboard.ts`](../src/dashboard/dashboard.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
-| 7 | [`src/popup/popup.html`](../src/popup/popup.html) / `popup.html` | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
-| 8 | [`src/dashboard/dashboard.html`](../src/dashboard/dashboard.html) / `dashboard.html` | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト | 推奨 |
-| 9 | [`README.md`](../README.md) | バッジ（`version-X.X.X-blue.svg`）および機能一覧見出し | 推奨 |
+| 5 | [`src/popup/popup.ts`](../src/popup/popup.ts) / [`src/dashboard/dashboard.ts`](../src/dashboard/dashboard.ts) | `setupVersionBadge()` のフォールバック文字列 | 推奨 |
+| 6 | [`src/export/markdown.ts`](../src/export/markdown.ts) / [`src/export/csv.ts`](../src/export/csv.ts) | レポート出力時の `extensionVersion` フォールバック文字列 | 推奨 |
+| 7 | [`popup.html`](../popup.html) | `<span id="brandVersion">vX.X.X</span>` 初期HTMLテキスト（ルート直下に一本化） | 推奨 |
+| 8 | [`dashboard.html`](../dashboard.html) | `<span id="dashboardVersion">vX.X.X</span>` 初期HTMLテキスト（ルート直下に一本化） | 推奨 |
+| 9 | [`README.md`](../README.md) / [`docs/DETECTION_SPECIFICATION.md`](./DETECTION_SPECIFICATION.md) | バッジ（`version-X.X.X-blue.svg`）・対象バージョン・機能一覧見出し | 推奨 |
 
 ---
 
@@ -133,21 +133,24 @@ Primary 評価と Secondary（CISA-ADP 等）評価の間で重大度レベル�
 
 ---
 
-### 2.3 脆弱性DBの更新手順（ステップ・バイ・ステップ）
+### 2.3 脆弱性DBおよびPublic Suffix List (PSL) の更新手順（ステップ・バイ・ステップ）
 
-> **v1.6.6 以降の更新方式 (自動化):** 脆弱性DBは GitHub Actions `Advisory DB Update` (毎週月曜 05:23 JST) が
-> 上流 (OSV / NVD / endoflife.date / CISA KEV) から自動取得・生成し、PR を作成します。手作業は PR のレビューのみです。
-> 設計・必要な設定・段階的な有効化は [レビュー結果・開発指示書 第5章](./REVIEW_v1.6.5.md) を参照してください。
-> `src/detection/advisory-db.json` は手編集禁止です (CI の `build-db.mjs --check` で検出されます)。
-> 人手で管理するデータは `data/advisories/catalog.json` (対象製品・取得元) と `data/advisories/curated.json` (レビュー済みエントリ・除外・静的EOL) です。
+> **v1.6.6 / v1.7.0 以降の更新方式 (自動化):** 脆弱性DBは GitHub Actions `Advisory DB Update` (毎週月曜 05:23 JST) が
+> 上流 (OSV / NVD / endoflife.date / CISA KEV) および Public Suffix List (`publicsuffix.org`) から自動取得・生成し、PR を作成します。
+> v1.7.0 からは `wordpress`, `php`, `nginx`, `apache`, `nodejs` の NVD CPE 自動取り込み (`autoIngest: true`) が有効化され、5つの安全ガード（サードパーティプラグインCPE除外、上限なし`*`のみのcriteria除外、Rejected/Disputed除外、対象年フィルタ、製品あたり件数上限）を経て `minExtensionVersion: "1.7.0"`・`fixStatus`（`'fixed' | 'unfixed' | 'unknown'`）・`kev` フラグ付きで生成されます。
+> 設計・必要な設定・段階的な有効化は [レビュー結果・開発指示書 第5章](./REVIEW_v1.6.5.md) および本ガイド第3.2節を参照してください。
+> `src/detection/advisory-db.json`、`data/advisories/build-report.json`、`src/security/psl-rules.generated.ts` は手編集禁止です (CI の `build-db.mjs --check` および `spec-integrity.test.ts` で検出されます)。
+> 人手で管理するデータは `data/advisories/catalog.json` (対象製品・取得元・`autoIngest`設定) と `data/advisories/curated.json` (レビュー済みエントリ・除外・静的EOL) です。
 
-#### ステップ 1: 最新アドバイザリの同期 (ローカルで手動実行する場合)
+#### ステップ 1: 最新アドバイザリおよび PSL の同期 (ローカルで手動実行する場合)
 ```bash
-npm run advisories:fetch   # 上流スナップショット取得 (要ネットワーク, 任意で NVD_API_KEY)
+npm run advisories:fetch   # 上流スナップショット + PSL (data/psl/public_suffix_list.dat) 取得 (要ネットワーク)
 npm run advisories:build   # スナップショットから advisory-db.json を決定的に生成
+npm run spec:generate      # 仕様書カタログ・README表・DOMセレクタ・PSL定義 (psl-rules.generated.ts) を再生成
 npm run advisories:diff    # origin/main との差分と分類 (none / minor / major)
 ```
 - `advisories:sync` は上記 fetch → build → validate を連続実行します。
+- `data/psl/public_suffix_list.dat` が未取得の環境では、`npm run spec:generate` は警告を出力した上でフォールバック PSL 一覧（日本の47都道府県・政令指定都市JPドメインを含む）を使用し、ビルドを止めません。
 
 #### ステップ 2: DBの整合性・サイズ検証
 ```bash
@@ -252,7 +255,7 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 
 ---
 
-### 2.8 既知の制限と将来の課題 (v1.6.6 での解消と v1.7.0 以降の検討項目)
+### 2.8 既知の制限と将来の課題 (v1.6.6〜v1.7.1 での解消と v1.8.0 以降の検討項目)
 
 #### ① v1.6.6 で解消した制限・不具合
 1. **履歴ボタンのインライン onclick 廃止 (IMPL-01)**:
@@ -276,21 +279,49 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 10. **プライバシーポリシー記述の実装整合 (DOC-08)**:
     - Cookie 値の一時読み込み後の即時破棄、content script の配置方針、webRequest ヘッダー許可リストの保持方針を実装と整合化。
 
-#### ② 残る既知の制限と将来の課題 (v1.7.0 以降の検討項目)
-1. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の挙動**:
-   - `src/detection/rules/backend.json:245` に定義されている `"target": "x-fastify-"` は、エンジン側（`src/detection/engine.ts:180`）が完全一致（Exact Key Lookup）でヘッダーマップを参照しているため、接頭辞ルールとして意図通りに発火していません（`x-fastify-` という完全一致キーのみを参照）。エンジンの接頭辞マッチング対応は v1.7.0 以降の課題とします。
-2. **`data:` URL スキームのサニタイズ**:
-   - `data:text/html,...` 等の URL はクエリとフラグメントが除去されますが、データ本体が保持 URL に残りうる仕様となっています。スキームのみ（`data:`）へ丸める改善は v1.7.0 にて検討します。
-3. **パス部分に埋め込まれた機密情報**:
-   - 保持する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は除去されません。
-4. **弱い直接証拠と連動推論の合算時の detectionMethod 判定**:
-   - 弱い直接証拠（例: `XSRF-TOKEN` 35点）が連動推論と合算されて採用閾値（50%）を超えた場合、`detectionMethod` が `direct` になります（`src/detection/engine.ts:707-710`）。E2E は、この影響を避けるため `/next-ssr-positive` の前に `/clear-cookies` を挟んでいます。
-5. **調査履歴・エクスポートにおけるクエリ文字列の保持**:
-   - 調査履歴（`chrome.storage.local`）および JSON・CSV エクスポートには、URL のクエリ文字列がそのまま含まれます（Markdown のみ、特定キーをマスク）。見直しは R06 として 1.7.0 以降に検討します。
-6. **ディストリ版バックポート判定の第2段階**:
-   - 現在の第1段階（`Needs Review` 扱い）から、ディストリビューション別のセキュリティ修正情報を自動参照・判定する第2段階への拡張を検討します。
-7. **content script の動的注入化 (IMPL-08)**:
-   - 全ページ常駐から、調査実行時のみの動的スクリプト注入（`chrome.scripting.executeScript`）への移行を検討します。
+#### ② v1.7.0 で解消した制限・機能強化
+1. **SemVer・プレリリース・複数ブランチ範囲の厳密比較と Angular 暫定対応の撤去 (SPEC-03, SPEC-05 / T01, T14)**:
+   - 4要素以上のバージョンやプレリリース識別子（`-alpha.1`, `-next.1` 等）の比較規則を刷新し、別メジャーのプレリリース版が過去ブランチの上限条件（`< 19.2.15` 等）に誤一致しないよう是正。これに伴い `curated.json` および `verify-advisories-nvd.mjs` の Angular 暫定対応を撤去。
+2. **NVD 自動取り込みの有効化と `fixStatus`・CISA KEV・重大度4段階の表示 (SPEC-12, SPEC-13, SPEC-15, IMPL-09 / T03, T04, T05)**:
+   - `wordpress`, `php`, `nginx`, `apache`, `nodejs` の NVD CPE 自動取り込みを有効化し、`minExtensionVersion: "1.7.0"` に更新。
+   - `fixStatus`（`fixed` / `unfixed` / `unknown`）、CISA KEV 悪用警告バッジ、重大度4段階（`critical` / `high` / `medium` / `low`）のフィルタ・集計・エクスポート対応、および GHSA 単体エントリの GitHub Advisory リンク生成を実装。
+3. **同一技術の複数バージョン保持と全件照合 (SPEC-14 / T06)**:
+   - 同一ページ内で複数バージョンが検出された場合に `detectedVersions` として全件保持し、代表 `version` に最小 SemVer を設定して全バージョンを脆弱性・EOL照合する仕様へ強化。
+4. **末尾ハイフン付きヘッダーターゲット (`x-fastify-`) の前方一致対応と連動推論の厳密分離 (SPEC-11 / T07)**:
+   - `target` が `-` で終わるヘッダーシグナルを前方一致（`startsWith`）で照合するよう修正し、弱い直接証拠（35点等）と連動推論の合算時に `detectionMethod` が誤って `direct` にならないよう分離。
+5. **CSP 複数ヘッダー積集合評価・`<meta>` CSP・ヘッダー値妥当性検証・混在コンテンツ拡大 (SPEC-07, SPEC-08, SPEC-10 / T08, T09)**:
+   - 複数 CSP ヘッダーの積集合評価、`<meta http-equiv="Content-Security-Policy">` 対応、`script-src-elem` フォールバック、`nonce-`/`sha*` による `'unsafe-inline'` 無効化、HSTS/XCTO/XFO/Referrer-Policy の値妥当性検証、および `srcset`/`object`/`form`/`style` 等の混在コンテンツ検出に対応。
+6. **履歴保存の直列化・URLクエリ/ハッシュ除去・`data:`/`blob:` 丸め・許容リスト移行 (IMPL-05, IMPL-06, IMPL-07, IMPL-10 / T10)**:
+   - 同時調査時の履歴上書きを防ぐ直列化ロック、履歴・JSON/CSV/Markdown出力からのクエリ文字列・フラグメント除去、`data:`/`blob:`/`javascript:` URL のスキーム丸め、および正規化URLによる許容設定キー移行を実装。
+7. **Content Script のオンデマンド動的注入・CHIPS Cookie・重複除去 (IMPL-08, IMPL-11, IMPL-12 / T11)**:
+   - `manifest.json` の常時 `content_scripts` を廃止して調査実行時のみの `chrome.scripting.executeScript` 注入に移行し、CHIPS（`Partitioned`）Cookie の取得・評価および Cookie 重複除去を実装。
+8. **README カバレッジ表の自動生成・HTML 一本化・PSL のビルド時生成 (DOC-03〜07, DOC-10〜12 / T13)**:
+   - `npm run spec:generate` による README カバレッジ表・PSL ルール定義（`src/security/psl-rules.generated.ts`）の自動生成、および `src/` 配下の古い HTML コピー廃止によるルート `popup.html` / `dashboard.html` への一本化を完了。
+
+#### ③ v1.7.1 で解消した制限・機能強化
+1. **要確認件数・重大度内訳・ステータス表示の一元整合と診断項目名の統一 (T01, T02, T11)**:
+   - `src/shared/security-status.ts` に判定ルールを一元化し、「要確認（`requiresAttentionCount`）」と重大度内訳（`CRITICAL`〜`LOW` の合計）を常時一致させ、`INFO` 行を `pass`＋`info` 件数に統一。`info` 項目が `WARN` と表示される不整合や `Referrer-Policy` 未設定の過剰警告を解消。
+   - Markdown の推奨対応ロードマップを固定文から要確認指摘ベースの動的生成へ刷新し、コードスパン（バックスラッシュ不使用）と表セル（`|` のみエスケープ）の処理を分離。さらに全固定診断項目で `status` 間の項目名揺れを廃止し、旧名称で保存された許容設定の後方互換性も維持。
+2. **外部通信先の再定義（Resource Timing 主体）と調査完全性・混在コンテンツ表示の改善 (T05, T06)**:
+   - `performance.getEntriesByType('resource')` による実際の読み込みリソースと、`document.baseURI` 基準で絶対 URL 解決した読み込み要素・メイン文書から通信先を集計するように刷新し、`link[rel="alternate"]`（`hreflang`）や `canonical`、`form[action]` 等の非通信参照を除外。
+   - 混在コンテンツの観測値に対象要素とマスク済み URL を表示し、Content Script 収集の一部失敗時や通信先 0 件の矛盾時に完全性を `partial` として理由を記録するよう改善。
+3. **Cookie の 6 用途分類と一般 Cookie チェックの独立化 (T07)**:
+   - `advertising`（広告）と `consent`（同意管理）を加えた 6 用途分類へ拡張し、Application Insights（`ai_session` / `ai_user`）や ASP.NET CSRF（`__RequestVerificationToken`）等の名前対応表をパターン判定より優先。認証系指摘の有無に依存せず `SEC-COOKIE-SECURE-GENERAL` を独立出力し、HTTP ページでの PASS 観測値も「HTTP のため Secure は評価対象外」と明確化。
+4. **CSP の重大度上限（最大 MEDIUM）・ヘッダー＋meta 積集合評価・ポリシー別問題点表 (T10)**:
+   - 多層防御の原則に基づき CSP 指摘の最大重大度を `medium`（`MEDIUM`）に統一（CSP ありのページが CSP なしより重くならない設計）。HTTP ヘッダーと `<meta>` の全強制ポリシーを能力単位の積集合で評価し、観測値での問題点要約・Markdown でのポリシー別問題点テーブル出力・XFO と `frame-ancestors` の優先関係注記に対応。
+5. **技術検出精度の向上・根拠整理・ASP.NET / WordPress / KEV 表示の改善 (T06, T08, T09, T11)**:
+   - `distroHint` の適用対象を `Server` / `X-Powered-By` の版直後接尾辞に限定。Tomcat（＋Java 連動）、Classic ASP、Azure Application Gateway、Application Insights、Google Tag Manager（`gtag/js`）、Facebook SDK の検出を追加し、廃止済み GA タグ（`ga.js` / `analytics.js`）を `INFO` 通知化。
+   - ASP.NET の `X-AspNet-Version`（露出指摘 `SEC-DISC-03` 追加）を CLR 版として表示し、CLR 2.0（`2.0.50727`）はサポート中の .NET Framework 3.5 SP1（2029-01-09 まで）と共通のため断定せず `Unknown` としてサポート期限を併記。Bootstrap 6 クラスと Tailwind CSS の誤認防止、WordPress コア `ver` 抽出とプラグイン/テーマ一覧表示、根拠の重複統合と代表 3 件表示、AngularJS 等の解消/未修正件数分離推奨文、CISA KEV 該当 CVE ID の名指し表示、HSTS `preload` 条件検証、証明書検証対象外の明記を完了。
+
+#### ④ 残る既知の制限と将来の課題 (v1.8.0 以降の検討項目)
+1. **パス部分に埋め込まれた機密情報**:
+   - 保持・出力する URL からクエリパラメータおよびフラグメント（`?token=...#hash`）は確実に除去されますが、URL パスセグメント内に埋め込まれた値（例: `/reset-password/<token>` 等）は自動判別できないため除去されません。
+2. **WordPress プラグイン・テーマの脆弱性 DB 照合**:
+   - v1.7.1 では受動観測された `wp-content/plugins/<名前>/` および `wp-content/themes/<名前>/` の名前と `ver` パラメータの一覧表示のみを行い、オフライン脆弱性 DB との自動照合は対象外としています（プラグインエコシステムの収録規模・誤照合防止を含め v1.8 以降で検討）。
+3. **ディストリ版バックポート判定の第2段階**:
+   - 現在の第1段階（`distroHint` による `Needs Review` 扱い）から、ディストリビューション別のセキュリティ修正情報（OVAL / OSV Ubuntu・Debian エコシステム等）を参照・判定する第2段階への拡張は今後の検討課題です。
+4. **Laravel CVE-2021-3129 の Ignition 連動マッピング制約**:
+   - §2.4 に記載のとおり、デバッグページライブラリ `facade/ignition` の脆弱性を本体バージョン `< 8.4.3` にマッピングしているため、Ignition デバッグページの直接検出等への精緻化は今後の検討課題とします。
 
 ---
 
@@ -299,6 +330,8 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 
 > **リリース記録 (v1.6.5)**:
 > `release/web-inspector-v1.6.5.zip` はタグ `v1.6.5`（コミット `c825dc9`）から作成されました。以後の main の差分は、ビルド入力(src/、public/、package.json、ロックファイル、ビルド設定、scripts/package.mjs)を含まず、公開用 zip の内容には影響しません。
+
+### 3.1 手動でのパッケージ確認・ストア提出手順
 
 1. **パッケージの確認**:
    - `release/web-inspector-vX.X.X.zip` のサイズ（約70〜100KB）および中身を確認します。
@@ -309,3 +342,211 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
    - [Chrome デベロッパー ダッシュボード](https://chrome.google.com/webstore/devconsole/) にログインします。
    - 対象アイテムを選択し、「パッケージのアップロード」から生成されたZIPファイルをアップロードします。
    - 変更点サマリーを入力し、「審査に送信」をクリックします。
+
+---
+
+### 3.2 脆弱性 DB 更新の自動マージと自動公開（D4 全自動パイプライン）
+
+v1.7.0 以降では、**「脆弱性 DB だけの更新（第 4 要素リビジョン版: 例 `1.7.0.1`）」** と **「コード変更を含む更新（3 要素バージョン: 例 `1.7.1`）」** を機械的に分離し、DB だけの軽微な更新（`minor`）は週次ジョブから Chrome Web Store の審査提出・公開まで人の操作なしで完結する構成を備えています。一方、コード変更を含むリリースや重大な DB 変更（`major`）は、従来どおり人間のレビュー・承認（`STAGED_PUBLISH`）を経て公開されます。
+
+```mermaid
+flowchart TD
+    subgraph WeeklyJob ["1. 週次 DB 更新 (advisory-db-update.yml)"]
+        Cron["毎週月曜 05:23 JST 起動"] --> FetchBuild["上流取得・DB生成・差分分類<br>(diff-db.mjs / bump-db-revision.mjs)"]
+        FetchBuild --> TestStep["検証・単体テスト・ビルド<br>(validate / verify-nvd / npm test)"]
+        TestStep --> PlanStep["PR計画・ラベル判定<br>(pr-plan.mjs)"]
+        PlanStep -->|minor & テスト合格 &<br>Appトークンあり &<br>ADVISORY_AUTO_MERGE=true| AutoMerge["GitHub App トークンで PR 作成<br>& gh pr merge --auto --squash"]
+        PlanStep -->|major または テスト失敗<br>(db:tests-failing)| ManualReview["PR 作成・人間がレビュー<br>(自動マージしない)"]
+    end
+
+    subgraph ReleaseJob ["2. リリース判定・ストア提出 (release.yml)"]
+        AutoMerge -->|main へマージ<br>(manifest.json 更新)| Prepare["リリース種別判定<br>(classify-release.mjs)"]
+        ManualReview -->|人間がマージ| Prepare
+        Prepare -->|4要素版 & DB関連ファイルのみ変更<br>& CWS_AUTO_PUBLISH=true| AutoRoute["Environment: chrome-web-store-auto<br>(承認なし / DEFAULT_PUBLISH)"]
+        Prepare -->|コード変更を含む版 または 3要素版<br>または CWS_AUTO_PUBLISH!=true| ManualRoute["Environment: chrome-web-store<br>(レビュアー承認必須 / STAGED_PUBLISH)"]
+        AutoRoute --> CwsReview["Chrome Web Store 審査通過後<br>ストアへ自動公開"]
+        ManualRoute --> CwsStaged["Chrome Web Store 審査通過後<br>ダッシュボードで人間が公開"]
+    end
+
+    subgraph MonitorJob ["3. 審査ステータス監視 (cws-status.yml)"]
+        CwsReview -.-> DailyCheck["毎日 1 回 status 監視<br>(cws-status.mjs)"]
+        DailyCheck -->|REJECTED / SUSPENDED 等| AlertIssue["GitHub Issue 自動起票・通知<br>(ラベル: cws-status)"]
+    end
+```
+
+#### ① 自動マージ (`advisory-db-update.yml` / `pr-plan.mjs` / `diff-db.mjs`) の安全条件
+週次 PR が自動マージされるのは、以下の**すべて**を満たす場合に限られます：
+1. `diff-db.mjs` の分類が **`minor`** であること。以下のいずれかに該当する場合はすべて **`major`** となり、自動マージされません：
+   - 手動管理（`curated`）アドバイザリの削除、または製品全体の削除
+   - EOL ステータスの逆行（`EOL` $\rightarrow$ `Supported` / `Maintenance`）
+   - 上流ソースの取得失敗を含む場合（`syncStatus !== 'ok'`）
+   - DB ファイルサイズが 50% を超えて増減した場合（初回 NVD 取り込み等を含む）
+   - `schemaVersion` または `minExtensionVersion` が変更された場合
+   - 既存アドバイザリの範囲（`range`）またはスコア（`cvssScore`）の変更が **20 件を超える**場合
+   - CISA KEV フラグが解除（`true` $\rightarrow$ `false`）された場合
+2. `npm test` および `npm run build` がすべて合格し、`db:tests-failing` ラベルが付いていないこと。
+3. GitHub App トークン（`BOT_APP_CLIENT_ID` / `BOT_APP_PRIVATE_KEY`）が設定されていること（未設定時は警告を出して自動マージをスキップ）。
+4. リポジトリ変数 `ADVISORY_AUTO_MERGE` が `'true'` であること。
+
+#### ② 自動公開 (`release.yml` / `classify-release.mjs`) の安全条件
+`main` ブランチへのマージ後、承認なし Environment（`chrome-web-store-auto`）および `DEFAULT_PUBLISH`（審査通過後の自動公開）が選ばれるのは、以下の**すべて**を満たす場合に限られます：
+1. `public/manifest.json` の `version` が **4 要素**（例: `1.7.0.1`）であること。
+2. 直前のリリースタグ（`v*`）からの変更ファイルが、`data/advisories/**`、`src/detection/advisory-db.json`、`public/manifest.json` のみに収まっていること。
+3. `public/manifest.json` の変更行が `"version"` フィールドのみであること。
+4. リポジトリ変数 `CWS_AUTO_PUBLISH` が `'true'` であること。
+
+※ 上記を 1 つでも満たさない場合は、自動的に承認必須の Environment `chrome-web-store` と `STAGED_PUBLISH` にフォールバックします（手動実行 `workflow_dispatch` の際は `CWS_PUBLISH_TYPE` または実行時入力 `publish_type` を選択可能です）。
+
+---
+
+### 3.3 全自動パイプラインの停止方法（緊急停止手順）
+
+上流データの異常や Chrome Web Store 審査での問題が発生し、自動マージ・自動公開を止めたい場合は、GitHub リポジトリの **Settings > Secrets and variables > Actions > Variables** で以下の **2 つの変数を `false` に変更**してください（コードの変更やコミットは不要で、即座に反映されます）。
+
+| 変数名 | 停止時の設定値 | 効果 |
+|---|---|---|
+| **`ADVISORY_AUTO_MERGE`** | `false` | 週次 DB 更新 PR の自動マージを停止します（PR の作成とテストは継続され、人間が確認してマージします）。 |
+| **`CWS_AUTO_PUBLISH`** | `false` | DB 限定リリースであっても自動公開（`chrome-web-store-auto` / `DEFAULT_PUBLISH`）を使わず、すべて承認必須の `chrome-web-store` / `STAGED_PUBLISH` に切り替えます。 |
+
+---
+
+### 3.4 誤った DB が公開されたときの戻し方（ロールバック手順）
+
+万が一、誤った脆弱性範囲や不適切なエントリを含む DB リビジョン版（例: `1.7.0.2`）が Chrome Web Store に公開された場合は、Chrome Web Store の仕様上「過去のバージョン番号を再アップロード」することはできないため、**該当 PR を revert した上で、第 4 要素を 1 つ進めた新しいリビジョン版（例: `1.7.0.3`）を作成して公開**します。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Maintainer as メンテナー
+    participant GitHub as GitHub (main)
+    participant Actions as Release Workflow
+    participant CWS as Chrome Web Store
+
+    Maintainer->>GitHub: 1. 変数 ADVISORY_AUTO_MERGE と CWS_AUTO_PUBLISH を一旦 false に設定 (任意)
+    Maintainer->>GitHub: 2. 問題の DB 更新 PR を Revert するブランチを作成
+    Maintainer->>GitHub: 3. curated.json (excluded 等) を調整し build-db.mjs で正しい DB を再生成
+    Maintainer->>GitHub: 4. bump-db-revision.mjs で manifest.json の第4要素を +1 (例: 1.7.0.2 → 1.7.0.3)
+    Maintainer->>GitHub: 5. PR を作成し CI 合格を確認して main へマージ
+    GitHub->>Actions: 6. Release ワークフロー起動 (v1.7.0.3 パッケージ生成)
+    Actions->>CWS: 7. v1.7.0.3 をアップロード・審査提出・公開
+```
+
+1. **該当コミットの取り消しと除外設定**:
+   - 問題となった DB 更新 PR を GitHub 上（または `git revert`）で取り消します。
+   - 特定の上流 CVE/GHSA が原因の場合は、`data/advisories/curated.json` の `excluded` に該当 ID と除外理由を追加し、`npm run advisories:build` と `npm run advisories:validate` を実行します。
+2. **新しい第 4 要素リビジョン番号の採番**:
+   - 既にタグ付け・提出されたバージョン番号（例: `1.7.0.2`）よりも大きいバージョンにするため、`node scripts/advisories/bump-db-revision.mjs` を実行（または手動で編集）して、`public/manifest.json` の `version` を次の第 4 要素リビジョン（例: `1.7.0.3`）に進めます。
+3. **マージと再リリース**:
+   - `npm test` の合格を確認して `main` ブランチへマージすると、`Release` ワークフローが `v1.7.0.3` をビルドして Chrome Web Store へ提出します。
+
+---
+
+### 3.5 自動化を有効にするための初期設定（管理者向けチェックリスト）
+
+全自動パイプラインを稼働させるには、リポジトリ管理者が GitHub および Google Cloud コンソールで以下の設定を行います。
+
+1. **PR 作成・自動マージ用 GitHub App の作成と Secrets 登録**:
+   - 標準の `GITHUB_TOKEN` で作成・マージされた PR は、無限ループ防止仕様により後続の `CI` や `Release` ワークフローを起動しません。そのため、リポジトリ専用の GitHub App（Permissions: `Contents: Read and write`, `Pull requests: Read and write`, `Issues: Read and write`）を作成してインストールし、Client ID を Variable `BOT_APP_CLIENT_ID`、秘密鍵を Secret `BOT_APP_PRIVATE_KEY` に登録します。
+2. **`main` ブランチ保護ルール（Ruleset）の設定**:
+   - リポジトリ設定で「Allow auto-merge（自動マージを許可）」を有効にします。
+   - `main` の Ruleset で「Require status checks to pass（必須チェック: `CI`）」を設定し、「Require approval of the most recent reviewable push」はオフにするか、上記 GitHub App をバイパス対象に設定します。
+3. **GitHub Environment `chrome-web-store-auto` と GCP Workload Identity Federation の設定**:
+   - GitHub に Environment `chrome-web-store-auto` を「Required reviewers なし」「Deployment branches: `main` のみ」で作成します（既存の `chrome-web-store` は Required reviewers ありのまま維持します）。
+   - Google Cloud の Workload Identity Pool Provider において、`repo:<owner>/<repo>:environment:chrome-web-store-auto` からの OIDC トークンを許可し、なりすまし防止のため `repository_id` および `repository_owner_id` の数値クレーム条件（immutable ID）を付与します。
+4. **段階的な有効化（2 週間の試行期間）**:
+   - 最初の 2 週間は `ADVISORY_AUTO_MERGE=false`・`CWS_AUTO_PUBLISH=false` のまま週次ジョブを動かし、生成される PR の差分とテスト結果を確認します。問題がなければ `ADVISORY_AUTO_MERGE=true` $\rightarrow$ `CWS_AUTO_PUBLISH=true` の順に有効化します。
+
+---
+
+## 4. 診断レポートの一括取得と整合性チェッカーの運用
+
+リリース前の品質検証および回帰テストでは、レポート整合性チェッカー（[`scripts/report-lint.mjs`](../scripts/report-lint.mjs)）と診断レポート一括取得スクリプト（[`scripts/collect-reports.mjs`](../scripts/collect-reports.mjs)）を組み合わせて、件数集計・ステータス表示・ロードマップ・通信先・CSP 重大度などの不整合を機械的に検出します。
+
+```mermaid
+flowchart LR
+    subgraph Offline ["1. 回帰検証・CI (オフライン完結)"]
+        Fixtures["tests/fixtures/reports/<br>(合成フィクスチャ *.example.test)"] --> LintCmd["npm run reports:lint<br>(scripts/report-lint.mjs)"]
+        LintCmd --> LintRes["全 9 検査項目 (R01〜R09) の合否判定"]
+    end
+
+    subgraph LiveCheck ["2. リリース前の実機・公開サイト検証 (ローカル実行)"]
+        Build["npm run build<br>(dist/ 生成)"] --> Collect["npm run reports:collect<br>(scripts/collect-reports.mjs)"]
+        Sites["サイト一覧<br>・scripts/report-sites.example.txt<br>・report-sites.local.txt (非追跡)"] --> Collect
+        Collect --> Output["reports/<日時>/ (Git 非追跡)<br>・JSON / Markdown レポート<br>・_summary.md (チェッカー結果付き)<br>・snapshots/ (--snapshot 指定時)"]
+    end
+```
+
+### 4.1 レポート整合性チェッカー (`scripts/report-lint.mjs` / `npm run reports:lint`)
+
+診断レポートの JSON と Markdown のペアを入力として受け取り、内部データと出力文面の整合性を機械的に検査します。
+
+#### 実行コマンド
+```bash
+# 既定: 回帰用合成フィクスチャ (tests/fixtures/reports/) の全件を検査
+npm run reports:lint
+
+# 任意の出力フォルダまたは特定の JSON レポートを指定して検査
+node scripts/report-lint.mjs reports/2026-11-08_0900
+node scripts/report-lint.mjs path/to/web-inspector-report-example.test-2026-11-08.json
+```
+
+#### 検査項目一覧（R01〜R09）
+| ID | 検査内容 |
+|---|---|
+| **R01** | サマリーの「要確認」件数（`requiresAttentionCount`）と重大度内訳（`CRITICAL`〜`LOW` の合計）が一致し、`INFO` 件数が `pass`＋`info` と一致すること |
+| **R02** | Markdown セクション 5 の表のステータス表記（`PASS` / `INFO` / `WARN` / `FAIL`）が JSON の `status` と一致すること |
+| **R03** | 推奨対応ロードマップ（セクション 13）の各行に対応する要確認の指摘が存在し、固定文や不要な行が出ないこと |
+| **R04** | 検出根拠の URL ホストが通信先（セクション 9）に含まれ、`alternate` リンクや `form[action]` の送信先だけの非通信ホストが混入していないこと |
+| **R05** | 固定診断項目（`X-Frame-Options`, `HSTS`, `XCTO`, `Referrer-Policy`, `Permissions-Policy`, `HTTPS暗号化通信`, `CORS` 等）の項目名が `status` によって変化しないこと |
+| **R06** | Markdown のコードスパン（`` `...` ``）内に不要なバックスラッシュエスケープ（`\_`, `\[` 等）が含まれないこと |
+| **R07** | 同一技術内で同じ種別・同じ値の検出根拠が重複して出力されていないこと |
+| **R08** | 調査完全性が「完全（`complete`）」である場合、外部通信先（自ホストを含む読み込み元）が 1 件以上計上されていること |
+| **R09** | CSP が設定されているページの CSP 指摘重大度が、CSP 未設定（`MEDIUM`）を上回らないこと（`HIGH` / `CRITICAL` が出ないこと） |
+
+---
+
+### 4.2 診断レポート一括取得スクリプト (`scripts/collect-reports.mjs` / `npm run reports:collect`)
+
+`dist/` にビルドされた拡張機能を読み込んだ Chromium（Playwright）を起動し、指定された URL 一覧を 1 サイトずつ順番に受動閲覧して JSON と Markdown の両レポートを保存します。取得完了後には自動で `report-lint.mjs` が実行され、サイトごとの合否一覧が `<出力先>/_summary.md` に記録されます。
+
+#### 実行コマンドと主なオプション
+```bash
+# 1. 事前に最新の拡張機能をビルドする
+npm run build
+
+# 2. 公開テストサイト・各技術公式サイトの一覧で一括取得する（応答の遅いサイト向けに --timeout を延長）
+npm run reports:collect -- --sites scripts/report-sites.example.txt --timeout 90000
+
+# 3. ローカルの検証リスト (report-sites.local.txt があれば優先使用) で取得する
+npm run reports:collect
+
+# 4. 単一 URL を直接指定して取得する
+node scripts/collect-reports.mjs https://example.com/
+
+# 5. 回帰調査用スナップショット (HTML・サニタイズ済みヘッダー・Resource Timing・値除外済みCookie属性) も保存する
+npm run reports:collect -- --sites scripts/report-sites.example.txt --snapshot --timeout 90000
+```
+
+- `--sites <file>`: 1 行 1 URL のサイト一覧ファイルを指定します（`#` 以降はコメント。未指定時は `report-sites.local.txt` が存在すればそれを使用し、無ければ [`scripts/report-sites.example.txt`](../scripts/report-sites.example.txt) を使用します）。
+- `--out <dir>`: 出力先ディレクトリを指定します（既定: `reports/<YYYY-MM-DD_HHmm>`）。
+- `--snapshot`: `<出力先>/snapshots/` に HTML、機密値（`Set-Cookie` の値や `Authorization` / `Cookie` ヘッダー）を除去したメイン文書レスポンスヘッダー、Resource Timing 一覧、および値を除去した Cookie 属性一覧を保存します。
+- `--wait <ms>` / `--timeout <ms>`: ページ読み込み完了後の待機時間（既定 `2000` ms）および読み込みタイムアウト上限（既定 `30000` ms）を指定します。
+- `--strict-tls`: TLS 証明書エラーのあるサイトを取得対象から除外します（既定では検証目的のため警告を記録したうえで取得します）。
+
+---
+
+### 4.3 実サイトのレポート・ホスト名の取り扱いに関する厳守事項
+
+> [!CAUTION]
+> **実サイトの診断レポートを公開リポジトリに載せないでください。**  
+> 第三者が運営する実サイトのレポートには、当該サイトの構成情報やセキュリティ設定上の指摘事項が含まれます。これらを公開リポジトリへコミット・プッシュしたり、公開 Issue / Pull Request に貼り付けたりすることは厳禁です。
+
+1. **出力先とローカルリストの Git 非追跡維持**:
+   - 一括取得スクリプトの既定出力先である `reports/` ディレクトリおよびローカル用の URL 一覧 `report-sites.local.txt` は `.gitignore` に登録されています。これらをリポジトリ内の別ディレクトリへコピーしたり、`git add -f` で強制追加したりしないでください。
+2. **回帰用フィクスチャ・テスト・作業記録におけるホスト名規則**:
+   - リポジトリにコミットする回帰用レポートフィクスチャ（`tests/fixtures/reports/`）、単体テスト、コード内コメント、および作業記録（WORKLOG・完了報告書）には、**公開されていない実サイトのホスト名を記載しないでください**。
+   - 公開テストサイト（`vulnweb.com`, `testfire.net`, `badssl.com` 等）および各技術の公式サイト（`wordpress.org`, `react.dev`, `getbootstrap.com` 等）以外の再現ケースを作成する場合は、必ずホスト名を **`*.example.test` に置き換えた合成データ**を使用してください。
+3. **公開サイトのスナップショット保存時の注意**:
+   - `tests/fixtures/snapshots/` に回帰テスト用のスナップショットを配置する場合は、上記の公開テストサイト・公式サイトのみを対象とし、Cookie の値（Value）や認証ヘッダーが含まれていないことを必ず確認してください（`--snapshot` は既定で値をマスク・除外します）。
+
+

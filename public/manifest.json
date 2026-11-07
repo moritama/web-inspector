@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Web Technology & Security Inspector",
   "short_name": "Web Inspector",
-  "version": "1.6.6.2",
+  "version": "1.7.1",
   "description": "Webサイトの使用技術の特定と、外部から確認できるセキュリティ設定の受動的診断を行う拡張機能",
   "permissions": [
     "activeTab",
@@ -18,13 +18,6 @@
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content/content-script.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Web Inspector",

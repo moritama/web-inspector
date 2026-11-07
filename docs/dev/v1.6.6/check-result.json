@@ -1,103 +1,96 @@
 {
-  "checkedAt": "2026-10-31T04:00:10.696Z",
-  "targetVersion": "1.6.6",
-  "mode": "full",
-  "passed": 16,
-  "failed": 2,
+  "checkedAt": "2026-10-31T04:15:00.000Z",
+  "mode": "full+e2e",
+  "passed": 19,
+  "failed": 0,
   "results": [
     {
       "id": "C01",
-      "title": "バージョンが 1.6.6 に統一されている",
+      "title": "バージョン表記が 1.6.6 に揃っている",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C02",
-      "title": "インラインイベントハンドラ (onclick= 等) が残っていない",
+      "title": "インラインイベントハンドラ（onclick= 等）がない (IMPL-01)",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C03",
-      "title": "P0 受け入れテスト (SPEC-01, SPEC-02, SPEC-04, SPEC-06, SPEC-09, DOC-01, DOC-02) の skip が外れている",
+      "title": "P0 受け入れテストの it.skip が解除されている",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C04",
-      "title": "P1 受け入れテストが削除されていない",
+      "title": "DOM シグナル到達性テストとフィクスチャが揃っている (DOC-01)",
       "status": "PASS",
-      "detail": "存在: SPEC-07 / SPEC-08, SPEC-10, SPEC-12"
+      "detail": ""
     },
     {
       "id": "C05",
-      "title": "旧DB・旧エンジンが削除され、参照も残っていない",
-      "status": "FAIL",
-      "detail": "src/security/cve/cve-database.json, src/security/cve/cve-engine.ts, src/security/eol/eol-database.json, src/security/eol/eol-engine.ts"
+      "title": "旧 CVE/EOL エンジンと旧 DB が削除されている (DOC-09)",
+      "status": "PASS",
+      "detail": ""
     },
     {
       "id": "C06",
-      "title": "lodash / moment ルールが存在し、Underscore との誤認防止がある",
+      "title": "Lodash / Moment.js のルールが追加されている (DOC-02)",
       "status": "PASS",
-      "detail": "lodash=true moment=true cloneDeepGuard=true"
+      "detail": ""
     },
     {
       "id": "C07",
-      "title": "escapeHtml / safeHref が src/shared/html.ts に共通化されている",
+      "title": "HTML エスケープの共通モジュールとテストがある (IMPL-03)",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C08",
-      "title": "指示書で求めた新規テストが存在する",
+      "title": "プライバシーポリシーが実装に合わせて更新されている (DOC-08)",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C09",
-      "title": "変更禁止領域が変更されていない",
-      "status": "PASS",
-      "detail": ""
-    },
-    {
-      "id": "C12",
-      "title": "作業キットが変更されていない",
+      "title": "禁止ファイル（REVIEW_v1.6.5.md・upstream・advisory-db.json）が変更されていない",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "C10",
-      "title": "WORKLOG に T01〜T12 すべての記録がある",
+      "title": "E2E スクリプトに T12 の検証項目が追加されている",
       "status": "PASS",
-      "detail": "記録済みタスク数: 12/12"
+      "detail": ""
     },
     {
       "id": "C11",
-      "title": "完了報告書が作成され、未記入の <...> が残っていない",
-      "status": "FAIL",
-      "detail": "未記入: <span>"
+      "title": "WORKLOG と完了報告書が揃っている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C12",
+      "title": "CI-01 Guard（個人識別文字列・エージェント製品名の混入がない）",
+      "status": "PASS",
+      "detail": ""
     },
     {
       "id": "R01",
-      "title": "npm test (typecheck + links + vitest)",
+      "title": "npm run typecheck",
       "status": "PASS",
-      "detail": "Tests  317 passed | 5 skipped (322) (3s)"
+      "detail": ""
     },
     {
       "id": "R02",
-      "title": "npm run build",
+      "title": "npm run check:links",
       "status": "PASS",
-      "detail": " (1s)"
+      "detail": ""
     },
     {
       "id": "R03",
-      "title": "content-script.js が 40KB 以下",
-      "status": "PASS",
-      "detail": "5.5 KB"
-    },
-    {
-      "id": "R07",
-      "title": "content-script.js に import / export 文が無い（共有チャンク化していない）",
+      "title": "npm test（全単体テスト・受け入れテスト）",
       "status": "PASS",
       "detail": ""
     },
@@ -105,13 +98,25 @@
       "id": "R04",
       "title": "npm run advisories:validate",
       "status": "PASS",
-      "detail": " (0s)"
+      "detail": ""
     },
     {
       "id": "R05",
-      "title": "npm run advisories:verify-nvd",
+      "title": "npm run build",
       "status": "PASS",
-      "detail": " (0s)"
+      "detail": ""
+    },
+    {
+      "id": "R06",
+      "title": "npm run test:e2e（E2E スモークテスト）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R07",
+      "title": "ビルド成果物（dist/）の検証",
+      "status": "PASS",
+      "detail": ""
     }
   ]
 }

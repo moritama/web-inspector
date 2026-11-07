@@ -9,8 +9,32 @@
       {
         "type": "header",
         "target": "server",
-        "pattern": "Apache(?![-\\w])(?:/([0-9.]+))?",
+        "pattern": "Apache(?![-\\w]|\\s+(?:Tomcat|Coyote))(?:/([0-9.]+))?",
         "versionRegex": "Apache/([0-9.]+)",
+        "weight": 95
+      }
+    ]
+  },
+  {
+    "id": "tomcat",
+    "name": "Tomcat",
+    "category": "web-server",
+    "website": "https://tomcat.apache.org/",
+    "description": "Apacheソフトウェア財団が開発するオープンソースのJavaサーブレットコンテナ・Webサーバー",
+    "implies": [
+      {
+        "id": "java",
+        "relation": "runtime-dependency",
+        "runtimeStatus": "unknown",
+        "confidenceFactor": 0.95
+      }
+    ],
+    "signals": [
+      {
+        "type": "header",
+        "target": "server",
+        "pattern": "Apache(?:-Coyote(?:/[0-9.]+)?|[-\\s]+Tomcat(?:(?:/|\\s+)([0-9.]+))?)",
+        "versionRegex": "Apache[-\\s]+Tomcat(?:/|\\s+)([0-9.]+)",
         "weight": 95
       }
     ]

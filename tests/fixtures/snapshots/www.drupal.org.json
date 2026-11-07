@@ -1,0 +1,154 @@
+{
+  "url": "https://www.drupal.org/",
+  "finalUrl": "https://www.drupal.org/",
+  "hostname": "www.drupal.org",
+  "statusCode": 200,
+  "capturedAt": "2026-11-06T20:20:14.654Z",
+  "responseHeaders": {
+    "accept-ranges": [
+      "bytes"
+    ],
+    "cache-control": [
+      "private, no-store"
+    ],
+    "content-length": [
+      "3038"
+    ],
+    "content-security-policy": [
+      "frame-ancestors 'self'"
+    ],
+    "content-type": [
+      "text/html; charset=utf-8"
+    ],
+    "date": [
+      "Fri, 06 Nov 2026 20:20:11 GMT"
+    ],
+    "permissions-policy": [
+      "interest-cohort=()"
+    ],
+    "set-cookie": [
+      "_fs_ch_st_FSBmUei20MqUiJb9=; Max-Age=10; HttpOnly; Path=/"
+    ],
+    "strict-transport-security": [
+      "max-age=15552000; includeSubDomains; preload"
+    ],
+    "via": [
+      "1.1 varnish"
+    ],
+    "x-cache": [
+      "MISS"
+    ],
+    "x-cache-hits": [
+      "0"
+    ],
+    "x-content-type-options": [
+      "nosniff"
+    ],
+    "x-frame-options": [
+      "SAMEORIGIN"
+    ],
+    "x-served-by": [
+      "cache-nrt-rjaa8190070-NRT"
+    ],
+    "x-timer": [
+      "S1793996412.959562,VS0,VE4"
+    ]
+  },
+  "resourceTiming": [
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/assets/inter-var.woff2",
+      "initiatorType": "link",
+      "transferSize": 78700,
+      "encodedBodySize": 78400,
+      "decodedBodySize": 78400,
+      "startTime": 56,
+      "duration": 31
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/assets/styles.css",
+      "initiatorType": "link",
+      "transferSize": 1837,
+      "encodedBodySize": 1537,
+      "decodedBodySize": 5895,
+      "startTime": 56,
+      "duration": 18
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/errors.js",
+      "initiatorType": "script",
+      "transferSize": 3675,
+      "encodedBodySize": 3375,
+      "decodedBodySize": 9434,
+      "startTime": 75,
+      "duration": 13
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/script.js?reload=true",
+      "initiatorType": "script",
+      "transferSize": 54214,
+      "encodedBodySize": 53914,
+      "decodedBodySize": 53914,
+      "startTime": 89,
+      "duration": 16
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/pat?token=AatGx4ZvvBFHe_63gKSIKvWFYNwXgg39lLnrGQOAi54fYTaJJtbw1IkFy8jKuXqfqhW1TcRH3loLurlymi9Yub32Qquni6046tPmSt1ruJ_o8xdW81v78TF6dqz-AZ5UoAe1Y74H3CFwnLp-K3ejb4BfEH7wTTG-mEAtc2UGLWNnRbzhFwkLW7c5xHTB2JCH-9ZSZvLvdDlNwLo4we1nJFt42xve-J6XlF69sqpPzsGNC1jXzUijSrrNHG7OoO6fgY7y65HcQB1zA8ESWatS1atOXcsBvqAr_AD7HspKmDNM6aUPAKUjhPxSXQ0x63HMqTCtcZ-Iw-IxwQjYFtB2SLb-K6vPZ-J3WJbWEU3FvMdW0C-uCex-XaNogzHvXL4M8FcCitUE83I7Gvb0HOtRwUr94C5BairBxwDGJtfZPFTK10yzm5J24TCoFys=",
+      "initiatorType": "fetch",
+      "transferSize": 300,
+      "encodedBodySize": 0,
+      "decodedBodySize": 0,
+      "startTime": 107,
+      "duration": 12
+    },
+    {
+      "name": "https://www.drupal.org/favicon.ico",
+      "initiatorType": "other",
+      "transferSize": 299937,
+      "encodedBodySize": 299637,
+      "decodedBodySize": 299637,
+      "startTime": 110,
+      "duration": 45
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/fst-post-back",
+      "initiatorType": "fetch",
+      "transferSize": 1049,
+      "encodedBodySize": 749,
+      "decodedBodySize": 749,
+      "startTime": 120,
+      "duration": 35
+    },
+    {
+      "name": "https://www.drupal.org/fastly/logo",
+      "initiatorType": "fetch",
+      "transferSize": 725,
+      "encodedBodySize": 425,
+      "decodedBodySize": 425,
+      "startTime": 156,
+      "duration": 9
+    },
+    {
+      "name": "https://www.drupal.org/_fs-ch-1T1wmsGaOgGaSxcX/fst-post-back",
+      "initiatorType": "fetch",
+      "transferSize": 9757,
+      "encodedBodySize": 9457,
+      "decodedBodySize": 9457,
+      "startTime": 204,
+      "duration": 21
+    }
+  ],
+  "cookies": [
+    {
+      "name": "_fs_ch_st_FSBmUei20MqUiJb9",
+      "domain": "www.drupal.org",
+      "path": "/",
+      "secure": false,
+      "httpOnly": true,
+      "sameSite": "unspecified",
+      "session": false,
+      "hostOnly": true,
+      "partitioned": false
+    }
+  ],
+  "html": "<!DOCTYPE html><html lang=\"en\"><head>\n    <meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; img-src 'self' data:; media-src 'self' data:; object-src 'none'; style-src 'self' 'sha256-o4vzfmmUENEg4chMjjRP9EuW9ucGnGIGVdbl8d0SHQQ='; script-src 'self' 'sha256-a9bHdQGvRzDwDVzx8m+Rzw+0FHZad8L0zjtBwkxOIz4=';\">\n    <link href=\"/_fs-ch-1T1wmsGaOgGaSxcX/assets/inter-var.woff2\" rel=\"preload\" as=\"font\" type=\"font/woff2\" crossorigin=\"\">\n    <link href=\"/_fs-ch-1T1wmsGaOgGaSxcX/assets/styles.css\" rel=\"stylesheet\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Client Challenge</title>\n    <style>\n      #loading-error {\n        font-size: 16px;\n        font-family: 'Inter', sans-serif;\n        margin-top: 10px;\n        margin-left: 10px;\n        display: none;\n      }\n    </style>\n  </head>\n  <body>\n    <noscript>\n      <div class=\"noscript-container\">\n        <div class=\"noscript-content\">\n          <img\n            src=\"/_fs-ch-1T1wmsGaOgGaSxcX/assets/errorIcon.svg\"\n            alt=\"\"\n            role=\"presentation\"\n            class=\"error-icon\"\n          />\n          <span class=\"noscript-span\"\n            >JavaScript is disabled in your browser.</span\n          >\n          <p>Please enable JavaScript to proceed.</p>\n        </div>\n      </div>\n    </noscript>\n    <div id=\"loading-error\" role=\"alert\" aria-live=\"polite\">\n      A required part of this site couldn’t load. This may be due to a browser\n      extension, network issues, or browser settings. Please check your\n      connection, disable any ad blockers, or try using a different browser.\n    </div>\n    <script>\n      function loadScript(src) {\n        return new Promise((resolve, reject) => {\n          const script = document.createElement('script');\n          script.onload = resolve;\n          script.onerror = (event) => {\n            console.error('Script load error event:', event);\n            document.getElementById('loading-error').style.display = 'block';\n            reject(\n              new Error(\n                `Failed to load script: ${src}, Please contact the service administrator.`\n              )\n            );\n          };\n          script.src = src;\n          document.body.appendChild(script);\n        });\n      }\n\n      loadScript('/_fs-ch-1T1wmsGaOgGaSxcX/errors.js')\n        .then(() => {\n          const script = document.createElement('script');\n          script.src = '/_fs-ch-1T1wmsGaOgGaSxcX/script.js?reload=true';\n          script.onerror = (event) => {\n            console.error('Script load error event:', event);\n            const errorMsg = new Error(\n              `Failed to load script: ${script.src}. Please contact the service administrator.`\n            );\n            console.error(errorMsg);\n            handleScriptError();\n          };\n          document.body.appendChild(script);\n        })\n        .catch((error) => {\n          console.error(error);\n        });\n    </script><script src=\"/_fs-ch-1T1wmsGaOgGaSxcX/errors.js\"></script>\n  \n\n<script src=\"/_fs-ch-1T1wmsGaOgGaSxcX/script.js?reload=true\"></script><div id=\"pageContainer\"><div id=\"contentContainer\"><img src=\"data:image/svg+xml,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 512 198.27&quot;&gt;%0A    &lt;defs&gt;%0A        &lt;style&gt;%0A            .cls-1 {%0A                fill: %23ff282d;%0A            }%0A        &lt;/style&gt;%0A    &lt;/defs&gt;%0A    &lt;g id=&quot;Layer_2&quot; data-name=&quot;Layer 2&quot;&gt;%0A        &lt;g id=&quot;Layer_1-2&quot; data-name=&quot;Layer 1&quot;&gt;%0A            &lt;g id=&quot;Fastly_Logo_-_Red&quot; data-name=&quot;Fastly Logo - Red&quot;&gt;%0A                &lt;g id=&quot;Fastly_Logo_-_Red-2&quot; data-name=&quot;Fastly Logo - Red&quot;&gt;%0A                    &lt;polygon class=&quot;cls-1&quot;%0A                        points=&quot;348.44 20.35 348.44 153.94 388.57 153.94 388.57 133.53 375.31 133.53 375.31 0 348.44 0 348.44 20.35&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M0,133.53H13.64V69.08H0V51.35l13.64-2.24V31.17C13.64,9.43,18.37,0,46.09,0A115.17,115.17,0,0,1,65.38,2L61.7,23.85a49.78,49.78,0,0,0-9-.78c-9.76,0-12.23,1-12.23,10.51V49.11H60.79v20H40.51v64.45H54v20.4H0Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M334.78,127.08a53.11,53.11,0,0,1-10.54.84c-11.06.27-10.1-3.36-10.1-13.78V69.08h21v-20h-21V0H287.27V119.71c0,23.5,5.8,34.23,31.08,34.23,6,0,14.21-1.54,20.42-2.87Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M501.7,133.63a10.14,10.14,0,1,1-10.19,10.14,10.14,10.14,0,0,1,10.19-10.14m0,18.68a8.55,8.55,0,0,0,8.51-8.54,8.5,8.5,0,1,0-8.51,8.54m1.88-3.56-2.05-3h-1.42v3h-2.29v-10H502c2.46,0,4,1.24,4,3.45a3,3,0,0,1-2.08,3.09l2.49,3.42Zm-3.47-5h1.82c1,0,1.74-.4,1.74-1.5s-.7-1.45-1.68-1.45h-1.88Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M253.72,69V65.46A115.8,115.8,0,0,0,233.14,64c-12.5,0-14,6.63-14,10.23,0,5.08,1.74,7.83,15.29,10.79,19.8,4.45,39.69,9.09,39.69,33.64,0,23.29-12,35.32-37.21,35.32-16.88,0-33.26-3.63-45.76-6.8V127.08h20.35v3.56c8.75,1.69,17.93,1.52,22.73,1.52,13.34,0,15.49-7.17,15.49-11,0-5.29-3.82-7.83-16.32-10.37-23.56-4-42.25-12.07-42.25-36,0-22.65,15.14-31.54,40.37-31.54,17.09,0,30.08,2.65,42.59,5.83V69Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot; d=&quot;M127.84,85.09,118,93.69a5.25,5.25,0,1,0,3.19,3.2l8.72-9.75Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M171.25,127.07V43.46H144.37V51a55,55,0,0,0-18.11-6.77v-9.1h3.28V28.28H102.48v6.83h3.28v9.17a55.32,55.32,0,1,0,38.76,101.87l4.77,7.78h28.38V127.07Zm-26.64-26.83A28.42,28.42,0,0,1,117.73,127v-3.18h-3.22V127a28.43,28.43,0,0,1-26.68-26.89H91V96.91H87.85a28.42,28.42,0,0,1,26.66-26.65v3.16h3.22V70.25A28.42,28.42,0,0,1,144.61,97h-3.2v3.22Z&quot; /&gt;%0A                    &lt;path class=&quot;cls-1&quot;%0A                        d=&quot;M456.58,49.11H512v20H498.75l-34,83.62c-9.74,23.48-25.74,45.59-50.1,45.59a93.67,93.67,0,0,1-19.5-2l2.43-24.39a68.7,68.7,0,0,0,10.63,1.1c11.3,0,24-7,28-19.19L401.82,69.06H388.57v-20H444v20H430.78l19.51,48h0l19.51-48H456.58Z&quot; /&gt;%0A                &lt;/g&gt;%0A            &lt;/g&gt;%0A        &lt;/g&gt;%0A    &lt;/g&gt;%0A&lt;/svg&gt;\" id=\"fastlyLogo\" alt=\"Fastly Logo\" style=\"display: block; height: 40px;\"><p id=\"captchaTitle\">Enter the characters seen in the image below:</p><div id=\"captchaContainer\"><img src=\"data:image/jpeg;base64,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\" id=\"captchaImage\" alt=\"CAPTCHA image challenge\"></div><div id=\"audioContainer\" role=\"group\" aria-label=\"Audio CAPTCHA controls\"><img src=\"data:image/svg+xml,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; height=&quot;24&quot; viewBox=&quot;0 -960 960 960&quot; width=&quot;24&quot; fill=&quot;currentColor&quot;&gt;%0A    &lt;path%0A        d=&quot;m380-300 280-180-280-180v360ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z&quot; /&gt;%0A&lt;/svg&gt;\" id=\"audioButton\" data-token=\"AdWEXPVda5m9jwrO4OQbVu7dH_ewoFMtfYUQwh_dYi9ULE20OMI2XdxZVrz69yQdLbBuWhTWrkO54jFnZDO-kIQUYYhHWrdFbLxQvdC7T214SwLBmPJ1gYG6qv7zvDoSjBPUJfevQnNed6gtExXlvFj67zT0jtwWDCBIH52LVumYv5DN_gGNFNYnaeIIzCyC33ap6gtkTJHcIWbkZGbLBLZbiJ9CYtIoKmmR7rqtZ83Y9e1bJtfEUiI9iu-41PU1-K4ZfNAvyudhDAWBAF4x1je0WABbKu-322tlIqWAVTdzitiWywTy77lPTs1WBJsLFFDoUTbvZvVxutjQUVu-1FlMGlHVyvy1L5qISAqMCH82MQXripGUAdxbv5c4orp88XO3xXqQeg3gBU4Am1ierXapNcTmJjSiNthCwAwI2ZiZupPNBxvoP5T0GEKtPv6qszOt9HScWLt4Ia8JzXbWGS8yKoD8rue_asRqAeQh2dw3Fy8dkfC7g1t6ow3f3Xe4NRyjEQCrIqm5KzWE21fBRWCPp2SVd3gPTLV4pGaWJIPGwCTAWh8HS0YkXQ5WrVg3V7-JymONGC8wQAu5Gu_uDo4EJX5SZYdoLQ3IUvxWedNo1eB4f5mogbKDZ13KKle7WEjBjH_42HvkDpdXyRji_T89S57nvUijQ_p8Lb9WSifOkj-420801V0BhbsPJHwXxrNbayu74bUYE8e8Vy9X95VFmMphf7iRnV7rcxxRHqs5ElFfbqGJ81ZS3HzKfX6YDS4gy7apJP8DS6VBn40v1FWsBw==\" data-playing=\"false\" alt=\"Play audio CAPTCHA\" role=\"button\" tabindex=\"0\"><a id=\"audioDownload\" tabindex=\"0\" style=\"background-image: url(&quot;data:image/svg+xml,&lt;svg xmlns=\\&quot;http://www.w3.org/2000/svg\\&quot; enable-background=\\&quot;new 0 0 24 24\\&quot; height=\\&quot;24px\\&quot; viewBox=\\&quot;0 0 24 24\\&quot; width=\\&quot;24px\\&quot;%0A    fill=\\&quot;currentColor\\&quot;&gt;%0A    &lt;g&gt;%0A        &lt;rect fill=\\&quot;none\\&quot; height=\\&quot;24\\&quot; width=\\&quot;24\\&quot; /&gt;%0A    &lt;/g&gt;%0A    &lt;g&gt;%0A        &lt;path%0A            d=\\&quot;M18,15v3H6v-3H4v3c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2v-3H18z M17,11l-1.41-1.41L13,12.17V4h-2v8.17L8.41,9.59L7,11l5,5 L17,11z\\&quot; /&gt;%0A    &lt;/g&gt;%0A&lt;/svg&gt;&quot;);\"><span class=\"sr-only\">Download audio CAPTCHA</span></a></div><div id=\"inputContainer\"><form id=\"capForm\" data-token=\"AdWEXPVda5m9jwrO4OQbVu7dH_ewoFMtfYUQwh_dYi9ULE20OMI2XdxZVrz69yQdLbBuWhTWrkO54jFnZDO-kIQUYYhHWrdFbLxQvdC7T214SwLBmPJ1gYG6qv7zvDoSjBPUJfevQnNed6gtExXlvFj67zT0jtwWDCBIH52LVumYv5DN_gGNFNYnaeIIzCyC33ap6gtkTJHcIWbkZGbLBLZbiJ9CYtIoKmmR7rqtZ83Y9e1bJtfEUiI9iu-41PU1-K4ZfNAvyudhDAWBAF4x1je0WABbKu-322tlIqWAVTdzitiWywTy77lPTs1WBJsLFFDoUTbvZvVxutjQUVu-1FlMGlHVyvy1L5qISAqMCH82MQXripGUAdxbv5c4orp88XO3xXqQeg3gBU4Am1ierXapNcTmJjSiNthCwAwI2ZiZupPNBxvoP5T0GEKtPv6qszOt9HScWLt4Ia8JzXbWGS8yKoD8rue_asRqAeQh2dw3Fy8dkfC7g1t6ow3f3Xe4NRyjEQCrIqm5KzWE21fBRWCPp2SVd3gPTLV4pGaWJIPGwCTAWh8HS0YkXQ5WrVg3V7-JymONGC8wQAu5Gu_uDo4EJX5SZYdoLQ3IUvxWedNo1eB4f5mogbKDZ13KKle7WEjBjH_42HvkDpdXyRji_T89S57nvUijQ_p8Lb9WSifOkj-420801V0BhbsPJHwXxrNbayu74bUYE8e8Vy9X95VFmMphf7iRnV7rcxxRHqs5ElFfbqGJ81ZS3HzKfX6YDS4gy7apJP8DS6VBn40v1FWsBw==\"><label id=\"inputLabel\" for=\"capInput\">Answer</label><input name=\"answer\" required=\"\" type=\"text\" autocapitalize=\"off\" autocomplete=\"off\" spellcheck=\"false\" id=\"capInput\" aria-required=\"true\" aria-labelledby=\"captchaTitle inputLabel\"><div id=\"errorContainer\" role=\"alert\" aria-hidden=\"true\"><img src=\"data:image/svg+xml,&lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 16 16&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;%0A    &lt;path%0A        d=&quot;M8 12C8.208 12 8.385 11.927 8.531 11.781C8.677 11.635 8.75 11.458 8.75 11.25C8.75 11.042 8.677 10.865 8.531 10.719C8.385 10.573 8.208 10.5 8 10.5C7.792 10.5 7.615 10.573 7.469 10.719C7.323 10.865 7.25 11.042 7.25 11.25C7.25 11.458 7.323 11.635 7.469 11.781C7.615 11.927 7.792 12 8 12ZM7.25 9H8.75V4H7.25V9ZM8 16C6.90267 16 5.868 15.7917 4.896 15.375C3.924 14.9583 3.07333 14.3853 2.344 13.656C1.61467 12.9267 1.04167 12.076 0.625 11.104C0.208333 10.132 0 9.09733 0 8C0 6.88867 0.208333 5.85033 0.625 4.885C1.04167 3.92033 1.61467 3.07333 2.344 2.344C3.07333 1.61467 3.924 1.04167 4.896 0.625C5.868 0.208333 6.90267 0 8 0C9.11133 0 10.1497 0.208333 11.115 0.625C12.0797 1.04167 12.9267 1.61467 13.656 2.344C14.3853 3.07333 14.9583 3.92033 15.375 4.885C15.7917 5.85033 16 6.88867 16 8C16 9.09733 15.7917 10.132 15.375 11.104C14.9583 12.076 14.3853 12.9267 13.656 13.656C12.9267 14.3853 12.0797 14.9583 11.115 15.375C10.1497 15.7917 9.11133 16 8 16Z&quot;%0A        fill=&quot;%23BD140A&quot; /&gt;%0A&lt;/svg&gt;\" id=\"fastlyErrorIcon\" alt=\"\" role=\"presentation\"><div id=\"errorText\">Incorrect CAPTCHA</div></div><button type=\"submit\" id=\"capSubmit\">Submit</button></form></div><div id=\"errorModal\" role=\"dialog\" aria-label=\"Error Message\" aria-hidden=\"true\"><p>Audio is currently unavailable. Please try again later.</p><button id=\"errorModalBtn\" aria-label=\"Close error message\">Close</button></div></div></div></body></html>"
+}

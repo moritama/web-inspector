@@ -1,6 +1,6 @@
 {
   "name": "web-inspector",
-  "version": "1.6.6",
+  "version": "1.7.1",
   "description": "Chrome / Edge対応 Web技術検出＆セキュリティ診断ブラウザ拡張機能",
   "type": "module",
   "scripts": {
@@ -18,6 +18,8 @@
     "test:links": "node scripts/check-links.mjs",
     "test:e2e": "npm run build && node scripts/test-e2e-smoke.mjs",
     "test-server": "node test-server/server.mjs",
+    "reports:collect": "node scripts/collect-reports.mjs",
+    "reports:lint": "node scripts/report-lint.mjs",
     "spec:generate": "node scripts/generate-spec-catalog.mjs",
     "package": "npm run advisories:validate && npm run advisories:verify-nvd && npm run build && node scripts/package.mjs",
     "cws": "node scripts/cws-publish.mjs"

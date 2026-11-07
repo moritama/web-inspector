@@ -16,12 +16,10 @@ Webサイトで広く使用されるオープンソースライブラリ（jQuer
 flowchart LR
     subgraph AssetInspection ["静的アセット解析 (ADD-02)"]
         CSSLinks["CSS link タグ"] --> URLParse["URLパス / ファイル名解析<br>(例: bootstrap-4.3.1.min.css)"]
-        CSSComments["CSSファイル先頭コメント"] --> CommentParse["ライブラリ名 & バージョン抽出"]
     end
 
     subgraph IntegrityCheck ["整合性照合 (ADD-03)"]
         URLParse --> Matcher{"CSSバージョン と<br>JSバージョン の突合"}
-        CommentParse --> Matcher
         JSSymbols["JS実行時 / スクリプトURL"] --> Matcher
         Matcher -->|不一致| MismatchAlert["⚠️ バージョン不一致警告<br>(表示崩れ・潜在的脆弱性)"]
         Matcher -->|一致| MatchOK["✅ 整合性確認済"]
@@ -41,7 +39,7 @@ flowchart LR
 | 機能ID | 機能名 | 概要・仕様 |
 |---|---|---|
 | **ADD-01** | 静的アセット調査基盤 | Content Scriptによる `<link rel="stylesheet">` の網羅的走査およびアセット属性収集 |
-| **ADD-02** | CSSアセット解析 | CSSのファイル名、URLパス、および先頭コメント（`/*! Bootstrap v4.3.1 ... */`）からライブラリ名・バージョンを推定 |
+| **ADD-02** | CSSアセット解析 | CSSのファイル名およびURLパスからライブラリ名・バージョンを推定 |
 | **ADD-03** | CSS/JSバージョン整合性照合 | 同一ライブラリにおいて、JS側で検出されたバージョンとCSS側で検出されたバージョンを比較し、不一致（Mismatch）を検知 |
 | **ADD-04** | オフライン脆弱性データベース | OSVおよびNVDのアドバイザリデータをビルド時に圧縮JSON（`advisory-db.json`）として拡張機能内に同梱。外部API依存を排除 |
 | **ADD-05** | 既知脆弱性 (CVE) & EOL突合エンジン | Semantic Versioning範囲判定に基づき、特定されたバージョンに該当する脆弱性（CVE識別子、深刻度、CVSSスコア、修正バージョン）およびサポート終了状況（EOL日、推奨対応）を算出 |

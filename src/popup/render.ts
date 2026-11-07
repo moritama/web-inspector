@@ -3,11 +3,23 @@
  * ポップアップ描画純粋関数 (src/popup/render.ts) - IMPL-03
  */
 
+import {
+  formatAdvisoryRecommendation,
+  resolveTechAdvisoryDisplayInfo,
+  sortAdvisoriesByPriority,
+} from '../detection/advisory';
+import { filterDisplayEvidences } from '../detection/engine';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
+import {
+  getSecurityCheckDisplayBadge,
+  isFindingExcludedByException,
+} from '../shared/security-status';
 import {
   DetectedTechnology,
   InspectedCookieInfo,
   SecurityCheckResult,
+  SecurityAdvisory,
 } from '../shared/types';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
@@ -16,6 +28,7 @@ export function formatCategory(cat: string): string {
   const map: Record<string, string> = {
     'web-server': 'Webサーバー',
     'programming-language': '開発言語・フレームワーク',
+    'framework': 'バックエンドフレームワーク',
     'cms': 'CMS',
     'js-framework': 'JSフレームワーク',
     'js-css-library': 'JS / CSSライブラリ',
@@ -67,6 +80,39 @@ export function formatRuntimeStatus(status?: string): string {
   }
 }
 
+export function formatFixStatus(fixStatus?: string): string {
+  switch (fixStatus) {
+    case 'fixed':
+      return '修正版あり (fixed)';
+    case 'partial':
+      return '一部系列のみ修正 (partial)';
+    case 'none':
+      return '公式修正版なし (none)';
+    case 'unknown':
+      return '修正版情報なし (unknown)';
+    default:
+      return fixStatus || '';
+  }
+}
+
+export function getAdvisorySeverityBadgeClass(severity?: string): string {
+  const s = String(severity || '').toLowerCase();
+  if (s === 'critical') return 'sev-critical';
+  if (s === 'high') return 'sev-high';
+  if (s === 'low') return 'sev-low';
+  return 'sev-medium';
+}
+
+/**
+ * 複数バージョン検出時の表示文字列を生成する (v1.7.0 T08 / SPEC-10)
+ * 例: "1.12.4 / 3.7.1（2 つのバージョン）"
+ */
+export function formatMultiVersionSummary(tech: DetectedTechnology): string | null {
+  if (!tech.instances || tech.instances.length < 2) return null;
+  const vers = tech.instances.map((i) => i.version || '不明').join(' / ');
+  return `${vers}（${tech.instances.length} つのバージョン）`;
+}
+
 /**
  * 技術詳細モーダルのHTML文字列を生成する
  */
@@ -91,6 +137,8 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
   if (tech.eolInfo) {
     const eol = tech.eolInfo;
     const statusColor = eol.status === 'EOL' ? 'var(--danger-color)' : eol.status === 'Maintenance' ? 'var(--warning-color)' : 'var(--success-color)';
+    const statusLabel = eol.label || eol.status;
+    const recommendationText = eol.note || eol.recommendation;
     const sourceLink = eol.sourceUrl
       ? `<div>出典: ${renderSafeExternalLink(eol.sourceUrl, eol.sourceUrl, { className: 'ref-link' })}</div>`
       : '';
@@ -98,36 +146,44 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     eolHtml = `
       <div>
         <div class="detail-section-title">サポート状況 (EOL)</div>
-        <div>ステータス: <strong style="color:${statusColor};">${escapeHtml(eol.status)}</strong> ${eol.eolDate ? `(EOL日: ${escapeHtml(eol.eolDate)})` : ''}</div>
-        <div style="font-size:11px;color:var(--accent-color);">${escapeHtml(eol.recommendation)}</div>
+        <div>ステータス: <strong style="color:${statusColor};">${escapeHtml(statusLabel)}</strong> ${eol.eolDate ? `(EOL日: ${escapeHtml(eol.eolDate)})` : ''}</div>
+        <div style="font-size:11px;color:var(--accent-color);">${escapeHtml(recommendationText)}</div>
         ${sourceLink}
       </div>
     `;
   }
 
-  // 既知脆弱性 (CVE) ブロック
+  // 既知脆弱性 (CVE) ブロック (v1.7.0 T04 / SPEC-03)
   let cveHtml = '';
-  const statusLabel = tech.offlineMatchStatus || 'Not Covered';
+  const displayInfo = resolveTechAdvisoryDisplayInfo(tech);
+  const statusLabel = tech.offlineMatchStatus || (displayInfo.isZeroCoverage ? 'Not Covered' : 'No Match');
   const staleNotice = tech.isStale ? '<span style="color:var(--warning-color);margin-left:6px;font-size:11px;">⚠️ DB鮮度: 31日以上経過</span>' : '';
 
-  if (tech.advisories && tech.advisories.length > 0) {
-    cveHtml = `
-      <div>
-        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">照合ステータス: <strong>${escapeHtml(statusLabel)}</strong></div>
-        ${tech.advisories
-          .map(
-            (adv) => `
-          <div class="advisory-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+  const renderAdvisoryItemHtml = (adv: SecurityAdvisory, cardClass: string): string => {
+    const sevClass = getAdvisorySeverityBadgeClass(adv.severity);
+    const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+    const kevBadge = adv.kev
+      ? `<span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+      : '';
+    const fixStatusHtml = adv.fixStatus
+      ? `<span class="badge badge-fix-status" style="margin-left:8px;">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+      : '';
+    return `
+          <div class="${cardClass}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
               <strong>${escapeHtml(adv.id)}</strong>
-              ${adv.cvssScore ? `<span class="badge sev-high">CVSS ${escapeHtml(adv.cvssScore)}</span>` : ''}
+              <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                ${kevBadge}
+                <span class="badge ${sevClass}">${sevText}</span>
+                ${adv.cvssScore ? `<span class="badge ${sevClass}">CVSS ${escapeHtml(adv.cvssScore)}</span>` : ''}
+              </div>
             </div>
             <div style="font-weight:600;margin-top:2px;">${escapeHtml(adv.title)}</div>
             <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(adv.summary)}</div>
             <div style="font-size:11px;margin-top:4px;">
               <span>影響範囲: <code>${escapeHtml(adv.affectedRange)}</code></span>
               ${adv.fixedVersion ? `<span style="margin-left:8px;color:var(--success-color);">修正版: <strong>v${escapeHtml(adv.fixedVersion)}</strong></span>` : ''}
+              ${fixStatusHtml}
             </div>
             ${
               adv.referenceUrls && adv.referenceUrls.length > 0
@@ -145,24 +201,62 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
                 : ''
             }
           </div>
+        `;
+  };
+
+  if (tech.advisories && tech.advisories.length > 0) {
+    const sortedAdvisories = sortAdvisoriesByPriority(tech.advisories);
+    const topAdvisories = sortedAdvisories.slice(0, 5);
+    const restAdvisories = sortedAdvisories.slice(5);
+    const recommendationText = formatAdvisoryRecommendation(tech.version, tech.advisories, {
+      isEol: tech.supportStatus === 'EOL',
+      technologyName: tech.technology,
+    });
+    const moreHtml =
+      restAdvisories.length > 0
+        ? `
+          <details class="advisory-more" style="margin-top:6px;">
+            <summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--accent-color);">ほか ${restAdvisories.length} 件を表示</summary>
+            <div style="margin-top:6px;">
+              ${restAdvisories.map((adv) => renderAdvisoryItemHtml(adv, 'advisory-card advisory-more-item')).join('')}
+            </div>
+          </details>
         `
-          )
-          .join('')}
+        : '';
+
+    cveHtml = `
+      <div>
+        <div class="detail-section-title" style="color:var(--danger-color);">該当する既知脆弱性 (${tech.advisories.length} 件) ${staleNotice}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">照合ステータス: <strong>${escapeHtml(statusLabel)}</strong>（収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>
+        <div style="font-size:11px;color:var(--accent-color);margin-bottom:6px;">推奨対応: ${escapeHtml(recommendationText)}</div>
+        ${topAdvisories.map((adv) => renderAdvisoryItemHtml(adv, 'advisory-card')).join('')}
+        ${moreHtml}
       </div>
     `;
   } else {
-    let statusText = 'この技術のオフライン脆弱性データは未収録です。';
-    if (statusLabel === 'No Match') {
-      statusText = 'オフラインDBに収録されていますが、検出されたバージョンには該当する既知脆弱性はありません。';
-    } else if (statusLabel === 'Unknown Version') {
-      statusText = tech.distroHint
-        ? `${tech.distroHint} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。`
-        : 'バージョン不明、またはLinuxディストリビューション固有パッケージのため脆弱性断定を保留しています。';
+    let headingStatus = escapeHtml(statusLabel);
+    let statusText = '';
+    if (displayInfo.isDistro) {
+      const upstreamRef =
+        typeof displayInfo.upstreamAdvisoriesCount === 'number'
+          ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件該当）`
+          : '';
+      headingStatus = `Needs Review (${escapeHtml(statusLabel)})`;
+      statusText = `${tech.distroHint || 'Linux'} のディストリビューション版です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。${upstreamRef}（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）`;
+    } else if (displayInfo.isZeroCoverage) {
+      headingStatus = '収録なし (Not Covered)';
+      statusText = `この技術の脆弱性は収録していません（dataVersion: ${displayInfo.dataVersion}）。`;
+    } else if (statusLabel === 'Unknown Version' || tech.advisoryMatchStatus === 'Needs Review' || !tech.version) {
+      headingStatus = 'Needs Review (Unknown Version)';
+      statusText = `バージョン不明のため脆弱性断定を保留しています（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）。`;
+    } else {
+      headingStatus = '収録 DB 上は該当なし (No Match)';
+      statusText = `収録 DB 上は該当なし（収録 ${displayInfo.count} 件・取得元: ${displayInfo.sourcesText}・dataVersion: ${displayInfo.dataVersion}）。`;
     }
     cveHtml = `
       <div>
         <div class="detail-section-title">脆弱性照合状況 (オフラインDB) ${staleNotice}</div>
-        <div style="font-size:12px;">ステータス: <strong>${escapeHtml(statusLabel)}</strong></div>
+        <div style="font-size:12px;">ステータス: <strong>${headingStatus}</strong></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(statusText)}</div>
       </div>
     `;
@@ -186,11 +280,75 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     ? `<div>公式サイト: ${renderSafeExternalLink(tech.website, tech.website, { className: 'ref-link' })}</div>`
     : '';
 
+  const multiVerSummary = formatMultiVersionSummary(tech);
+  const instancesDetailHtml =
+    multiVerSummary && tech.instances
+      ? `
+      <div>
+        <div class="detail-section-title">バージョン別インスタンス (${escapeHtml(tech.technology)} ${escapeHtml(multiVerSummary)})</div>
+        ${tech.instances
+          .map((inst) => {
+            const instEol = inst.eol ?? inst.eolInfo;
+            const instEolStatus = inst.supportStatus ?? instEol?.status ?? 'Unknown';
+            const instEolLabel = instEol?.label || instEolStatus;
+            const instAdvs = inst.advisories || [];
+            const advIds = instAdvs.map((a) => escapeHtml(a.id)).join(', ');
+            const evList = (inst.evidence || [])
+              .map((e) => `<li><code>[${escapeHtml(e.type)}]</code> ${escapeHtml(e.value)}</li>`)
+              .join('');
+            return `
+          <div class="evidence-item" style="margin-bottom:6px;">
+            <div><strong>v${escapeHtml(inst.version || '不明')}</strong> — EOL: <strong>${escapeHtml(instEolLabel)}</strong> / CVE: <strong>${instAdvs.length}件</strong>${advIds ? ` (${advIds})` : ''}</div>
+            ${evList ? `<ul style="margin:4px 0 0 16px;padding:0;font-size:11px;">${evList}</ul>` : ''}
+          </div>
+        `;
+          })
+          .join('')}
+      </div>
+    `
+      : '';
+
+  const displayEvidences = filterDisplayEvidences(tech.evidence || []);
+  const visibleEvidences = displayEvidences.slice(0, 3);
+  const remainingEvidenceCount = displayEvidences.length - visibleEvidences.length;
+
+  const wpExtensionsHtml =
+    (tech.wpPlugins && tech.wpPlugins.length > 0) || (tech.wpThemes && tech.wpThemes.length > 0)
+      ? `
+      <div>
+        <div class="detail-section-title">WordPress プラグイン・テーマ</div>
+        ${
+          tech.wpPlugins && tech.wpPlugins.length > 0
+            ? `<div style="font-size:12px;margin-bottom:4px;"><strong>プラグイン:</strong> ${tech.wpPlugins
+                .map((p) =>
+                  p.version
+                    ? `<code>${escapeHtml(p.name)}</code> (ver: <code>${escapeHtml(p.version)}</code>)`
+                    : `<code>${escapeHtml(p.name)}</code>`
+                )
+                .join(', ')}</div>`
+            : ''
+        }
+        ${
+          tech.wpThemes && tech.wpThemes.length > 0
+            ? `<div style="font-size:12px;"><strong>テーマ:</strong> ${tech.wpThemes
+                .map((th) =>
+                  th.version
+                    ? `<code>${escapeHtml(th.name)}</code> (ver: <code>${escapeHtml(th.version)}</code>)`
+                    : `<code>${escapeHtml(th.name)}</code>`
+                )
+                .join(', ')}</div>`
+            : ''
+        }
+      </div>
+    `
+      : '';
+
   return `
     ${candidateHtml}
     <div>
       <div class="detail-section-title">基本情報</div>
       <div>確信度スコア: <strong>${tech.confidence}</strong> (${escapeHtml(tech.confidenceLevel.toUpperCase())})</div>
+      ${multiVerSummary ? `<div>検出バージョン一覧: <strong>${escapeHtml(tech.technology)} ${escapeHtml(multiVerSummary)}</strong></div>` : ''}
       <div>代表バージョン: <strong>${tech.isCandidateGroup ? 'いずれかの可能性あり' : escapeHtml(tech.version || '不明')}</strong> ${tech.versionSource ? `[取得元: ${escapeHtml(tech.versionSource)}]` : ''}</div>
       <div>カテゴリ: ${escapeHtml(tech.isCandidateGroup ? '言語・フレームワーク候補' : formatCategory(tech.category))}</div>
       <div>検出方式: <strong>${escapeHtml(formatDetectionMethod(tech.detectionMethod, tech.isCandidateGroup))}</strong></div>
@@ -201,13 +359,15 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
       ${websiteHtml}
     </div>
 
+    ${tech.isCandidateGroup ? '' : wpExtensionsHtml}
+    ${tech.isCandidateGroup ? '' : instancesDetailHtml}
     ${tech.isCandidateGroup ? '' : integrityHtml}
     ${tech.isCandidateGroup ? '' : eolHtml}
     ${tech.isCandidateGroup ? '' : cveHtml}
 
     <div>
       <div class="detail-section-title">判定根拠 (エビデンス)</div>
-      ${tech.evidence
+      ${visibleEvidences
         .map(
           (e) => `
         <div class="evidence-item">
@@ -218,18 +378,40 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
       `
         )
         .join('')}
+      ${remainingEvidenceCount > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">他 ${remainingEvidenceCount} 件</div>` : ''}
     </div>
   `;
+}
+
+/**
+ * ポップアップのセキュリティ診断リスト行の内部HTML文字列を生成する (v1.7.1 T01)
+ */
+export function renderSecurityCheckRowHtml(check: SecurityCheckResult): string {
+  const { badgeClass, popupLabel } = getSecurityCheckDisplayBadge(check);
+  const isAccepted = isFindingExcludedByException(check);
+  const exceptionBadge = isAccepted
+    ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:4px;">許容済</span>'
+    : '';
+
+  return `
+      <div class="item-main">
+        <div class="item-texts">
+          <span class="item-name">${escapeHtml(check.name)}</span>
+          <span class="item-meta">${escapeHtml(check.observed)}</span>
+        </div>
+      </div>
+      <div class="item-side">
+        ${exceptionBadge}
+        <span class="badge ${badgeClass}">${popupLabel}</span>
+      </div>
+    `;
 }
 
 /**
  * セキュリティチェック詳細モーダルのHTML文字列を生成する
  */
 export function renderSecurityModalHtml(check: SecurityCheckResult): string {
-  const isAccepted =
-    check.exceptionStatus === 'accepted' ||
-    check.exceptionStatus === 'false-positive' ||
-    check.exceptionStatus === 'muted';
+  const isAccepted = isFindingExcludedByException(check);
 
   let exceptionSectionHtml = '';
   if (isAccepted) {
@@ -295,9 +477,12 @@ export function renderSecurityModalHtml(check: SecurityCheckResult): string {
  * Cookie詳細モーダルのHTML文字列を生成する
  */
 export function renderCookieModalHtml(cookie: InspectedCookieInfo): string {
+  const catKey = normalizeCookieCategory(cookie.category);
+  const catLabel = formatCookieCategory(catKey);
   return `
     <div>
       <div class="detail-section-title">属性詳細 (※値は除外)</div>
+      <div>用途分類: <strong>${escapeHtml(catLabel)} (${escapeHtml(catKey)})</strong></div>
       <div>ドメイン: <strong>${escapeHtml(cookie.domain || '-')}</strong></div>
       <div>パス: <strong>${escapeHtml(cookie.path || '-')}</strong></div>
       <div>Secure: <strong>${cookie.secure ? '有効' : '無効'}</strong></div>

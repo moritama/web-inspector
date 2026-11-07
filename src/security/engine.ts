@@ -10,6 +10,7 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 import { checkCookies } from './cookies';
+import { checkLegacyAnalyticsTags } from './domain-analyzer';
 import { checkHttpHeaders } from './headers';
 import { checkHttpsAndMixedContent } from './https';
 
@@ -36,9 +37,12 @@ export class SecurityEngine {
     const isHttps = input.url.toLowerCase().startsWith('https://');
     const allChecks: SecurityCheckResult[] = [];
 
-    // 1. HTTPヘッダー診断
+    // 1. HTTPヘッダー診断（meta CSP がある場合はヘッダー CSP と合わせて積集合評価: v1.7.1 T10）
     const headers = input.network?.responseHeaders || {};
-    const headerChecks = checkHttpHeaders(headers, input.url, isHttps);
+    const headerChecks = checkHttpHeaders(headers, input.url, isHttps, {
+      metaCsp: input.dom?.metaCsp,
+      metaCspReportOnly: input.dom?.metaCspReportOnly,
+    });
     allChecks.push(...headerChecks);
 
     // 2. Cookie診断
@@ -50,6 +54,10 @@ export class SecurityEngine {
     const mixedItems = input.dom?.mixedContent || [];
     const httpsChecks = checkHttpsAndMixedContent(input.url, isHttps, mixedItems);
     allChecks.push(...httpsChecks);
+
+    // 4. 旧世代の計測タグ (ga.js / analytics.js) の残存確認 (v1.7.1 T09 / L, E5)
+    const legacyTagChecks = checkLegacyAnalyticsTags(input.url, input.dom);
+    allChecks.push(...legacyTagChecks);
 
     // 重大度順（high -> medium -> low -> info -> unknown）にソート
     const severityOrder: Record<string, number> = {

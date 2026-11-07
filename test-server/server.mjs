@@ -9,9 +9,14 @@
  * 4. /legacy-lib (IMP-03): 古い jQuery 2.2.4 & WordPress 5.2 (既知脆弱性・EOL検知確認用)
  */
 
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = 3000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SNAPSHOTS_DIR = path.resolve(__dirname, '..', 'tests', 'fixtures', 'snapshots');
 
 function createLayout(title, content) {
   return `<!DOCTYPE html>
@@ -46,6 +51,11 @@ function createLayout(title, content) {
       <a href="/vue3-app">/vue3-app (Vue 3)</a>
       <a href="/bootstrap-only">/bootstrap-only (Bootstrapのみ)</a>
       <a href="/distro-apache">/distro-apache (Distro Apache)</a>
+      <a href="/jquery-multi">/jquery-multi (複数jQuery)</a>
+      <a href="/csp-frame-ancestors">/csp-frame-ancestors (CSP FAのみ)</a>
+      <a href="/app-insights-cookies">/app-insights-cookies (AI Cookie)</a>
+      <a href="/relative-urls-only">/relative-urls-only (相対URLのみ)</a>
+      <a href="/wordpress-legacy-ga">/wordpress-legacy-ga (WP &amp; ga.js)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -393,6 +403,13 @@ const server = http.createServer((req, res) => {
       '_ga=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       '_myapp_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       'laravel_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ASP.NET_SessionId=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__RequestVerificationToken=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ai_user=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ai_session=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      'ApplicationGatewayAffinity=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__utma=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
+      '__utmz=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
     ];
     res.setHeader('Set-Cookie', expiredCookies);
     res.setHeader('Content-Type', 'text/html; charset=UTF-8');
@@ -538,6 +555,48 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  // --- 13b. /bootstrap6-only (Bootstrap 6 のページで Tailwind CSS 未検出検証: v1.7.1 T09 / N5) ---
+  if (pathname === '/docs/6.0/dist/css/bootstrap.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/*! Bootstrap v6.0.0-alpha.1 */ .d-none { display: none; }');
+  }
+  if (pathname === '/docs/6.0/assets/bootstrap.bundle.CuYdWjy9.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* Bootstrap 6 bundle */');
+  }
+  if (pathname === '/bootstrap6-only') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <title>Bootstrap 6 誤検知防止検証 (/bootstrap6-only)</title>
+  <link rel="stylesheet" href="/docs/6.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <header class="navbar lg:navbar-expand bd-navbar">
+    <nav class="2xl:container flex-wrap lg:flex-nowrap justify-content-start">
+      <div class="d-flex align-items-center gap-2 lg:gap-1">
+        <span class="lg:d-none">Menu</span>
+        <ul class="nav navbar-nav flex-row d-none lg:d-flex">
+          <li class="nav-item"><a class="nav-link px-2" href="/docs/6.0/">Docs</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+  <main class="xl:container">
+    <div class="lg:col-10 mx-auto d-flex flex-column md:flex-row gap-4">
+      <h1>Bootstrap 6 Responsive Prefix Test</h1>
+    </div>
+  </main>
+  <script type="module" src="/docs/6.0/assets/bootstrap.bundle.CuYdWjy9.js"></script>
+</body>
+</html>`);
+  }
+
   // --- 14. /distro-apache (Linuxディストリビューション版バックポート考慮検証: SPEC-02) ---
   if (pathname === '/distro-apache') {
     res.setHeader('Server', 'Apache/2.4.41 (Ubuntu)');
@@ -557,6 +616,222 @@ const server = http.createServer((req, res) => {
         </div>`
       )
     );
+  }
+
+  // --- 15. /jquery-multi (同一ライブラリの複数バージョン検証: SPEC-10 / T08) ---
+  if (pathname === '/js/jquery-1.12.4.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v1.12.4 */ window.__jq1 = "1.12.4";');
+  }
+  if (pathname === '/js/jquery-3.7.1.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v3.7.1 */ window.jQuery = function() {}; window.jQuery.fn = { jquery: "3.7.1" }; window.$ = window.jQuery;');
+  }
+  if (pathname === '/jquery-multi') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        '複数バージョン jQuery 検証',
+        `<h1>複数バージョン jQuery 検証 (/jquery-multi)</h1>
+        <p>このページでは <code>jquery-1.12.4.min.js</code> と <code>jquery-3.7.1.min.js</code> の 2 つのバージョンを同時に読み込んでいます。</p>
+        <div class="card">
+          <h3>期待される検出結果:</h3>
+          <ul>
+            <li><strong>jQuery</strong>: <code>instances</code> に <code>1.12.4</code> と <code>3.7.1</code> の 2 件が昇順で保持されること</li>
+            <li><strong>代表バージョン (version)</strong>: 古い方の <code>1.12.4</code> が設定されること</li>
+            <li><strong>脆弱性照合</strong>: <code>1.12.4</code> インスタンスに対して <code>CVE-2020-11022</code> 等が検出されること</li>
+          </ul>
+        </div>
+        <script src="/js/jquery-1.12.4.min.js"></script>
+        <script src="/js/jquery-3.7.1.min.js"></script>`
+      )
+    );
+  }
+
+  // --- 16. /csp-frame-ancestors (v1.7.1 T03: frame-ancestors だけの CSP) ---
+  if (pathname === '/csp-frame-ancestors') {
+    res.setHeader('Server', 'nginx/1.24.0');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'CSP frame-ancestors 単独検証',
+        `<h1>CSP frame-ancestors 単独検証 (/csp-frame-ancestors)</h1>
+        <p>このページでは <code>Content-Security-Policy: frame-ancestors 'self'</code> のみを送信し、<code>X-Frame-Options</code> は未設定です。</p>
+        <div class="card">
+          <h3>期待される診断結果:</h3>
+          <ul>
+            <li><strong>X-Frame-Options</strong>: <code>PASS</code>（観測値に <code>CSP frame-ancestors により保護</code>）</li>
+            <li><strong>CSP (Content-Security-Policy)</strong>: <code>WARN</code>（<code>script-src</code> 等が未指定）</li>
+          </ul>
+        </div>`
+      )
+    );
+  }
+
+  // --- 17. /app-insights-cookies (v1.7.1 T03: Application Insights の Cookie と CSRF トークン) ---
+  if (pathname === '/app-insights-cookies') {
+    res.setHeader('Server', 'Microsoft-IIS/10.0');
+    res.setHeader('X-AspNet-Version', '4.0.30319');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Set-Cookie', [
+      'ASP.NET_SessionId=mock_aspnet_session_01; Path=/; HttpOnly; SameSite=Lax',
+      '__RequestVerificationToken=mock_csrf_token_01; Path=/; SameSite=Lax',
+      'ai_user=mock_ai_user_01; Path=/; SameSite=Lax',
+      'ai_session=mock_ai_session_01; Path=/; SameSite=Lax',
+      'ApplicationGatewayAffinity=mock_agw_affinity_01; Path=/; HttpOnly; SameSite=Lax',
+    ]);
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(
+      createLayout(
+        'Application Insights Cookie & CSRF 検証',
+        `<h1>Application Insights Cookie &amp; CSRF 検証 (/app-insights-cookies)</h1>
+        <p>このページでは Application Insights の計測 Cookie (<code>ai_user</code>, <code>ai_session</code>) や CSRF トークン (<code>__RequestVerificationToken</code>)、<code>ApplicationGatewayAffinity</code> を発行しています。</p>
+        <script src="https://js.monitor.azure.com/scripts/b/ai.2.min.js"></script>`
+      )
+    );
+  }
+
+  // --- 18. /relative-urls-only (v1.7.1 T03: 相対 URL だけのページ & 非通信 link/form) ---
+  if (pathname === '/assets/js/jquery-3.7.1.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* jQuery v3.7.1 */ window.jQuery = function() {}; window.jQuery.fn = { jquery: "3.7.1" }; window.$ = window.jQuery;');
+  }
+  if (pathname === '/assets/css/bootstrap-5.3.3.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/*! Bootstrap v5.3.3 */ .relative-container { display: block; }');
+  }
+  if (pathname === '/relative-urls-only') {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    );
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>相対 URL のみのリソース読み込み検証</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/css/bootstrap-5.3.3.min.css">
+  <link rel="alternate" hreflang="en" href="https://en.relative.example.test/">
+  <link rel="alternate" hreflang="fr" href="https://fr.relative.example.test/">
+  <link rel="canonical" href="https://canonical.relative.example.test/">
+</head>
+<body>
+  <div class="relative-container">
+    <h1>相対 URL のみのリソース読み込み検証 (/relative-urls-only)</h1>
+    <p>スクリプトとスタイルシートを相対パスのみで読み込み、別ホストの alternate リンクと form[action] を含みます。</p>
+    <form action="https://form.relative.example.test/submit" method="post">
+      <button type="submit">送信</button>
+    </form>
+  </div>
+  <script src="/assets/js/jquery-3.7.1.min.js"></script>
+</body>
+</html>`);
+  }
+
+  // --- 19. /wordpress-legacy-ga (v1.7.1 T03: WordPress と旧 ga.js) ---
+  if (pathname === '/wp-includes/js/wp-embed.min.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* wp-embed 6.4.3 */');
+  }
+  if (pathname === '/wp-includes/css/dist/block-library/style.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* wp-block-library 6.4.3 */');
+  }
+  if (pathname === '/wp-content/plugins/contact-form-7/includes/js/index.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* contact-form-7 5.8.7 */');
+  }
+  if (pathname === '/wp-content/themes/twentytwentyfour/style.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* Theme Name: Twenty Twenty-Four */');
+  }
+  if (pathname === '/wordpress-legacy-ga') {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Set-Cookie', [
+      '__utma=1.123456789.1700000000.1700000000.1700000000.1; Path=/; SameSite=Lax',
+      '__utmz=1.1700000000.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); Path=/; SameSite=Lax',
+    ]);
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WordPress &amp; 旧 Google Analytics (ga.js) 検証</title>
+  <link rel="https://api.w.org/" href="/wp-json/">
+  <link rel="stylesheet" href="/wp-includes/css/dist/block-library/style.min.css?ver=6.4.3">
+  <link rel="stylesheet" href="/wp-content/themes/twentytwentyfour/style.css?ver=1.0">
+</head>
+<body>
+  <div class="wp-site-blocks">
+    <h1>WordPress &amp; 旧 Google Analytics (ga.js) 検証 (/wordpress-legacy-ga)</h1>
+    <p>WordPress コア・プラグイン・テーマの URL と旧 ga.js スクリプトを含みます。</p>
+  </div>
+  <script src="/wp-includes/js/wp-embed.min.js?ver=6.4.3"></script>
+  <script src="/wp-content/plugins/contact-form-7/includes/js/index.js?ver=5.8.7"></script>
+  <script src="https://ssl.google-analytics.com/ga.js"></script>
+</body>
+</html>`);
+  }
+
+  // --- 20. /snapshots/<site> (v1.7.1 T06: 取得済みスナップショットのローカル配信) ---
+  if (pathname.startsWith('/snapshots/')) {
+    const rawSite = decodeURIComponent(pathname.slice('/snapshots/'.length)).replace(/\/+$/, '');
+    if (!rawSite || !/^[a-zA-Z0-9._-]+$/.test(rawSite) || rawSite.includes('..')) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Invalid snapshot site name');
+    }
+    const jsonPath = path.join(SNAPSHOTS_DIR, `${rawSite}.json`);
+    const htmlPath = path.join(SNAPSHOTS_DIR, `${rawSite}.html`);
+    if (!fs.existsSync(jsonPath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end(`Snapshot not found: ${rawSite}`);
+    }
+    const snap = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    const html =
+      typeof snap.html === 'string' && snap.html.length > 0
+        ? snap.html
+        : fs.existsSync(htmlPath)
+          ? fs.readFileSync(htmlPath, 'utf-8')
+          : '';
+    const skipHeaders = new Set([
+      'content-encoding',
+      'content-length',
+      'transfer-encoding',
+      'connection',
+    ]);
+    if (snap.responseHeaders && typeof snap.responseHeaders === 'object') {
+      for (const [k, v] of Object.entries(snap.responseHeaders)) {
+        if (skipHeaders.has(k.toLowerCase())) continue;
+        if (Array.isArray(v) && v.length > 0) {
+          res.setHeader(k, v.length === 1 ? v[0] : v);
+        }
+      }
+    }
+    if (!res.getHeader('content-type')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+    res.writeHead(typeof snap.statusCode === 'number' ? snap.statusCode : 200);
+    return res.end(html);
   }
 
   // --- 8. デフォルト (v1.1 テストページ) ---

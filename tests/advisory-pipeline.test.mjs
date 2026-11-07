@@ -18,9 +18,12 @@ import { createFetchJson } from '../scripts/advisories/lib/http.mjs';
 import { buildDatabase, loadUpstream } from '../scripts/advisories/build-db.mjs';
 import { diffDatabases, renderMarkdown } from '../scripts/advisories/diff-db.mjs';
 import { nextDbRevision } from '../scripts/advisories/bump-db-revision.mjs';
+import { FAILING_TESTS_LABEL, extractFailedTests, planPullRequest, renderPrBody } from '../scripts/advisories/pr-plan.mjs';
 import { fetchUpstream } from '../scripts/advisories/fetch-upstream.mjs';
 import { validateDb } from '../scripts/validate-advisories.mjs';
 import { createClient } from '../scripts/cws-publish.mjs';
+import { classifyRelease, isManifestDiffVersionOnly, isManifestVersionOnlyChange } from '../scripts/release/classify-release.mjs';
+import { evaluateCwsStatus, runCwsStatusCheck } from '../scripts/release/cws-status.mjs';
 import { matchOfflineAdvisories } from '../src/detection/advisory';
 import { satisfiesVersionRange } from '../src/security/version-matcher';
 import { fixtureCatalog, fixtureCurated, fixtureUpstream, rawNvdCve } from './fixtures/advisory-upstream.mjs';
@@ -173,6 +176,30 @@ describe('EOL 正規化', () => {
     const nginx = normalizeEol(fixtureUpstream.eol.nginx.cycles, { asOf: '2026-10-26' });
     expect(nginx.find((e) => e.cycle === '1.29')).toMatchObject({ status: 'EOL', eolDate: '2026-05-13' });
   });
+
+  it('T14 (D1): cycleOverrides により React 18 が Maintenance / Limited Support (Maintenance) / note に上書きされ、17 は EOL のままになる', () => {
+    const reactNote = 'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。';
+    const eol = normalizeEol(fixtureUpstream.eol.react.cycles, {
+      asOf: '2026-10-26',
+      supportedLatestCycles: 1,
+      cycleOverrides: {
+        '18': {
+          status: 'Maintenance',
+          label: 'Limited Support (Maintenance)',
+          note: reactNote,
+        },
+      },
+    });
+    expect(eol.find((e) => e.cycle === '19')).toEqual({ cycle: '19', eolDate: null, status: 'Supported' });
+    expect(eol.find((e) => e.cycle === '18')).toEqual({
+      cycle: '18',
+      eolDate: null,
+      status: 'Maintenance',
+      label: 'Limited Support (Maintenance)',
+      note: reactNote,
+    });
+    expect(eol.find((e) => e.cycle === '17')).toEqual({ cycle: '17', eolDate: null, status: 'EOL' });
+  });
 });
 
 describe('DB 生成 (build-db)', () => {
@@ -280,6 +307,91 @@ describe('DB 生成 (build-db)', () => {
     expect(up.eol.react.cycles).toHaveLength(3);
     expect(up.kev.count).toBe(1);
   });
+
+  it('T04 (SPEC-03): coverage.byProduct に製品ごとの収録件数と取得元が出力される', () => {
+    const { db } = build();
+    expect(db.coverage.byProduct).toBeDefined();
+    expect(db.coverage.byProduct.jquery).toEqual({
+      count: 3,
+      sources: ['curated', 'OSV'],
+    });
+    expect(db.coverage.byProduct.nginx).toEqual({
+      count: 2,
+      sources: ['NVD'],
+    });
+    expect(db.coverage.byProduct.react).toEqual({
+      count: 0,
+      sources: [],
+    });
+  });
+
+  it('T14 (D1 / D2 / D5): validateDb は EOL の note が 300 文字超または HTML 特殊文字を含む場合に拒否し、本番 catalog.json / curated.json の設定が反映されている', () => {
+    const { db } = build();
+    const baseDb = { ...db, integrity: undefined, libraries: { ...db.libraries, ...padProducts() } };
+
+    // 正常な label と note は合格する
+    const validCustomEolDb = structuredClone(baseDb);
+    validCustomEolDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        label: 'Limited Support (Maintenance)',
+        note: 'React 18 の通常の機能サポートは終了しています。',
+      },
+    ];
+    expect(() => validateDb(validCustomEolDb)).not.toThrow();
+
+    // 300 文字を超える note は拒否される
+    const tooLongNoteDb = structuredClone(baseDb);
+    tooLongNoteDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        note: 'あ'.repeat(301),
+      },
+    ];
+    expect(() => validateDb(tooLongNoteDb)).toThrow(/eol\.note/);
+
+    // HTML 特殊文字を含む note は拒否される
+    const unsafeNoteDb = structuredClone(baseDb);
+    unsafeNoteDb.libraries.react.eol = [
+      {
+        cycle: '18',
+        eolDate: null,
+        status: 'Maintenance',
+        note: '<script>alert(1)</script>',
+      },
+    ];
+    expect(() => validateDb(unsafeNoteDb)).toThrow(/eol\.note/);
+
+    // 本番の catalog.json と curated.json の検証
+    const realCatalog = JSON.parse(fs.readFileSync(new URL('../data/advisories/catalog.json', import.meta.url), 'utf-8'));
+    const realCurated = JSON.parse(fs.readFileSync(new URL('../data/advisories/curated.json', import.meta.url), 'utf-8'));
+
+    // D1: catalog.json の react.eol.cycleOverrides["18"]
+    expect(realCatalog.products.react.eol.cycleOverrides?.['18']).toEqual({
+      status: 'Maintenance',
+      label: 'Limited Support (Maintenance)',
+      note: 'React 18 の通常の機能サポートは終了しています。React チームは過去のメジャー版のサポート期間を公表しておらず、重大な脆弱性の修正が提供されるかは個別の判断になります。原則として React 19 への移行を推奨します。',
+    });
+
+    // D2: curated.json の bootstrap CVE-2019-8331
+    const bs8331 = realCurated.products.bootstrap.advisories.find((a) => a.cve === 'CVE-2019-8331');
+    expect(bs8331).toBeDefined();
+    expect(bs8331.range).toBe('< 3.4.1 || >= 4.0.0, < 4.3.1');
+    expect(bs8331.notes).toContain('GHSA-9v3m-8fp8-mj99');
+
+    // D5: curated.json の angular 暫定対応 7 件が撤去されていること
+    expect(realCurated.products.angular.advisories).toEqual([]);
+
+    // T05 (P1): NVD 5 製品の autoIngest がすべて true であり、生成 DB の minExtensionVersion が 1.7.0 であること
+    for (const prod of ['wordpress', 'php', 'nginx', 'apache', 'nodejs']) {
+      expect(realCatalog.products[prod]?.nvd?.autoIngest, `${prod}.nvd.autoIngest`).toBe(true);
+    }
+    expect(db.minExtensionVersion).toBe('1.7.0');
+  });
 });
 
 describe('DB 差分分類 (diff-db)', () => {
@@ -318,6 +430,71 @@ describe('DB 差分分類 (diff-db)', () => {
     expect(d).toMatchObject({ classification: 'minor', freshnessRefresh: true });
     expect(diffDatabases(db, structuredClone(db), { refreshDays: 21 }).classification).toBe('none');
   });
+
+  it('T16 (D4): schemaVersion 変更、minExtensionVersion 変更、21 件の範囲変更、KEV 解除、初回 NVD 取り込み (87 -> 416 件、DB サイズ 50% 超) はすべて major になる', () => {
+    const { db } = build();
+
+    // 1. schemaVersion の変更 -> major
+    const headSchema = { ...structuredClone(db), schemaVersion: '2.3' };
+    const dSchema = diffDatabases(db, headSchema);
+    expect(dSchema.classification).toBe('major');
+    expect(dSchema.reasonsMajor.join('\n')).toContain('schemaVersion');
+
+    // 2. minExtensionVersion の変更 -> major
+    const headMinExt = { ...structuredClone(db), minExtensionVersion: '1.8.0' };
+    const dMinExt = diffDatabases(db, headMinExt);
+    expect(dMinExt.classification).toBe('major');
+    expect(dMinExt.reasonsMajor.join('\n')).toContain('minExtensionVersion');
+
+    // 3. 範囲・スコアの変更が 20 件超 (21 件) -> major (20 件以下は minor)
+    const makeDbWithCount = (count) => {
+      const cloned = structuredClone(db);
+      cloned.libraries.jquery.versions = Array.from({ length: count }, (_, idx) => ({
+        range: '< 3.5.0',
+        cve: `CVE-2099-${String(idx + 1).padStart(4, '0')}`,
+        cvssScore: 6.1,
+        severity: 'medium',
+        title: `Test advisory ${idx + 1}`,
+        fixedVersion: '3.5.0',
+        fixStatus: 'fixed',
+        advisoryUrl: `https://nvd.nist.gov/vuln/detail/CVE-2099-${String(idx + 1).padStart(4, '0')}`,
+        verifiedAt: '2026-10-26',
+        scoreSource: 'nvd@nist.gov (Primary)',
+        origin: 'auto',
+      }));
+      return cloned;
+    };
+    const base25 = makeDbWithCount(25);
+    const head20Changed = structuredClone(base25);
+    for (let i = 0; i < 20; i++) {
+      head20Changed.libraries.jquery.versions[i].range = '< 3.5.1';
+    }
+    expect(diffDatabases(base25, head20Changed).classification).toBe('minor');
+
+    const head21Changed = structuredClone(base25);
+    for (let i = 0; i < 21; i++) {
+      head21Changed.libraries.jquery.versions[i].range = '< 3.5.1';
+    }
+    const d21 = diffDatabases(base25, head21Changed);
+    expect(d21.classification).toBe('major');
+    expect(d21.reasonsMajor.join('\n')).toContain('21 件');
+
+    // 4. KEV の解除 (true -> false) -> major
+    const baseKev = structuredClone(db);
+    baseKev.libraries.jquery.versions[0].kev = true;
+    const headKevRemoved = structuredClone(baseKev);
+    headKevRemoved.libraries.jquery.versions[0].kev = false;
+    const dKev = diffDatabases(baseKev, headKevRemoved);
+    expect(dKev.classification).toBe('major');
+    expect(dKev.reasonsMajor.join('\n')).toContain('KEV (悪用確認済み) フラグの解除');
+
+    // 5. 初回 NVD 取り込み相当 (87 -> 416 件、DB サイズ 50% 超の増加) -> major
+    const base87 = makeDbWithCount(87);
+    const head416 = makeDbWithCount(416);
+    const dInitialNvd = diffDatabases(base87, head416);
+    expect(dInitialNvd.classification).toBe('major');
+    expect(dInitialNvd.reasonsMajor.join('\n')).toContain('50%超');
+  });
 });
 
 describe('DB リビジョン採番', () => {
@@ -327,6 +504,117 @@ describe('DB リビジョン採番', () => {
     expect(() => nextDbRevision('1.6')).toThrow();
     expect(() => nextDbRevision('1.6.5.65535')).toThrow();
     expect(() => nextDbRevision('1.6.5-beta')).toThrow();
+  });
+});
+
+describe('PR 作成・自動マージ計画 (pr-plan)', () => {
+  it('T12: テスト失敗・minor・auto-merge 有効のとき、PR を作成し db:tests-failing ラベルと失敗テスト名を付与して自動マージしない', () => {
+    const plan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: false,
+      autoMerge: true,
+      hasAppToken: true,
+      diffMarkdown: '## 脆弱性DB 自動更新\n- 分類: **🟢 minor (自動マージ可)**\n',
+      testOutput: [
+        ' ❯ tests/advisory-db-invariants.test.ts (2)',
+        '   × 同梱 DB の全範囲が構文チェックに合格する',
+        ' FAIL  tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する',
+        'AssertionError: expected false to be true',
+      ].join('\n'),
+    });
+
+    expect(plan.shouldCreatePr).toBe(true);
+    expect(plan.createPr).toBe(true);
+    expect(plan.labels).toContain('advisory-db');
+    expect(plan.labels).toContain('db:minor');
+    expect(plan.labels).toContain(FAILING_TESTS_LABEL);
+    expect(plan.shouldAutoMerge).toBe(false);
+    expect(plan.autoMerge).toBe(false);
+    expect(plan.shouldFailJob).toBe(true);
+    expect(plan.failedTests).toEqual([
+      'tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する',
+    ]);
+    expect(plan.body).toContain(FAILING_TESTS_LABEL);
+    expect(plan.body).toContain(
+      'tests/advisory-db-invariants.test.ts > 同梱 DB の不変条件 > 同梱 DB の全範囲が構文チェックに合格する'
+    );
+  });
+
+  it('テスト成功・minor・auto-merge 有効・App トークンありのとき、PR を作成し自動マージする', () => {
+    const plan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: 'true',
+      hasAppToken: true,
+      diffMarkdown: '## 脆弱性DB 自動更新\n',
+    });
+
+    expect(plan.shouldCreatePr).toBe(true);
+    expect(plan.labels).toEqual(['advisory-db', 'db:minor']);
+    expect(plan.removeLabels).toContain(FAILING_TESTS_LABEL);
+    expect(plan.shouldAutoMerge).toBe(true);
+    expect(plan.shouldFailJob).toBe(false);
+    expect(plan.body).not.toContain(FAILING_TESTS_LABEL);
+  });
+
+  it('major または App トークンなしのときは自動マージしない', () => {
+    const majorPlan = planPullRequest({
+      classification: 'major',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: true,
+      hasAppToken: true,
+    });
+    expect(majorPlan.shouldCreatePr).toBe(true);
+    expect(majorPlan.labels).toEqual(['advisory-db', 'db:major']);
+    expect(majorPlan.shouldAutoMerge).toBe(false);
+
+    const noTokenPlan = planPullRequest({
+      classification: 'minor',
+      version: '1.7.0.1',
+      testsPassed: true,
+      autoMerge: true,
+      hasAppToken: false,
+    });
+    expect(noTokenPlan.shouldCreatePr).toBe(true);
+    expect(noTokenPlan.shouldAutoMerge).toBe(false);
+    expect(noTokenPlan.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('classification=none のときは PR を作成しない', () => {
+    const nonePlan = planPullRequest({
+      classification: 'none',
+      testsPassed: true,
+      autoMerge: true,
+    });
+    expect(nonePlan.shouldCreatePr).toBe(false);
+    expect(nonePlan.shouldAutoMerge).toBe(false);
+    expect(nonePlan.labels).toEqual([]);
+  });
+
+  it('extractFailedTests と renderPrBody が Vitest JSON・ツリー出力の双方を扱える', () => {
+    const fromJson = extractFailedTests({
+      testResults: [
+        {
+          name: 'tests/sample.test.ts',
+          status: 'failed',
+          assertionResults: [
+            { fullName: 'suite > passing test', status: 'passed' },
+            { fullName: 'suite > failing test 1', status: 'failed' },
+          ],
+        },
+      ],
+    });
+    expect(fromJson).toEqual(['suite > failing test 1']);
+
+    const fromTree = extractFailedTests('  × suite > failing test 2 12ms\n');
+    expect(fromTree).toEqual(['suite > failing test 2']);
+
+    const body = renderPrBody('## Diff', { testsPassed: false, failedTests: fromJson });
+    expect(body).toContain('## Diff');
+    expect(body).toContain('`suite > failing test 1`');
   });
 });
 
@@ -415,6 +703,279 @@ describe('Chrome Web Store API v2 クライアント (fetch はモック)', () =
     expect(JSON.parse(pub.body)).toMatchObject({ publishType: 'STAGED_PUBLISH', skipReview: false, blockOnWarnings: true });
     expect(calls.filter((c) => c.url.includes('oauth2')).length).toBe(1);
     await expect(client.publish({ publishType: 'INVALID' })).rejects.toThrow();
+  });
+});
+
+describe('リリース種別判定 (classify-release)', () => {
+  const baseManifestJson = JSON.stringify(
+    {
+      manifest_version: 3,
+      name: 'Web Technology & Security Inspector',
+      version: '1.7.0',
+      permissions: ['activeTab', 'storage'],
+    },
+    null,
+    2
+  );
+  const headManifestVersionOnlyJson = JSON.stringify(
+    {
+      manifest_version: 3,
+      name: 'Web Technology & Security Inspector',
+      version: '1.7.0.1',
+      permissions: ['activeTab', 'storage'],
+    },
+    null,
+    2
+  );
+  const headManifestExtraChangeJson = JSON.stringify(
+    {
+      manifest_version: 3,
+      name: 'Web Technology & Security Inspector',
+      version: '1.7.0.1',
+      permissions: ['activeTab', 'storage', 'tabs'],
+    },
+    null,
+    2
+  );
+
+  it.each([
+    {
+      caseName: '(a) 1.7.0.1 で DB 関係のファイルだけ変更 → 自動 (DEFAULT_PUBLISH / chrome-web-store-auto)',
+      input: {
+        version: '1.7.0.1',
+        changedFiles: [
+          'data/advisories/upstream/manifest.json',
+          'data/advisories/build-report.json',
+          'src/detection/advisory-db.json',
+          'public/manifest.json',
+        ],
+        previousTag: 'v1.7.0',
+        autoPublish: 'true',
+        baseManifest: baseManifestJson,
+        headManifest: headManifestVersionOnlyJson,
+      },
+      expected: {
+        isDbOnly: true,
+        isAuto: true,
+        mode: 'auto',
+        environment: 'chrome-web-store-auto',
+        publishType: 'DEFAULT_PUBLISH',
+      },
+    },
+    {
+      caseName: '(b) 1.7.0.2 だが src/ のほかのファイルも変更 → 手動 (STAGED_PUBLISH / chrome-web-store)',
+      input: {
+        version: '1.7.0.2',
+        changedFiles: [
+          'src/detection/advisory-db.json',
+          'src/detection/engine.ts',
+          'public/manifest.json',
+        ],
+        previousTag: 'v1.7.0.1',
+        autoPublish: 'true',
+        baseManifest: baseManifestJson,
+        headManifest: headManifestVersionOnlyJson,
+      },
+      expected: {
+        isDbOnly: false,
+        isAuto: false,
+        mode: 'manual',
+        environment: 'chrome-web-store',
+        publishType: 'STAGED_PUBLISH',
+      },
+    },
+    {
+      caseName: '(c) 1.7.1 (3要素) → 手動 (STAGED_PUBLISH / chrome-web-store)',
+      input: {
+        version: '1.7.1',
+        changedFiles: [
+          'src/detection/advisory-db.json',
+          'public/manifest.json',
+        ],
+        previousTag: 'v1.7.0.2',
+        autoPublish: 'true',
+        baseManifest: baseManifestJson,
+        headManifest: headManifestVersionOnlyJson,
+      },
+      expected: {
+        isDbOnly: false,
+        isAuto: false,
+        mode: 'manual',
+        environment: 'chrome-web-store',
+        publishType: 'STAGED_PUBLISH',
+      },
+    },
+    {
+      caseName: '(d) CWS_AUTO_PUBLISH が未設定 → 手動 (STAGED_PUBLISH / chrome-web-store)',
+      input: {
+        version: '1.7.0.1',
+        changedFiles: [
+          'src/detection/advisory-db.json',
+          'public/manifest.json',
+        ],
+        previousTag: 'v1.7.0',
+        autoPublish: '',
+        baseManifest: baseManifestJson,
+        headManifest: headManifestVersionOnlyJson,
+      },
+      expected: {
+        isDbOnly: true,
+        isAuto: false,
+        mode: 'manual',
+        environment: 'chrome-web-store',
+        publishType: 'STAGED_PUBLISH',
+      },
+    },
+    {
+      caseName: '(e) public/manifest.json の version 以外の行も変更 → 手動 (STAGED_PUBLISH / chrome-web-store)',
+      input: {
+        version: '1.7.0.1',
+        changedFiles: [
+          'src/detection/advisory-db.json',
+          'public/manifest.json',
+        ],
+        previousTag: 'v1.7.0',
+        autoPublish: 'true',
+        baseManifest: baseManifestJson,
+        headManifest: headManifestExtraChangeJson,
+      },
+      expected: {
+        isDbOnly: false,
+        isAuto: false,
+        mode: 'manual',
+        environment: 'chrome-web-store',
+        publishType: 'STAGED_PUBLISH',
+      },
+    },
+  ])('$caseName', ({ input, expected }) => {
+    const res = classifyRelease(input);
+    expect(res).toMatchObject(expected);
+  });
+
+  it('manifest.json の差分検証 (isManifestVersionOnlyChange / isManifestDiffVersionOnly) と workflow_dispatch の手動指定', () => {
+    expect(isManifestVersionOnlyChange(baseManifestJson, headManifestVersionOnlyJson)).toBe(true);
+    expect(isManifestVersionOnlyChange(baseManifestJson, headManifestExtraChangeJson)).toBe(false);
+
+    const versionOnlyDiff = [
+      'diff --git a/public/manifest.json b/public/manifest.json',
+      '--- a/public/manifest.json',
+      '+++ b/public/manifest.json',
+      '@@ -2,3 +2,3 @@',
+      '-  "version": "1.7.0",',
+      '+  "version": "1.7.0.1",',
+    ].join('\n');
+    expect(isManifestDiffVersionOnly(versionOnlyDiff)).toBe(true);
+
+    const extraDiff = [
+      versionOnlyDiff,
+      '-  "name": "Old",',
+      '+  "name": "New",',
+    ].join('\n');
+    expect(isManifestDiffVersionOnly(extraDiff)).toBe(false);
+
+    const dispatchManual = classifyRelease({
+      version: '1.7.0',
+      changedFiles: ['src/popup/popup.ts', 'public/manifest.json'],
+      previousTag: 'v1.6.6',
+      autoPublish: 'false',
+      eventName: 'workflow_dispatch',
+      cwsPublishType: 'DEFAULT_PUBLISH',
+    });
+    expect(dispatchManual.mode).toBe('manual');
+    expect(dispatchManual.publishType).toBe('DEFAULT_PUBLISH');
+  });
+});
+
+describe('CWS 審査ステータス監視 (cws-status)', () => {
+  it('却下状態 (REJECTED) のモック応答で実行すると Issue 作成の分岐に入り、既存 Issue があればコメント追記になる', async () => {
+    const createdIssues = [];
+    const commentedIssues = [];
+    const issueClient = {
+      createIssue: async (payload) => {
+        createdIssues.push(payload);
+      },
+      commentIssue: async (payload) => {
+        commentedIssues.push(payload);
+      },
+    };
+
+    const rejectedPayload = {
+      itemId: 'ext-123',
+      submittedItemRevisionStatus: {
+        state: 'REJECTED',
+      },
+      publishedItemRevisionStatus: {
+        state: 'PUBLISHED',
+      },
+    };
+
+    // 新規 Issue 作成の分岐
+    const resCreate = await runCwsStatusCheck({
+      env: { CWS_ENABLED: 'true' },
+      getStatus: async () => rejectedPayload,
+      existingIssueNumber: null,
+      issueClient,
+    });
+    expect(resCreate.enabled).toBe(true);
+    expect(resCreate.isAlert).toBe(true);
+    expect(resCreate.action).toBe('create');
+    expect(resCreate.shouldCreateIssue).toBe(true);
+    expect(resCreate.shouldCommentIssue).toBe(false);
+    expect(createdIssues).toHaveLength(1);
+    expect(createdIssues[0].body).toContain('REJECTED');
+
+    // 既存 Issue がある場合はコメント追記の分岐
+    const resComment = await runCwsStatusCheck({
+      env: { CWS_ENABLED: 'true' },
+      getStatus: async () => rejectedPayload,
+      existingIssueNumber: 42,
+      issueClient,
+    });
+    expect(resComment.isAlert).toBe(true);
+    expect(resComment.action).toBe('comment');
+    expect(resComment.shouldCreateIssue).toBe(false);
+    expect(resComment.shouldCommentIssue).toBe(true);
+    expect(commentedIssues).toHaveLength(1);
+    expect(commentedIssues[0].issueNumber).toBe(42);
+  });
+
+  it('CWS_ENABLED が true のときだけ動き、false や未設定のときは API を呼ばずスキップする', async () => {
+    let apiCalled = false;
+    const getStatus = async () => {
+      apiCalled = true;
+      return { submittedItemRevisionStatus: { state: 'REJECTED' } };
+    };
+
+    const resDisabled = await runCwsStatusCheck({
+      env: { CWS_ENABLED: 'false' },
+      getStatus,
+    });
+    expect(resDisabled.enabled).toBe(false);
+    expect(resDisabled.skipped).toBe(true);
+    expect(resDisabled.action).toBe('skip');
+    expect(resDisabled.shouldCreateIssue).toBe(false);
+    expect(apiCalled).toBe(false);
+
+    const resUnset = await runCwsStatusCheck({
+      env: {},
+      getStatus,
+    });
+    expect(resUnset.enabled).toBe(false);
+    expect(resUnset.skipped).toBe(true);
+    expect(apiCalled).toBe(false);
+
+    // 正常状態 (PUBLISHED / PENDING_REVIEW) ではアラートにならない
+    const resNormal = evaluateCwsStatus(
+      {
+        submittedItemRevisionStatus: { state: 'PENDING_REVIEW' },
+        publishedItemRevisionStatus: { state: 'PUBLISHED' },
+      },
+      { cwsEnabled: 'true' }
+    );
+    expect(resNormal.enabled).toBe(true);
+    expect(resNormal.isAlert).toBe(false);
+    expect(resNormal.action).toBe('none');
+    expect(resNormal.shouldCreateIssue).toBe(false);
   });
 });
 

@@ -3,11 +3,25 @@
  * ダッシュボード描画純粋関数 (src/dashboard/render.ts) - IMPL-01, IMPL-03
  */
 
-import { resolveRecommendedVersion } from '../detection/advisory';
+import {
+  formatAdvisoryRecommendation,
+  resolveTechAdvisoryDisplayInfo,
+  sortAdvisoriesByPriority,
+} from '../detection/advisory';
+import { filterDisplayEvidences } from '../detection/engine';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
+  getSecurityCheckDisplayBadge,
+  isFindingExcludedByException,
+  isRequiresAttention,
+} from '../shared/security-status';
+import {
   DetectedTechnology,
+  ExternalConnectionsAnalysis,
+  ExternalServiceCategory,
   InspectionReport,
+  SecurityAdvisory,
   SecurityCheckResult,
 } from '../shared/types';
 
@@ -17,6 +31,7 @@ export function formatCategory(cat: string): string {
   const map: Record<string, string> = {
     'web-server': 'Webサーバー',
     'programming-language': '開発言語・フレームワーク',
+    'framework': 'バックエンドフレームワーク',
     'cms': 'CMS',
     'js-framework': 'JSフレームワーク',
     'js-css-library': 'JS / CSSライブラリ',
@@ -68,6 +83,41 @@ export function formatRuntimeStatus(status?: string): string {
   }
 }
 
+export function formatFixStatus(fixStatus?: string): string {
+  switch (fixStatus) {
+    case 'fixed':
+      return '修正版あり (fixed)';
+    case 'partial':
+      return '一部系列のみ修正 (partial)';
+    case 'none':
+      return '公式修正版なし (none)';
+    case 'unknown':
+      return '修正版情報なし (unknown)';
+    default:
+      return fixStatus || '';
+  }
+}
+
+export function getSeverityBadgeClass(severity?: string): string {
+  const s = String(severity || '').toLowerCase();
+  if (s === 'critical') return 'sev-critical';
+  if (s === 'high') return 'sev-high';
+  if (s === 'low') return 'sev-low';
+  if (s === 'info') return 'sev-info';
+  if (s === 'unknown') return 'sev-unknown';
+  return 'sev-medium';
+}
+
+/**
+ * 複数バージョン検出時の表示文字列を生成する (v1.7.0 T08 / SPEC-10)
+ * 例: "1.12.4 / 3.7.1（2 つのバージョン）"
+ */
+export function formatMultiVersionSummary(tech: DetectedTechnology): string | null {
+  if (!tech.instances || tech.instances.length < 2) return null;
+  const vers = tech.instances.map((i) => i.version || '不明').join(' / ');
+  return `${vers}（${tech.instances.length} つのバージョン）`;
+}
+
 
 /**
  * 調査履歴一覧のHTML文字列を生成する (IMPL-01)
@@ -85,7 +135,7 @@ export function renderHistoryListHtml(reports: InspectionReport[]): string {
         <strong>${escapeHtml(r.hostname)}</strong>
         <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${new Date(r.inspectedAt).toLocaleString('ja-JP')}</span>
         <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
-          技術: ${r.technologies.length}件 / 要確認: ${r.summary.requiresAttentionCount}件 / EOL: ${r.summary.librarySecurity?.eolCount ?? 0}件 / ${r.summary.isHttps ? 'HTTPS' : 'HTTP'}
+          技術: ${(r.technologies || []).length}件 / 要確認: ${r.summary?.requiresAttentionCount ?? 0}件 / EOL: ${r.summary?.librarySecurity?.eolCount ?? 0}件 / ${r.summary?.isHttps ? 'HTTPS' : 'HTTP'}
         </div>
       </div>
       <div style="display:flex;gap:6px;">
@@ -118,16 +168,22 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
       const issues: string[] = [];
       if (t.supportStatus === 'EOL') issues.push(`EOL (${t.eolDate || 'サポート終了'})`);
       if (t.advisories && t.advisories.length > 0) issues.push(`CVE ${t.advisories.length}件`);
+      const hasKev = t.advisories?.some((a) => a.kev === true) ?? false;
+      if (hasKev) issues.push('悪用確認済み（CISA KEV）');
       if (t.versionIntegrity?.status === 'mismatch') issues.push('CSS/JS不一致');
+      const multiVerSummary = formatMultiVersionSummary(t);
 
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-color);">
           <div>
-            <strong>${escapeHtml(t.technology)}</strong>
-            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${t.version ? `v${escapeHtml(t.version)}` : ''}</span>
+            <strong>${escapeHtml(t.technology)}${multiVerSummary ? ` ${escapeHtml(multiVerSummary)}` : ''}</strong>
+            <span style="color:var(--text-muted);font-size:12px;margin-left:6px;">${multiVerSummary ? escapeHtml(multiVerSummary) : t.version ? (/^\d/.test(t.version) ? `v${escapeHtml(t.version)}` : escapeHtml(t.version)) : ''}</span>
             <div style="font-size:11px;color:var(--text-sub);">${escapeHtml(issues.join(' / '))}</div>
           </div>
-          <span class="badge ${t.supportStatus === 'EOL' ? 'badge-eol' : 'badge-cve'}">要確認</span>
+          <div style="display:flex;gap:4px;align-items:center;">
+            ${hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : ''}
+            <span class="badge ${t.supportStatus === 'EOL' ? 'badge-eol' : 'badge-cve'}">要確認</span>
+          </div>
         </div>
       `;
     })
@@ -138,7 +194,7 @@ export function renderOverviewLibrarySecHtml(techs: DetectedTechnology[]): strin
  * 概要ビュー: セキュリティ注意項目一覧のHTML文字列を生成する
  */
 export function renderOverviewSecurityHtml(checks: SecurityCheckResult[]): string {
-  const issues = checks.filter((c) => c.status === 'warning' || c.status === 'fail');
+  const issues = checks.filter((c) => isRequiresAttention(c));
   if (issues.length === 0) {
     return '<div style="color:var(--success-color);padding:12px 0;">重大なセキュリティ設定不備は検出されませんでした。</div>';
   }
@@ -150,7 +206,7 @@ export function renderOverviewSecurityHtml(checks: SecurityCheckResult[]): strin
     <div style="padding:8px 0;border-bottom:1px solid var(--border-color);">
       <div style="display:flex;justify-content:space-between;">
         <strong>${escapeHtml(c.name)}</strong>
-        <span class="badge ${c.severity === 'high' ? 'sev-high' : 'sev-medium'}">${escapeHtml(c.severity.toUpperCase())}</span>
+        <span class="badge ${getSeverityBadgeClass(c.severity)}">${escapeHtml(c.severity.toUpperCase())}</span>
       </div>
       <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${escapeHtml(c.description)}</div>
     </div>
@@ -167,26 +223,85 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
     return '<div class="empty-state">技術情報がありません</div>';
   }
 
-  const rows = techs
-    .map((t) => {
+  const expandedRows: Array<{ tech: DetectedTechnology; multiVerSummary: string | null }> = [];
+  for (const rawTech of techs) {
+    const multiVerSummary = formatMultiVersionSummary(rawTech);
+    if (rawTech.instances && rawTech.instances.length >= 2) {
+      for (const inst of rawTech.instances) {
+        expandedRows.push({
+          tech: {
+            ...rawTech,
+            version: inst.version,
+            versionSource: inst.versionSource || rawTech.versionSource,
+            distroHint: inst.distroHint ?? rawTech.distroHint,
+            evidence: inst.evidence || rawTech.evidence || [],
+            advisories: inst.advisories,
+            eolInfo: inst.eolInfo,
+            supportStatus: inst.supportStatus,
+            eolDate: inst.eolDate,
+            advisoryMatchStatus: inst.advisoryMatchStatus,
+            offlineMatchStatus: inst.offlineMatchStatus,
+            advisoryStatusLabel: inst.advisoryStatusLabel,
+            upstreamAdvisoriesCount: inst.upstreamAdvisoriesCount,
+            maxCvss: inst.maxCvss,
+          },
+          multiVerSummary,
+        });
+      }
+    } else {
+      expandedRows.push({ tech: rawTech, multiVerSummary: null });
+    }
+  }
+
+  const rows = expandedRows
+    .map(({ tech: t, multiVerSummary }) => {
+      const eolLabel = t.eolInfo?.label;
       const eolBadge =
         t.supportStatus === 'EOL'
-          ? '<span class="badge badge-eol">EOL</span>'
+          ? `<span class="badge badge-eol">${escapeHtml(eolLabel || 'EOL')}</span>`
           : t.supportStatus === 'Maintenance'
-          ? '<span class="badge badge-medium">保守</span>'
+          ? `<span class="badge badge-medium">${escapeHtml(eolLabel || '保守')}</span>`
           : t.supportStatus === 'Supported'
-          ? '<span class="badge badge-high">Supported</span>'
-          : '<span class="badge" style="background:var(--bg-hover);">Unknown</span>';
+          ? `<span class="badge badge-high">${escapeHtml(eolLabel || 'Supported')}</span>`
+          : `<span class="badge" style="background:var(--bg-hover);">${escapeHtml(eolLabel || 'Unknown')}</span>`;
 
-      let cveBadge = '<span class="badge sev-pass">該当なし</span>';
-      if (t.distroHint) {
-        cveBadge = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
-      } else if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
-        cveBadge = `<span class="badge badge-cve">該当 ${t.advisories?.length ?? 0}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>`;
-      } else if (t.offlineMatchStatus === 'Not Covered') {
-        cveBadge = '<span style="color:var(--text-muted);font-size:11px;">未登録</span>';
-      } else if (t.offlineMatchStatus === 'Unknown Version') {
-        cveBadge = '<span class="badge badge-medium">要確認</span>';
+      const displayInfo = resolveTechAdvisoryDisplayInfo(t);
+      let cveBadge = '';
+      if (t.offlineMatchStatus === 'Matched' || (t.advisories && t.advisories.length > 0)) {
+        const sortedAdvisories = sortAdvisoriesByPriority(t.advisories || []);
+        const topAdvisories = sortedAdvisories.slice(0, 5);
+        const restAdvisories = sortedAdvisories.slice(5);
+        const hasKev = sortedAdvisories.some((a) => a.kev === true);
+        const kevBadge = hasKev
+          ? '<span class="badge badge-kev" style="margin-right:4px;">悪用確認済み（CISA KEV）</span>'
+          : '';
+        const fixStatuses = Array.from(
+          new Set(sortedAdvisories.map((a) => a.fixStatus).filter(Boolean))
+        );
+        const fixBadge =
+          fixStatuses.length > 0
+            ? ` <span class="badge badge-fix-status">${escapeHtml(fixStatuses.join('/'))}</span>`
+            : '';
+        const topIdsHtml = topAdvisories
+          .map((a) => `${escapeHtml(a.id)}${a.kev ? ' (KEV)' : ''}`)
+          .join(', ');
+        const restHtml =
+          restAdvisories.length > 0
+            ? `<details class="advisory-more" style="margin-top:2px;font-size:11px;"><summary style="cursor:pointer;color:var(--accent-color);">ほか ${restAdvisories.length} 件</summary><div>${restAdvisories.map((a) => escapeHtml(a.id)).join(', ')}</div></details>`
+            : '';
+        cveBadge = `${kevBadge}<span class="badge badge-cve">該当 ${sortedAdvisories.length}件 (CVSS ${escapeHtml(t.maxCvss || '6.1')})</span>${fixBadge}<div style="font-size:11px;color:var(--text-sub);margin-top:2px;">${topIdsHtml}</div>${restHtml}`;
+      } else if (displayInfo.isDistro) {
+        const upstreamRefHtml =
+          typeof displayInfo.upstreamAdvisoriesCount === 'number'
+            ? `<div style="font-size:11px;color:var(--text-sub);margin-top:2px;">参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件該当（収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`
+            : '';
+        cveBadge = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint || 'Linux package')}">Needs Review: ディストリ版（バックポートの可能性）</span>${upstreamRefHtml}`;
+      } else if (displayInfo.isZeroCoverage) {
+        cveBadge = '<span style="color:var(--text-muted);font-size:11px;">この技術の脆弱性は収録していません</span>';
+      } else if (t.offlineMatchStatus === 'Unknown Version' || t.advisoryMatchStatus === 'Needs Review' || !t.version) {
+        cveBadge = `<span class="badge badge-medium">要確認 (Needs Review)</span><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件（取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`;
+      } else {
+        cveBadge = `<span class="badge sev-pass">収録 DB 上は該当なし</span><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件（取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}）</div>`;
       }
 
       if (t.isStale) {
@@ -205,12 +320,20 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
       if (t.isCandidateGroup) {
         recommendation = '稼働しているバックエンド環境の特定を推奨';
       } else if (t.advisories && t.advisories.length > 0) {
-        const recVer = resolveRecommendedVersion(t.version, t.advisories);
-        recommendation = recVer ? `脆弱性修正版（v${recVer}以上）への更新推奨` : '脆弱性修正版への更新推奨';
+        recommendation = formatAdvisoryRecommendation(t.version, t.advisories, {
+          isEol: t.supportStatus === 'EOL',
+          technologyName: t.technology,
+        });
+      } else if (t.eolInfo?.note) {
+        recommendation = t.eolInfo.note;
       } else if (t.supportStatus === 'EOL') {
         recommendation = 'EOLのため最新LTS系列への移行推奨';
-      } else if (t.distroHint) {
-        recommendation = `${t.distroHint} ディストリビューションのセキュリティ情報を確認`;
+      } else if (displayInfo.isDistro) {
+        const upSuffix =
+          typeof displayInfo.upstreamAdvisoriesCount === 'number'
+            ? `（参考: 上流版では ${displayInfo.upstreamAdvisoriesCount} 件）`
+            : '';
+        recommendation = `${t.distroHint || 'Linux'} ディストリビューションのセキュリティ情報を確認${upSuffix}`;
       } else if (t.offlineMatchStatus === 'Unknown Version' && t.version) {
         recommendation = 'パッケージ固有版のため個別セキュリティ情報の確認を推奨';
       }
@@ -218,12 +341,17 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
       const verDisplay = t.isCandidateGroup
         ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
         : t.version
-        ? `v${escapeHtml(t.version)}`
+        ? /^\d/.test(t.version)
+          ? `v${escapeHtml(t.version)}`
+          : escapeHtml(t.version)
         : '<span style="color:var(--text-muted);">不明</span>';
 
       return `
         <tr>
-          <td><strong>${escapeHtml(t.technology)}</strong></td>
+          <td>
+            <strong>${escapeHtml(t.technology)}</strong>
+            ${multiVerSummary ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t.technology)} ${escapeHtml(multiVerSummary)}</div>` : ''}
+          </td>
           <td>${verDisplay}</td>
           <td>${escapeHtml(t.isCandidateGroup ? '推定候補' : (t.versionSource || '-'))}</td>
           <td>${integrityBadge}</td>
@@ -297,16 +425,108 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
           ? `<div>公式サイト: ${renderSafeExternalLink(t.website, t.website, { style: 'color:var(--accent-color);' })}</div>`
           : '';
 
+        const displayInfo = resolveTechAdvisoryDisplayInfo(t);
+        const renderAdvLiHtml = (adv: SecurityAdvisory, liClass: string): string => {
+          const sevClass = getSeverityBadgeClass(adv.severity);
+          const sevText = escapeHtml(String(adv.severity || 'medium').toUpperCase());
+          const kevBadge = adv.kev
+            ? ` <span class="badge badge-kev">悪用確認済み（CISA KEV）${adv.kevDateAdded ? ` (${escapeHtml(adv.kevDateAdded)})` : ''}</span>`
+            : '';
+          const fixBadge = adv.fixStatus
+            ? ` <span class="badge badge-fix-status">${escapeHtml(formatFixStatus(adv.fixStatus))}</span>`
+            : '';
+          return `
+                <li class="${liClass}" style="margin-bottom:6px;">
+                  <strong>${escapeHtml(adv.id)}</strong> <span class="badge ${sevClass}">${sevText}</span>${kevBadge} (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
+                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}${fixBadge}
+                </li>
+              `;
+        };
+
+        let advisoriesSectionHtml = '';
+        if (t.advisories && t.advisories.length > 0) {
+          const sortedAdvisories = sortAdvisoriesByPriority(t.advisories);
+          const topAdvisories = sortedAdvisories.slice(0, 5);
+          const restAdvisories = sortedAdvisories.slice(5);
+          const recText = formatAdvisoryRecommendation(t.version, t.advisories, {
+            isEol: t.supportStatus === 'EOL',
+            technologyName: t.technology,
+          });
+          const moreDetailsHtml =
+            restAdvisories.length > 0
+              ? `
+            <details class="advisory-more" style="margin-top:4px;">
+              <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--accent-color);">ほか ${restAdvisories.length} 件</summary>
+              <ul style="padding-left:18px;margin-top:4px;">
+                ${restAdvisories.map((adv) => renderAdvLiHtml(adv, 'advisory-card advisory-more-item')).join('')}
+              </ul>
+            </details>
+          `
+              : '';
+          advisoriesSectionHtml = `
+          <div style="margin-top:8px;">
+            <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA) (${t.advisories.length}件):</strong>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">収録 ${displayInfo.count} 件・取得元: ${escapeHtml(displayInfo.sourcesText)}・dataVersion: ${escapeHtml(displayInfo.dataVersion)}</div>
+            <div style="font-size:12px;color:var(--accent-color);margin-top:2px;">推奨対応: ${escapeHtml(recText)}</div>
+            <ul class="advisory-list" style="padding-left:18px;margin-top:4px;">
+              ${topAdvisories.map((adv) => renderAdvLiHtml(adv, 'advisory-card advisory-item')).join('')}
+            </ul>
+            ${moreDetailsHtml}
+          </div>
+        `;
+        } else if (!t.isCandidateGroup) {
+          advisoriesSectionHtml = `
+          <div style="margin-top:8px;font-size:12px;">
+            <strong>脆弱性照合状況:</strong> ${escapeHtml(displayInfo.statusLabel)}
+          </div>
+        `;
+        }
+
+        const multiVerSummary = formatMultiVersionSummary(t);
+        const instancesHtml =
+          t.instances && t.instances.length >= 2
+            ? `
+          <div class="multi-version-instances" style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>検出されたバージョン別インスタンス (${t.instances.length} 件):</strong>
+            ${t.instances
+              .map((inst) => {
+                const instAdvs = inst.advisories || [];
+                const instEolObj = inst.eolInfo ?? inst.eol;
+                const instEol = instEolObj?.label || inst.supportStatus || instEolObj?.status || 'Unknown';
+                const instCveText =
+                  instAdvs.length > 0
+                    ? `CVE ${instAdvs.length}件 (${instAdvs.map((a) => escapeHtml(a.id)).join(', ')})`
+                    : escapeHtml(inst.advisoryStatusLabel || '該当脆弱性なし');
+                const instEvHtml = (inst.evidence || [])
+                  .map(
+                    (e) =>
+                      `<li><code>[${escapeHtml(e.type)}] ${escapeHtml(e.name)}: ${escapeHtml(e.value)}</code></li>`
+                  )
+                  .join('');
+                return `
+                  <div class="instance-item" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border-color);">
+                    <div><strong>v${escapeHtml(inst.version)}</strong> — EOL: ${escapeHtml(instEol)} / 脆弱性: ${instCveText}</div>
+                    ${instEvHtml ? `<ul style="margin:4px 0 0 0;padding-left:18px;font-size:11px;">${instEvHtml}</ul>` : ''}
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        `
+            : '';
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
         <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}</span>
+          <span style="font-weight:700;font-size:15px;">${escapeHtml(t.technology)}${multiVerSummary ? ` ${escapeHtml(multiVerSummary)}` : ''}</span>
           ${methodBadgeHtml}
           ${runtimeBadgeHtml}
           ${
             t.isCandidateGroup
               ? '<span class="badge" style="background:var(--bg-hover);font-size:11px;">いずれかの可能性</span>'
+              : multiVerSummary
+              ? `<span class="badge" style="background:var(--bg-hover);">${escapeHtml(multiVerSummary)}</span>`
               : t.version
               ? `<span class="badge" style="background:var(--bg-hover);">v${escapeHtml(t.version)}</span>`
               : '<span style="font-size:11px;color:var(--text-muted);">バージョン不明</span>'
@@ -315,7 +535,8 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           ${t.distroHint ? `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>` : ''}
-          ${t.supportStatus === 'EOL' ? '<span class="badge badge-eol">EOL</span>' : ''}
+          ${t.supportStatus === 'EOL' ? `<span class="badge badge-eol">${escapeHtml(t.eolInfo?.label || 'EOL')}</span>` : t.eolInfo?.label ? `<span class="badge badge-medium">${escapeHtml(t.eolInfo.label)}</span>` : ''}
+          ${t.advisories && t.advisories.some((a) => a.kev === true) ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : ''}
           ${t.advisories && t.advisories.length > 0 ? `<span class="badge badge-cve">CVE ${t.advisories.length}件</span>` : ''}
           <span class="badge ${t.confidenceLevel === 'high' ? 'badge-high' : 'badge-medium'}">確信度 ${t.confidence}</span>
         </div>
@@ -347,6 +568,7 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         }
         <div>${escapeHtml(t.description || '')}</div>
         ${websiteHtml}
+        ${instancesHtml}
         
         ${
           t.versionIntegrity
@@ -361,22 +583,45 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
         }
 
         ${
-          t.advisories && t.advisories.length > 0
+          t.eolInfo && (t.supportStatus === 'EOL' || t.eolInfo.label || t.eolInfo.note)
             ? `
-          <div style="margin-top:8px;">
-            <strong style="color:var(--danger-color);">該当する既知脆弱性 (CVE / GHSA):</strong>
-            <ul style="padding-left:18px;margin-top:4px;">
-              ${t.advisories
-                .map(
-                  (adv) => `
-                <li style="margin-bottom:6px;">
-                  <strong>${escapeHtml(adv.id)}</strong> (${escapeHtml(adv.title)}) - 影響範囲: <code>${escapeHtml(adv.affectedRange)}</code>
-                  ${adv.fixedVersion ? `<span style="color:var(--success-color);margin-left:6px;">修正版: v${escapeHtml(adv.fixedVersion)}</span>` : ''}
-                </li>
-              `
-                )
-                .join('')}
-            </ul>
+          <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>サポート状況 (EOL):</strong> ${escapeHtml(t.eolInfo.label || t.eolInfo.status)}${t.eolInfo.eolDate ? ` (${escapeHtml(t.eolInfo.eolDate)})` : ''}
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${escapeHtml(t.eolInfo.note || t.eolInfo.recommendation)}</div>
+          </div>
+        `
+            : ''
+        }
+
+        ${advisoriesSectionHtml}
+
+        ${
+          (t.wpPlugins && t.wpPlugins.length > 0) || (t.wpThemes && t.wpThemes.length > 0)
+            ? `
+          <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>WordPress プラグイン・テーマ:</strong>
+            ${
+              t.wpPlugins && t.wpPlugins.length > 0
+                ? `<div style="font-size:12px;margin-top:4px;"><strong>プラグイン:</strong> ${t.wpPlugins
+                    .map((p) =>
+                      p.version
+                        ? `<code>${escapeHtml(p.name)}</code> (ver: <code>${escapeHtml(p.version)}</code>)`
+                        : `<code>${escapeHtml(p.name)}</code>`
+                    )
+                    .join(', ')}</div>`
+                : ''
+            }
+            ${
+              t.wpThemes && t.wpThemes.length > 0
+                ? `<div style="font-size:12px;margin-top:4px;"><strong>テーマ:</strong> ${t.wpThemes
+                    .map((th) =>
+                      th.version
+                        ? `<code>${escapeHtml(th.name)}</code> (ver: <code>${escapeHtml(th.version)}</code>)`
+                        : `<code>${escapeHtml(th.name)}</code>`
+                    )
+                    .join(', ')}</div>`
+                : ''
+            }
           </div>
         `
             : ''
@@ -384,17 +629,24 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
 
         <div style="font-weight:700;margin-top:8px;">判定根拠 (Evidence):</div>
         <ul style="padding-left:18px;">
-          ${t.evidence
-            .map(
-              (e) => `
+          ${(() => {
+            const dispEv = filterDisplayEvidences(t.evidence || []);
+            const visEv = dispEv.slice(0, 3);
+            const remEv = dispEv.length - visEv.length;
+            const itemsHtml = visEv
+              .map(
+                (e) => `
             <li>
               <strong>[${escapeHtml(e.type)}] ${escapeHtml(e.name)}:</strong>
               <code>${escapeHtml(e.value)}</code>
               ${e.detail ? `<span style="color:var(--text-muted);margin-left:6px;">(${escapeHtml(e.detail)})</span>` : ''}
             </li>
           `
-            )
-            .join('')}
+              )
+              .join('');
+            const remHtml = remEv > 0 ? `<li style="color:var(--text-muted);">他 ${remEv} 件</li>` : '';
+            return itemsHtml + remHtml;
+          })()}
         </ul>
       </div>
     </div>
@@ -413,35 +665,12 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
   return checks
     .map(
       (c) => {
-        const isAccepted =
-          c.exceptionStatus === 'accepted' ||
-          c.exceptionStatus === 'false-positive' ||
-          c.exceptionStatus === 'muted';
+        const isAccepted = isFindingExcludedByException(c);
         const exceptionBadge = isAccepted
           ? '<span class="badge" style="background:#4B5563;color:#E5E7EB;margin-right:6px;">許容済</span>'
           : '';
 
-        let badgeClass = 'sev-medium';
-        let badgeText = c.severity.toUpperCase();
-        if (c.status === 'unknown') {
-          badgeClass = 'sev-unknown';
-          badgeText = '未観測';
-        } else if (c.status === 'pass') {
-          badgeClass = 'sev-pass';
-          badgeText = 'PASS';
-        } else if (c.severity === 'high') {
-          badgeClass = 'sev-high';
-          badgeText = 'HIGH';
-        } else if (c.severity === 'medium') {
-          badgeClass = 'sev-medium';
-          badgeText = 'MEDIUM';
-        } else if (c.severity === 'low') {
-          badgeClass = 'sev-low';
-          badgeText = 'LOW';
-        } else if (c.severity === 'info') {
-          badgeClass = 'sev-info';
-          badgeText = 'INFO';
-        }
+        const { badgeClass, dashLabel: badgeText } = getSecurityCheckDisplayBadge(c);
 
         const referencesHtml =
           c.referenceUrls && c.referenceUrls.length > 0
@@ -485,7 +714,8 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
 }
 
 /**
- * Cookie一覧テーブルのtbody HTML文字列を生成する
+ * Cookie一覧テーブルのtbody HTML文字列を生成する (v1.7.1 T07)
+ * v1.7.0 以前の履歴データ（category 未設定や旧用途のみ）および未知の用途値も安全に描画する。
  */
 export function renderCookiesTableHtml(cookies: any[]): string {
   if (!cookies || cookies.length === 0) {
@@ -493,10 +723,12 @@ export function renderCookiesTableHtml(cookies: any[]): string {
   }
 
   return cookies
-    .map(
-      (c) => `
+    .map((c) => {
+      const catKey = normalizeCookieCategory(c?.category);
+      const catLabel = formatCookieCategory(catKey);
+      return `
     <tr>
-      <td><strong>${escapeHtml(c.name)}</strong></td>
+      <td><strong>${escapeHtml(c.name)}</strong><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(catLabel)} (${escapeHtml(catKey)})</div></td>
       <td>${escapeHtml(c.domain)}</td>
       <td>${escapeHtml(c.path)}</td>
       <td>${c.secure ? '✅' : '❌'}</td>
@@ -505,7 +737,102 @@ export function renderCookiesTableHtml(cookies: any[]): string {
       <td>${c.session ? 'セッション' : '永続'}</td>
       <td style="color:${c.issues && c.issues.length > 0 ? 'var(--warning-color)' : 'var(--text-muted)'};">${c.issues && c.issues.length > 0 ? escapeHtml(c.issues.join(', ')) : 'なし'}</td>
     </tr>
-  `
+  `;
+    })
+    .join('');
+}
+
+/**
+ * 外部通信先・サードパーティドメイン分析ビューのHTML文字列を生成する（v1.7.1 T05）
+ *
+ * ページ本体および実際に読み込まれたサブリソース（Resource Timing API・script・stylesheet・画像等）の
+ * 取得元ホスト（eTLD+1）を集計して表示します。alternate リンク、canonical、dns-prefetch、preconnect、
+ * form の送信先（action）など読み込みを伴わない参照は通信先に含めません。
+ */
+export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnalysis): string {
+  if (!analysis || !analysis.connections || analysis.connections.length === 0) {
+    return '<div class="empty-state">外部通信先情報はまだ解析されていません。</div>';
+  }
+
+  const catLabels: Record<ExternalServiceCategory, string> = {
+    cdn: 'CDN・静的配信',
+    analytics: 'アクセス解析',
+    advertising: '広告・マーケティング',
+    fonts: 'Webフォント',
+    social: 'SNSウィジェット',
+    security: 'セキュリティ・Bot対策',
+    api: '外部API',
+    other: 'その他',
+  };
+
+  const categoryChips = (Object.entries(analysis.categoryBreakdown) as [ExternalServiceCategory, number][])
+    .filter(([_, count]) => count > 0)
+    .map(
+      ([cat, count]) =>
+        `<span class="badge badge-medium" style="margin-right:6px;display:inline-block;margin-top:4px;">${escapeHtml(catLabels[cat] || cat)}: ${count}件</span>`
     )
     .join('');
+
+  return `
+    <div class="diff-box">
+      <div class="diff-title">読み込まれたリソースの取得元ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">
+        対象ページ本体および実際に読み込まれたサブリソース（Resource Timing API・スクリプト・スタイルシート・画像等）の取得元を集計しています。alternate リンク、canonical、dns-prefetch、preconnect、form の送信先（action）など読み込みを伴わない参照は通信先に含めません。
+      </div>
+      <div style="margin-bottom:8px;">
+        検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
+        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
+      </div>
+      <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
+    </div>
+
+    <div class="diff-box">
+      <div class="diff-title">読み込まれたリソースの取得元ホスト一覧</div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ホスト名</th>
+              <th>eTLD+1 (組織ドメイン)</th>
+              <th>分類</th>
+              <th>用途カテゴリ</th>
+              <th>リソース数</th>
+              <th>サンプルURL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${analysis.connections
+              .map((item) => {
+                let badgeClass = 'badge-medium';
+                let partyLabel = 'Third-Party';
+                if (item.partyType === 'first-party') {
+                  badgeClass = 'badge-high';
+                  partyLabel = 'First-Party (自社)';
+                } else if (item.partyType === 'local') {
+                  badgeClass = 'badge-low';
+                  partyLabel = 'Local (内部)';
+                } else {
+                  badgeClass = 'badge-medium';
+                  partyLabel = 'Third-Party (外部)';
+                }
+
+                const sampleUrl = item.sampleUrls.length > 0 ? item.sampleUrls[0] : '';
+
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(item.hostname)}</strong></td>
+                    <td><code>${escapeHtml(item.registrableDomain || '-')}</code></td>
+                    <td><span class="badge ${badgeClass}">${partyLabel}</span></td>
+                    <td><span class="badge" style="background:var(--bg-hover);">${escapeHtml(catLabels[item.category] || item.category)}</span></td>
+                    <td>${item.resourceCount}</td>
+                    <td style="font-size:11px;color:var(--text-sub);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(sampleUrl)}">${escapeHtml(sampleUrl || '-')}</td>
+                  </tr>
+                `;
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }

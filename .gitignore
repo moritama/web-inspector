@@ -27,3 +27,7 @@ scratch/
 review/
 review-packages/
 docs/*.local.md
+
+# 実サイトの一括取得結果（第三者サイトの診断結果を含むため公開しない）
+reports/
+report-sites.local.txt

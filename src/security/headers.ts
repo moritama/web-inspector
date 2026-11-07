@@ -4,7 +4,7 @@
  */
 
 import { SecurityCheckResult } from '../shared/types';
-import { analyzeCSPHeader } from './csp-parser';
+import { analyzeCSPPolicies, parseCSPHeaderValues } from './csp-parser';
 
 /**
  * セキュリティ診断 (checkHttpHeaders) で評価・参照されるHTTPヘッダー名一覧（小文字）
@@ -25,7 +25,49 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
   'cross-origin-resource-policy',
   'server',
   'x-powered-by',
+  'x-aspnet-version',
 ];
+
+/**
+ * X-Frame-Options の値がブラウザで有効な指定（DENY または SAMEORIGIN）であるか判定する (v1.7.0 T07 / SPEC-12)
+ */
+export function isValidXFrameOptions(xfo: string | null | undefined): boolean {
+  if (!xfo) return false;
+  const tokens = xfo
+    .split(',')
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  // 単一または同一値の繰り返しで DENY または SAMEORIGIN のみ有効とする
+  const first = tokens[0];
+  if (first !== 'DENY' && first !== 'SAMEORIGIN') {
+    return false;
+  }
+  return tokens.every((t) => t === first);
+}
+
+const SAFE_REFERRER_POLICIES = new Set([
+  'no-referrer',
+  'same-origin',
+  'origin',
+  'strict-origin',
+  'origin-when-cross-origin',
+  'strict-origin-when-cross-origin',
+]);
+
+const ALL_RECOGNIZED_REFERRER_POLICIES = new Set([
+  ...SAFE_REFERRER_POLICIES,
+  'no-referrer-when-downgrade',
+  'unsafe-url',
+]);
+
+/**
+ * checkHttpHeaders の追加オプション (meta CSP 併用評価用)
+ */
+export interface CheckHttpHeadersOptions {
+  metaCsp?: string[];
+  metaCspReportOnly?: string[];
+}
 
 /**
  * HTTPレスポンスヘッダーを診断する
@@ -33,12 +75,14 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
  * @param headers レスポンスヘッダーのマップ (キーは小文字)
  * @param url 調査対象URL
  * @param isHttps HTTPS接続かどうか
+ * @param options meta 要素由来の CSP などの補助入力（任意）
  * @returns セキュリティチェック結果一覧
  */
 export function checkHttpHeaders(
   headers: Record<string, string[]>,
   url: string,
-  isHttps: boolean
+  isHttps: boolean,
+  options?: CheckHttpHeadersOptions
 ): SecurityCheckResult[] {
   const results: SecurityCheckResult[] = [];
 
@@ -49,7 +93,7 @@ export function checkHttpHeaders(
     return vals.join(', ');
   };
 
-  // --- 1. HSTS (Strict-Transport-Security) ---
+  // --- 1. HSTS (Strict-Transport-Security) (v1.7.0 T07 / SPEC-12) ---
   const hsts = getHeader('strict-transport-security');
   if (isHttps) {
     if (!hsts) {
@@ -68,12 +112,45 @@ export function checkHttpHeaders(
         scope: url,
       });
     } else {
-      const maxAgeMatch = hsts.match(/max-age=(\d+)/i);
-      const maxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
-      const hasSubDomains = /includeSubDomains/i.test(hsts);
+      const maxAgeMatch = hsts.match(/max-age\s*=\s*(\d+)/i);
+      const maxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : null;
+      const hasSubDomains = /\bincludeSubDomains\b/i.test(hsts);
+      const hasPreload = /\bpreload\b/i.test(hsts);
 
-      if (maxAge < 10368000) {
-        // 約120日未満
+      if (maxAge === null || maxAge === 0) {
+        // max-age=0（HSTSの明示的な無効化）または max-age 未指定
+        results.push({
+          checkId: 'SEC-HSTS-02',
+          category: 'http-headers',
+          name: 'HSTS (Strict-Transport-Security)',
+          status: 'warning',
+          severity: 'medium',
+          observed: hsts,
+          description:
+            maxAge === 0
+              ? 'HSTSのmax-ageが 0 に設定されており、HSTSが明示的に無効化されています。中間者攻撃やダウングレード攻撃（SSL Stripping）のリスクがあります。'
+              : 'HSTSヘッダーに有効なmax-ageディレクティブが含まれていません。',
+          recommendation:
+            'HSTSを有効にするため、max-age=31536000（1年）以上の値を設定してください。',
+          referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
+          scope: url,
+        });
+      } else if (maxAge < 86400) {
+        // 1日（86400秒）未満（max-age=0 を除く）は MEDIUM (v1.7.1 T11 / N11)
+        results.push({
+          checkId: 'SEC-HSTS-02',
+          category: 'http-headers',
+          name: 'HSTS (Strict-Transport-Security)',
+          status: 'warning',
+          severity: 'medium',
+          observed: hsts,
+          description: `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。`,
+          recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定してください。',
+          referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
+          scope: url,
+        });
+      } else if (maxAge < 31536000) {
+        // 1日以上・1年（31536000秒）未満
         results.push({
           checkId: 'SEC-HSTS-02',
           category: 'http-headers',
@@ -81,8 +158,8 @@ export function checkHttpHeaders(
           status: 'warning',
           severity: 'low',
           observed: hsts,
-          description: `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と短めに設定されています。`,
-          recommendation: 'HSTSの有効期間は少なくとも180日以上（推奨: 31536000秒 = 1年）を設定することを検討してください。',
+          description: `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と1年（31536000秒）未満に設定されています。`,
+          recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定することを検討してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
         });
@@ -100,14 +177,52 @@ export function checkHttpHeaders(
           scope: url,
         });
       }
+
+      // preload があるのに max-age < 1年 または includeSubDomains がない場合は INFO を出す (v1.7.1 T11 / N11)
+      if (hasPreload && (maxAge === null || maxAge < 31536000 || !hasSubDomains)) {
+        const missingPreloadReqs: string[] = [];
+        if (maxAge === null || maxAge < 31536000) {
+          missingPreloadReqs.push('max-age が 1 年（31536000秒）未満');
+        }
+        if (!hasSubDomains) {
+          missingPreloadReqs.push('includeSubDomains が未指定');
+        }
+        results.push({
+          checkId: 'SEC-HSTS-03',
+          category: 'http-headers',
+          name: 'HSTS (Strict-Transport-Security)',
+          status: 'info',
+          severity: 'info',
+          observed: `${hsts} (preload の登録条件を満たしていない: ${missingPreloadReqs.join(' / ')})`,
+          description: `HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（${missingPreloadReqs.join('、')}）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。`,
+          recommendation:
+            'HSTS Preload を利用する場合は max-age=31536000 以上と includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
+          referenceUrls: [
+            'https://hstspreload.org/',
+            'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security',
+          ],
+          scope: url,
+        });
+      }
     }
   }
 
-  // --- 2. CSP (Content-Security-Policy) ---
-  const csp = getHeader('content-security-policy');
-  const cspReportOnly = getHeader('content-security-policy-report-only');
+  // --- 2. CSP (Content-Security-Policy) (v1.7.0 T06 / SPEC-07 / v1.7.1 T10: ヘッダーと meta の積集合評価) ---
+  const cspPolicies = [
+    ...parseCSPHeaderValues(headers['content-security-policy'], 'response-header', 'enforce'),
+    ...parseCSPHeaderValues(
+      headers['content-security-policy-report-only'],
+      'response-header',
+      'report-only'
+    ),
+    ...parseCSPHeaderValues(options?.metaCsp, 'meta', 'enforce'),
+    ...parseCSPHeaderValues(options?.metaCspReportOnly, 'meta', 'report-only'),
+  ];
 
-  if (!csp && !cspReportOnly) {
+  const xfo = getHeader('x-frame-options');
+  const validXfo = isValidXFrameOptions(xfo);
+
+  if (cspPolicies.length === 0) {
     results.push({
       checkId: 'SEC-CSP-01',
       category: 'http-headers',
@@ -122,35 +237,39 @@ export function checkHttpHeaders(
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/CSP'],
       scope: url,
     });
-  } else if (!csp && cspReportOnly) {
-    results.push({
-      checkId: 'SEC-CSP-02',
-      category: 'http-headers',
-      name: 'CSP (Content-Security-Policy)',
-      status: 'info',
-      severity: 'low',
-      observed: `Report-Only設定中: ${cspReportOnly}`,
-      description:
-        'CSPはReport-Onlyモードでのみ動作しており、悪意あるスクリプトの実行は遮断されません（レポート収集段階）。',
-      recommendation:
-        '動作検証が完了した後、本番のContent-Security-Policyヘッダーとして適用し実行をブロックしてください。',
-      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Content-Security-Policy-Report-Only'],
-      scope: url,
-    });
-  } else if (csp) {
-    const hasXfo = !!getHeader('x-frame-options');
-    results.push(...analyzeCSPHeader(csp, url, hasXfo));
+  } else {
+    results.push(...analyzeCSPPolicies(cspPolicies, url, validXfo, xfo).results);
   }
 
-  // --- 3. X-Frame-Options (クリックジャッキング対策) ---
-  const xfo = getHeader('x-frame-options');
-  const hasCspFrameAncestors = csp && /frame-ancestors/i.test(csp);
+  // --- 3. X-Frame-Options (クリックジャッキング対策) (v1.7.0 T07 / SPEC-12) ---
+  const hasCspFrameAncestors = cspPolicies.some(
+    (p) =>
+      p.mode === 'enforce' &&
+      p.source === 'response-header' &&
+      Boolean(p.directives['frame-ancestors']?.length)
+  );
 
-  if (!xfo && !hasCspFrameAncestors) {
+  if (hasCspFrameAncestors) {
+    // CSP frame-ancestors がある場合はブラウザ仕様どおり frame-ancestors を優先して判定 (v1.7.1 T01: 項目名を統一し観測値で区別)
+    results.push({
+      checkId: 'SEC-XFO-00',
+      category: 'http-headers',
+      name: 'X-Frame-Options',
+      status: 'pass',
+      severity: 'info',
+      observed: validXfo ? `${xfo} (CSP frame-ancestors により保護)` : 'CSP frame-ancestors により保護',
+      description: validXfo
+        ? `X-Frame-Options (${xfo}) および CSP frame-ancestors が設定されています。`
+        : 'モダンなCSP frame-ancestorsディレクティブによりiframe埋め込みが制御されています（CSP frame-ancestorsがある環境ではX-Frame-Optionsより優先されます）。',
+      recommendation: '現状の設定を維持してください。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors'],
+      scope: url,
+    });
+  } else if (!xfo) {
     results.push({
       checkId: 'SEC-XFO-01',
       category: 'http-headers',
-      name: 'X-Frame-Options (クリックジャッキング対策)',
+      name: 'X-Frame-Options',
       status: 'warning',
       severity: 'medium',
       observed: 'ヘッダー未設定',
@@ -161,18 +280,18 @@ export function checkHttpHeaders(
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/X-Frame-Options'],
       scope: url,
     });
-  } else if (!xfo && hasCspFrameAncestors) {
+  } else if (!validXfo) {
     results.push({
-      checkId: 'SEC-XFO-00',
+      checkId: 'SEC-XFO-02',
       category: 'http-headers',
-      name: 'クリックジャッキング対策 (frame-ancestors)',
-      status: 'pass',
-      severity: 'info',
-      observed: 'CSP frame-ancestors により保護',
-      description:
-        'X-Frame-Optionsヘッダーはありませんが、モダンなCSP frame-ancestorsディレクティブによりiframe埋め込みが制御されています。',
-      recommendation: '現状の設定を維持してください。古いブラウザ対応が必要な場合はX-Frame-Optionsの併用も検討可能です。',
-      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors'],
+      name: 'X-Frame-Options',
+      status: 'warning',
+      severity: 'medium',
+      observed: xfo,
+      description: `X-Frame-Options に有効ではない値または廃止された値 (${xfo}) が指定されています。DENY または SAMEORIGIN 以外の値（ALLOWALL、ALLOW-FROM 等）ではクリックジャッキング攻撃を防止できません。`,
+      recommendation:
+        'X-Frame-Options には DENY または SAMEORIGIN を設定するか、特定オリジンの埋め込み許可には CSP の frame-ancestors ディレクティブを使用してください。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/X-Frame-Options'],
       scope: url,
     });
   } else {
@@ -182,7 +301,7 @@ export function checkHttpHeaders(
       name: 'X-Frame-Options',
       status: 'pass',
       severity: 'info',
-      observed: xfo || '',
+      observed: xfo,
       description: `X-Frame-Optionsが適切に設定されています (${xfo})。`,
       recommendation: '現状の設定を維持してください。',
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/X-Frame-Options'],
@@ -221,7 +340,7 @@ export function checkHttpHeaders(
     });
   }
 
-  // --- 5. Referrer-Policy ---
+  // --- 5. Referrer-Policy (v1.7.0 T07 / SPEC-12 / v1.7.1 T01) ---
   const referrerPolicy = getHeader('referrer-policy');
   if (!referrerPolicy) {
     results.push({
@@ -229,7 +348,7 @@ export function checkHttpHeaders(
       category: 'http-headers',
       name: 'Referrer-Policy',
       status: 'info',
-      severity: 'low',
+      severity: 'info',
       observed: 'ヘッダー未設定 (ブラウザ既定値 strict-origin-when-cross-origin)',
       description:
         'Referrer-Policyが明示されていません。モダンブラウザでは既定値が適用されますが、明示的なポリシー指定が推奨されます。',
@@ -238,18 +357,72 @@ export function checkHttpHeaders(
       scope: url,
     });
   } else {
-    results.push({
-      checkId: 'SEC-REF-00',
-      category: 'http-headers',
-      name: 'Referrer-Policy',
-      status: 'pass',
-      severity: 'info',
-      observed: referrerPolicy,
-      description: `Referrer-Policyが明示されています (${referrerPolicy})。`,
-      recommendation: '現状の設定を維持してください。',
-      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Referrer-Policy'],
-      scope: url,
-    });
+    const tokens = referrerPolicy
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    const recognizedTokens = tokens.filter((t) => ALL_RECOGNIZED_REFERRER_POLICIES.has(t));
+    const effectivePolicy =
+      recognizedTokens.length > 0 ? recognizedTokens[recognizedTokens.length - 1] : null;
+
+    if (!effectivePolicy) {
+      results.push({
+        checkId: 'SEC-REF-02',
+        category: 'http-headers',
+        name: 'Referrer-Policy',
+        status: 'warning',
+        severity: 'low',
+        observed: `${referrerPolicy} (無効な設定値)`,
+        description: `Referrer-Policy に認識できない値 (${referrerPolicy}) が指定されています。ブラウザによって無視され、意図したリファラー制御が行われない恐れがあります。`,
+        recommendation:
+          '「strict-origin-when-cross-origin」や「no-referrer」など、仕様で定義された有効なポリシー値を指定してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Referrer-Policy'],
+        scope: url,
+      });
+    } else if (effectivePolicy === 'unsafe-url') {
+      results.push({
+        checkId: 'SEC-REF-02',
+        category: 'http-headers',
+        name: 'Referrer-Policy',
+        status: 'warning',
+        severity: 'low',
+        observed: referrerPolicy,
+        description:
+          'Referrer-Policy に unsafe-url が指定されています。クロスオリジン通信やHTTPSからHTTPへのダウングレード時にもクエリパラメータを含むURL全体が送信されるため、URL内の機密情報が外部へ漏洩するリスクがあります。',
+        recommendation:
+          '「strict-origin-when-cross-origin」、「strict-origin」、または「no-referrer」への変更を検討してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Referrer-Policy'],
+        scope: url,
+      });
+    } else if (effectivePolicy === 'no-referrer-when-downgrade') {
+      results.push({
+        checkId: 'SEC-REF-03',
+        category: 'http-headers',
+        name: 'Referrer-Policy',
+        status: 'info',
+        severity: 'info',
+        observed: referrerPolicy,
+        description:
+          'Referrer-Policy に no-referrer-when-downgrade が指定されています。HTTPSからHTTPへの通信ではリファラーが省略されますが、HTTPS間のクロスオリジン通信ではパスやクエリを含むURL全体が送信されます。',
+        recommendation:
+          'クロスオリジンへのパス・クエリ送信を抑止したい場合は「strict-origin-when-cross-origin」への変更を検討してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Referrer-Policy'],
+        scope: url,
+      });
+    } else {
+      results.push({
+        checkId: 'SEC-REF-00',
+        category: 'http-headers',
+        name: 'Referrer-Policy',
+        status: 'pass',
+        severity: 'info',
+        observed: referrerPolicy,
+        description: `Referrer-Policyが適切に明示されています (${referrerPolicy})。`,
+        recommendation: '現状の設定を維持してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Referrer-Policy'],
+        scope: url,
+      });
+    }
   }
 
   // --- 6. Permissions-Policy (Feature-Policy) ---
@@ -270,29 +443,30 @@ export function checkHttpHeaders(
     });
   }
 
-  // --- 7. CORS (Access-Control-Allow-Origin) ---
+  // --- 7. CORS (Access-Control-Allow-Origin) (v1.7.0 T07 / SPEC-12 / v1.7.1 T11 R05 項目名統一) ---
   const acao = getHeader('access-control-allow-origin');
   const acac = getHeader('access-control-allow-credentials');
   if (acao) {
-    if (acao === '*' && acac === 'true') {
+    if (acao.trim() === '*' && acac?.trim().toLowerCase() === 'true') {
       results.push({
         checkId: 'SEC-CORS-01',
         category: 'cors',
-        name: 'CORS設定 (クロスオリジン許可)',
-        status: 'fail',
-        severity: 'high',
+        name: 'CORS (Cross-Origin Resource Sharing)',
+        status: 'info',
+        severity: 'info',
         observed: `Access-Control-Allow-Origin: * / Access-Control-Allow-Credentials: true`,
         description:
-          'ワイルドカード(*)と認証情報(Credentials)の併用は極めて危険であり、モダンブラウザではブロックされるか情報流出のリスクがあります。',
-        recommendation: '特定の信頼できるOriginのみを明示的に許可し、ワイルドカードを使用しないでください。',
+          'Access-Control-Allow-Origin: * と Access-Control-Allow-Credentials: true が同時に指定されています。この組み合わせはCORS仕様によりブラウザ側で拒否されるため直接の情報流出には至りませんが、サーバー側の設定ミスの可能性があります。',
+        recommendation:
+          '認証情報（Credentials）を伴う通信を許可する場合は特定の信頼できるOriginを明示し、不要な場合は Access-Control-Allow-Credentials ヘッダーを削除してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/CORS'],
         scope: url,
       });
-    } else if (acao === '*') {
+    } else if (acao.trim() === '*') {
       results.push({
         checkId: 'SEC-CORS-02',
         category: 'cors',
-        name: 'CORS設定 (クロスオリジン許可)',
+        name: 'CORS (Cross-Origin Resource Sharing)',
         status: 'info',
         severity: 'info',
         observed: `Access-Control-Allow-Origin: *`,
@@ -304,9 +478,10 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 8. 情報露出 (Server, X-Powered-By) ---
+  // --- 8. 情報露出 (Server, X-Powered-By, X-AspNet-Version) ---
   const server = getHeader('server');
   const xPoweredBy = getHeader('x-powered-by');
+  const xAspNetVersion = getHeader('x-aspnet-version');
 
   if (server && /[0-9]+\.[0-9]+/.test(server)) {
     results.push({
@@ -337,6 +512,23 @@ export function checkHttpHeaders(
         `バックエンドで使用しているプログラミング言語やフレームワーク（${xPoweredBy}）が明示されています。攻撃者に内部構成のヒントを与えてしまいます。`,
       recommendation:
         'Webサーバーまたはアプリケーションの設定（PHPのexpose_php = Off、Expressのapp.disable("x-powered-by")等）でヘッダーを削除してください。',
+      referenceUrls: ['https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework'],
+      scope: url,
+    });
+  }
+
+  if (xAspNetVersion) {
+    results.push({
+      checkId: 'SEC-DISC-03',
+      category: 'information-disclosure',
+      name: 'バックエンド技術情報露出 (X-AspNet-Version)',
+      status: 'warning',
+      severity: 'low',
+      observed: `X-AspNet-Version: ${xAspNetVersion}`,
+      description:
+        `ASP.NET の詳細な CLR バージョン情報（${xAspNetVersion}）が公開されています。攻撃者に内部構成やランタイム世代のヒントを与えてしまいます。`,
+      recommendation:
+        'Web.config の <httpRuntime enableVersionHeader="false" /> 設定等により X-AspNet-Version ヘッダーを非表示にすることを推奨します。',
       referenceUrls: ['https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework'],
       scope: url,
     });

@@ -8,11 +8,25 @@
  */
 
 import {
+  DetectedTechnology,
   DetailedDiffItem,
   DiffCause,
   EnhancedReportComparison,
   InspectionReport,
 } from '../shared/types';
+
+/**
+ * 差分比較用に技術のバージョン（複数インスタンス含む）を正規化文字列に変換する (v1.7.0 T08 / SPEC-10)
+ */
+function formatTechVersionsForDiff(tech: DetectedTechnology): string | null {
+  if (tech.instances && tech.instances.length >= 2) {
+    return tech.instances.map((i) => i.version || '不明').join(' / ');
+  }
+  if (tech.instances && tech.instances.length === 1) {
+    return tech.instances[0].version || tech.version || null;
+  }
+  return tech.version || null;
+}
 
 /**
  * 2つの調査結果レポートを比較し、詳細な差分と推定原因を分析する (Rev.2.1 IMP-09)
@@ -75,17 +89,20 @@ export function compareReportsEnhanced(
     const tA = techMapA.get(name);
     if (!tA) continue;
 
-    // バージョン番号の変化
-    if (tA.version !== tB.version) {
+    const verStrA = formatTechVersionsForDiff(tA);
+    const verStrB = formatTechVersionsForDiff(tB);
+
+    // バージョン番号またはインスタンス構成の変化
+    if (verStrA !== verStrB) {
       diffItems.push({
         id: `tech:ver:${name}`,
         category: 'technology',
         target: name,
         diffType: 'Changed',
         diffCause: 'site-change',
-        causeExplanation: `サイト側でバージョンが ${tA.version || '不明'} から ${tB.version || '不明'} へ更新されました。`,
-        before: tA.version || '不明',
-        after: tB.version || '不明',
+        causeExplanation: `サイト側でバージョンが ${verStrA || '不明'} から ${verStrB || '不明'} へ更新されました。`,
+        before: verStrA || '不明',
+        after: verStrB || '不明',
       });
     } else {
       // バージョンは不変だが、既知脆弱性 (CVE) の該当件数が変化した場合
@@ -180,12 +197,16 @@ export function compareReportsEnhanced(
   const versionChanges: Array<{ technology: string; before: string | null; after: string | null }> = [];
   for (const tB of reportB.technologies) {
     const tA = techMapA.get(tB.technology);
-    if (tA && tA.version !== tB.version) {
-      versionChanges.push({
-        technology: tB.technology,
-        before: tA.version,
-        after: tB.version,
-      });
+    if (tA) {
+      const verStrA = formatTechVersionsForDiff(tA);
+      const verStrB = formatTechVersionsForDiff(tB);
+      if (verStrA !== verStrB) {
+        versionChanges.push({
+          technology: tB.technology,
+          before: verStrA,
+          after: verStrB,
+        });
+      }
     }
   }
 

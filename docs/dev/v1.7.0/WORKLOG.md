@@ -1,0 +1,180 @@
+# v1.7.0 作業記録
+
+各タスクの完了時に、次の形式で追記してください。完了報告書の材料になります。このファイルはコミットされるので、作業者のユーザー名・ローカルパス・ツールの製品名は書かないでください。
+
+```
+## T00 <タスク名>  (YYYY-MM-DD HH:MM)
+- 変更ファイル: <path>, <path>
+- 判断したこと: <指示書に書かれていなかったことをどう決めたか>
+- 未解決: <あれば>
+```
+
+---
+
+## T01 バージョン比較の作り直し  (2026-11-03 06:19)
+- 変更ファイル: `src/security/version-matcher.ts`, `scripts/validate-advisories.mjs`, `tests/version-check.test.ts`
+- 判断したこと:
+  - ワイルドカード判定は比較対象のトークン全体が `^\d+(\.\d+)*\.(x|\*)$`（大文字小文字不問）に一致する場合のみに限定し、`22.0.0-next.0` 等に `.x` が部分文字列として含まれても誤判定しないようにした。またプレフィックスの全数値要素の一致を必須とした（`4.3.x` は major=4 かつ minor=3）。
+  - SemVer 2.0 プレリリース識別子（`alpha`, `beta`, `rc`, `next`, `pre`, `preview`, `dev`, `canary`, `nightly`, `experimental` および `.` 区切りの後続識別子）とビルドメタデータ（`+...`）を解析し、SemVer 2.0 §11 の順序規則（プレリリース付き < 通常版、数値識別子は数値比較、非数値は ASCII 辞書順、`rc2 < rc10` のような英字+数字連結の分割比較）を実装した。
+  - Linux ディストリビューションのパッケージ版サフィックスは従来どおりプレリリース扱いせず数値部分で比較し、4要素以上の数値バージョンも不足分を 0 埋めして比較できるようにした。
+  - `scripts/validate-advisories.mjs` の `isValidRange` で `||` と `,` で分割したすべての節を `version-matcher.ts` と同じ規則で検証し、`>= 1.0.0-nxt` のような不正な識別子を検出できるようにした。
+- 未解決: なし
+
+## T02 DB に依存しないテストへの整理  (2026-11-03 12:52)
+- 変更ファイル: `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-db-invariants.test.ts`, `tests/version-check.test.ts`, `tests/advisory.test.ts`, `tests/review-v1.6.5-acceptance.test.ts`
+- 判断したこと:
+  - 現行の `src/detection/advisory-db.json` のスナップショットを `tests/fixtures/advisory-db.fixture.json` として複製し、`tests/version-check.test.ts`、`tests/advisory.test.ts`、`tests/review-v1.6.5-acceptance.test.ts` で特定の CVE・件数・推奨版・EOL を検証している `matchOfflineAdvisories` 呼び出しに `fixtureDb`（`dbOverride`）を渡す形に移行した。
+  - 同梱 `src/detection/advisory-db.json` の検証は新設した `tests/advisory-db-invariants.test.ts` に集約し、件数や特定 CVE の有無に依存しない不変条件（`schemaVersion: "2.2"`、全 14 製品の存在、`minExtensionVersion <= manifest.version`、全エントリの必須項目と `isValidRange` / `validateDb` による構文検証、壊れたトークン `>= 1.0.0-nxt` の拒否検証）のみを検査する構成にした。
+  - エントリ半減テスト等で `libraries` のみ差し替えられた場合でも構造・範囲の不変条件を検証できるよう、`validateDb` 呼び出し時には `integrity` を除外して検証するようにした。
+- 未解決: なし
+
+## T03 fixStatus・KEV・重大度 4 段階の表示  (2026-11-03 13:35)
+- 変更ファイル: `src/shared/types.ts`, `src/detection/advisory.ts`, `src/background/service-worker.ts`, `src/popup/render.ts`, `src/popup/popup.ts`, `src/popup/popup.css`, `src/dashboard/render.ts`, `src/dashboard/dashboard.css`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/advisory.test.ts`, `tests/service-worker.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - `SecurityAdvisory` 型および `advisory.ts` の照合結果に `fixStatus` (`fixed | partial | none | unknown`)、`kev` (`boolean`)、`kevDateAdded` (`string | null`)、4 段階の `severity` (`critical | high | medium | low`) を追加した。過去の保存済み履歴（大文字の重大度や `fixStatus` 未定義データ）との互換性を保つため、新規フィールドは任意（`?`）とし、`getEffectiveFixStatus` でフォールバック判定を行うようにした。
+  - `formatAdvisoryRecommendation` と `resolveRecommendedVersion` を `fixStatus` ごとに分岐し、「公式の修正版はありません」は `fixStatus: 'none'` のときのみ出力し、`unknown` のときは「修正版の情報が DB にありません。ベンダーの情報を確認してください」、`partial` のときは「一部の系列には修正版がありません」を案内するようにした。
+  - `service-worker.ts` の CVE 指摘生成（`SEC-CVE-*`）で重大度を 2 値に丸めず、ヒットした脆弱性の最大重大度（4 段階）を採用し、`kev: true` を含む場合は `critical` に引き上げるとともに、`observed` と `description` の双方に「悪用確認済み（CISA KEV）」の注記を含めるようにした。あわせて `SecuritySeverity` に `'critical'`、`securityFindings` に `critical?: number` を追加した。
+  - 参照リンク生成（`advisory.ts` および `markdown.ts`）では、CVE ID がある場合は NVD リンク、GHSA のみの場合は `https://github.com/advisories/<GHSA>` を使用し、NVD に GHSA ID を結合した無効な URL を生成しないようにした。
+  - Popup・Dashboard・エクスポート 3 形式（JSON / CSV / Markdown）すべてに `fixStatus`、`kev`（「悪用確認済み（CISA KEV）」）、4 段階重大度を表示・出力し、UI 描画時にはすべて `escapeHtml()` を通すようにした。
+- 未解決: なし
+
+## T04 「収録 DB 上は該当なし」と収録範囲の表示、多件数の表示  (2026-11-03 14:46)
+- 変更ファイル: `scripts/advisories/build-db.mjs`, `src/shared/types.ts`, `src/security/version-matcher.ts`, `src/detection/advisory.ts`, `src/detection/engine.ts`, `src/popup/render.ts`, `src/dashboard/render.ts`, `src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-pipeline.test.mjs`, `tests/advisory.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - `scripts/advisories/build-db.mjs` で schemaVersion 2.2 を維持したまま `coverage.byProduct` に各製品の `{ count, sources }`（`curated`, `OSV`, `NVD`）を書き出すようにした。`coverage.byProduct` が未定義の古い DB やテストデータでも動作するよう、`advisory.ts` の `getProductCoverageInfo` で `libraries[key].versions` から収録件数と取得元をフォールバック計算する構成にした。
+  - 過去に保存された履歴データ（v1.6.x 形式）でも UI 描画やエクスポート時に収録範囲・ステータスラベルが正しく表示されるよう、`DetectedTechnology` の新規フィールド（`productAdvisoryCount`, `productSources`, `advisoryDataVersion`, `upstreamAdvisoriesCount`, `advisoryStatusLabel`）はすべて任意（`?`）とし、`resolveTechAdvisoryDisplayInfo` で現行 DB から補完できるようにした。
+  - 該当 0 件の表示を「収録 DB 上は該当なし」に変更し、収録件数・取得元（`curated / OSV / NVD`）・`dataVersion` を併記した。収録件数が 0 件の技術（DB 未登録の Tailwind CSS やエントリ 0 件の製品）は「この技術の脆弱性は収録していません」と表示するようにした。
+  - 該当が 6 件以上の場合は `sortAdvisoriesByPriority`（KEV → 重大度 4 段階 → CVSS スコア降順）でソートした上で上位 5 件を表示し、残りを `<details class="advisory-more">`（「ほか N 件を表示」）で折りたたむようにした。折りたたみ内の要素にも `.advisory-card` クラスを付与し、推奨修正バージョンは折りたたみ前の全件から算出する。
+  - ディストリビューションパッケージ版（`2.4.52-1ubuntu4` のようなハイフン表記に加え、`2.4.41 (Ubuntu)` や `Apache/2.4.41 (Ubuntu)` のような括弧表記）を `isLinuxPackageVersion` で検出し、`Needs Review` を維持したまま上流バージョンとして照合した場合の該当件数を `countUpstreamAdvisories` で算出し、「参考: 上流版では N 件該当」を添えるようにした。固定 DB（Apache 収録 3 件のうち `< 2.4.52` が 1 件、残りは `>= 2.4.49`）における `2.4.41 (Ubuntu)` の上流版該当件数は 1 件であることをテストで確認した。
+- 未解決: なし
+
+## T14 判断の反映  (2026-11-03 15:14)
+- 変更ファイル: `data/advisories/catalog.json`, `data/advisories/curated.json`, `scripts/advisories/lib/eol.mjs`, `scripts/validate-advisories.mjs`, `scripts/verify-advisories-nvd.mjs`, `src/shared/types.ts`, `src/detection/advisory.ts`, `src/popup/render.ts`, `src/popup/popup.ts`, `src/dashboard/render.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `tests/fixtures/advisory-db.fixture.json`, `tests/advisory-pipeline.test.mjs`, `tests/advisory.test.ts`, `tests/version-check.test.ts`, `tests/export.test.ts`, `tests/ui-escaping.test.ts`
+- 判断したこと:
+  - D1（React 18 の表示と `cycleOverrides`）: `data/advisories/catalog.json` の `products.react.eol` に `cycleOverrides["18"]`（`status`, `label`, `note`）を追加し、`scripts/advisories/lib/eol.mjs` の `normalizeEol` で上書きを適用するようにした。また、`scripts/validate-advisories.mjs` で EOL エントリの `label`（120 文字以内）および `note`（300 文字以内）に HTML 特殊文字（`UNSAFE_TEXT`）が含まれないことを検証するようにした。
+  - `src/shared/types.ts` の `EolInfo` および `src/detection/advisory.ts` の `LibraryEolEntry` に任意の `label` と `note` を追加し、`buildEolResult` で `entry.note` を推奨文（`recommendation`）に反映するとともに、Popup・Dashboard・CSV・Markdown エクスポートの各出力で `label`（`status` の具体的な説明）と `note` を表示・出力し、UI 描画時には必ず `escapeHtml()` を通すようにした。
+  - D2（Bootstrap CVE-2019-8331 の範囲修正）: `data/advisories/curated.json` の `bootstrap` における `CVE-2019-8331` の `range` を `"< 3.4.1 || >= 4.0.0, < 4.3.1"` に修正して判断理由と参照先を `notes` に明記し、`scripts/verify-advisories-nvd.mjs` の `KNOWN_DEVIATIONS` に登録した。
+  - D5（Angular 暫定対応 7 件の撤去）: T01 のプレリリース・ワイルドカード比較対応により OSV 由来の範囲式がそのまま評価可能になったため、`data/advisories/curated.json` の `angular.advisories` から暫定対応 7 件を撤去して空配列 `[]` とし、`scripts/verify-advisories-nvd.mjs` の `KNOWN_DEVIATIONS` からも該当 7 件を削除した。あわせてテスト用固定 DB（`tests/fixtures/advisory-db.fixture.json`）も D1・D2・D5 の内容に合わせて更新した。
+- 未解決: なし
+
+## T05 NVD 自動取り込みの有効化、版を 1.7.0 に  (2026-11-03 17:29)
+- 変更ファイル: `scripts/advisories/build-db.mjs`, `data/advisories/catalog.json`, `public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `src/popup/popup.html`, `src/dashboard/dashboard.html`, `README.md`, `tests/advisory-db-invariants.test.ts`, `tests/advisory-pipeline.test.mjs`
+- 判断したこと:
+  - `scripts/advisories/build-db.mjs` の `MIN_EXTENSION_VERSION` を `'1.7.0'` に引き上げ、保守手順書 §1.2 および整合性テストの対象箇所（`public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `src/popup/popup.html`, `src/dashboard/dashboard.html`, `README.md`）のバージョン表記をすべて `1.7.0`（HTML は `v1.7.0`）に統一した。
+  - `data/advisories/catalog.json` において NVD 対象の 5 製品（`wordpress`, `php`, `nginx`, `apache`, `nodejs`）の `nvd.autoIngest` をすべて `true` に変更した（`data/advisories/curated.json` は指示どおり変更しない）。
+  - `tests/advisory-db-invariants.test.ts` および `tests/advisory-pipeline.test.mjs` に T05 の検証を追加し、`minExtensionVersion` が `'1.7.0'` であること、未改変の本物の DB では総収録件数が 350 件以上（400 件前後）であること、Apache `2.4.52` を照合すると `CVE-2023-25690` が該当し `Apache/2.4.41 (Ubuntu)` は `Needs Review` のままであることを確認できるようにした（エントリ半減テスト `C04c` 時にも落ちないよう `versions.length === coverage.byProduct.apache.count` で未改変判定を併用）。
+- 未解決: なし
+
+## T06 CSP を積集合で評価  (2026-11-03 17:54)
+- 変更ファイル: `src/security/csp-parser.ts`, `src/security/headers.ts`, `src/background/service-worker.ts`, `src/content/content-script.ts`, `src/shared/types.ts`, `tests/csp-parser.test.ts`, `tests/review-v1.6.5-acceptance.test.ts`
+- 判断したこと:
+  - `src/security/csp-parser.ts` に `parseCSPHeaderValues` を追加し、HTTP レスポンスヘッダーの配列要素ごと、およびカンマ（`,`）区切りごとに別々の `CSPPolicy` オブジェクトとして分割・解析するようにした。`src/security/headers.ts`（`checkHttpHeaders`）と `src/background/service-worker.ts`（`executeInspection`）の双方でこの関数を用いることで、複数ヘッダー行とカンマ区切り 1 行のどちらで送信されても同一の判定になるよう統一した。
+  - 複数の強制ポリシー（`mode === 'enforce'`）の評価を能力（インライン実行、eval、任意ホストからのスクリプト、`object-src`、`base-uri`、`frame-ancestors`）単位の積集合（AND）に変更した。各能力についてすべての強制ポリシーが許容している場合のみ指摘を残し、1 つでも遮断している強制ポリシーがあれば防御済みとして扱うようにした。
+  - スクリプトの任意ホスト許可（`CSP-SCRIPT-WILDCARD`）の対象を拡大し、`*`、`https:`、`http:`（および `https://*` 等）を `high`、サブドメインワイルドカード（`*.example.com` 等）を `medium` として検出するようにした。また `nonce-*` / `sha256|384|512-*` と `'strict-dynamic'` がある場合は、CSP Level 3 仕様に従いホスト許可と `'unsafe-inline'` が無視されることを反映した。
+  - `severity: 'info'` の注記（`CSP-SCRIPT-STRICT-DYNAMIC-NOTE` や nonce/hash 共存時の `'unsafe-inline'` 実効的無効化注記）は `SEC-CSP-03` の指摘件数（`actionableEnforceIssues`）に含めず、他に警告事項がなければ `SEC-CSP-00`（`status: 'pass'`）になるようにした。
+  - `src/content/content-script.ts` で `<meta http-equiv="Content-Security-Policy-Report-Only">` を `metaCspReportOnly`（`DomSignals` の任意フィールド）として分離収集し、`analyzeCSPPolicies` では meta の Report-Only をポリシー評価から外した上で「無効な指定」として `info` の注記（`SEC-CSP-META-RO`, `status: 'info'`, `severity: 'info'`）を 1 件出力するようにした。meta の Report-Only のみがあるページでは CSP は「未設定」（`SEC-CSP-01`）扱いとなり、あわせて `info` 注記が 1 件出力される。
+  - 既存の `tests/csp-parser.test.ts` のテストは期待値を 1 件も変更せずにそのまま維持し、DOM 抽出を含む新規テストを追加するとともにファイル先頭に `// @vitest-environment happy-dom` を付与した。
+- 未解決: なし
+
+## T07 ヘッダー値の検証、混在コンテンツの対象拡大  (2026-11-03 19:20)
+- 変更ファイル: `src/security/headers.ts`, `src/background/service-worker.ts`, `src/security/cookies.ts`, `src/security/https.ts`, `src/content/content-script.ts`, `src/shared/types.ts`, `docs/DETECTION_SPECIFICATION.md`, `tests/review-v1.6.5-acceptance.test.ts`, `tests/security.test.ts`, `tests/content-script.test.ts`, `tests/cookies.test.ts`
+- 判断したこと:
+  - `src/security/headers.ts` に `isValidXFrameOptions` を追加し、`X-Frame-Options` が `DENY` または `SAMEORIGIN` 以外（`ALLOWALL`、`ALLOW-FROM`、不正値）の場合は `pass` にせず `SEC-XFO-02`（`status: 'warning'`, `severity: 'medium'`）とした。ただしレスポンスヘッダーの強制 CSP に `frame-ancestors` がある場合はブラウザ仕様どおりそちらを優先して `SEC-XFO-00`（`pass`）とし、`analyzeCSPPolicies` に渡す `hasXfo` フラグも `isValidXFrameOptions` で判定するように `headers.ts` と `service-worker.ts` を統一した。
+  - HSTS について、`max-age=0`（明示的な無効化）または `max-age` 未指定は `SEC-HSTS-02` の `severity: 'medium'`、`max-age` が 1 年（31536000 秒）未満の場合は `severity: 'low'`、1 年以上の場合は `SEC-HSTS-00`（`pass`）とした。
+  - `Referrer-Policy` について、カンマ区切りのフォールバック指定時はブラウザ仕様どおり最後の認識可能なトークンを有効値として評価し、`unsafe-url` および認識不能な無効値は `SEC-REF-02`（`status: 'warning'`, `severity: 'low'`）、`no-referrer-when-downgrade` は `SEC-REF-03`（`status: 'info'`, `severity: 'info'`）とした。
+  - CORS について、`Access-Control-Allow-Origin: *` と `Access-Control-Allow-Credentials: true` の組み合わせはブラウザが拒否するため、`SEC-CORS-01` の重大度を `high`（`fail`）から設定ミス指摘の `info`（`status: 'info'`, `severity: 'info'`）に変更した。
+  - D7 に従い、ブラウザがそもそも保存しない Cookie を対象にしたチェック（Cookie プレフィックス違反 `SEC-COOKIE-PREFIX`、`SameSite=None` で `Secure` なし、`Partitioned` で `Secure` なし）を `src/security/cookies.ts` から削除し、`docs/DETECTION_SPECIFICATION.md` の図表文言からもプレフィックス表記を外した。ファイル自体の削除は不要であった。
+  - 混在コンテンツ（SPEC-15）について、`src/content/content-script.ts` の収集対象に `img[srcset]`、`video[src]`、`audio[src]`、`source[src]` / `source[srcset]`、`object[data]`、`embed[src]`、`form[action]` を追加した。`src/security/https.ts` ではパッシブ混在（`image`, `video`, `audio`, `other`）をブラウザの HTTPS 自動昇格を考慮して `severity: 'low'` とし、アクティブ混在（`script`, `stylesheet`, `iframe`, `object`, `embed`, `fetch`）および平文 HTTP の `form[action]`（`form`）を `severity: 'high'` として説明文にも反映した。
+- 未解決: なし
+
+## T08 同じライブラリの複数バージョンを照合  (2026-11-03 19:55)
+- 変更ファイル: `src/shared/types.ts`, `src/detection/engine.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/popup/render.ts`, `src/dashboard/render.ts`, `src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`, `src/storage/diff.ts`, `test-server/server.mjs`, `scripts/test-e2e-smoke.mjs`, `tests/review-v1.6.5-acceptance.test.ts`, `tests/detection.test.ts`, `tests/service-worker.test.ts`, `tests/export.test.ts`, `tests/diff.test.ts`, `tests/dashboard-history.test.ts`
+- 判断したこと:
+  - `src/shared/types.ts` に `TechnologyInstance`（`version`, `versionConfidence`, `evidences`, `advisories`, `advisoryMatchMode`, `advisoryNote`, `eol`）と `DetectedTechnology.instances?: TechnologyInstance[]` を追加した。後方互換のため任意フィールドとし、`instances` がない v1.6.6 形式の保存済みレポートも従来の `version` / `advisories` / `eol` から安全に表示・処理できるようにした。
+  - `src/detection/engine.ts` では、エビデンスごとの抽出バージョン（`evidence.version`）でグループ化して `instances` 配列を構築するようにした。バージョンは `compareVersions` による昇順（古い順）、バージョン不明（`undefined`）は末尾に並べ、最大 5 件に制限した。各インスタンスに対して個別にオフライン脆弱性照合と EOL 判定を実行し、`tech.version` には最も古い確定バージョン（`instances[0]?.version`）を設定、`tech.advisories` には全インスタンスの脆弱性の和集合（ID 重複排除・CVSS 降順）、`tech.eol` には EOL 該当インスタンスがあれば優先して保持するようにした。
+  - `src/background/service-worker.ts` の `executeInspection` では、`tech.instances`（未定義時は単一要素にフォールバック）を走査してインスタンスごとに `SEC-EOL-*` と `SEC-CVE-*` を生成し、`findingId` にバージョン文字列を含めることで複数バージョンの Finding が衝突しないようにした。
+  - ポップアップ（`src/popup/render.ts`, `src/popup/popup.ts`）とダッシュボード（`src/dashboard/render.ts`）では、確定バージョンが 2 個以上ある場合に `"1.12.4 / 3.7.1（2 つのバージョン）"` の形式で併記し、モーダルや詳細セクション・ライブラリセキュリティ診断表でインスタンスごとの脆弱性・EOL・エビデンスを表示するようにした。
+  - エクスポート（`src/export/json.ts`, `src/export/csv.ts`, `src/export/markdown.ts`）では、JSON に `instances` をそのまま含め、CSV と Markdown の技術一覧表では確定バージョンを持つインスタンスが複数ある場合に 1 インスタンス 1 行で展開して出力するようにした。
+  - 履歴差分（`src/storage/diff.ts`）では、`instances` 内の確定バージョン集合の追加・削除も `Changed`（`site-change`）として検出し、`oldVersion` / `newVersion` にスラッシュ区切りのバージョン一覧を記録するようにした。
+  - E2E テスト用サーバー（`test-server/server.mjs`）に `/jquery-multi`（`jquery-1.12.4.min.js` と `jquery-3.7.1.min.js` を同梱）を追加し、`scripts/test-e2e-smoke.mjs` で複数バージョン検出と脆弱性照合を検証するようにした。
+- 未解決: なし
+
+## T12 DB 更新ワークフローの改善、E2E サーバーの自動起動  (2026-11-03 20:05)
+- 変更ファイル: `scripts/advisories/pr-plan.mjs`, `.github/workflows/advisory-db-update.yml`, `scripts/test-e2e-smoke.mjs`, `tests/advisory-pipeline.test.mjs`
+- 判断したこと:
+  - `scripts/advisories/pr-plan.mjs` を新設し、diff-db の分類結果（`none | minor | major`）、テスト成否（`testsPassed`）、テスト出力からの失敗テスト名抽出（`extractFailedTests`：Vitest JSON レポート、標準出力の `FAIL` サマリー行、ツリー出力の `×` 行、TypeScript 型エラーに対応）、`ADVISORY_AUTO_MERGE`、GitHub App トークンの有無から、PR 作成要否・付与ラベル・除去ラベル・PR 本文・自動マージ可否・ジョブ失敗フラグを算出する `planPullRequest` 関数および CLI を実装した。
+  - `.github/workflows/advisory-db-update.yml` では、`Test & build` ステップで `npm test` または `npm run build` が失敗しても後続ステップへ進むようにし、`pr-plan.mjs` で `db:tests-failing` ラベルと失敗したテスト名一覧を含む PR 本文を生成して PR を作成・更新した上で、`db:tests-failing` がある場合は `ADVISORY_AUTO_MERGE=true` でも自動マージを無効化し、最後に `exit 1` でジョブの最終結果を失敗にするようにした。アクションはすべて既存の SHA 固定を維持し、`actionlint` で警告・エラーが出ないことを確認した。
+  - `scripts/test-e2e-smoke.mjs` に `checkServerResponding`、`ensureTestServer`、`stopTestServer` を追加し、ポート 3000 で既にテスト用サーバーが応答している場合はそれを再利用し、未起動の場合は `test-server/server.mjs` を子プロセスで起動して HTTP 応答を待ってから E2E を実行し、`finally` ブロック（成功時・失敗時の双方）で子プロセスを停止してポート 3000 が閉じるまで待機するようにした。
+  - `tests/advisory-pipeline.test.mjs` に `pr-plan.mjs` の単体テストを追加し、「テスト失敗・minor・auto-merge 有効」で「PR 作成・`db:tests-failing` ラベル付与・失敗テスト名の本文記載・自動マージしない・ジョブ失敗」となること、およびテスト成功時・major 時・App トークンなし時の分岐を検証した。
+- 未解決: 実際の GitHub Actions（`workflow_dispatch`）での動作確認は完了報告書の「人の確認事項」に含める。
+
+## T09 連動推論の確信度、検出表示の整合  (2026-11-03 20:41)
+- 変更ファイル: `src/detection/engine.ts`, `src/detection/rules/frontend.json`, `src/content/content-script.ts`, `docs/DETECTION_SPECIFICATION.md`, `docs/phases/PHASE_2_LIBRARY_SECURITY.md`, `tests/detection.test.ts`, `tests/content-script.test.ts`, `tests/spec-integrity.test.ts`
+- 判断したこと:
+  - SPEC-14（連動推論の確信度計算）: `src/detection/engine.ts` の `resolveImplications()` における推論先確信度の計算式を従来の `- 5` 減算から仕様書どおり「子 = 親 × 係数（端数切り捨て）」（`Math.floor(trigger.confidence * impDef.confidenceFactor)`）に変更した。これにより、たとえば Material UI（確信度 85）から係数 `0.9` で推論された React の確信度は `76` となる。
+  - DOC-05（`docs/DETECTION_SPECIFICATION.md` §4 の図表と `rules/*.json` の整合）: `src/detection/rules/frontend.json` の `nextjs`、`nuxtjs`、`material-ui`、`sveltekit` の `implies` 定義（計 7 エッジ）に明示的な `"confidenceFactor": 0.9` を付与し、全ルール JSON の全 23 エッジで `id`、`relation`、`runtimeStatus`、`confidenceFactor` が明示されるようにした。その上で `docs/DETECTION_SPECIFICATION.md` §4 の Mermaid 図と「連動推論マトリクス表」（§3 の技術カタログ表の行頭判定 `` | ` `` と干渉しない `| **技術名** (\`id\`) |` 形式）を全 23 エッジ（`Next.js -> React`、`Nuxt -> Vue.js`、`SvelteKit -> Svelte`、`Material UI -> React` が `possible` であること、および各エッジの `confidenceFactor` を含む）と完全に一致させ、`tests/spec-integrity.test.ts` で図・表・`rules/*.json` の完全一致を自動検証するようにした。
+  - DOC-06（CSS コメントからのバージョン抽出）: ブラウザの CSSOM（`sheet.cssRules`）はコメントを保持せず、`<link>` 要素の `textContent` も常に空であるため、実際に動作していなかった `src/content/content-script.ts`（`inspectCssAssets`）の CSS コメント抽出ブロックを削除し、`<link rel="stylesheet" href="...">` の URL パターンからの抽出のみに整理した。あわせて `docs/phases/PHASE_2_LIBRARY_SECURITY.md` から CSS コメント抽出の記述を削除した。
+  - DOC-11（バックエンド候補ラベルの整合）: `src/detection/engine.ts` の `consolidateCandidates()` で候補ラベルを `"Java / Laravel / Node.js (候補)"` に固定せず、実際に一致した候補のみを `${matchedNames.join(' / ')} (候補)`、`candidateTechnologies`、`evidence[0].detail`、`description` に含めるように変更し、`docs/DETECTION_SPECIFICATION.md` §5 の記述も合わせた。
+- 未解決: なし
+
+## T10 メッセージ検証、履歴の容量、URL マスク、許容設定の ID  (2026-11-03 21:05)
+- 変更ファイル: `src/shared/types.ts`, `src/shared/identity.ts`, `src/security/csp-parser.ts`, `src/storage/exceptions.ts`, `src/storage/history.ts`, `src/export/json.ts`, `src/export/csv.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `tests/service-worker.test.ts`, `tests/exceptions.test.ts`, `tests/export.test.ts`
+- 判断したこと:
+  - IMPL-05（メッセージ検証と送信元制限）: `src/background/service-worker.ts` に `isPrivilegedExtensionSender`、`validateRuntimeMessage`、`handleRuntimeMessage` を実装した。特権メッセージ（調査実行・履歴の取得と削除・許容設定の取得と登録と削除）は `sender.id === chrome.runtime.id` かつ `sender.url` が拡張機能自身のページ（`chrome-extension://<id>/...`）である場合のみ受け付け、content script（`sender.tab` があり `sender.url` が `https://...` のページ）からの送信は拒否するようにした。またメッセージごとに必須フィールドの型と長さを検証し、未知のメッセージ型には同期的に `false` を返すようにした。
+  - IMPL-06（履歴の容量制御・保存失敗時の継続・直列化キュー）: `src/storage/history.ts` に直列化キュー（`runSerializedHistoryMutation`）を導入し、複数の調査完了や削除操作が同時に発生しても Read-Modify-Write の競合で履歴が失われないようにした。また `enforceReportStorageLimits` により 1 技術あたりの `evidence` を最大 20 件に切り詰め、単一レポートのサイズ上限（512 KB）と履歴全体の合計サイズ上限（8 MB、超過時は古い履歴から削除）を適用した。`executeInspection` では履歴保存の例外を捕捉して調査自体は成功として返し、`report.historySaveFailed = true` と `report.storageWarning` を設定してポップアップ・ダッシュボード画面上で通知バナーを表示するようにした。
+  - IMPL-07（URL のクエリ・フラグメント除去マスク）: `src/shared/identity.ts` に `stripUrlQueryAndFragment`、`src/storage/history.ts` に `sanitizeReportUrls` を追加し、履歴保存時ならびに JSON（`exportReportToJson`）・CSV（`exportReportToCsv`）エクスポート時に URL のクエリパラメータ（`?token=x` 等）とフラグメント（`#y` 等）および認証情報を既定で除去するようにした。
+  - IMPL-09（許容設定の安定 ID と旧形式からの移行）: `generateFindingIdFromCheck` を URL のパスやクエリに依存しない `origin + checkId (+ resourceKey)` ベースの算出に変更し、`SEC-CSP-03` も指摘ディレクティブ集合に依存しない `generateFindingIdFromCheck('SEC-CSP-03', url)` に統一した。`src/storage/exceptions.ts` に `migrateFindingException` / `migrateFindingExceptions` を実装し、`getAllFindingExceptions()` の読み込み時および `matchFindingException()` の照合時に v1.6.6 形式の許容設定（クエリ付き URL や項目名を含む旧ハッシュ）を新 ID へ自動移行し、クエリだけが異なる URL でも許容設定が効き続けるようにした。
+- 未解決: なし
+
+## T11 必要なときだけ注入、CHIPS、Cookie の重複除去  (2026-11-03 21:50)
+- 変更ファイル: `public/manifest.json`, `src/content/content-script.ts`, `src/background/service-worker.ts`, `src/security/cookies.ts`, `src/detection/engine.ts`, `PRIVACY_POLICY.md`, `scripts/test-e2e-smoke.mjs`, `tests/content-script.test.ts`, `tests/detection.test.ts`, `tests/service-worker.test.ts`
+- 判断したこと:
+  - IMPL-08 / D6（必要なときだけ注入）: `public/manifest.json` から `"content_scripts"` ブロックを削除し、`permissions`（`["activeTab", "storage", "scripting", "webRequest", "cookies"]`）と `host_permissions`（`["<all_urls>"]`）は v1.6.6.1 のままとした。`src/background/service-worker.ts` の `fetchDomSignals` で調査実行時に `chrome.scripting.executeScript({ target: { tabId }, files: ['content/content-script.js'] })` によりオンデマンド注入してから `EXTRACT_DOM_SIGNALS` を送信するようにした。また `src/content/content-script.ts` の先頭に `initContentScript()`（グローバルフラグ `__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__` による二重実行防止ガード）を設け、同じタブで複数回調査しても `onMessage` リスナーが重複登録されず、拡張機能ロード前に開いていたタブでもリロードなしで調査できるようにした。
+  - IMPL-11（CHIPS 対応）: `src/background/service-worker.ts` に `resolveTopLevelSite(url)`（`parseRegistrableDomain` を用いて `scheme://eTLD+1` を算出、IP アドレスや localhost は origin にフォールバック）と `getInspectedCookies(url)` を実装した。`chrome.cookies.getAll({ url })` と `chrome.cookies.getAll({ url, partitionKey: { topLevelSite } })` の両方を呼び出し、`name|domain|path|partitionKey` で重複除去したうえで `partitioned` および `partitionKey` を正規化して `checkCookies` へ渡すようにした。`src/security/cookies.ts` でも `cookie.partitionKey` がオブジェクト（`{ topLevelSite }`）で渡された場合に文字列へ正規化するようにした。
+  - IMPL-12（Cookie 名の重複除去）: `src/detection/engine.ts` で `input.network?.cookies` と `input.dom?.cookiesFromDocument` の Cookie 名を `uniqueCookieNames`（`Set<string>`）で重複除去し、さらに同一技術ルール内の複数の `cookie` シグナル（例: Laravel の `^laravel_session$` と汎用 `*_session`）の間でも同じ Cookie 名が二重に `evidence` へ追加されないよう `matchedCookieNames`（`Set<string>`）で管理するようにした。これにより、2 経路に存在する同名 Cookie でも根拠の表示が 1 件のみとなる。
+  - DOC-08（`PRIVACY_POLICY.md` の更新、前後の対比）:
+    - 変更前（v1.6.6.1）:
+      - 英語 §1: `Content scripts are deployed across all visited pages via the manifest configuration; however, active inspection processing and report generation occur when the user initiates an inspection via the extension popup.`
+      - 英語 §2: ` History records include the full inspected URL, detected technologies, security findings, and the inspection timestamp.`
+      - 英語 §3: `Content scripts are deployed to all visited pages via the manifest configuration, while active inspection processing and report generation occur when you click the extension icon.`
+      - 日本語 §1: `コンテンツスクリプトはマニフェスト設定により閲覧ページに配置されますが、能動的な調査処理およびレポート生成はユーザーがポップアップを開いて調査を開始した際に実行されます。`
+      - 日本語 §2: `履歴レコードには、調査対象 URL、検出された技術、セキュリティ診断結果、および調査日時が含まれます。`
+      - 日本語 §3: `コンテンツスクリプトはすべてのページに配置されますが、能動的な調査処理はユーザーが拡張機能アイコンをクリックした際に実行されます。`
+    - 変更後（v1.7.0）:
+      - 英語 §1: `Content scripts are not statically deployed across all visited pages; instead, they are injected on demand into the active tab only when the user initiates an inspection via the extension popup.`
+      - 英語 §2: `History records include the sanitized inspected URL (with query strings and fragments removed), detected technologies, security findings, and the inspection timestamp.` / エクスポートも query strings と fragments を既定でマスクする旨を明記。
+      - 英語 §3: `Content scripts are injected on demand into the inspected tab via chrome.scripting.executeScript only when you click the extension icon and initiate an inspection.`
+      - 日本語 §1: `コンテンツスクリプトがすべての閲覧ページに常時配置されることはなく、ユーザーがポップアップを開いて調査を開始した際にのみ、対象タブへオンデマンドで注入されて調査処理およびレポート生成が実行されます。`
+      - 日本語 §2: `履歴レコードには、クエリ文字列およびフラグメントを除去（マスク）した調査対象 URL、検出された技術、セキュリティ診断結果、および調査日時が含まれます。` / エクスポートもクエリ文字列とフラグメントを既定で除去する旨を明記。
+      - 日本語 §3: `コンテンツスクリプトはユーザーが拡張機能アイコンをクリックして調査を開始した際にのみ chrome.scripting.executeScript によって対象タブへオンデマンドで注入されます。`
+- 未解決: なし
+
+## T16 DB 更新の自動マージと自動公開  (2026-11-03 22:08)
+- 変更ファイル: `scripts/release/classify-release.mjs`, `scripts/release/cws-status.mjs`, `scripts/advisories/diff-db.mjs`, `scripts/advisories/pr-plan.mjs`, `.github/workflows/release.yml`, `.github/workflows/advisory-db-update.yml`, `.github/workflows/cws-status.yml`, `tests/advisory-pipeline.test.mjs`, `docs/MAINTENANCE_GUIDE.md`
+- 判断したこと:
+  - D4（リリース種別判定と自動公開ルート）: `scripts/release/classify-release.mjs` を新設し、バージョンが 4 要素（`1.7.0.1` 等）かつ前回タグが存在し、変更ファイルが `data/advisories/**`・`src/detection/advisory-db.json`・`public/manifest.json` のみに収まり、`public/manifest.json` の変更が `"version"` 行のみである場合を「DB だけの版（`isDbOnly: true`）」と判定する純粋関数 `classifyRelease` と CLI を実装した。`isDbOnly && CWS_AUTO_PUBLISH === 'true'` のときのみ `mode: 'auto'`, `environment: 'chrome-web-store-auto'`, `publishType: 'DEFAULT_PUBLISH'` とし、それ以外（コードを含む版・3要素版・`CWS_AUTO_PUBLISH` 未設定・`manifest.json` の `version` 以外の変更）はすべて `mode: 'manual'`, `environment: 'chrome-web-store'`, `publishType: 'STAGED_PUBLISH'` とした（`workflow_dispatch` 時は `CWS_PUBLISH_TYPE` や入力 `publish_type` を選択可能）。
+  - `.github/workflows/release.yml` の `prepare` ジョブで `classify-release.mjs` を呼び出し、`submit` ジョブの `environment` と `PUBLISH_TYPE` を自動分岐するように更新した。
+  - 自動マージ条件の厳格化: `scripts/advisories/pr-plan.mjs` と `.github/workflows/advisory-db-update.yml` で、自動マージを「`classification === 'minor'`、テスト合格（`db:tests-failing` なし）、App トークンあり（`hasAppToken`）、`ADVISORY_AUTO_MERGE=true`」のすべてを満たす場合に限定し、App トークンがない場合は自動マージせず警告（`::warning::`）を出すようにした。
+  - `scripts/advisories/diff-db.mjs` の `major` 条件追加: 既存の条件に加え、`schemaVersion` の変更、`minExtensionVersion` の変更、既存アドバイザリの範囲・スコア変更が 20 件を超える場合、KEV の解除（`true` → `false`）を `reasonsMajor` に追加した。また `baseSize` 未指定時でも 50 件以上の DB（初回 NVD 取り込み 87 → 416 件等）で JSON サイズが 50% を超えて増減した場合は `major` と判定するようにした。
+  - 審査ステータス監視: `scripts/release/cws-status.mjs` と `.github/workflows/cws-status.yml` を追加し、`vars.CWS_ENABLED == 'true'` のときに毎日 1 回 `cws-publish.mjs status` を確認して、却下（`REJECTED`）や停止状態（`SUSPENDED`, `TAKEN_DOWN` 等）であれば GitHub Issue を作成（既存のオープン Issue があればコメント追記）するようにした。すべてのワークフローでアクションは SHA 固定・最小 `permissions` とした。
+  - `docs/MAINTENANCE_GUIDE.md` §3 に全自動パイプラインのフロー図（Mermaid）、緊急停止手順（`ADVISORY_AUTO_MERGE` と `CWS_AUTO_PUBLISH` の 2 変数を `false` に変更）、誤った DB が公開された場合のロールバック手順（該当 PR を revert し第 4 要素を +1 した次のリビジョン版を公開）、および管理者が行う初期設定手順を追記した。
+- 未解決: GitHub / Google Cloud コンソール側での初期設定（GitHub App の作成と `BOT_APP_CLIENT_ID` / `BOT_APP_PRIVATE_KEY` 登録、`main` のブランチ保護/Ruleset 設定、Environment `chrome-web-store-auto` の作成と GCP Workload Identity Federation の許可設定、および最初の 2 週間の試行運用後の変数有効化）は、完了報告書の「人の確認事項」として管理者が実施する。
+
+## T13 文書の更新、HTML の一本化、PSL の生成  (2026-11-03 23:52)
+- 変更ファイル: `README.md`, `docs/DETECTION_SPECIFICATION.md`, `docs/MAINTENANCE_GUIDE.md`, `scripts/generate-spec-catalog.mjs`, `scripts/advisories/lib/psl.mjs`, `scripts/advisories/fetch-upstream.mjs`, `data/psl/public_suffix_list.dat`, `src/security/psl-rules.generated.ts`, `src/security/domain-analyzer.ts`, `tests/fixtures/psl.fixture.dat`, `tests/domain-analyzer.test.ts`, `tests/spec-integrity.test.ts`, `src/popup/popup.html`（削除指定）, `src/dashboard/dashboard.html`（削除指定）
+- 判断したこと:
+  - **README カバレッジ表の自動生成と陳腐化記載の解消 (DOC-07)**: `scripts/generate-spec-catalog.mjs` に `generateReadmeCoverageSection()` を実装し、`src/detection/rules/*.json` の全ルール定義および `data/advisories/catalog.json` から `README.md` のカバレッジ表（全 70 技術）を自動生成するように統一した。「バージョン特定」列は `versionRegex` または実行時バージョン取得を持つ技術のみ `✅`（それ以外は `-`）を出力する仕様とし、`tests/spec-integrity.test.ts` で自動生成結果（全 70 行の各列の値）との完全一致を検証するようにした。また、`README.md` 内の古いバージョン表記（`v1.6.0`）・テスト件数表記（`全125テスト`）・ディレクトリ構成ルート名（`siteChecker/`）を現行実態に合わせて更新した。
+  - **仕様書・保守手順書の v1.7.0 実装同期 (DOC-03, DOC-04, DOC-05, DOC-06, DOC-11)**: `docs/DETECTION_SPECIFICATION.md` および `docs/MAINTENANCE_GUIDE.md` を更新し、複数バージョン保持（`instances`）、SemVer・プレリリース比較、`fixStatus`（`fixed | partial | none | unknown`）と CISA KEV 表示、重大度 4 段階（`critical | high | medium | low`）、複数 CSP ヘッダーの積集合評価、セキュリティヘッダー値の妥当性検証、混在コンテンツ（Mixed Content）の検査対象拡大、CHIPS（`Partitioned` 属性）対応、NVD 自動取り込み、PSL 自動生成の仕様を反映した。
+  - **HTML ファイルのルート直下一本化 (DOC-10)**: Vite のビルドエントリであるルート直下の `popup.html` / `dashboard.html` に一本化し、重複していた `src/popup/popup.html` と `src/dashboard/dashboard.html` を削除対象（`result.json` の `delete`）に指定した。あわせて `docs/MAINTENANCE_GUIDE.md` §1.2 および `tests/spec-integrity.test.ts` の HTML バージョン検査対象をルート直下の 2 ファイルに更新した。
+  - **Public Suffix List (PSL) のビルド時生成とフォールバック機構 (DOC-12)**: `scripts/advisories/lib/psl.mjs` を新設し、上流取得（`fetch-upstream.mjs` への統合）、スナップショット（`data/psl/public_suffix_list.dat`）からのコード生成（`src/security/psl-rules.generated.ts`）、およびスナップショット未取得時に警告を出してフォールバック一覧を使用しビルドを止めない機構を実装した。日本の地域型・都道府県ドメイン（`tokyo.jp` 等）、政令指定都市のワイルドカード・例外ルール（`*.kawasaki.jp`, `!city.kawasaki.jp`, `!metro.tokyo.jp` 等）に対応し、`tests/fixtures/psl.fixture.dat` を用いた単体テストを `tests/domain-analyzer.test.ts` に追加した。
+- 未解決: なし
+
+## T15 仕上げ（C7、C8）  (2026-11-04 00:08)
+- 変更ファイル: `docs/dev/v1.6.6/COMPLETION_REPORT.md`, `docs/dev/v1.6.6/check-result.json`, `docs/DETECTION_SPECIFICATION.md`, `README.md`, `src/detection/rules/index.ts`, `src/export/markdown.ts`, `src/export/csv.ts`
+- 判断したこと:
+  - **v1.6.6 完了報告書の訂正 (C7)**: `docs/dev/v1.6.6/COMPLETION_REPORT.md` の §4 および §10 に記載されていた、skip として残した P1 受け入れテスト 5 件の説明（旧記載: 同一ドメイン Cookie 判定・インラインスクリプトハッシュ評価・クエリパラメータ除外）を、`tests/review-v1.6.5-acceptance.test.ts` の実際のテスト名（`SPEC-07 / SPEC-08: CSP 評価` の 3 件: `複数の強制ポリシーは積集合で評価する (片方が厳格なら unsafe-inline を high にしない)`・`scheme-source (https:) は任意ホスト許可として検出する`・`nonce + strict-dynamic の堅牢な CSP は PASS (info 注記で warning にしない)`、`SPEC-10: 同一ライブラリの複数バージョン同居` の 1 件: `jquery-1.12.4 と 3.7.1 が同居する場合、1.12.4 の CVE も報告する`、`SPEC-12: ヘッダー値の妥当性` の 1 件: `X-Frame-Options: ALLOWALL は PASS にしない / HSTS max-age=0 は medium 以上`）に訂正した。
+  - **v1.6.6 check-result.json の更新 (C8)**: `docs/dev/v1.6.6/check-result.json` を人間の対応および E2E 実行完了後の最終状態（`mode: "full+e2e"`, `passed: 19`, `failed: 0`、C05・C11・R06 を含む全 19 項目 `PASS`）に合わせて更新した。
+  - **バージョン `1.7.0` とドキュメント・実装の最終整合確認**: `public/manifest.json`, `package.json`, `package-lock.json`, `src/detection/rules/index.ts`, `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `popup.html`, `dashboard.html`, `README.md`, `docs/DETECTION_SPECIFICATION.md`, `docs/MAINTENANCE_GUIDE.md` のバージョン表記が `1.7.0` に揃っていることを確認し、`src/detection/rules/index.ts` のコメントおよび `src/export/markdown.ts`・`src/export/csv.ts` の `extensionVersion` フォールバック値も `1.7.0` に統一した。また、`README.md` のディレクトリ構成ツリーおよび `docs/DETECTION_SPECIFICATION.md` §6〜§8 の記述を v1.7.0 の実装（`instances`、`upstreamAdvisoriesCount`、「収録 DB 上は該当なし」と収録範囲表示、`Maintenance` サポート状態、CSP 積集合・`scheme-source`・`strict-dynamic`、ヘッダー値妥当性、連動推論マージ防止、URL クエリ/フラグメント除去、Content Script オンデマンド注入）に一致させた。
+  - **受け入れテストの skip 確認**: `tests/review-v1.6.5-acceptance.test.ts` において `it.skip` / `describe.skip` が 0 件であることを確認した。
+- 未解決: なし
+

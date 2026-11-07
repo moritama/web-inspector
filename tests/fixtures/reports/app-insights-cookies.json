@@ -1,0 +1,292 @@
+{
+  "id": "rep_fixture_ai_cookies_02",
+  "url": "https://ai-portal.example.test/",
+  "hostname": "ai-portal.example.test",
+  "inspectedAt": "2026-11-01T00:00:00.000Z",
+  "extensionVersion": "1.7.0",
+  "rulesVersion": "1.7.0",
+  "advisoryDatabaseVersion": "2026-10-31",
+  "coverage": {
+    "dom": "complete",
+    "headers": "complete",
+    "cookies": "complete",
+    "iframes": "not-applicable",
+    "network": "complete",
+    "overallStatus": "complete",
+    "details": {
+      "domItemCount": 4,
+      "headerCount": 6,
+      "cookieCount": 5
+    }
+  },
+  "summary": {
+    "totalTechnologies": 2,
+    "requiresAttentionCount": 1,
+    "securityFindings": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 1,
+      "info": 5,
+      "unknown": 0
+    },
+    "librarySecurity": {
+      "eolCount": 0,
+      "vulnerableLibraryCount": 0,
+      "mismatchCount": 0
+    },
+    "isHttps": true,
+    "mixedContentCount": 0
+  },
+  "technologies": [
+    {
+      "technology": "ASP.NET",
+      "category": "programming-language",
+      "detected": true,
+      "version": "4.0.30319",
+      "versionSource": "header",
+      "confidence": 95,
+      "confidenceLevel": "high",
+      "detectionMethod": "direct",
+      "runtimeStatus": "confirmed",
+      "supportStatus": "Supported",
+      "eolDate": null,
+      "advisoryMatchStatus": "No Data",
+      "offlineMatchStatus": "Not Covered",
+      "productAdvisoryCount": 0,
+      "productSources": [],
+      "advisoryDataVersion": "20261031",
+      "advisories": [],
+      "evidence": [
+        {
+          "type": "response-header",
+          "name": "X-AspNet-Version",
+          "value": "4.0.30319",
+          "source": "https://ai-portal.example.test/",
+          "weight": 95
+        }
+      ]
+    },
+    {
+      "technology": "Microsoft IIS",
+      "category": "web-server",
+      "detected": true,
+      "version": "10.0",
+      "versionSource": "header",
+      "confidence": 95,
+      "confidenceLevel": "high",
+      "detectionMethod": "direct",
+      "runtimeStatus": "confirmed",
+      "supportStatus": "Supported",
+      "eolDate": null,
+      "advisoryMatchStatus": "No Data",
+      "offlineMatchStatus": "Not Covered",
+      "productAdvisoryCount": 0,
+      "productSources": [],
+      "advisoryDataVersion": "20261031",
+      "advisories": [],
+      "evidence": [
+        {
+          "type": "response-header",
+          "name": "Server",
+          "value": "Microsoft-IIS/10.0",
+          "source": "https://ai-portal.example.test/",
+          "weight": 95
+        }
+      ]
+    }
+  ],
+  "securityChecks": [
+    {
+      "checkId": "SEC-HTTPS-01",
+      "category": "https-communication",
+      "name": "HTTPS暗号化通信",
+      "status": "pass",
+      "severity": "info",
+      "observed": "HTTPSで接続（証明書の有効性は対象外）",
+      "description": "ページはHTTPSで暗号化されて配信されています。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-HTTPS-01:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-HSTS-01",
+      "category": "http-headers",
+      "name": "HSTS (Strict-Transport-Security)",
+      "status": "pass",
+      "severity": "info",
+      "observed": "max-age=31536000; includeSubDomains",
+      "description": "十分な有効期間を持つHSTSヘッダーが設定されています。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-HSTS-01:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-XFO-01",
+      "category": "http-headers",
+      "name": "X-Frame-Options",
+      "status": "pass",
+      "severity": "info",
+      "observed": "SAMEORIGIN",
+      "description": "クリックジャッキング対策が有効です。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-XFO-01:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-XCTO-01",
+      "category": "http-headers",
+      "name": "X-Content-Type-Options",
+      "status": "pass",
+      "severity": "info",
+      "observed": "nosniff",
+      "description": "MIMEタイプスニッフィング防止が有効です。",
+      "recommendation": "現状の設定を維持してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-XCTO-01:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-REF-01",
+      "category": "http-headers",
+      "name": "Referrer-Policy",
+      "status": "info",
+      "severity": "info",
+      "observed": "ヘッダー未設定（ブラウザ既定: strict-origin-when-cross-origin 相当）",
+      "description": "Referrer-Policy ヘッダーは未設定ですが、モダンブラウザの既定値によりクロスオリジンへのパス送信は制限されます。",
+      "recommendation": "明示的に strict-origin-when-cross-origin 以上のポリシーを設定することを検討してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-REF-01:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-COOKIE-SECURE-GENERAL",
+      "category": "cookies",
+      "name": "一般CookieのSecure属性欠落",
+      "status": "warning",
+      "severity": "low",
+      "observed": "ai_user, ai_session (計 2 件に Secure 属性なし)",
+      "description": "HTTPS通信時において、一般・解析用Cookieに Secure 属性が付与されていません。",
+      "recommendation": "HTTPSサイトでは、すべてのCookieに Secure 属性を付与して平文通信での送信を防止してください。",
+      "referenceUrls": [],
+      "scope": "https://ai-portal.example.test/",
+      "findingId": "SEC-COOKIE-SECURE-GENERAL:https://ai-portal.example.test",
+      "exceptionStatus": "active"
+    }
+  ],
+  "cookies": [
+    {
+      "name": "ASP.NET_SessionId",
+      "domain": "ai-portal.example.test",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "lax",
+      "session": true,
+      "hostOnly": true,
+      "partitioned": false,
+      "category": "authentication",
+      "issues": []
+    },
+    {
+      "name": "__RequestVerificationToken",
+      "domain": "ai-portal.example.test",
+      "path": "/",
+      "secure": true,
+      "httpOnly": false,
+      "sameSite": "lax",
+      "session": true,
+      "hostOnly": true,
+      "partitioned": false,
+      "category": "csrf",
+      "issues": []
+    },
+    {
+      "name": "ai_user",
+      "domain": "ai-portal.example.test",
+      "path": "/",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "lax",
+      "session": false,
+      "hostOnly": true,
+      "partitioned": false,
+      "category": "analytics",
+      "issues": ["Secure属性欠落"]
+    },
+    {
+      "name": "ai_session",
+      "domain": "ai-portal.example.test",
+      "path": "/",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "lax",
+      "session": true,
+      "hostOnly": true,
+      "partitioned": false,
+      "category": "analytics",
+      "issues": ["Secure属性欠落"]
+    },
+    {
+      "name": "ApplicationGatewayAffinity",
+      "domain": "ai-portal.example.test",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "lax",
+      "session": true,
+      "hostOnly": true,
+      "partitioned": false,
+      "category": "general",
+      "issues": []
+    }
+  ],
+  "cspPolicies": [],
+  "mixedContent": [],
+  "externalConnections": {
+    "totalConnections": 2,
+    "firstPartyCount": 1,
+    "thirdPartyCount": 1,
+    "categoryBreakdown": {
+      "cdn": 0,
+      "analytics": 1,
+      "advertising": 0,
+      "fonts": 0,
+      "social": 0,
+      "api": 0,
+      "other": 1
+    },
+    "connections": [
+      {
+        "hostname": "ai-portal.example.test",
+        "registrableDomain": "example.test",
+        "publicSuffix": "test",
+        "partyType": "first-party",
+        "category": "other",
+        "resourceCount": 1,
+        "sampleUrls": [
+          "https://ai-portal.example.test/"
+        ]
+      },
+      {
+        "hostname": "js.monitor.azure.com",
+        "registrableDomain": "azure.com",
+        "publicSuffix": "com",
+        "partyType": "third-party",
+        "category": "analytics",
+        "resourceCount": 1,
+        "sampleUrls": [
+          "https://js.monitor.azure.com/scripts/b/ai.2.min.js"
+        ]
+      }
+    ]
+  }
+}

@@ -31,7 +31,7 @@ import { PATHS, readJson, sha256, stableStringify, toIsoDate, writeJson } from '
 
 export const OUTPUT_SCHEMA_VERSION = '2.2';
 /** この DB を正しく解釈できる拡張機能の最低バージョン (fixStatus 等を使う NVD 自動取込を有効化する際に引き上げる) */
-export const MIN_EXTENSION_VERSION = '1.6.5';
+export const MIN_EXTENSION_VERSION = '1.7.0';
 
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -214,6 +214,25 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
     for (const [r, n] of Object.entries(reasons)) report.skippedSummary[r] = (report.skippedSummary[r] || 0) + n;
   }
 
+  const byProduct = {};
+  for (const [k, lib] of Object.entries(libraries)) {
+    const vers = Array.isArray(lib.versions) ? lib.versions : [];
+    const srcSet = new Set();
+    if (vers.some((v) => v.origin === 'curated' || (Array.isArray(v.sources) && v.sources.includes('curated')))) {
+      srcSet.add('curated');
+    }
+    if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('osv'))) {
+      srcSet.add('OSV');
+    }
+    if (vers.some((v) => Array.isArray(v.sources) && v.sources.includes('nvd'))) {
+      srcSet.add('NVD');
+    }
+    byProduct[k] = {
+      count: vers.length,
+      sources: [...srcSet],
+    };
+  }
+
   const librariesJson = JSON.stringify(libraries);
   const db = {
     schemaVersion: OUTPUT_SCHEMA_VERSION,
@@ -228,7 +247,7 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
       'CISA KEV Catalog',
       'Curated (data/advisories/curated.json)',
     ],
-    coverage: { totalAdvisories: total, technologies: Object.keys(libraries) },
+    coverage: { totalAdvisories: total, technologies: Object.keys(libraries), byProduct },
     syncStatus: report.staleSources.length === 0 ? 'success' : 'partial',
     integrity: { algorithm: 'sha256', target: 'libraries', digest: sha256(librariesJson) },
     libraries,

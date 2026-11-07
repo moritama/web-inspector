@@ -6,7 +6,7 @@
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
 import { ALL_TECHNOLOGY_RULES, RULES_VERSION, SSR_INFERENCE_HEADER_NAMES } from '../detection/rules';
-import { SECURITY_HEADER_NAMES } from '../security/headers';
+import { isValidXFrameOptions, SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
 import { SecurityEngine } from '../security/engine';
 import {
@@ -16,6 +16,8 @@ import {
   getReportById,
   saveReportToHistory,
   clearAllHistory,
+  enforceReportStorageLimits,
+  sanitizeReportUrls,
 } from '../storage/history';
 import {
   getAllFindingExceptions,
@@ -24,9 +26,20 @@ import {
   matchFindingException,
 } from '../storage/exceptions';
 import { generateFindingIdFromCheck } from '../shared/identity';
-import { analyzeCSPPolicies, parseCSPPolicy } from '../security/csp-parser';
-import { analyzeExternalConnections } from '../security/domain-analyzer';
-import { assessInspectionCoverage } from '../shared/coverage';
+import { summarizeSecurityChecks } from '../shared/security-status';
+import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
+import {
+  analyzeExternalConnections,
+  collectLoadedResourceUrls,
+  isResourceLinkRel,
+  parseRegistrableDomain,
+  resolveResourceUrl,
+} from '../security/domain-analyzer';
+import {
+  assessInspectionCoverage,
+  countDomItems,
+  hasDomResourceReferences,
+} from '../shared/coverage';
 import {
   CSPPolicy,
   DomSignals,
@@ -35,10 +48,11 @@ import {
   InspectionReport,
   NetworkSignals,
   SecurityCheckResult,
+  TechnologyInstance,
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.6.6';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.7.1';
 
 /**
  * キャッシュに保持するヘッダーエントリ構造
@@ -351,25 +365,104 @@ if (typeof chrome !== 'undefined' && chrome.tabs?.onReplaced) {
 }
 
 /**
- * Cookie属性の取得 (値は除外)
+ * URL から CHIPS (Partitioned Cookie) 照会用の topLevelSite (scheme://eTLD+1) を算出する (v1.7.0 T11 / IMPL-11)
  */
-async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
+export function resolveTopLevelSite(url: string): string | null {
   try {
-    const rawCookies = await chrome.cookies.getAll({ url });
-    return rawCookies.map((c: any) => ({
-      name: c.name,
-      domain: c.domain,
-      path: c.path,
-      secure: c.secure,
-      httpOnly: c.httpOnly,
-      sameSite: c.sameSite as 'no_restriction' | 'lax' | 'strict' | 'unspecified',
-      session: c.session,
-      hostOnly: c.hostOnly,
-      partitioned: Boolean(c.partitionKey),
-      partitionKey: c.partitionKey?.topLevelSite || (typeof c.partitionKey === 'string' ? c.partitionKey : null),
-      expirationDate: c.expirationDate,
-      issues: [],
-    }));
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    const { registrableDomain } = parseRegistrableDomain(parsed.hostname);
+    const siteHost = registrableDomain || parsed.hostname.toLowerCase();
+    if (!siteHost) {
+      return null;
+    }
+    return `${parsed.protocol}//${siteHost}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cookie属性の取得 (値は除外)。通常の Cookie に加え、partitionKey: { topLevelSite } 付きで CHIPS も取得する (IMPL-11)
+ */
+export async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
+  try {
+    if (typeof chrome === 'undefined' || !chrome.cookies?.getAll) {
+      return [];
+    }
+    const normalCookies = (await chrome.cookies.getAll({ url })) || [];
+    const topLevelSite = resolveTopLevelSite(url);
+    let partitionedCookies: chrome.cookies.Cookie[] = [];
+
+    if (topLevelSite) {
+      try {
+        partitionedCookies =
+          (await (
+            chrome.cookies.getAll as (
+              details: chrome.cookies.GetAllDetails & {
+                partitionKey?: { topLevelSite: string };
+              }
+            ) => Promise<chrome.cookies.Cookie[]>
+          )({
+            url,
+            partitionKey: { topLevelSite },
+          })) || [];
+      } catch {
+        // partitionKey 未対応環境等の場合は通常の Cookie のみで継続
+        partitionedCookies = [];
+      }
+    }
+
+    const mergedMap = new Map<string, any>();
+    const toCookieEntry = (c: any, fromPartitionQuery: boolean) => {
+      const isPartitioned = Boolean(c.partitioned || c.partitionKey || fromPartitionQuery);
+      const resolvedKey =
+        c.partitionKey?.topLevelSite ||
+        (typeof c.partitionKey === 'string'
+          ? c.partitionKey
+          : isPartitioned
+            ? topLevelSite
+            : null);
+      const dedupeKey = `${c.name}\0${c.domain || ''}\0${c.path || '/'}\0${isPartitioned ? resolvedKey || 'partitioned' : ''}`;
+      return {
+        dedupeKey,
+        cookie: {
+          name: c.name,
+          domain: c.domain,
+          path: c.path,
+          secure: c.secure,
+          httpOnly: c.httpOnly,
+          sameSite: c.sameSite as 'no_restriction' | 'lax' | 'strict' | 'unspecified',
+          session: c.session,
+          hostOnly: c.hostOnly,
+          partitioned: isPartitioned,
+          partitionKey: resolvedKey,
+          expirationDate: c.expirationDate,
+          issues: [],
+        } satisfies InspectedCookieInfo,
+      };
+    };
+
+    const normalBaseKeys = new Set<string>(
+      normalCookies.map((c: any) => `${c.name}\0${c.domain || ''}\0${c.path || '/'}`)
+    );
+    for (const c of normalCookies) {
+      const { dedupeKey, cookie } = toCookieEntry(c, false);
+      mergedMap.set(dedupeKey, cookie);
+    }
+    for (const c of partitionedCookies) {
+      const baseKey = `${(c as any).name}\0${(c as any).domain || ''}\0${(c as any).path || '/'}`;
+      const isPartitionedCookie =
+        Boolean((c as any).partitioned || (c as any).partitionKey) || !normalBaseKeys.has(baseKey);
+      const { dedupeKey, cookie } = toCookieEntry(c, isPartitionedCookie);
+      if (!mergedMap.has(dedupeKey)) {
+        mergedMap.set(dedupeKey, cookie);
+      }
+    }
+
+    return Array.from(mergedMap.values());
   } catch (error) {
     console.warn('Cookie retrieval warning:', error);
     return [];
@@ -377,25 +470,48 @@ async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> 
 }
 
 /**
- * Content ScriptからDOM・CSSシグナルを取得する
+ * Content Script を必要なときだけオンデマンド注入し、DOM・CSSシグナルを取得する (v1.7.0 T11 / IMPL-08 / D6)
  */
-async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
+export async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
+  const collectionErrors: string[] = [];
+
+  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する (二重注入は content-script 先頭の印で防止)
   try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
-    if (response) return response as DomSignals;
-  } catch {
-    try {
-      const results = await chrome.scripting.executeScript({
+    if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript) {
+      await chrome.scripting.executeScript({
         target: { tabId },
         files: ['content/content-script.js'],
       });
-      if (results && results.length > 0) {
-        const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
-        if (response) return response as DomSignals;
-      }
-    } catch (e) {
-      console.warn('Content script injection failed:', e);
     }
+  } catch (e) {
+    console.warn('Content script injection warning:', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    collectionErrors.push(`Content Script の注入に失敗しました${msg ? `: ${msg}` : ''}`);
+  }
+
+  // 2. 注入された Content Script から DOM シグナルを取得する
+  try {
+    if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_DOM_SIGNALS' });
+      if (response && typeof response === 'object') {
+        const signals = response as DomSignals;
+        if (collectionErrors.length > 0) {
+          return {
+            ...signals,
+            collectionPartial: true,
+            collectionErrors: [...collectionErrors, ...(signals.collectionErrors || [])],
+          };
+        }
+        return signals;
+      }
+      collectionErrors.push('Content Script から有効な DOM シグナル応答が得られませんでした');
+    }
+  } catch (e) {
+    console.warn('DOM signals message warning:', e);
+    const msg = e instanceof Error ? e.message : String(e);
+    collectionErrors.push(
+      `Content Script からの DOM シグナル取得に失敗しました${msg ? `: ${msg}` : ''}`
+    );
   }
 
   return {
@@ -409,6 +525,11 @@ async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> 
     mixedContent: [],
     cookiesFromDocument: [],
     cssAssets: [],
+    collectionPartial: true,
+    collectionErrors:
+      collectionErrors.length > 0
+        ? collectionErrors
+        : ['Content Script からの DOM シグナル収集に失敗しました'],
   };
 }
 
@@ -425,10 +546,23 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
       world: 'MAIN',
       func: () => {
         const w = window as any;
+        let bootstrapRuntimeVer: string | null = w.bootstrap?.Modal?.VERSION ?? w.bootstrap?.Tooltip?.VERSION ?? null;
+        if (!bootstrapRuntimeVer && w.bootstrap && typeof w.bootstrap === 'object') {
+          try {
+            for (const comp of Object.values(w.bootstrap)) {
+              if (comp && (typeof comp === 'function' || typeof comp === 'object') && typeof (comp as any).VERSION === 'string') {
+                bootstrapRuntimeVer = (comp as any).VERSION;
+                break;
+              }
+            }
+          } catch {
+            // 例外防止
+          }
+        }
         const versions: Record<string, string | null> = {
           jquery: w.jQuery?.fn?.jquery ?? null,
           bootstrap4: w.jQuery?.fn?.modal?.Constructor?.VERSION ?? null,
-          bootstrap5: w.bootstrap?.Modal?.VERSION ?? null,
+          bootstrap5: bootstrapRuntimeVer,
           vue: w.Vue?.version ?? null,
           // Underscore.js との誤認防止: window._.VERSION は Underscore にも存在するため、cloneDeep 関数の有無で判別 (T07 / DOC-02)
           lodash:
@@ -532,8 +666,29 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     hostname = url;
   }
 
-  // 1. DOM・CSS情報の取得
-  const domSignals = await deps.fetchDomSignals(currentTabId, url);
+  // 1. DOM・CSS情報の取得 (Content Script の収集失敗時も安全にフォールバックし partial 理由を記録 - v1.7.1 T06)
+  let domSignals: DomSignals;
+  try {
+    domSignals = await deps.fetchDomSignals(currentTabId, url);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    domSignals = {
+      url,
+      title: '',
+      metaTags: [],
+      scriptUrls: [],
+      linkUrls: [],
+      domMarkers: [],
+      htmlSnippets: [],
+      mixedContent: [],
+      cookiesFromDocument: [],
+      cssAssets: [],
+      collectionPartial: true,
+      collectionErrors: [
+        `Content Script の DOM 収集が失敗しました${msg ? `: ${msg}` : ''}`,
+      ],
+    };
+  }
 
   // 2. JavaScript実行時バージョンおよび内部フレームワークマーカーの取得 (MAIN World)
   const runtimeInfo = await deps.fetchRuntimeVersions(currentTabId);
@@ -566,6 +721,41 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     : [];
   if (validatedMarkers.length > 0) {
     domSignals.domMarkers = [...(domSignals.domMarkers || []), ...validatedMarkers];
+  }
+
+  // v1.7.1 T05: モックや古い形式の DomSignals でも URL がページ基準の絶対URLになるよう正規化し、非アセット link を分離する
+  if (!domSignals.rawScriptUrls) {
+    domSignals.rawScriptUrls = [...(domSignals.scriptUrls || [])];
+  }
+  domSignals.scriptUrls = (domSignals.scriptUrls || []).map(
+    (s) => resolveResourceUrl(s, url) || s
+  );
+
+  if (!domSignals.rawLinkUrls) {
+    domSignals.rawLinkUrls = [...(domSignals.linkUrls || [])];
+  }
+  const filteredLinks: Array<{ rel: string; href: string }> = [];
+  const refOnly = [...(domSignals.referenceOnlyUrls || [])];
+  for (const l of domSignals.linkUrls || []) {
+    if (!l || typeof l.href !== 'string') continue;
+    const resolvedHref = resolveResourceUrl(l.href, url) || l.href;
+    if (isResourceLinkRel(l.rel)) {
+      filteredLinks.push({ rel: l.rel, href: resolvedHref });
+    } else if (/^https?:\/\//i.test(resolvedHref)) {
+      const relToken = (l.rel || '').toLowerCase().trim().split(/\s+/).filter(Boolean)[0] || 'link';
+      if (!refOnly.some((r) => r.sourceType === relToken && r.url === resolvedHref)) {
+        refOnly.push({ sourceType: relToken, url: resolvedHref });
+      }
+    }
+  }
+  domSignals.linkUrls = filteredLinks;
+  domSignals.referenceOnlyUrls = refOnly;
+
+  if (Array.isArray(domSignals.cssAssets)) {
+    domSignals.cssAssets = domSignals.cssAssets.map((asset) => ({
+      ...asset,
+      href: resolveResourceUrl(asset.href, url) || asset.href,
+    }));
   }
 
   // 3. HTTPヘッダー・Cookieの取得 (IMPL-02: URL照合)
@@ -609,26 +799,22 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     network: networkSignals,
   });
 
-  // 5.1 複数CSPポリシーの独立保持と詳細評価 (Rev.2.1 IMP-05)
-  const cspPolicies: CSPPolicy[] = [];
-  const rawCspHeader = responseHeaders['content-security-policy']?.[0];
-  const rawCspReportOnly = responseHeaders['content-security-policy-report-only']?.[0];
-
-  if (rawCspHeader) {
-    cspPolicies.push(parseCSPPolicy(rawCspHeader, 'response-header', 'enforce'));
-  }
-  if (rawCspReportOnly) {
-    cspPolicies.push(parseCSPPolicy(rawCspReportOnly, 'response-header', 'report-only'));
-  }
-  if (domSignals.metaCsp && domSignals.metaCsp.length > 0) {
-    for (const metaVal of domSignals.metaCsp) {
-      cspPolicies.push(parseCSPPolicy(metaVal, 'meta', 'enforce'));
-    }
-  }
+  // 5.1 複数CSPポリシーの独立保持と詳細評価 (Rev.2.1 IMP-05 / v1.7.0 T06: 配列要素・カンマ区切り・meta Report-Only 分離)
+  const cspPolicies: CSPPolicy[] = [
+    ...parseCSPHeaderValues(responseHeaders['content-security-policy'], 'response-header', 'enforce'),
+    ...parseCSPHeaderValues(
+      responseHeaders['content-security-policy-report-only'],
+      'response-header',
+      'report-only'
+    ),
+    ...parseCSPHeaderValues(domSignals.metaCsp, 'meta', 'enforce'),
+    ...parseCSPHeaderValues(domSignals.metaCspReportOnly, 'meta', 'report-only'),
+  ];
 
   if (cspPolicies.length > 0) {
-    const hasXfo = Boolean(responseHeaders['x-frame-options']);
-    const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo);
+    const xfoRaw = responseHeaders['x-frame-options']?.join(', ') ?? null;
+    const hasXfo = isValidXFrameOptions(xfoRaw);
+    const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo, xfoRaw);
     // 既存のCSP項目 (SEC-CSP-*) を詳細解析結果に置き換え
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
     baseSecurityChecks.length = 0;
@@ -643,8 +829,12 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         c.checkId.startsWith(prefix)
       );
       if (isHeaderDependent) {
-        // meta CSP が存在する場合の CSP 解析結果は meta 由来として維持
-        if (c.checkId.startsWith('SEC-CSP-') && hasMetaCsp) {
+        // meta CSP が存在する場合の CSP 解析結果、または meta Report-Only の info 注記は meta 由来として維持
+        if (
+          c.checkId.startsWith('SEC-CSP-') &&
+          c.checkId !== 'SEC-CSP-XFO-CONFLICT' &&
+          (hasMetaCsp || c.checkId === 'SEC-CSP-META-RO')
+        ) {
           continue;
         }
         c.status = 'unknown';
@@ -657,56 +847,160 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     }
   }
 
-  // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致)
+  // 6. ライブラリセキュリティ診断項目の生成 (EOL, CVE, バージョン不一致) (v1.7.0 T08 / SPEC-10: インスタンス単位)
   const librarySecurityChecks: SecurityCheckResult[] = [];
   let eolCount = 0;
   let vulnerableLibraryCount = 0;
   let mismatchCount = 0;
 
   for (const tech of technologies) {
-    // EOL判定のセキュリティチェック追加
-    if (tech.supportStatus === 'EOL') {
-      eolCount++;
-      librarySecurityChecks.push({
-        checkId: `SEC-EOL-${tech.technology.toUpperCase()}`,
-        category: 'library-security',
-        name: `${tech.technology} サポート終了 (EOL)`,
-        status: 'warning',
-        severity: 'medium',
-        observed: `検出バージョン: ${tech.version || '不明'} (EOL日: ${tech.eolDate || '過去'})`,
-        description: `${tech.technology} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`,
-        recommendation: tech.eolInfo?.recommendation || '現行のサポート対象バージョンへの移行を検討してください。',
-        referenceUrls: tech.eolInfo?.sourceUrl ? [tech.eolInfo.sourceUrl] : [],
-        scope: url,
-      });
-    }
+    const instances: TechnologyInstance[] =
+      tech.instances && tech.instances.length > 0
+        ? tech.instances
+        : [
+            {
+              version: tech.version,
+              evidence: tech.evidence,
+              advisories: tech.advisories || [],
+              eol: tech.eolInfo || {
+                status: tech.supportStatus || 'Unknown',
+                eolDate: tech.eolDate ?? null,
+                source: 'Internal Policy',
+                recommendation: '現行のサポート対象バージョンへの移行を検討してください。',
+              },
+              eolInfo: tech.eolInfo,
+              supportStatus: tech.supportStatus,
+              eolDate: tech.eolDate,
+              advisoryMatchStatus: tech.advisoryMatchStatus,
+              maxCvss: tech.maxCvss,
+            },
+          ];
 
-    // CVE該当判定のセキュリティチェック追加
-    if (tech.advisoryMatchStatus === 'Potentially Affected' && tech.advisories && tech.advisories.length > 0) {
-      vulnerableLibraryCount++;
-      const topAdvisory = tech.advisories[0];
-      const maxScore = tech.maxCvss ?? 6.1;
-      const severity = maxScore >= 7.0 ? 'high' : 'medium';
+    let techEolCheckIdx = 0;
+    let techCveCheckIdx = 0;
 
-      const isEol = tech.supportStatus === 'EOL';
+    for (const inst of instances) {
+      const instSupportStatus = inst.supportStatus ?? inst.eol?.status ?? tech.supportStatus;
+      const instEolInfo = inst.eol ?? inst.eolInfo ?? tech.eolInfo;
+      const instEolDate = inst.eolDate ?? instEolInfo?.eolDate ?? tech.eolDate;
+      const instVersion = inst.version;
 
-      const cveRecommendation = formatAdvisoryRecommendation(tech.version, tech.advisories, {
-        isEol,
-        technologyName: tech.technology,
-      });
+      // EOL判定のセキュリティチェック追加 (インスタンスごと)
+      if (instSupportStatus === 'EOL') {
+        eolCount++;
+        const eolCheckId =
+          techEolCheckIdx === 0
+            ? `SEC-EOL-${tech.technology.toUpperCase()}`
+            : `SEC-EOL-${tech.technology.toUpperCase()}-${instVersion || techEolCheckIdx + 1}`;
+        techEolCheckIdx++;
 
-      librarySecurityChecks.push({
-        checkId: `SEC-CVE-${tech.technology.toUpperCase()}`,
-        category: 'library-security',
-        name: `${tech.technology} 既知脆弱性 (${tech.advisories.map((a) => a.id).join(', ')})`,
-        status: 'fail',
-        severity,
-        observed: `バージョン ${tech.version} に該当する既知脆弱性 ${tech.advisories.length} 件 (重大度: ${severity.toUpperCase()})`,
-        description: topAdvisory.summary,
-        recommendation: cveRecommendation,
-        referenceUrls: topAdvisory.referenceUrls,
-        scope: url,
-      });
+        const eolName =
+          instances.length > 1 && instVersion
+            ? `${tech.technology} (${instVersion}) サポート終了 (EOL)`
+            : `${tech.technology} サポート終了 (EOL)`;
+        const eolFindingId = `${generateFindingIdFromCheck(
+          eolCheckId,
+          url,
+          `${tech.technology}:${instVersion || 'unknown'}:eol`
+        )}${instVersion ? `_${instVersion}` : ''}`;
+
+        librarySecurityChecks.push({
+          checkId: eolCheckId,
+          category: 'library-security',
+          name: eolName,
+          status: 'warning',
+          severity: 'medium',
+          observed: `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`,
+          description: `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`,
+          recommendation: instEolInfo?.recommendation || '現行のサポート対象バージョンへの移行を検討してください。',
+          referenceUrls: instEolInfo?.sourceUrl ? [instEolInfo.sourceUrl] : [],
+          scope: url,
+          findingId: eolFindingId,
+        });
+      }
+
+      // CVE該当判定のセキュリティチェック追加 (v1.7.0 T03 / SPEC-13 & T08 / SPEC-10: インスタンスごと)
+      const instAdvisories = inst.advisories || [];
+      const instMatchStatus =
+        inst.advisoryMatchStatus ??
+        (instAdvisories.length > 0 ? 'Potentially Affected' : tech.advisoryMatchStatus);
+
+      if (instMatchStatus === 'Potentially Affected' && instAdvisories.length > 0) {
+        vulnerableLibraryCount++;
+        const topAdvisory = instAdvisories[0];
+        const severityRank: Record<string, number> = {
+          critical: 4,
+          high: 3,
+          medium: 2,
+          low: 1,
+        };
+        let highestSeverity: 'critical' | 'high' | 'medium' | 'low' = 'medium';
+        let highestRank = 0;
+        const hasKev = instAdvisories.some((a) => a.kev === true);
+
+        for (const adv of instAdvisories) {
+          const s = String(adv.severity || '').toLowerCase();
+          const r = severityRank[s] ?? 0;
+          if (r > highestRank) {
+            highestRank = r;
+            highestSeverity = s as 'critical' | 'high' | 'medium' | 'low';
+          }
+        }
+
+        const instMaxCvss = inst.maxCvss ?? tech.maxCvss;
+        if (highestRank === 0 && typeof instMaxCvss === 'number') {
+          if (instMaxCvss >= 9.0) highestSeverity = 'critical';
+          else if (instMaxCvss >= 7.0) highestSeverity = 'high';
+          else if (instMaxCvss >= 4.0) highestSeverity = 'medium';
+          else highestSeverity = 'low';
+        }
+
+        const severity: 'critical' | 'high' | 'medium' | 'low' = hasKev
+          ? 'critical'
+          : highestSeverity;
+
+        const isEol = instSupportStatus === 'EOL';
+
+        const cveRecommendation = formatAdvisoryRecommendation(instVersion, instAdvisories, {
+          isEol,
+          technologyName: tech.technology,
+        });
+
+        const kevIds = instAdvisories.filter((a) => a.kev === true).map((a) => a.id);
+        const kevNote = kevIds.length > 0 ? ` / CISA KEV: ${kevIds.join(', ')}` : '';
+        const kevDescSuffix =
+          kevIds.length > 0 ? `（悪用確認済み（CISA KEV）: ${kevIds.join(', ')}）` : '';
+
+        const cveCheckId =
+          techCveCheckIdx === 0
+            ? `SEC-CVE-${tech.technology.toUpperCase()}`
+            : `SEC-CVE-${tech.technology.toUpperCase()}-${instVersion || techCveCheckIdx + 1}`;
+        techCveCheckIdx++;
+
+        const cveName =
+          instances.length > 1 && instVersion
+            ? `${tech.technology} (${instVersion}) 既知脆弱性 (${instAdvisories.map((a) => a.id).join(', ')})`
+            : `${tech.technology} 既知脆弱性 (${instAdvisories.map((a) => a.id).join(', ')})`;
+        const cveFindingId = `${generateFindingIdFromCheck(
+          cveCheckId,
+          url,
+          `${tech.technology}:${instVersion || 'unknown'}:cve`
+        )}${instVersion ? `_${instVersion}` : ''}`;
+
+        librarySecurityChecks.push({
+          checkId: cveCheckId,
+          category: 'library-security',
+          name: cveName,
+          status: 'fail',
+          severity,
+          observed: `バージョン ${instVersion} に該当する既知脆弱性 ${instAdvisories.length} 件 (重大度: ${severity.toUpperCase()}${kevNote})`,
+          description: `${topAdvisory.summary}${kevDescSuffix}`,
+          recommendation: cveRecommendation,
+          referenceUrls: topAdvisory.referenceUrls,
+          scope: url,
+          findingId: cveFindingId,
+        });
+      }
     }
 
     // バージョン不一致判定のセキュリティチェック追加
@@ -729,11 +1023,16 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
 
   const allSecurityChecks = [...librarySecurityChecks, ...baseSecurityChecks];
 
-  // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10)
+  // 6.1 安定ID (FindingId) の付与と許容・除外設定 (FindingException) の照合 (Rev.2.1 IMP-10 / v1.7.0 T10 IMPL-09)
   const exceptions = await deps.getAllFindingExceptions();
   for (const c of allSecurityChecks) {
-    c.findingId = generateFindingIdFromCheck(c.checkId, url, c.name);
-    const exMatch = matchFindingException(c.findingId, url, exceptions);
+    if (!c.findingId) {
+      c.findingId = generateFindingIdFromCheck(c.checkId, url);
+    }
+    const exMatch = matchFindingException(c.findingId, url, exceptions, {
+      checkId: c.checkId,
+      name: c.name,
+    });
     c.exceptionStatus = exMatch.status;
     if (exMatch.exception) {
       c.exceptionReason = exMatch.exception.reason;
@@ -741,47 +1040,38 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     }
   }
 
-  // 7. 統計集計 (許容・除外設定された項目は要確認カウントから除外)
-  const requiresAttentionCount = allSecurityChecks.filter((c) => {
-    const isIssue = c.status === 'warning' || c.status === 'fail';
-    if (!isIssue) return false;
-    const isAccepted =
-      c.exceptionStatus === 'accepted' ||
-      c.exceptionStatus === 'false-positive' ||
-      c.exceptionStatus === 'muted';
-    return !isAccepted;
-  }).length;
-
-  const securityFindings = {
-    high: allSecurityChecks.filter((c) => c.severity === 'high').length,
-    medium: allSecurityChecks.filter((c) => c.severity === 'medium').length,
-    low: allSecurityChecks.filter((c) => c.severity === 'low').length,
-    info: allSecurityChecks.filter((c) => c.severity === 'info').length,
-    unknown: allSecurityChecks.filter((c) => c.severity === 'unknown').length,
-  };
+  // 7. 統計集計 (要確認と重大度別内訳の共通ルールに従い集計 - v1.7.1 T01)
+  const { requiresAttentionCount, securityFindings } = summarizeSecurityChecks(allSecurityChecks);
 
   const isHttps = url.toLowerCase().startsWith('https://');
 
-  // 8. 調査完全性評価 (Rev.2.1 IMP-08)
+  // 8. 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11 / v1.7.1 T05: 実際に読み込まれたリソースを主にしDOM参照で補完)
+  const resourceUrls = collectLoadedResourceUrls(url, domSignals);
+  const externalConnections = analyzeExternalConnections(url, resourceUrls);
+
+  // 8.1 調査完全性評価 (Rev.2.1 IMP-08 / v1.7.1 T06)
+  const domItemCount = countDomItems(domSignals);
+  const hasDomRefs = hasDomResourceReferences(domSignals);
+  const hasDom = Boolean(
+    domSignals.title ||
+      domItemCount > 0 ||
+      hasDomRefs ||
+      (domSignals.resourceEntries && domSignals.resourceEntries.length > 0)
+  );
   const coverage = assessInspectionCoverage({
-    hasDom: Boolean(domSignals.title || domSignals.metaTags.length > 0 || domSignals.scriptUrls.length > 0),
+    hasDom,
     hasHeaders: headersObserved,
     hasCookiesPermission: true,
     cookieCount: cookies.length,
     hasWebRequestPermission: deps.hasWebRequestPermission ?? true,
     unobservedPreScan: !headersObserved,
-    domItemCount: domSignals.metaTags.length + domSignals.scriptUrls.length,
+    domItemCount,
     headerCount: Object.keys(responseHeaders).length,
+    domCollectionPartial: domSignals.collectionPartial,
+    domCollectionReasons: domSignals.collectionErrors,
+    hasDomResourceReferences: hasDomRefs,
+    externalConnectionCount: externalConnections.totalConnections,
   });
-
-  // 8.1 外部通信先・サードパーティドメイン分析 (Rev.2.1 IMP-11)
-  const resourceUrls = [
-    ...domSignals.scriptUrls,
-    ...domSignals.linkUrls.map((l) => l.href),
-    ...domSignals.mixedContent.map((m) => m.url),
-    ...domSignals.cssAssets.map((c) => c.href),
-  ];
-  const externalConnections = analyzeExternalConnections(url, resourceUrls);
 
   const advMeta = getAdvisoryDbMetadata();
   let advDbVersion = advMeta.dataVersion || '2026.10';
@@ -791,7 +1081,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     advDbVersion = advMeta.generatedAt.slice(0, 10);
   }
 
-  const report: InspectionReport = {
+  const rawReport: InspectionReport = {
     id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
     url,
     hostname,
@@ -820,9 +1110,18 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     externalConnections,
   };
 
-  // 8. 履歴保存
+  // URLマスク（クエリ・フラグメント除去）および単一レポートサイズ・evidence上限の適用 (IMPL-06, IMPL-07)
+  const report = enforceReportStorageLimits(sanitizeReportUrls(rawReport));
+
+  // 8. 履歴保存（失敗しても調査自体は失敗させず、画面への通知情報を付与する: IMPL-06）
   if (deps.saveReport) {
-    await deps.saveReport(report);
+    try {
+      await deps.saveReport(report);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      report.historySaveFailed = true;
+      report.storageWarning = `履歴の保存に失敗しました（${errMsg || 'ストレージ書き込みエラー'}）。今回の調査結果は表示されていますが、履歴には残っていません。`;
+    }
   }
 
   // 9. バッジ更新
@@ -880,45 +1179,202 @@ if (typeof globalThis !== 'undefined') {
   (globalThis as any).runInspection = runInspection;
 }
 
-// メッセージリスナー
-if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'INSPECT_CURRENT_TAB') {
-    runInspection(message.tabId)
+const PRIVILEGED_MESSAGE_TYPES = new Set([
+  'INSPECT_CURRENT_TAB',
+  'GET_HISTORY',
+  'GET_ALL_REPORTS',
+  'GET_REPORT_BY_ID',
+  'DELETE_HISTORY_ITEM',
+  'CLEAR_HISTORY',
+  'GET_FINDING_EXCEPTIONS',
+  'SAVE_FINDING_EXCEPTION',
+  'DELETE_FINDING_EXCEPTION',
+]);
+
+/**
+ * メッセージ送信元が拡張機能自身の特権ページ（popup / dashboard 等）であるか検証する (v1.7.0 T10 / IMPL-05)
+ * - sender.id === chrome.runtime.id かつ sender.url が拡張機能のページ (chrome-extension://<id>/...) のときのみ許可
+ * - content script (sender.url が https:// 等) からの特権メッセージを拒否する
+ */
+export function isPrivilegedExtensionSender(
+  sender?: chrome.runtime.MessageSender
+): boolean {
+  if (!sender || typeof sender !== 'object') {
+    return false;
+  }
+  const runtimeId =
+    typeof chrome !== 'undefined' && typeof chrome.runtime?.id === 'string' && chrome.runtime.id
+      ? chrome.runtime.id
+      : undefined;
+
+  if (runtimeId) {
+    if (sender.id !== runtimeId) {
+      return false;
+    }
+  } else if (typeof sender.id !== 'string' || !sender.id) {
+    return false;
+  }
+
+  if (typeof sender.url !== 'string' || !sender.url) {
+    return false;
+  }
+
+  const expectedId = runtimeId || sender.id;
+  const expectedPrefix = `chrome-extension://${expectedId}/`;
+  const runtimeBaseUrl =
+    typeof chrome !== 'undefined' && typeof chrome.runtime?.getURL === 'function'
+      ? chrome.runtime.getURL('')
+      : expectedPrefix;
+
+  if (!sender.url.startsWith(expectedPrefix) && !sender.url.startsWith(runtimeBaseUrl)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 受信したメッセージの型と必須フィールドの形式を検証する (v1.7.0 T10 / IMPL-05)
+ */
+export function validateRuntimeMessage(
+  message: unknown
+): { valid: boolean; knownType: boolean; error?: string } {
+  if (!message || typeof message !== 'object') {
+    return { valid: false, knownType: false, error: 'Message must be an object' };
+  }
+
+  const msg = message as Record<string, unknown>;
+  if (typeof msg.type !== 'string' || !PRIVILEGED_MESSAGE_TYPES.has(msg.type)) {
+    return { valid: false, knownType: false, error: 'Unknown message type' };
+  }
+
+  switch (msg.type) {
+    case 'INSPECT_CURRENT_TAB': {
+      if (
+        msg.tabId !== undefined &&
+        (typeof msg.tabId !== 'number' || !Number.isInteger(msg.tabId) || msg.tabId < 0)
+      ) {
+        return { valid: false, knownType: true, error: 'Invalid tabId' };
+      }
+      return { valid: true, knownType: true };
+    }
+    case 'GET_HISTORY':
+    case 'GET_ALL_REPORTS':
+    case 'CLEAR_HISTORY':
+    case 'GET_FINDING_EXCEPTIONS':
+      return { valid: true, knownType: true };
+    case 'GET_REPORT_BY_ID':
+    case 'DELETE_HISTORY_ITEM':
+    case 'DELETE_FINDING_EXCEPTION': {
+      if (typeof msg.id !== 'string' || msg.id.trim().length === 0 || msg.id.length > 256) {
+        return { valid: false, knownType: true, error: 'Invalid id' };
+      }
+      return { valid: true, knownType: true };
+    }
+    case 'SAVE_FINDING_EXCEPTION': {
+      if (!msg.exception || typeof msg.exception !== 'object') {
+        return { valid: false, knownType: true, error: 'Missing exception object' };
+      }
+      const ex = msg.exception as Record<string, unknown>;
+      const validStatuses = new Set(['accepted', 'false-positive', 'muted']);
+      if (
+        typeof ex.id !== 'string' ||
+        ex.id.trim().length === 0 ||
+        ex.id.length > 128 ||
+        typeof ex.findingId !== 'string' ||
+        ex.findingId.trim().length === 0 ||
+        ex.findingId.length > 256 ||
+        typeof ex.status !== 'string' ||
+        !validStatuses.has(ex.status) ||
+        typeof ex.reason !== 'string' ||
+        ex.reason.length > 2000 ||
+        typeof ex.createdAt !== 'string' ||
+        ex.createdAt.trim().length === 0
+      ) {
+        return { valid: false, knownType: true, error: 'Invalid exception fields' };
+      }
+      if (ex.targetUrl !== undefined && (typeof ex.targetUrl !== 'string' || ex.targetUrl.length > 2048)) {
+        return { valid: false, knownType: true, error: 'Invalid exception targetUrl' };
+      }
+      if (ex.checkId !== undefined && (typeof ex.checkId !== 'string' || ex.checkId.length > 128)) {
+        return { valid: false, knownType: true, error: 'Invalid exception checkId' };
+      }
+      return { valid: true, knownType: true };
+    }
+    default:
+      return { valid: false, knownType: false, error: 'Unknown message type' };
+  }
+}
+
+/**
+ * chrome.runtime.onMessage リスナー本体 (v1.7.0 T10 / IMPL-05)
+ * - 未知のメッセージには同期的に false を返す
+ * - 特権メッセージは sender 検証およびペイロード検証を通過したときのみ実行する
+ */
+export function handleRuntimeMessage(
+  message: unknown,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: any) => void
+): boolean {
+  const validation = validateRuntimeMessage(message);
+  if (!validation.knownType) {
+    return false;
+  }
+
+  if (!isPrivilegedExtensionSender(sender)) {
+    sendResponse({
+      success: false,
+      error: '権限エラー: 拡張機能ページ以外からの特権メッセージは拒否されました。',
+    });
+    return false;
+  }
+
+  if (!validation.valid) {
+    sendResponse({
+      success: false,
+      error: `不正なメッセージ形式です: ${validation.error || 'validation failed'}`,
+    });
+    return false;
+  }
+
+  const msg = message as Record<string, any>;
+
+  if (msg.type === 'INSPECT_CURRENT_TAB') {
+    runInspection(msg.tabId)
       .then((report) => sendResponse({ success: true, report }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_HISTORY') {
+  if (msg.type === 'GET_HISTORY') {
     getHistorySummaries()
       .then((history) => sendResponse({ success: true, history }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_ALL_REPORTS') {
+  if (msg.type === 'GET_ALL_REPORTS') {
     getAllHistoryReports()
       .then((reports) => sendResponse({ success: true, reports }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'GET_REPORT_BY_ID') {
-    getReportById(message.id)
+  if (msg.type === 'GET_REPORT_BY_ID') {
+    getReportById(msg.id)
       .then((report) => sendResponse({ success: true, report }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'DELETE_HISTORY_ITEM') {
-    deleteReportById(message.id)
+  if (msg.type === 'DELETE_HISTORY_ITEM') {
+    deleteReportById(msg.id)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'CLEAR_HISTORY') {
+  if (msg.type === 'CLEAR_HISTORY') {
     clearAllHistory()
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
@@ -926,27 +1382,31 @@ if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   }
 
   // --- Rev.2.1 IMP-10: 許容・除外設定メッセージハンドラ ---
-  if (message.type === 'GET_FINDING_EXCEPTIONS') {
+  if (msg.type === 'GET_FINDING_EXCEPTIONS') {
     getAllFindingExceptions()
       .then((exceptions) => sendResponse({ success: true, exceptions }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'SAVE_FINDING_EXCEPTION') {
-    saveFindingException(message.exception)
+  if (msg.type === 'SAVE_FINDING_EXCEPTION') {
+    saveFindingException(msg.exception as FindingException)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  if (message.type === 'DELETE_FINDING_EXCEPTION') {
-    deleteFindingException(message.id)
+  if (msg.type === 'DELETE_FINDING_EXCEPTION') {
+    deleteFindingException(msg.id)
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
-  return true;
-});
+  return false;
+}
+
+// メッセージリスナー
+if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 }

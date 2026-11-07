@@ -8,70 +8,101 @@
 
 import {
   DomainPartyType,
+  DomSignals,
   ExternalConnectionItem,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
+  SecurityCheckResult,
 } from '../shared/types';
+import { generateFindingIdFromCheck, stripUrlQueryAndFragment } from '../shared/identity';
+import {
+  PSL_SOURCE,
+  PUBLIC_SUFFIX_EXCEPTIONS,
+  PUBLIC_SUFFIX_LIST,
+  PUBLIC_SUFFIX_WILDCARDS,
+} from './psl-rules.generated';
+
+export {
+  PSL_SOURCE,
+  PUBLIC_SUFFIX_EXCEPTIONS,
+  PUBLIC_SUFFIX_LIST,
+  PUBLIC_SUFFIX_WILDCARDS,
+};
 
 /**
- * 主要な複合Public Suffixリスト (ccTLD派生および主要Private Suffix)
- * 最長一致（longest match）で安全に評価します。
+ * Public Suffix List (PSL) ルールセット型定義 (v1.7.0 T13 / DOC-12)
  */
-const PUBLIC_SUFFIX_LIST: string[] = [
-  // 日本 (JP)
-  'co.jp',
-  'ne.jp',
-  'ac.jp',
-  'go.jp',
-  'or.jp',
-  'ed.jp',
-  'lg.jp',
-  'gr.jp',
+export interface PslRuleSet {
+  suffixes: readonly string[];
+  wildcards?: readonly string[];
+  exceptions?: readonly string[];
+  tlds?: readonly string[];
+}
 
-  // 英国 (UK)
-  'co.uk',
-  'org.uk',
-  'me.uk',
-  'ltd.uk',
-  'plc.uk',
-  'net.uk',
-  'ac.uk',
-  'gov.uk',
+/**
+ * サフィックス配列を文字数降順・辞書順で決定的にソートし重複を排除する
+ */
+function sortSuffixes(list: readonly string[]): string[] {
+  return Array.from(new Set(list.map((s) => String(s).trim().toLowerCase()).filter(Boolean))).sort(
+    (a, b) => b.length - a.length || a.localeCompare(b)
+  );
+}
 
-  // オセアニア (AU / NZ)
-  'com.au',
-  'net.au',
-  'org.au',
-  'edu.au',
-  'gov.au',
-  'co.nz',
-  'net.nz',
-  'org.nz',
+/**
+ * Public Suffix List (public_suffix_list.dat) 形式のテキストを解析し、ルールセットを生成する (v1.7.0 T13 / DOC-12)
+ *
+ * @param rawText PSL形式の文字列
+ * @returns PslRuleSet
+ */
+export function parsePslText(rawText: string): PslRuleSet {
+  const suffixes: string[] = [];
+  const wildcards: string[] = [];
+  const exceptions: string[] = [];
+  const tlds: string[] = [];
 
-  // アジア・南米・その他複合ccTLD
-  'com.tw',
-  'co.kr',
-  'com.sg',
-  'com.hk',
-  'com.br',
-  'com.cn',
-  'co.in',
-  'com.my',
-  'com.mx',
-  'com.ar',
+  if (typeof rawText !== 'string' || !rawText.trim()) {
+    return { suffixes: [], wildcards: [], exceptions: [], tlds: [] };
+  }
 
-  // 代表的なクラウド / ホスティング Private Suffix
-  'github.io',
-  'gitlab.io',
-  'vercel.app',
-  'pages.dev',
-  'web.app',
-  'firebaseapp.com',
-  'cloudfront.net',
-  'azurewebsites.net',
-  's3.amazonaws.com',
-  'herokuapp.com',
-];
+  const lines = rawText.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('//')) continue;
+
+    const token = trimmed.split(/\s+/)[0].toLowerCase().replace(/^\.+|\.+$/g, '');
+    if (!token) continue;
+
+    if (token.startsWith('!')) {
+      const exc = token.slice(1).replace(/^\.+/, '');
+      if (exc) exceptions.push(exc);
+      continue;
+    }
+
+    if (token.startsWith('*.')) {
+      const base = token.slice(2).replace(/^\.+/, '');
+      if (base) {
+        wildcards.push(base);
+        if (base.includes('.')) {
+          suffixes.push(base);
+        }
+      }
+      continue;
+    }
+
+    if (token.includes('.')) {
+      suffixes.push(token);
+    } else {
+      tlds.push(token);
+    }
+  }
+
+  return {
+    suffixes: sortSuffixes(suffixes),
+    wildcards: sortSuffixes(wildcards),
+    exceptions: sortSuffixes(exceptions),
+    tlds: sortSuffixes(tlds),
+  };
+}
 
 // ホスト名判定結果のインメモリキャッシュ (高速化)
 const domainCache = new Map<
@@ -99,68 +130,160 @@ export function isIpOrLocalHost(hostname: string): boolean {
 }
 
 /**
- * ホスト名から Public Suffix List に基づく登録可能ドメイン (eTLD+1) を抽出する (Rev.2.1 IMP-11 / 10.2)
+ * カスタムPSL指定を正規化された PslRuleSet に変換する
+ */
+function normalizePslRules(customPsl?: PslRuleSet | readonly string[] | string): PslRuleSet {
+  if (!customPsl) {
+    return {
+      suffixes: PUBLIC_SUFFIX_LIST,
+      wildcards: PUBLIC_SUFFIX_WILDCARDS,
+      exceptions: PUBLIC_SUFFIX_EXCEPTIONS,
+    };
+  }
+  if (typeof customPsl === 'string') {
+    return parsePslText(customPsl);
+  }
+  if (Array.isArray(customPsl)) {
+    return {
+      suffixes: sortSuffixes(customPsl as readonly string[]),
+      wildcards: [],
+      exceptions: [],
+    };
+  }
+  const ruleSet = customPsl as PslRuleSet;
+  return {
+    suffixes: sortSuffixes(ruleSet.suffixes || []),
+    wildcards: sortSuffixes(ruleSet.wildcards || []),
+    exceptions: sortSuffixes(ruleSet.exceptions || []),
+    tlds: ruleSet.tlds ? sortSuffixes(ruleSet.tlds) : undefined,
+  };
+}
+
+/**
+ * ホスト名から Public Suffix List に基づく登録可能ドメイン (eTLD+1) を抽出する (Rev.2.1 IMP-11 / v1.7.0 DOC-12)
  *
- * @param rawHostname 入力ホスト名 (例: "api.sub.example.co.jp")
+ * @param rawHostname 入力ホスト名 (例: "api.sub.example.co.jp", "foo.tokyo.jp")
+ * @param customPsl テスト等で使用するカスタムPSLルールセット・PSLテキスト・サフィックス配列 (省略時はビルド時生成のPSLを使用)
  * @returns { registrableDomain: "example.co.jp", publicSuffix: "co.jp", isIpOrLocal: false }
  */
-export function parseRegistrableDomain(rawHostname: string): {
+export function parseRegistrableDomain(
+  rawHostname: string,
+  customPsl?: PslRuleSet | readonly string[] | string
+): {
   registrableDomain: string;
   publicSuffix: string;
   isIpOrLocal: boolean;
 } {
   const hostname = rawHostname.trim().toLowerCase().replace(/\.$/, '');
+  const useCache = customPsl === undefined;
 
-  if (domainCache.has(hostname)) {
+  if (useCache && domainCache.has(hostname)) {
     return domainCache.get(hostname)!;
   }
 
   // 1. IPアドレスまたはローカルホストの場合
   if (isIpOrLocalHost(hostname)) {
     const result = { registrableDomain: hostname, publicSuffix: '', isIpOrLocal: true };
-    domainCache.set(hostname, result);
+    if (useCache) domainCache.set(hostname, result);
     return result;
   }
 
   const parts = hostname.split('.');
   if (parts.length <= 1) {
     const result = { registrableDomain: hostname, publicSuffix: '', isIpOrLocal: true };
-    domainCache.set(hostname, result);
+    if (useCache) domainCache.set(hostname, result);
     return result;
   }
 
-  // 2. 複合Public Suffix（.co.jp, .com.au等）との最長一致判定
-  for (const suffix of PUBLIC_SUFFIX_LIST) {
+  const rules = normalizePslRules(customPsl);
+  const exceptions = rules.exceptions || [];
+  const wildcards = rules.wildcards || [];
+  const suffixes = rules.suffixes || [];
+
+  // 2. 例外ルール (!city.kawasaki.jp, !metro.tokyo.jp 等) の判定
+  for (const exc of exceptions) {
+    if (hostname === exc || hostname.endsWith(`.${exc}`)) {
+      const excParts = exc.split('.');
+      const suffixParts = excParts.slice(1);
+      const publicSuffix = suffixParts.join('.');
+      const registrablePartsCount = suffixParts.length + 1;
+      const registrableDomain =
+        parts.length >= registrablePartsCount
+          ? parts.slice(parts.length - registrablePartsCount).join('.')
+          : hostname;
+      const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
+      if (useCache) domainCache.set(hostname, result);
+      return result;
+    }
+  }
+
+  // 3. ワイルドカードルール (*.kawasaki.jp 等) の判定
+  for (const wc of wildcards) {
+    if (hostname.endsWith(`.${wc}`)) {
+      const wcParts = wc.split('.');
+      const suffixPartsCount = wcParts.length + 1;
+      if (parts.length >= suffixPartsCount) {
+        const publicSuffix = parts.slice(parts.length - suffixPartsCount).join('.');
+        const registrablePartsCount = suffixPartsCount + 1;
+        const registrableDomain =
+          parts.length >= registrablePartsCount
+            ? parts.slice(parts.length - registrablePartsCount).join('.')
+            : hostname;
+        const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
+        if (useCache) domainCache.set(hostname, result);
+        return result;
+      }
+    }
+  }
+
+  // 4. 複合Public Suffix（.co.jp, .tokyo.jp, .com.au等）との最長一致判定
+  for (const suffix of suffixes) {
     if (hostname === suffix || hostname.endsWith(`.${suffix}`)) {
       const suffixParts = suffix.split('.');
       const domainIndex = parts.length - suffixParts.length - 1;
       if (domainIndex >= 0) {
         const registrableDomain = parts.slice(domainIndex).join('.');
         const result = { registrableDomain, publicSuffix: suffix, isIpOrLocal: false };
-        domainCache.set(hostname, result);
+        if (useCache) domainCache.set(hostname, result);
         return result;
       }
-      // サフィックスそのもの（例: co.jp）
+      // サフィックスそのもの（例: co.jp, tokyo.jp）
       const result = { registrableDomain: hostname, publicSuffix: suffix, isIpOrLocal: false };
-      domainCache.set(hostname, result);
+      if (useCache) domainCache.set(hostname, result);
       return result;
     }
   }
 
-  // 3. 一般的な単一TLD（.com, .jp, .org等）の場合: 末尾2ラベルがeTLD+1
+  // 5. 一般的な単一TLD（.com, .jp, .org等）の場合: 末尾2ラベルがeTLD+1
   const publicSuffix = parts[parts.length - 1];
   const registrableDomain = parts.slice(-2).join('.');
   const result = { registrableDomain, publicSuffix, isIpOrLocal: false };
-  domainCache.set(hostname, result);
+  if (useCache) domainCache.set(hostname, result);
   return result;
 }
 
 /**
- * ホスト名と登録可能ドメインからサービスの用途カテゴリを推定分類する (Rev.2.1 IMP-11 / 10.5)
+ * ホスト名と登録可能ドメイン（およびサンプルURL）からサービスの用途カテゴリを推定分類する (Rev.2.1 IMP-11 / 10.5 / v1.7.1 T09 L)
  */
-export function inferServiceCategory(hostname: string, registrableDomain: string): ExternalServiceCategory {
+export function inferServiceCategory(
+  hostname: string,
+  registrableDomain: string,
+  sampleUrls?: string[]
+): ExternalServiceCategory {
   const h = hostname.toLowerCase();
   const d = registrableDomain.toLowerCase();
+
+  // セキュリティ / CAPTCHA / Bot対策 (reCAPTCHA, hCaptcha 等) (v1.7.1 T09 / L)
+  if (
+    h.includes('recaptcha') ||
+    d === 'recaptcha.net' ||
+    d === 'hcaptcha.com' ||
+    h.includes('hcaptcha.com') ||
+    /\/recaptcha\//i.test(hostname) ||
+    (Array.isArray(sampleUrls) && sampleUrls.some((u) => typeof u === 'string' && /\/recaptcha\//i.test(u)))
+  ) {
+    return 'security';
+  }
 
   // アナリティクス / タグ管理
   if (
@@ -169,6 +292,9 @@ export function inferServiceCategory(hostname: string, registrableDomain: string
     h.includes('segment') ||
     h.includes('hotjar') ||
     h.includes('clarity.ms') ||
+    h === 'vo.msecnd.net' ||
+    h.endsWith('.vo.msecnd.net') ||
+    h === 'js.monitor.azure.com' ||
     d === 'google-analytics.com' ||
     d === 'googletagmanager.com' ||
     d === 'mixpanel.com'
@@ -237,9 +363,24 @@ export function inferServiceCategory(hostname: string, registrableDomain: string
  * 補助関数: 公開エイリアス
  */
 export const parsePublicSuffixAndRegistrableDomain = parseRegistrableDomain;
-export const guessServiceCategory = (hostname: string, registrableDomain?: string): ExternalServiceCategory => {
-  const regDomain = registrableDomain || parseRegistrableDomain(hostname).registrableDomain;
-  return inferServiceCategory(hostname, regDomain);
+export const guessServiceCategory = (
+  hostnameOrUrl: string,
+  registrableDomain?: string,
+  sampleUrls?: string[]
+): ExternalServiceCategory => {
+  let host = hostnameOrUrl;
+  const urls = Array.isArray(sampleUrls) ? [...sampleUrls] : [];
+  if (hostnameOrUrl.includes('://') || hostnameOrUrl.includes('/')) {
+    urls.push(hostnameOrUrl);
+    try {
+      const parsed = new URL(hostnameOrUrl.includes('://') ? hostnameOrUrl : `https://${hostnameOrUrl}`);
+      host = parsed.hostname;
+    } catch {
+      host = hostnameOrUrl.split('/')[0] || hostnameOrUrl;
+    }
+  }
+  const regDomain = registrableDomain || parseRegistrableDomain(host).registrableDomain;
+  return inferServiceCategory(host, regDomain, urls);
 };
 
 /**
@@ -277,7 +418,213 @@ export function determinePartyType(resHostnameOrUrl: string, pageUrl: string): D
 }
 
 /**
- * ページURLと収集されたリソースURL群から、外部通信先・サードパーティ総合分析を実行する (Rev.2.1 IMP-11)
+ * DOM の <link> 要素のうち、通信先として数える対象 rel トークン一覧 (v1.7.1 T05)
+ */
+const ALLOWED_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'stylesheet',
+  'preload',
+  'modulepreload',
+  'icon',
+  'apple-touch-icon',
+  'apple-touch-icon-precomposed',
+  'mask-icon',
+  'manifest',
+]);
+
+/**
+ * 通信先から除外する参照のみの <link> rel トークン一覧 (v1.7.1 T05)
+ */
+const EXCLUDED_LINK_REL_TOKENS: ReadonlySet<string> = new Set([
+  'alternate',
+  'canonical',
+  'prev',
+  'next',
+  'dns-prefetch',
+  'preconnect',
+  'shortlink',
+  'pingback',
+  'edituri',
+  'wlwmanifest',
+]);
+
+/**
+ * <link> の rel 属性が通信先カウント対象（stylesheet, preload, modulepreload, icon, manifest）かどうかを判定する (v1.7.1 T05)
+ */
+export function isResourceLinkRel(rel: string | undefined | null): boolean {
+  if (!rel) return false;
+  const tokens = rel.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  if (tokens.some((t) => EXCLUDED_LINK_REL_TOKENS.has(t))) {
+    return false;
+  }
+  return tokens.some((t) => ALLOWED_LINK_REL_TOKENS.has(t));
+}
+
+/**
+ * 文字列が http(s) の絶対URL・プロトコル相対URL・または相対リソースパスとして解決可能か判定し、
+ * pageUrl 基準の絶対URLに変換する。非ネットワークスキームや単なる不正識別子は null を返す (v1.7.1 T05)。
+ */
+export function resolveResourceUrl(
+  rawUrl: string | undefined | null,
+  pageUrl?: string
+): string | null {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+
+  // 非ネットワークスキームは除外
+  if (/^(?:javascript|data|blob|mailto|tel|about|chrome|chrome-extension|moz-extension|file):/i.test(trimmed)) {
+    return null;
+  }
+
+  // 1. 絶対 http(s) URL またはプロトコル相対 URL (//...)
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('//')) {
+    try {
+      const candidate = trimmed.startsWith('//')
+        ? `${pageUrl && /^http:/i.test(pageUrl) ? 'http:' : 'https:'}${trimmed}`
+        : trimmed;
+      const u = pageUrl && /^https?:\/\//i.test(pageUrl) ? new URL(candidate, pageUrl) : new URL(candidate);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname) {
+        return u.href;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  // 2. 相対URL（/path, ./path, ../path, dir/file, または styles.css のようなファイル名）を pageUrl 基準で解決
+  // ※ 'invalid-url' のようなスラッシュも拡張子も持たない不正な文字列は除外する
+  const looksLikeRelativeResource =
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('../') ||
+    trimmed.includes('/') ||
+    /\.[a-z0-9]{2,8}(?:[?#]|$)/i.test(trimmed);
+
+  if (looksLikeRelativeResource && pageUrl && /^https?:\/\//i.test(pageUrl)) {
+    try {
+      const u = new URL(trimmed, pageUrl);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname) {
+        return u.href;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 重複判定用に URL からフラグメント (#...) のみを除去した正規化文字列を返す
+ */
+function stripFragmentOnly(url: string): string {
+  const hashIdx = url.indexOf('#');
+  return hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+}
+
+/**
+ * ページURLと DomSignals から、実際に読み込まれたリソースURL一覧を構築する (v1.7.1 T05 / E2)
+ *
+ * 1. メインドキュメント自身の URL（自ホスト 1 件目）
+ * 2. Performance Resource Timing API (`domSignals.resourceEntries`) で観測された実読み込みリソース（主情報源）
+ * 3. DOM の参照（script[src], 対象 rel の link[href], cssAssets, domResourceUrls, form 以外の mixedContent）による補完（重複除去）
+ */
+export function collectLoadedResourceUrls(
+  pageUrl: string,
+  domSignals?: DomSignals | null
+): string[] {
+  const collected: string[] = [];
+  const seenExact = new Set<string>();
+  const seenStripped = new Set<string>();
+
+  const registerUrl = (resolved: string, allowDuplicatePathWithDifferentQuery: boolean): void => {
+    const exactKey = stripFragmentOnly(resolved);
+    const strippedKey = stripUrlQueryAndFragment(resolved);
+    if (seenExact.has(exactKey)) return;
+    if (!allowDuplicatePathWithDifferentQuery && seenStripped.has(strippedKey)) return;
+    seenExact.add(exactKey);
+    seenStripped.add(strippedKey);
+    collected.push(strippedKey);
+  };
+
+  // 1. メインドキュメント URL
+  const mainDocUrl = resolveResourceUrl(pageUrl);
+  if (mainDocUrl) {
+    registerUrl(mainDocUrl, true);
+  }
+
+  if (!domSignals) {
+    return collected;
+  }
+
+  // 2. 主情報源: Performance Resource Timing API (performance.getEntriesByType('resource'))
+  if (Array.isArray(domSignals.resourceEntries)) {
+    for (const entry of domSignals.resourceEntries) {
+      if (!entry || typeof entry.url !== 'string') continue;
+      const resolved = resolveResourceUrl(entry.url, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, true);
+      }
+    }
+  }
+
+  // 3. DOM の参照で補完（Resource Timing に既にある URL は二重計上しない）
+  if (Array.isArray(domSignals.scriptUrls)) {
+    for (const rawSrc of domSignals.scriptUrls) {
+      const resolved = resolveResourceUrl(rawSrc, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.linkUrls)) {
+    for (const link of domSignals.linkUrls) {
+      if (!link || !isResourceLinkRel(link.rel)) continue;
+      const resolved = resolveResourceUrl(link.href, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.cssAssets)) {
+    for (const asset of domSignals.cssAssets) {
+      if (!asset || typeof asset.href !== 'string') continue;
+      const resolved = resolveResourceUrl(asset.href, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.domResourceUrls)) {
+    for (const rawUrl of domSignals.domResourceUrls) {
+      const resolved = resolveResourceUrl(rawUrl, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  if (Array.isArray(domSignals.mixedContent)) {
+    for (const item of domSignals.mixedContent) {
+      // <form action="..."> は送信先であり、ページ表示時に読み込まれたリソースではないため通信先に入れない
+      if (!item || item.resourceType === 'form' || typeof item.url !== 'string') continue;
+      const resolved = resolveResourceUrl(item.url, pageUrl);
+      if (resolved) {
+        registerUrl(resolved, false);
+      }
+    }
+  }
+
+  return collected;
+}
+
+/**
+ * ページURLと収集されたリソースURL群から、外部通信先・サードパーティ総合分析を実行する (Rev.2.1 IMP-11 / v1.7.1 T05)
  *
  * @param pageUrl 調査対象ページのURL
  * @param resourceUrls 検出されたスクリプト、スタイル、画像、通信先URLリスト
@@ -312,20 +659,18 @@ export function analyzeExternalConnections(
       if (!rawUrl || typeof rawUrl !== 'string') continue;
 
       try {
-        const trimmed = rawUrl.trim();
-        // http:// または https:// または // (プロトコル相対) で始まる絶対URLのみを対象とする
-        if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('//')) {
-          continue;
-        }
+        const resolvedHref = resolveResourceUrl(rawUrl, pageUrl);
+        if (!resolvedHref) continue;
 
-        const u = new URL(trimmed.startsWith('//') ? `https:${trimmed}` : trimmed, pageUrl);
+        const u = new URL(resolvedHref);
         const resHost = u.hostname.toLowerCase();
         if (!resHost) continue;
 
+        const maskedUrl = stripUrlQueryAndFragment(u.href);
         const current = hostMap.get(resHost) || { count: 0, sampleUrls: [] };
         current.count += 1;
-        if (current.sampleUrls.length < 3 && !current.sampleUrls.includes(rawUrl)) {
-          current.sampleUrls.push(rawUrl);
+        if (current.sampleUrls.length < 3 && !current.sampleUrls.includes(maskedUrl)) {
+          current.sampleUrls.push(maskedUrl);
         }
         hostMap.set(resHost, current);
       } catch {
@@ -342,6 +687,7 @@ export function analyzeExternalConnections(
     advertising: 0,
     fonts: 0,
     social: 0,
+    security: 0,
     api: 0,
     other: 0,
   };
@@ -362,8 +708,8 @@ export function analyzeExternalConnections(
       thirdPartyCount++;
     }
 
-    const category = inferServiceCategory(resHost, resInfo.registrableDomain);
-    categoryBreakdown[category]++;
+    const category = inferServiceCategory(resHost, resInfo.registrableDomain, data.sampleUrls);
+    categoryBreakdown[category] = (categoryBreakdown[category] ?? 0) + 1;
 
     connections.push({
       hostname: resHost,
@@ -386,4 +732,60 @@ export function analyzeExternalConnections(
     categoryBreakdown,
     connections,
   };
+}
+
+/**
+ * 旧世代の Google Analytics タグ（ga.js / analytics.js）が読み込まれているかを検査し、
+ * 該当する場合は INFO レベルの診断結果 1 件を返す (v1.7.1 T09 / L, E5)
+ */
+export function checkLegacyAnalyticsTags(
+  targetUrl: string,
+  dom?: DomSignals | null
+): SecurityCheckResult[] {
+  if (!dom) return [];
+
+  const candidateUrls: string[] = [
+    ...(Array.isArray(dom.scriptUrls) ? dom.scriptUrls : []),
+    ...(Array.isArray(dom.rawScriptUrls) ? dom.rawScriptUrls : []),
+    ...(Array.isArray(dom.resourceEntries)
+      ? dom.resourceEntries
+          .filter((e) => e && typeof e.url === 'string' && (!e.initiatorType || e.initiatorType === 'script'))
+          .map((e) => e.url)
+      : []),
+  ];
+
+  const legacyGaRegex = /(?:google-analytics\.com\/(?:[a-z0-9/_-]*\/)?(?:ga|analytics)\.js|(?:^|\/)(?:ga|analytics)\.js)(?:[?#]|$)/i;
+  const matchedScripts: string[] = [];
+
+  for (const raw of candidateUrls) {
+    if (!raw || typeof raw !== 'string') continue;
+    if (legacyGaRegex.test(raw)) {
+      const cleaned = stripUrlQueryAndFragment(raw);
+      if (cleaned && !matchedScripts.includes(cleaned)) {
+        matchedScripts.push(cleaned);
+      }
+    }
+  }
+
+  if (matchedScripts.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      checkId: 'SEC-LEGACY-TAG-01',
+      category: 'library-security',
+      name: '旧世代の計測タグ (ga.js / analytics.js) の残存',
+      status: 'info',
+      severity: 'info',
+      observed: matchedScripts.join(', '),
+      description:
+        'サポートが終了した旧世代の Google Analytics タグ（ga.js / analytics.js）が読み込まれています。現在は計測されていない可能性があり、不要な外部スクリプト読み込みの原因となります。',
+      recommendation:
+        '旧世代の計測タグは現在計測されていない可能性が高いため、不要であればタグの削除を検討してください（GA4 / Google Tag Manager へ移行済みの場合は旧タグを除去してください）。',
+      referenceUrls: ['https://support.google.com/analytics/answer/11583528'],
+      scope: targetUrl,
+      findingId: generateFindingIdFromCheck('SEC-LEGACY-TAG-01', targetUrl),
+    },
+  ];
 }

@@ -1,0 +1,58 @@
+{
+  "url": "https://mixed-form.badssl.com/",
+  "finalUrl": "https://mixed-form.badssl.com/",
+  "hostname": "mixed-form.badssl.com",
+  "statusCode": 200,
+  "capturedAt": "2026-11-06T20:19:07.714Z",
+  "responseHeaders": {
+    "cache-control": [
+      "no-store"
+    ],
+    "connection": [
+      "keep-alive"
+    ],
+    "content-encoding": [
+      "gzip"
+    ],
+    "content-type": [
+      "text/html"
+    ],
+    "date": [
+      "Fri, 06 Nov 2026 20:19:04 GMT"
+    ],
+    "etag": [
+      "W/\"6aea4b80-2e8\""
+    ],
+    "last-modified": [
+      "Tue, 03 Nov 2026 21:00:48 GMT"
+    ],
+    "server": [
+      "nginx/1.10.3 (Ubuntu)"
+    ],
+    "transfer-encoding": [
+      "chunked"
+    ]
+  },
+  "resourceTiming": [
+    {
+      "name": "https://mixed-form.badssl.com/style.css",
+      "initiatorType": "link",
+      "transferSize": 1806,
+      "encodedBodySize": 1506,
+      "decodedBodySize": 1506,
+      "startTime": 550,
+      "duration": 161
+    },
+    {
+      "name": "https://mixed-form.badssl.com/icons/favicon-yellow.ico",
+      "initiatorType": "other",
+      "transferSize": 5730,
+      "encodedBodySize": 5430,
+      "decodedBodySize": 5430,
+      "startTime": 726,
+      "duration": 159
+    }
+  ],
+  "cookies": [],
+  "html": "<!DOCTYPE html><html><head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <link rel=\"shortcut icon\" href=\"/icons/favicon-yellow.ico\">\n  <link rel=\"apple-touch-icon\" href=\"/icons/icon-yellow.png\">\n  <title>mixed-form.badssl.com</title>\n  <link rel=\"stylesheet\" href=\"/style.css\">\n  <style>body { background: rgb(246, 207, 47); }</style>\n</head>\n<body>\n<div id=\"content\">\n  <h1 style=\"font-size: 8vw;\">\n    mixed-form.<br>badssl.com\n  </h1>\n  <br><br>\n  <form action=\"http://http.badssl.com/resources/form-submitted.html\" method=\"post\">\n    <input type=\"text\" id=\"value\" placeholder=\"This form submits to HTTP.\">\n    <button type=\"submit\">Submit</button>\n  </form>\n</div>\n\n\n\n</body></html>"
+}

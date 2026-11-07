@@ -8,6 +8,7 @@ import {
   resolveTechAdvisoryDisplayInfo,
   sortAdvisoriesByPriority,
 } from '../detection/advisory';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
   getSecurityCheckDisplayBadge,
@@ -437,9 +438,12 @@ export function renderSecurityModalHtml(check: SecurityCheckResult): string {
  * Cookie詳細モーダルのHTML文字列を生成する
  */
 export function renderCookieModalHtml(cookie: InspectedCookieInfo): string {
+  const catKey = normalizeCookieCategory(cookie.category);
+  const catLabel = formatCookieCategory(catKey);
   return `
     <div>
       <div class="detail-section-title">属性詳細 (※値は除外)</div>
+      <div>用途分類: <strong>${escapeHtml(catLabel)} (${escapeHtml(catKey)})</strong></div>
       <div>ドメイン: <strong>${escapeHtml(cookie.domain || '-')}</strong></div>
       <div>パス: <strong>${escapeHtml(cookie.path || '-')}</strong></div>
       <div>Secure: <strong>${cookie.secure ? '有効' : '無効'}</strong></div>

@@ -75,3 +75,14 @@
   - 既存テストの期待値の変更はなし。
 - 未解決:
   - N2 の 3 サイトのスナップショットのうち、`angular.dev` では Angular `22.2.5` が検出されるようになったが、`angularjs.org` のスナップショット（`tests/fixtures/snapshots/angularjs.org.html` 7 行目 `<title>Site Not Found</title>`、95〜99 行目 Firebase Hosting の 404 エラーページ）および `www.drupal.org` のスナップショット（`tests/fixtures/snapshots/www.drupal.org.html` 1 行目 `<title>Client Challenge</title>`、`<img id="fastlyLogo">`、`<p id="captchaTitle">` の Fastly CAPTCHA チャレンジページ）にはサイト側の応答自体に当該技術の印が含まれていないため、スナップショット単体からは検出できない（指示書の受け入れ条件に従い、根拠を明記して `partial`（一部完了）とする）。
+
+## T07 Cookie の用途分類と一般 Cookie のチェック  (2026-11-07 14:29)
+- 変更ファイル: `src/shared/types.ts`, `src/security/cookies.ts`, `src/storage/history.ts`, `src/export/markdown.ts`, `src/export/csv.ts`, `src/dashboard/render.ts`, `src/popup/render.ts`, `tests/cookies.test.ts`, `tests/dashboard-history.test.ts`
+- 判断したこと:
+  - **一般 Cookie のチェックの独立化と観測値への Cookie 名出力（指摘 B・N7）**: `src/security/cookies.ts` の `SEC-COOKIE-SECURE-GENERAL` から認証系の指摘が 0 件のときだけ出力する条件を撤廃し、認証系の FAIL（`SEC-COOKIE-HTTPONLY`・`SEC-COOKIE-SECURE`）と独立に出力するようにした。また観測値（`observed`）に対象の Cookie 名を最大 3 件出力し、3 件を超える場合は `他 ○ 件` と付記するようにした（あわせて `SEC-COOKIE-SECURE-CSRF` の観測値にも対象の Cookie 名を出力するようにした）。
+  - **用途カテゴリの追加と履歴・エクスポート対応**: `CookieCategory` に `advertising`（広告・マーケティング）と `consent`（同意管理）を追加し、`SEC-COOKIE-SECURE-GENERAL` のチェック対象に含めた。`formatCookieCategory` と `normalizeCookieCategory` を公開関数化し、ダッシュボード（`renderCookiesTableHtml`）・ポップアップ（`renderCookieModalHtml`）・Markdown / CSV / JSON エクスポート・履歴読み込み（`sanitizeReportUrls`）で新用途の表示と出力に対応させるとともに、v1.7.0 以前の履歴や未知の用途値は既定値 `'general'`（一般・未分類）として安全に扱うようにした。
+  - **名前の対応表の拡充と優先順位（指摘 A・L・N8）**: `KNOWN_COOKIES`（完全一致）および `KNOWN_COOKIE_PREFIXES`（プレフィックス一致）を拡充し、計測（`ai_session`, `ai_user`, `__utma`, `__utmb`, `__utmc`, `__utmt`, `__utmz`, `_mkto_trk`, `kndctr_*`）、広告（`_gcl_*`, `_fbp`, `_twpid`, `_twsid`）、同意管理（`OptanonConsent`, `OptanonAlertBoxClosed`, `zaraz-consent`, `CookieConsent`）、CSRF（`__RequestVerificationToken`, `anti_forgery*`, `antiforgery*`, `mw-wp-form-token`）、認証（`PHPSESSID`, `JSESSIONID`, `ASP.NET_SessionId`, `ASPSESSIONID*`, `_gh_sess`）をパターン判定より優先するようにした。さらにパターン判定でも、`token` を含んでも `verification` や `forgery`（または `csrf` / `xsrf`）を含む名前は CSRF とし、`ai_session` 等の計測用 Cookie に含まれる `session` が認証用と判定されないようにした。
+  - **HTTP ページでの Cookie PASS 観測値の書き分け**: HTTP のページ（`isHttps === false`）では Secure 属性を付与できないため、`SEC-COOKIE-00`（PASS）の観測値を `${processedCookies.length} 件のCookieを検査（HTTP のため Secure は評価対象外）` と書き分けるようにした（HTTPS ページでは従来どおり `${processedCookies.length} 件のCookieを検査（全属性が適切）`）。
+  - **既存テストの期待値の変更（全 1 件）**:
+    1. `tests/cookies.test.ts` の「Cookie名に基づいて正しいカテゴリに分類されること」において、`classifyCookie('_fbp')` の期待値を `'analytics'` から `'advertising'` に変更した（理由: T07 の仕様「用途の追加: `advertising`（広告）… 名前の対応表を増やす: 広告: `_gcl_*`、`_fbp`、`_twpid`、`_twsid`」に従い、`_fbp` の分類を `analytics` から `advertising` に変更したため）。
+- 未解決: なし

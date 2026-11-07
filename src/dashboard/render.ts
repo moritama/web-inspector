@@ -8,6 +8,7 @@ import {
   resolveTechAdvisoryDisplayInfo,
   sortAdvisoriesByPriority,
 } from '../detection/advisory';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
   getSecurityCheckDisplayBadge,
@@ -670,7 +671,8 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
 }
 
 /**
- * Cookie一覧テーブルのtbody HTML文字列を生成する
+ * Cookie一覧テーブルのtbody HTML文字列を生成する (v1.7.1 T07)
+ * v1.7.0 以前の履歴データ（category 未設定や旧用途のみ）および未知の用途値も安全に描画する。
  */
 export function renderCookiesTableHtml(cookies: any[]): string {
   if (!cookies || cookies.length === 0) {
@@ -678,10 +680,12 @@ export function renderCookiesTableHtml(cookies: any[]): string {
   }
 
   return cookies
-    .map(
-      (c) => `
+    .map((c) => {
+      const catKey = normalizeCookieCategory(c?.category);
+      const catLabel = formatCookieCategory(catKey);
+      return `
     <tr>
-      <td><strong>${escapeHtml(c.name)}</strong></td>
+      <td><strong>${escapeHtml(c.name)}</strong><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(catLabel)} (${escapeHtml(catKey)})</div></td>
       <td>${escapeHtml(c.domain)}</td>
       <td>${escapeHtml(c.path)}</td>
       <td>${c.secure ? '✅' : '❌'}</td>
@@ -690,8 +694,8 @@ export function renderCookiesTableHtml(cookies: any[]): string {
       <td>${c.session ? 'セッション' : '永続'}</td>
       <td style="color:${c.issues && c.issues.length > 0 ? 'var(--warning-color)' : 'var(--text-muted)'};">${c.issues && c.issues.length > 0 ? escapeHtml(c.issues.join(', ')) : 'なし'}</td>
     </tr>
-  `
-    )
+  `;
+    })
     .join('');
 }
 

@@ -9,6 +9,7 @@ import {
   getEffectiveFixStatus,
   resolveTechAdvisoryDisplayInfo,
 } from '../detection/advisory';
+import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { DetectedTechnology, InspectionReport } from '../shared/types';
 import { sanitizeReportUrls } from '../storage/history';
 
@@ -238,15 +239,17 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
   if (report.cookies && report.cookies.length > 0) {
     rows.push(['--- 観測されたCookie属性 (値は非保持) ---'].map(escapeCsv).join(','));
     rows.push(
-      ['Cookie名', 'ドメイン', 'パス', 'Secure', 'HttpOnly', 'SameSite', '種別', '検出された課題'].map(escapeCsv).join(',')
+      ['Cookie名', 'ドメイン', 'パス', '用途分類', 'Secure', 'HttpOnly', 'SameSite', '種別', '検出された課題'].map(escapeCsv).join(',')
     );
 
     for (const c of report.cookies) {
+      const cat = normalizeCookieCategory(c.category);
       rows.push(
         [
           c.name,
           c.domain || '',
           c.path || '',
+          `${formatCookieCategory(cat)} (${cat})`,
           c.secure ? '有効' : '未設定',
           c.httpOnly ? '有効' : '未設定',
           c.sameSite || '',

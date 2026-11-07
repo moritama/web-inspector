@@ -22,13 +22,41 @@ import {
 } from '../shared/types';
 
 /**
- * 既知Cookie辞書 (完全一致による高信頼度分類)
+ * 有効なCookie用途カテゴリの集合 (v1.7.1 T07)
+ */
+const VALID_COOKIE_CATEGORIES: ReadonlySet<CookieCategory> = new Set<CookieCategory>([
+  'authentication',
+  'csrf',
+  'analytics',
+  'advertising',
+  'consent',
+  'preferences',
+  'general',
+]);
+
+/**
+ * 未知または未設定のCookie用途値を既定値 ('general') へ正規化する（過去履歴・将来互換用）(v1.7.1 T07)
+ *
+ * @param category 検査対象または履歴から読み込んだカテゴリ値
+ * @returns 正規化された CookieCategory
+ */
+export function normalizeCookieCategory(category: unknown): CookieCategory {
+  if (typeof category === 'string' && VALID_COOKIE_CATEGORIES.has(category as CookieCategory)) {
+    return category as CookieCategory;
+  }
+  return 'general';
+}
+
+/**
+ * 既知Cookie辞書（完全一致による高信頼度分類・小文字キー）(v1.7.1 T07)
  */
 const KNOWN_COOKIES: Record<string, CookieCategory> = {
   // 認証・セッション
   phpsessid: 'authentication',
   jsessionid: 'authentication',
+  'asp.net_sessionid': 'authentication',
   aspsessionid: 'authentication',
+  _gh_sess: 'authentication',
   'connect.sid': 'authentication',
   auth_token: 'authentication',
   session_id: 'authentication',
@@ -39,11 +67,31 @@ const KNOWN_COOKIES: Record<string, CookieCategory> = {
   csrf_token: 'csrf',
   _csrf: 'csrf',
   csrftoken: 'csrf',
+  __requestverificationtoken: 'csrf',
+  anti_forgery: 'csrf',
+  antiforgery: 'csrf',
+  'mw-wp-form-token': 'csrf',
   // 解析・トラッキング
   _ga: 'analytics',
   _gid: 'analytics',
   _gat: 'analytics',
-  _fbp: 'analytics',
+  ai_session: 'analytics',
+  ai_user: 'analytics',
+  __utma: 'analytics',
+  __utmb: 'analytics',
+  __utmc: 'analytics',
+  __utmt: 'analytics',
+  __utmz: 'analytics',
+  _mkto_trk: 'analytics',
+  // 広告・マーケティング
+  _fbp: 'advertising',
+  _twpid: 'advertising',
+  _twsid: 'advertising',
+  // 同意管理
+  optanonconsent: 'consent',
+  optanonalertboxclosed: 'consent',
+  'zaraz-consent': 'consent',
+  cookieconsent: 'consent',
   // UI設定
   theme: 'preferences',
   theme_mode: 'preferences',
@@ -52,6 +100,25 @@ const KNOWN_COOKIES: Record<string, CookieCategory> = {
   locale: 'preferences',
   sidebar_view: 'preferences',
 };
+
+/**
+ * 既知Cookieプレフィックス対応表（先頭一致による高信頼度分類・小文字）(v1.7.1 T07)
+ * 名前の対応表にあるプレフィックス（kndctr_*, _gcl_*, anti_forgery*, antiforgery*, ASPSESSIONID* 等）を
+ * パターン判定より優先して分類する。
+ */
+const KNOWN_COOKIE_PREFIXES: ReadonlyArray<{ prefix: string; category: CookieCategory }> = [
+  // 解析・トラッキング
+  { prefix: 'kndctr_', category: 'analytics' },
+  // 広告・マーケティング
+  { prefix: '_gcl_', category: 'advertising' },
+  // CSRF対策
+  { prefix: '__requestverificationtoken', category: 'csrf' },
+  { prefix: 'anti_forgery', category: 'csrf' },
+  { prefix: 'antiforgery', category: 'csrf' },
+  { prefix: '.aspnetcore.antiforgery', category: 'csrf' },
+  // 認証・セッション
+  { prefix: 'aspsessionid', category: 'authentication' },
+];
 
 /**
  * Chrome API の SameSiteStatus を内部正規化表現に変換する (IMP-04 / 3.2)
@@ -81,20 +148,25 @@ export function normalizeSameSite(
 }
 
 /**
- * Cookieの名称から詳細な分類・あいまい性を判定する (IMP-04 / 3.3)
+ * Cookieの名称から詳細な分類・あいまい性を判定する (IMP-04 / 3.3 / v1.7.1 T07)
+ *
+ * - 名前の対応表（完全一致・プレフィックス一致）にあるものをパターン判定より優先する
+ * - token を含んでも verification や forgery を含む名前は CSRF にする
+ * - ai_session のように session を含む計測用 Cookie が認証用にならないようにする
  *
  * @param name Cookie名
  * @returns CookieClassification
  */
 export function classifyCookieAdvanced(name: string): CookieClassification {
-  const lower = name.toLowerCase().trim();
+  const lower = String(name || '').toLowerCase().trim();
   const matchedRules: string[] = [];
 
-  // 1. 既知Cookie辞書への完全一致
+  // 1. 既知Cookie辞書への完全一致（パターンより優先）
   if (KNOWN_COOKIES[lower]) {
-    matchedRules.push(`known-dict:${KNOWN_COOKIES[lower]}`);
+    const knownCategory = KNOWN_COOKIES[lower];
+    matchedRules.push(`known-dict:${knownCategory}`);
     return {
-      category: KNOWN_COOKIES[lower],
+      category: knownCategory,
       confidence: 'high',
       matchedRules,
       ambiguous: false,
@@ -102,41 +174,77 @@ export function classifyCookieAdvanced(name: string): CookieClassification {
     };
   }
 
+  // 2. 既知Cookieプレフィックス対応表への先頭一致（パターンより優先）
+  for (const entry of KNOWN_COOKIE_PREFIXES) {
+    if (lower.startsWith(entry.prefix)) {
+      matchedRules.push(`known-prefix:${entry.category}`);
+      return {
+        category: entry.category,
+        confidence: 'high',
+        matchedRules,
+        ambiguous: false,
+        overridden: false,
+      };
+    }
+  }
+
+  let isConsent = false;
+  let isAdvertising = false;
   let isAnalytics = false;
   let isCsrf = false;
   let isPreferences = false;
   let isAuth = false;
 
-  // 2. 解析・トラッキングパターン
-  if (/^(_ga|_gid|_gat|_fbp|_hj|mp_)/i.test(lower)) {
+  // 3. 同意管理パターン
+  if (/(optanon|cookie[-_]?consent|zaraz[-_]?consent)/i.test(lower)) {
+    isConsent = true;
+    matchedRules.push('pattern:consent');
+  }
+
+  // 4. 広告・マーケティングパターン
+  if (/^(_gcl_|_fbp|_fbc|_twpid|_twsid)/i.test(lower)) {
+    isAdvertising = true;
+    matchedRules.push('pattern:advertising');
+  }
+
+  // 5. 解析・トラッキングパターン
+  if (/^(_ga|_gid|_gat|__utm|_hj|mp_|ai_session|ai_user|_mkto_trk|kndctr_)/i.test(lower)) {
     isAnalytics = true;
     matchedRules.push('pattern:analytics');
   }
 
-  // 3. CSRF専用パターン
-  if (/(csrf|xsrf)/i.test(lower)) {
+  // 6. CSRF専用パターン（token を含んでも verification や forgery を含む名前は CSRF にする）
+  if (/(csrf|xsrf|verification|forgery)/i.test(lower)) {
     isCsrf = true;
     matchedRules.push('pattern:csrf');
   }
 
-  // 4. UI・表示設定パターン
+  // 7. UI・表示設定パターン
   if (/(theme|mode|lang|locale|sidebar|view|layout)/i.test(lower)) {
     isPreferences = true;
     matchedRules.push('pattern:preferences');
   }
 
-  // 5. 認証・セッションパターン
-  if (/(session|sess|auth|token|jwt|(^|[_\-.])sid([_\-.]|$)|ticket|connect\.sid|phpsessid|jsessionid)/i.test(lower)) {
+  // 8. 認証・セッションパターン
+  // ※ verification / forgery / csrf / xsrf を含むトークンは CSRF 用であり token 単体では認証とみなさない。
+  //    また計測用 Cookie（ai_session, _hjSession 等）に含まれる session も認証用としない。
+  const hasExplicitAuthKeyword =
+    /(auth|jwt|(^|[_\-.])sid([_\-.]|$)|ticket|connect\.sid|phpsessid|jsessionid|aspsessionid|_gh_sess)/i.test(lower) ||
+    (!isAnalytics && /(session|sess)/i.test(lower)) ||
+    (!isCsrf && /token/i.test(lower));
+  if (hasExplicitAuthKeyword) {
     isAuth = true;
     matchedRules.push('pattern:authentication');
   }
 
-  const matchCount = [isAnalytics, isCsrf, isPreferences, isAuth].filter(Boolean).length;
+  const matchCount = [isConsent, isAdvertising, isAnalytics, isCsrf, isPreferences, isAuth].filter(Boolean).length;
   const ambiguous = matchCount > 1;
 
-  // 優先順位決定 (解析 -> CSRF -> UI設定 -> 認証 -> 一般)
+  // 優先順位決定 (同意管理 -> 広告 -> 解析 -> CSRF -> UI設定 -> 認証 -> 一般)
   let category: CookieCategory = 'general';
-  if (isAnalytics) category = 'analytics';
+  if (isConsent) category = 'consent';
+  else if (isAdvertising) category = 'advertising';
+  else if (isAnalytics) category = 'analytics';
   else if (isCsrf) category = 'csrf';
   else if (isPreferences) category = 'preferences';
   else if (isAuth) category = 'authentication';
@@ -291,7 +399,14 @@ export function checkCookies(
       if (issue.missingAttributes.includes('Secure')) issueTexts.push('Secure属性未設定');
       if (issue.missingAttributes.includes('HttpOnly')) issueTexts.push('HttpOnly属性未設定');
     } else {
-      if (!rawCookie.httpOnly && (classification.category === 'csrf' || classification.category === 'preferences' || classification.category === 'analytics')) {
+      if (
+        !rawCookie.httpOnly &&
+        (classification.category === 'csrf' ||
+          classification.category === 'preferences' ||
+          classification.category === 'analytics' ||
+          classification.category === 'advertising' ||
+          classification.category === 'consent')
+      ) {
         issueTexts.push('HttpOnly未設定 (フロントエンド連携のため意図的)');
       }
     }
@@ -373,13 +488,17 @@ export function checkCookies(
   if (csrfIssues.length > 0) {
     const missingSecure = csrfIssues.filter((i) => i.missingAttributes.includes('Secure'));
     if (missingSecure.length > 0) {
+      const namesSummary = formatCookieNamesForObserved(
+        missingSecure.map((i) => i.name),
+        3
+      );
       checks.push({
         checkId: 'SEC-COOKIE-SECURE-CSRF',
         category: 'cookies',
         name: 'CSRFトークン Secure属性未設定',
         status: 'warning',
         severity: 'medium',
-        observed: `${missingSecure.length} 件のCSRF保護CookieでSecure属性が未設定`,
+        observed: `${missingSecure.length} 件のCSRF保護CookieでSecure属性が未設定 (${namesSummary})`,
         description: 'CSRFトークンが暗号化されていない平文通信で送出されるリスクがあります。',
         recommendation: 'CSRFトークンを保持するCookieに「Secure」属性を付与してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
@@ -388,18 +507,29 @@ export function checkCookies(
     }
   }
 
-  // 3. 一般・トラッキング等のCookie
-  const generalIssues = issues.filter((i) => i.category === 'general' || i.category === 'analytics' || i.category === 'preferences');
-  if (generalIssues.length > 0 && authIssues.length === 0) {
+  // 3. 一般・解析・広告・同意管理・UI設定等のCookie（v1.7.1 T07: 認証系の指摘とは独立に出す）
+  const generalIssues = issues.filter(
+    (i) =>
+      i.category === 'general' ||
+      i.category === 'analytics' ||
+      i.category === 'advertising' ||
+      i.category === 'consent' ||
+      i.category === 'preferences'
+  );
+  if (generalIssues.length > 0) {
     const missingSecure = generalIssues.filter((i) => i.missingAttributes.includes('Secure'));
     if (missingSecure.length > 0) {
+      const namesSummary = formatCookieNamesForObserved(
+        missingSecure.map((i) => i.name),
+        3
+      );
       checks.push({
         checkId: 'SEC-COOKIE-SECURE-GENERAL',
         category: 'cookies',
         name: 'Cookie Secure属性未設定 (一般・解析用)',
         status: 'warning',
         severity: 'low',
-        observed: `${missingSecure.length} 件の非認証系CookieでSecure属性が未設定`,
+        observed: `${missingSecure.length} 件の非認証系CookieでSecure属性が未設定 (${namesSummary})`,
         description: '機密性の低いCookieですが、HTTPS通信環境下では全CookieにSecure属性を設定することが推奨されます。',
         recommendation: 'Webサーバーまたは発行スクリプトで「Secure」フラグを付与してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
@@ -408,16 +538,20 @@ export function checkCookies(
     }
   }
 
-  // 4. 課題が一切検出されなかった場合
-  if (issues.length === 0) {
+  // 4. 課題が一切検出されなかった場合（v1.7.1 T07: HTTPページでは「HTTP のため Secure は評価対象外」と書き分ける）
+  if (checks.length === 0) {
     checks.push({
       checkId: 'SEC-COOKIE-00',
       category: 'cookies',
       name: 'Cookie属性セキュリティ',
       status: 'pass',
       severity: 'info',
-      observed: `${processedCookies.length} 件のCookieを検査（全属性が適切）`,
-      description: '検出されたCookieに適切なセキュリティ属性が設定されています。',
+      observed: isHttps
+        ? `${processedCookies.length} 件のCookieを検査（全属性が適切）`
+        : `${processedCookies.length} 件のCookieを検査（HTTP のため Secure は評価対象外）`,
+      description: isHttps
+        ? '検出されたCookieに適切なセキュリティ属性が設定されています。'
+        : '検出されたCookieにHttpOnly等の不備はありません（HTTP通信のためSecure属性は評価対象外です）。',
       recommendation: '現在の設定を維持してください。',
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
       scope: url,
@@ -427,15 +561,30 @@ export function checkCookies(
   return { checks, inspectedCookies: processedCookies };
 }
 
-function formatCookieCategory(category: CookieCategory): string {
+/**
+ * 観測値に表示する対象Cookie名リストを最大 maxCount 件までに整形する (v1.7.1 T07)
+ */
+function formatCookieNamesForObserved(names: string[], maxCount = 3): string {
+  const displayed = names.slice(0, maxCount).join(', ');
+  const rest = names.length - maxCount;
+  return rest > 0 ? `${displayed} 他 ${rest} 件` : displayed;
+}
+
+/**
+ * Cookie用途カテゴリの日本語表示名を返す（未知の用途は general として扱う）(v1.7.1 T07)
+ */
+export function formatCookieCategory(category: CookieCategory | string | undefined | null): string {
+  const normalized = normalizeCookieCategory(category);
   const map: Record<CookieCategory, string> = {
     authentication: '認証・セッション',
     csrf: 'CSRF対策',
     analytics: 'トラッキング・解析',
+    advertising: '広告・マーケティング',
+    consent: '同意管理',
     preferences: 'UI・機能設定',
     general: '一般・未分類',
   };
-  return map[category] || category;
+  return map[normalized];
 }
 
 function getCookieRecommendation(

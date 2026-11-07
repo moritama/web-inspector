@@ -4,6 +4,7 @@
  */
 
 import { DetectedTechnology, Evidence, HistoryEntrySummary, InspectionReport } from '../shared/types';
+import { normalizeCookieCategory } from '../security/cookies';
 import { stripUrlQueryAndFragment } from '../shared/identity';
 
 export const STORAGE_KEY_HISTORY = 'web_inspector_history';
@@ -77,6 +78,22 @@ export function sanitizeReportUrls(report: InspectionReport): InspectionReport {
     url: stripUrlQueryAndFragment(item.url),
   }));
 
+  const cookies = (report.cookies || []).map((c) => {
+    const normalizedCat = normalizeCookieCategory(c.category);
+    return {
+      ...c,
+      category: normalizedCat,
+      ...(c.classification
+        ? {
+            classification: {
+              ...c.classification,
+              category: normalizeCookieCategory(c.classification.category ?? c.category),
+            },
+          }
+        : {}),
+    };
+  });
+
   const externalConnections = report.externalConnections
     ? {
         ...report.externalConnections,
@@ -92,6 +109,7 @@ export function sanitizeReportUrls(report: InspectionReport): InspectionReport {
     url: maskedUrl,
     technologies,
     securityChecks,
+    cookies,
     mixedContent,
     ...(externalConnections ? { externalConnections } : {}),
   };

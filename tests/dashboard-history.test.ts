@@ -9,12 +9,13 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { initDashboard } from '../src/dashboard/dashboard';
 import {
+  renderCookiesTableHtml,
   renderFullTechnologiesHtml,
   renderHistoryListHtml,
   renderLibrarySecurityTableHtml,
   renderOverviewLibrarySecHtml,
 } from '../src/dashboard/render';
-import { renderTechModalHtml } from '../src/popup/render';
+import { renderCookieModalHtml, renderTechModalHtml } from '../src/popup/render';
 import { DetectedTechnology, InspectionReport } from '../src/shared/types';
 
 const createMockReport = (overrides: Partial<InspectionReport> = {}): InspectionReport => ({
@@ -333,5 +334,113 @@ describe('IMPL-01: ダッシュボード初期化とイベント委譲による�
     expect(() => renderTechModalHtml(legacyV166Tech)).not.toThrow();
     expect(renderFullTechnologiesHtml([legacyV166Tech])).toContain('Bootstrap');
     expect(renderFullTechnologiesHtml([legacyV166Tech])).toContain('v4.3.1');
+  });
+
+  it('v1.7.1 T07: v1.7.0 形式の履歴（新しい用途を含まない・category 未設定）および新用途 (advertising / consent) や未知の用途をダッシュボードで表示できること', async () => {
+    const v170HistoryReport = createMockReport({
+      id: 'rep-v170-cookies',
+      extensionVersion: '1.7.0',
+      rulesVersion: '1.7.0',
+      cookies: [
+        {
+          name: 'PHPSESSID',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'lax',
+          session: true,
+          category: 'authentication',
+          issues: [],
+        },
+        {
+          name: '_ga',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'analytics',
+          issues: [],
+        },
+        {
+          // category が未設定の古い履歴エントリ
+          name: 'old_cookie_without_cat',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          session: false,
+          issues: [],
+        },
+        {
+          // 未知の用途値が入ったデータ
+          name: 'unknown_cat_cookie',
+          domain: 'legacy.example.test',
+          path: '/',
+          secure: false,
+          httpOnly: false,
+          sameSite: 'unspecified',
+          session: true,
+          category: 'some_unknown_category' as any,
+          issues: ['Secure属性未設定'],
+        },
+        {
+          // v1.7.1 の新用途
+          name: '_fbp',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'advertising',
+          issues: [],
+        },
+        {
+          name: 'OptanonConsent',
+          domain: '.example.test',
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'lax',
+          session: false,
+          category: 'consent',
+          issues: [],
+        },
+      ],
+    });
+
+    sendMessageMock.mockImplementation((message: { type: string }) => {
+      if (message.type === 'GET_ALL_REPORTS') {
+        return Promise.resolve({
+          success: true,
+          reports: [v170HistoryReport],
+        });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    await initDashboard();
+
+    const cookiesTableBody = document.getElementById('cookiesTableBody');
+    expect(cookiesTableBody).not.toBeNull();
+    const tableHtml = cookiesTableBody?.innerHTML || '';
+    expect(tableHtml).toContain('PHPSESSID');
+    expect(tableHtml).toContain('認証・セッション (authentication)');
+    expect(tableHtml).toContain('トラッキング・解析 (analytics)');
+    expect(tableHtml).toContain('old_cookie_without_cat');
+    expect(tableHtml).toContain('unknown_cat_cookie');
+    expect(tableHtml).toContain('一般・未分類 (general)');
+    expect(tableHtml).toContain('広告・マーケティング (advertising)');
+    expect(tableHtml).toContain('同意管理 (consent)');
+
+    // 純粋描画関数でも例外なく描画できること
+    expect(() => renderCookiesTableHtml(v170HistoryReport.cookies)).not.toThrow();
+    for (const cookie of v170HistoryReport.cookies) {
+      expect(() => renderCookieModalHtml(cookie)).not.toThrow();
+    }
   });
 });

@@ -496,12 +496,14 @@ export interface FindingException {
 }
 
 /**
- * Cookieの用途別カテゴリ (Version 1.2 IMP-01)
+ * Cookieの用途別カテゴリ (Version 1.2 IMP-01 / v1.7.1 T07)
  */
 export type CookieCategory =
   | 'authentication'  // 認証・セッション
   | 'csrf'            // CSRF保護トークン
   | 'analytics'       // トラッキング・アクセス解析
+  | 'advertising'     // 広告・マーケティング
+  | 'consent'         // 同意管理
   | 'preferences'     // UI・表示設定
   | 'general';        // 一般・その他
 

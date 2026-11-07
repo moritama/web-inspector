@@ -24,6 +24,7 @@ import {
   formatMarkdownStatusBadge,
   isRequiresAttention,
 } from '../shared/security-status';
+import { normalizeCookieCategory } from '../security/cookies';
 import { compareReportsEnhanced } from '../storage/diff';
 
 /**
@@ -422,7 +423,7 @@ ${parentCookieNote}
 | Cookie名 | ドメイン | パス | 用途分類 | Secure | HttpOnly | SameSite | CHIPS (Partitioned) |
 |---|---|---|:---:|:---:|:---:|:---:|:---:|
 ${report.cookies.length > 0 ? report.cookies.map((c) => {
-  return `| ${formatMarkdownCodeSpan(c.name, { inTable: true })} | ${formatMarkdownCodeSpan(c.domain || '-', { inTable: true })} | ${formatMarkdownCodeSpan(c.path || '-', { inTable: true })} | ${escapeMarkdownTableCell(c.category || 'general')} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | ${formatMarkdownCodeSpan(c.sameSite || '-', { inTable: true })} | ${c.partitioned ? 'Yes' : 'No'} |`;
+  return `| ${formatMarkdownCodeSpan(c.name, { inTable: true })} | ${formatMarkdownCodeSpan(c.domain || '-', { inTable: true })} | ${formatMarkdownCodeSpan(c.path || '-', { inTable: true })} | ${escapeMarkdownTableCell(normalizeCookieCategory(c.category))} | ${c.secure ? 'Yes' : '**No**'} | ${c.httpOnly ? 'Yes' : '**No**'} | ${formatMarkdownCodeSpan(c.sameSite || '-', { inTable: true })} | ${c.partitioned ? 'Yes' : 'No'} |`;
 }).join('\n') : '| なし | - | - | - | - | - | - | - |'}
 `);
 

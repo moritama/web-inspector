@@ -96,6 +96,8 @@
 default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
+> このポリシーに検出された問題点はありません。
+
 
 
 ## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）

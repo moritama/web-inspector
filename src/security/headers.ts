@@ -62,17 +62,27 @@ const ALL_RECOGNIZED_REFERRER_POLICIES = new Set([
 ]);
 
 /**
+ * checkHttpHeaders の追加オプション (meta CSP 併用評価用)
+ */
+export interface CheckHttpHeadersOptions {
+  metaCsp?: string[];
+  metaCspReportOnly?: string[];
+}
+
+/**
  * HTTPレスポンスヘッダーを診断する
  *
  * @param headers レスポンスヘッダーのマップ (キーは小文字)
  * @param url 調査対象URL
  * @param isHttps HTTPS接続かどうか
+ * @param options meta 要素由来の CSP などの補助入力（任意）
  * @returns セキュリティチェック結果一覧
  */
 export function checkHttpHeaders(
   headers: Record<string, string[]>,
   url: string,
-  isHttps: boolean
+  isHttps: boolean,
+  options?: CheckHttpHeadersOptions
 ): SecurityCheckResult[] {
   const results: SecurityCheckResult[] = [];
 
@@ -155,7 +165,7 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 2. CSP (Content-Security-Policy) (v1.7.0 T06 / SPEC-07: 配列要素・カンマ区切りごとに別ポリシーとして解析) ---
+  // --- 2. CSP (Content-Security-Policy) (v1.7.0 T06 / SPEC-07 / v1.7.1 T10: ヘッダーと meta の積集合評価) ---
   const cspPolicies = [
     ...parseCSPHeaderValues(headers['content-security-policy'], 'response-header', 'enforce'),
     ...parseCSPHeaderValues(
@@ -163,6 +173,8 @@ export function checkHttpHeaders(
       'response-header',
       'report-only'
     ),
+    ...parseCSPHeaderValues(options?.metaCsp, 'meta', 'enforce'),
+    ...parseCSPHeaderValues(options?.metaCspReportOnly, 'meta', 'report-only'),
   ];
 
   const xfo = getHeader('x-frame-options');
@@ -184,7 +196,7 @@ export function checkHttpHeaders(
       scope: url,
     });
   } else {
-    results.push(...analyzeCSPPolicies(cspPolicies, url, validXfo).results);
+    results.push(...analyzeCSPPolicies(cspPolicies, url, validXfo, xfo).results);
   }
 
   // --- 3. X-Frame-Options (クリックジャッキング対策) (v1.7.0 T07 / SPEC-12) ---

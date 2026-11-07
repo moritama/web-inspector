@@ -270,25 +270,25 @@ function createValidBaseReport(): InspectionReport {
 }
 
 describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.mjs)', () => {
-  it('正常なレポート（JSON と Markdown の組）では保留項目を含めて全 8 項目が合格すること', () => {
+  it('正常なレポート（JSON と Markdown の組）では保留項目を含めて全 9 項目が合格すること', () => {
     const report = createValidBaseReport();
     const md = generateMarkdownReport(report);
     const result = lintReportPair(report, md, { includePending: true });
 
     expect(result.ok).toBe(true);
     expect(result.violations).toEqual([]);
-    expect(result.results.length).toBe(8);
+    expect(result.results.length).toBe(9);
     expect(result.results.every((r) => r.passed)).toBe(true);
   });
 
-  it('T05 で (4) R04 と (8) R08 の保留が解除され、全 8 項目が既定で有効（保留 0 件）になっていること', () => {
+  it('T05・T10 で全 9 項目が既定で有効（保留 0 件）になっていること', () => {
     const pending = getPendingChecks();
     expect(pending.map((p) => p.id)).toEqual([]);
-    expect(CHECK_DEFINITIONS.length).toBe(8);
+    expect(CHECK_DEFINITIONS.length).toBe(9);
     expect(CHECK_DEFINITIONS.every((d) => !d.pending)).toBe(true);
   });
 
-  describe('各検査項目 (1)〜(8) の違反検出検証', () => {
+  describe('各検査項目 (1)〜(9) の違反検出検証', () => {
     it('(1) R01: 要確認件数と重大度内訳（CRITICAL〜LOW の合計）が一致しない場合に不合格になること', () => {
       const report = createValidBaseReport();
       // info 項目の Referrer-Policy が誤って low にカウントされている不整合を模擬
@@ -449,6 +449,55 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
       expect(res.ok).toBe(false);
       const r08 = res.results.find((r) => r.id === 'R08');
       expect(r08?.passed).toBe(false);
+    });
+
+    it('(9) R09: CSP があるページの CSP の重大度が「CSP なし」(medium) を上回る場合に不合格になり、medium 以下なら合格すること', () => {
+      const report = createValidBaseReport();
+      report.cspPolicies = [
+        {
+          id: 'csp_header_01',
+          source: 'response-header',
+          mode: 'enforce',
+          directives: { 'frame-ancestors': ["'self'"] },
+          rawValue: "frame-ancestors 'self'",
+          warnings: [],
+          observedAt: '2026-11-01T00:00:00.000Z',
+        },
+      ];
+      report.securityChecks.push({
+        checkId: 'SEC-CSP-03',
+        category: 'http-headers',
+        name: 'CSP (Content-Security-Policy)',
+        status: 'warning',
+        severity: 'high',
+        observed: 'script-src 未指定 / object-src 未指定 / base-uri 未指定',
+        description: 'CSPポリシーに改善点があります。',
+        recommendation: '信頼できるオリジンを指定した script-src または default-src を設定してください。',
+        referenceUrls: [],
+        scope: 'https://valid.example.test/',
+      });
+      const badSummary = summarizeSecurityChecks(report.securityChecks);
+      report.summary.requiresAttentionCount = badSummary.requiresAttentionCount;
+      report.summary.securityFindings = badSummary.securityFindings;
+
+      const badMd = generateMarkdownReport(report);
+      const badRes = lintReportPair(report, badMd);
+      expect(badRes.ok).toBe(false);
+      const r09Bad = badRes.results.find((r) => r.id === 'R09');
+      expect(r09Bad?.passed).toBe(false);
+
+      // 重大度を上限の medium に修正すると全 9 項目が合格すること
+      const cspCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CSP-03')!;
+      cspCheck.severity = 'medium';
+      const goodSummary = summarizeSecurityChecks(report.securityChecks);
+      report.summary.requiresAttentionCount = goodSummary.requiresAttentionCount;
+      report.summary.securityFindings = goodSummary.securityFindings;
+
+      const goodMd = generateMarkdownReport(report);
+      const goodRes = lintReportPair(report, goodMd);
+      expect(goodRes.ok).toBe(true);
+      const r09Good = goodRes.results.find((r) => r.id === 'R09');
+      expect(r09Good?.passed).toBe(true);
     });
   });
 

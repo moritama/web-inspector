@@ -94,6 +94,12 @@
 frame-ancestors 'self'
 ```
 
+| ディレクティブ | 重大度 | 内容 | 推奨 |
+|---|:---:|---|---|
+| `script-src / default-src` | MEDIUM | script-src および default-src が定義されていないため、スクリプトの読み込み元が制限されていません。 | 信頼できるオリジンを指定した script-src または default-src を設定してください。 |
+| `object-src` | LOW | object-src (および default-src) が未指定です。Flashやプラグインによるスクリプト実行を制限できません。 | object-src 'none' を指定してプラグイン実行を完全に無効化してください。 |
+| `base-uri` | LOW | base-uri ディレクティブが未指定です。<base> タグの挿入による相対URL改変攻撃（Base Manipulation）を防止できません。 | base-uri 'self' または 'none' を明示的に指定してください。 |
+
 
 
 ## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）

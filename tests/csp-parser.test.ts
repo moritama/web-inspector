@@ -8,15 +8,20 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeCSPHeader,
   analyzeCSPPolicies,
+  checkXfoAndFrameAncestorsConflict,
   evaluateCSPDirectives,
+  evaluatePolicyIssuesWithIntersection,
   parseCSP,
   parseCSPHeaderValues,
   parseCSPPolicy,
+  summarizeCSPIssues,
 } from '../src/security/csp-parser';
+import { SecurityEngine } from '../src/security/engine';
 import { checkHttpHeaders } from '../src/security/headers';
 import { executeInspection } from '../src/background/service-worker';
 import { extractDomSignals } from '../src/content/content-script';
-import { DomSignals } from '../src/shared/types';
+import { isRequiresAttention } from '../src/shared/security-status';
+import { CSPPolicy, DomSignals } from '../src/shared/types';
 
 describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-05)', () => {
   it('セミコロン区切り・空白混在のCSPが正常にディレクティブ辞書にパースされること', () => {
@@ -130,14 +135,14 @@ describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-0
     expect(policy.warnings.some((w) => w.includes('重複'))).toBe(true);
   });
 
-  it("script-src に 'unsafe-inline' のみがある場合にHighリスクを返却すること", () => {
+  it("script-src に 'unsafe-inline' のみがある場合にMediumリスク（最大MEDIUM: E1）を返却すること", () => {
     const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';";
     const parsed = parseCSP(csp);
     const issues = evaluateCSPDirectives(parsed, false);
 
     const inlineIssue = issues.find((i) => i.id === 'CSP-SCRIPT-UNSAFE-INLINE');
     expect(inlineIssue).toBeDefined();
-    expect(inlineIssue?.severity).toBe('high');
+    expect(inlineIssue?.severity).toBe('medium');
     expect(inlineIssue?.directive).toBe('script-src');
   });
 
@@ -243,7 +248,7 @@ describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-0
     expect(swCspComma[0]).toEqual(swCspTwo[0]);
   });
 
-  it("T06: script-src 'self' *.cdn.example は medium、script-src https: は high として検出されること", () => {
+  it("T06 / T10 (E1): script-src 'self' *.cdn.example および script-src https: はいずれも最大重大度 medium として検出されること", () => {
     const subdomainPolicy = parseCSPPolicy(
       "script-src 'self' *.cdn.example; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
       'response-header',
@@ -264,9 +269,9 @@ describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-0
     const httpsEval = analyzeCSPPolicies([httpsPolicy], 'https://example.com/');
     const httpsIssue = httpsEval.issues.find((i) => i.id === 'CSP-SCRIPT-WILDCARD');
     expect(httpsIssue).toBeDefined();
-    expect(httpsIssue?.severity).toBe('high');
+    expect(httpsIssue?.severity).toBe('medium');
     expect(httpsEval.results[0].checkId).toBe('SEC-CSP-03');
-    expect(httpsEval.results[0].severity).toBe('high');
+    expect(httpsEval.results[0].severity).toBe('medium');
   });
 
   it("T06: nonce・hash と 'strict-dynamic' がある場合はホスト許可 (*, https:, *.example.com) と 'unsafe-inline' が無視され警告にならないこと", () => {
@@ -341,5 +346,270 @@ describe('CSP構文解析・ディレクティブ診断テスト (IMP-02 & IMP-0
     expect(swMissing?.status).toBe('warning');
     expect(swInfoNotes).toHaveLength(1);
     expect(swInfoNotes[0].checkId).toBe('SEC-CSP-META-RO');
+  });
+
+  // --- v1.7.1 T10 (3, N4, E1): CSP の重大度と評価、問題点の要約、XFO 矛盾注記 ---
+  describe('v1.7.1 T10 (3, N4, E1): CSP 重大度上限・積集合評価・観測値要約・XFO 矛盾注記', () => {
+    interface CspTableCase {
+      label: string;
+      headerCsp?: string[];
+      metaCsp?: string[];
+      expectedCheckId: string;
+      expectedStatus: 'pass' | 'warning';
+      expectedSeverity: 'info' | 'low' | 'medium';
+      expectedRequiresAttention: boolean;
+      expectedObservedSubstrings: string[];
+    }
+
+    it.each<CspTableCase>([
+      {
+        label: 'CSP なし → MEDIUM',
+        headerCsp: undefined,
+        metaCsp: undefined,
+        expectedCheckId: 'SEC-CSP-01',
+        expectedStatus: 'warning',
+        expectedSeverity: 'medium',
+        expectedRequiresAttention: true,
+        expectedObservedSubstrings: ['未設定'],
+      },
+      {
+        label: "frame-ancestors 'self' だけ → MEDIUM（観測値に問題点の要約が出る）",
+        headerCsp: ["frame-ancestors 'self'"],
+        metaCsp: undefined,
+        expectedCheckId: 'SEC-CSP-03',
+        expectedStatus: 'warning',
+        expectedSeverity: 'medium',
+        expectedRequiresAttention: true,
+        expectedObservedSubstrings: ['script-src 未指定', 'object-src 未指定', 'base-uri 未指定'],
+      },
+      {
+        label: "script-src 'unsafe-inline' 'unsafe-eval' → MEDIUM（HIGH にならない）",
+        headerCsp: [
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ],
+        metaCsp: undefined,
+        expectedCheckId: 'SEC-CSP-03',
+        expectedStatus: 'warning',
+        expectedSeverity: 'medium',
+        expectedRequiresAttention: true,
+        expectedObservedSubstrings: ["'unsafe-inline' あり", "'unsafe-eval' あり"],
+      },
+      {
+        label: "style だけ 'unsafe-inline' → 要確認にならない (PASS / INFO)",
+        headerCsp: [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ],
+        metaCsp: undefined,
+        expectedCheckId: 'SEC-CSP-00',
+        expectedStatus: 'pass',
+        expectedSeverity: 'info',
+        expectedRequiresAttention: false,
+        expectedObservedSubstrings: ['有効'],
+      },
+      {
+        label: 'github.com と同じ形の CSP → PASS',
+        headerCsp: [
+          "default-src 'none'; base-uri 'self'; connect-src 'self' api.example.test; font-src assets.example.test; form-action 'self' app.example.test; frame-ancestors 'none'; img-src 'self' data: assets.example.test *.usercontent.example.test; media-src app.example.test; script-src assets.example.test; style-src 'unsafe-inline' assets.example.test; upgrade-insecure-requests",
+        ],
+        metaCsp: undefined,
+        expectedCheckId: 'SEC-CSP-00',
+        expectedStatus: 'pass',
+        expectedSeverity: 'info',
+        expectedRequiresAttention: false,
+        expectedObservedSubstrings: ['有効'],
+      },
+      {
+        label: "ヘッダー frame-ancestors 'self' ＋ meta の強い CSP → スクリプトの指摘なし (PASS)",
+        headerCsp: ["frame-ancestors 'self'"],
+        metaCsp: ["default-src 'none'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'self'"],
+        expectedCheckId: 'SEC-CSP-00',
+        expectedStatus: 'pass',
+        expectedSeverity: 'info',
+        expectedRequiresAttention: false,
+        expectedObservedSubstrings: ['2 件のポリシーが有効'],
+      },
+    ])(
+      '$label',
+      ({
+        headerCsp,
+        metaCsp,
+        expectedCheckId,
+        expectedStatus,
+        expectedSeverity,
+        expectedRequiresAttention,
+        expectedObservedSubstrings,
+      }) => {
+        const policies: CSPPolicy[] = [
+          ...parseCSPHeaderValues(headerCsp, 'response-header', 'enforce'),
+          ...parseCSPHeaderValues(metaCsp, 'meta', 'enforce'),
+        ];
+
+        const { issues, results } = analyzeCSPPolicies(policies, 'https://csp.example.test/');
+        const mainCspCheck = results.find((r) => /^SEC-CSP-0[0-3]$/.test(r.checkId));
+
+        expect(mainCspCheck).toBeDefined();
+        expect(mainCspCheck?.checkId).toBe(expectedCheckId);
+        expect(mainCspCheck?.status).toBe(expectedStatus);
+        expect(mainCspCheck?.severity).toBe(expectedSeverity);
+        expect(isRequiresAttention(mainCspCheck!)).toBe(expectedRequiresAttention);
+
+        // CSP の指摘は最大 MEDIUM であり、high / critical にならないこと
+        expect(issues.every((i) => i.severity !== 'high' && i.severity !== 'critical')).toBe(true);
+
+        for (const substr of expectedObservedSubstrings) {
+          expect(mainCspCheck?.observed).toContain(substr);
+        }
+        expect(mainCspCheck?.observed).not.toContain('件のポリシーに改善点あり');
+      }
+    );
+
+    it("style だけ 'unsafe-inline' の場合、CSP-STYLE-UNSAFE-INLINE が severity: info として記録されること", () => {
+      const policy = parseCSPPolicy(
+        "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'",
+        'response-header',
+        'enforce'
+      );
+      const { issues, results } = analyzeCSPPolicies([policy], 'https://csp.example.test/');
+      const styleIssue = issues.find((i) => i.id === 'CSP-STYLE-UNSAFE-INLINE');
+
+      expect(styleIssue).toBeDefined();
+      expect(styleIssue?.severity).toBe('info');
+      expect(results[0].checkId).toBe('SEC-CSP-00');
+      expect(results[0].status).toBe('pass');
+    });
+
+    it("ヘッダー frame-ancestors 'self' ＋ meta の強い CSP で SecurityEngine・executeInspection・ポリシー別評価のすべてでスクリプト未指定にならないこと", async () => {
+      const dom: DomSignals = {
+        url: 'https://csp.example.test/',
+        title: 'CSP Intersection',
+        metaTags: [],
+        scriptUrls: [],
+        linkUrls: [],
+        domMarkers: [],
+        htmlSnippets: [],
+        mixedContent: [],
+        cookiesFromDocument: [],
+        cssAssets: [],
+        metaCsp: ["default-src 'none'; script-src 'self'; object-src 'none'; base-uri 'self'"],
+        metaCspReportOnly: [],
+      };
+      const headers = {
+        'content-security-policy': ["frame-ancestors 'self'"],
+      };
+
+      const engine = new SecurityEngine();
+      const engineRes = engine.evaluate({
+        url: 'https://csp.example.test/',
+        dom,
+        network: { url: 'https://csp.example.test/', responseHeaders: headers, cookies: [] },
+      });
+      const engineCsp = engineRes.checks.find((c) => /^SEC-CSP-0[0-3]$/.test(c.checkId));
+      expect(engineCsp?.checkId).toBe('SEC-CSP-00');
+      expect(engineCsp?.status).toBe('pass');
+
+      const swReport = await executeInspection({
+        tab: { id: 1, url: 'https://csp.example.test/' },
+        fetchDomSignals: async () => dom,
+        fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+        getCachedHeaders: async () => ({
+          url: 'https://csp.example.test/',
+          headers,
+          observed: true,
+        }),
+        getInspectedCookies: async () => [],
+        getAllFindingExceptions: async () => [],
+      });
+
+      const swCsp = swReport.securityChecks.find((c) => /^SEC-CSP-0[0-3]$/.test(c.checkId));
+      expect(swCsp?.checkId).toBe('SEC-CSP-00');
+      expect(swCsp?.status).toBe('pass');
+
+      // ポリシー別問題点評価でも、meta 側で script-src / object-src / base-uri が制限されているためヘッダー側に誤警告が出ないこと
+      const swPolicies = swReport.cspPolicies || [];
+      expect(swPolicies).toHaveLength(2);
+      const headerPolicyIssues = evaluatePolicyIssuesWithIntersection(
+        swPolicies[0],
+        swPolicies,
+        true
+      );
+      expect(headerPolicyIssues.some((i) => i.id === 'CSP-SCRIPT-MISSING')).toBe(false);
+    });
+
+    it("X-Frame-Options: DENY ＋ CSP frame-ancestors 'self' で「実際に効くのは frame-ancestors」の INFO 注記が 1 件出ること", async () => {
+      const headers = {
+        'x-frame-options': ['DENY'],
+        'content-security-policy': [
+          "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        ],
+      };
+
+      const headerChecks = checkHttpHeaders(headers, 'https://xfo.example.test/', true);
+      const conflictChecks = headerChecks.filter((c) => c.checkId === 'SEC-CSP-XFO-CONFLICT');
+
+      expect(conflictChecks).toHaveLength(1);
+      expect(conflictChecks[0].status).toBe('info');
+      expect(conflictChecks[0].severity).toBe('info');
+      expect(isRequiresAttention(conflictChecks[0])).toBe(false);
+      expect(conflictChecks[0].description).toContain('実際に効くのは frame-ancestors');
+      expect(conflictChecks[0].observed).toContain('実際に効くのは frame-ancestors');
+
+      // Service Worker (executeInspection) 経由でも重複せず 1 件だけ出力されること
+      const emptyDom: DomSignals = {
+        url: 'https://xfo.example.test/',
+        title: 'XFO Conflict',
+        metaTags: [],
+        scriptUrls: [],
+        linkUrls: [],
+        domMarkers: [],
+        htmlSnippets: [],
+        mixedContent: [],
+        cookiesFromDocument: [],
+        cssAssets: [],
+        metaCsp: [],
+        metaCspReportOnly: [],
+      };
+      const swReport = await executeInspection({
+        tab: { id: 1, url: 'https://xfo.example.test/' },
+        fetchDomSignals: async () => emptyDom,
+        fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+        getCachedHeaders: async () => ({
+          url: 'https://xfo.example.test/',
+          headers,
+          observed: true,
+        }),
+        getInspectedCookies: async () => [],
+        getAllFindingExceptions: async () => [],
+      });
+      const swConflictChecks = swReport.securityChecks.filter(
+        (c) => c.checkId === 'SEC-CSP-XFO-CONFLICT'
+      );
+      expect(swConflictChecks).toHaveLength(1);
+      expect(swConflictChecks[0].status).toBe('info');
+      expect(swConflictChecks[0].severity).toBe('info');
+
+      // 意味が同じ場合（DENY + 'none'、SAMEORIGIN + 'self'）は注記が出ないこと
+      const sameDeny = checkXfoAndFrameAncestorsConflict(
+        'DENY',
+        parseCSPHeaderValues("frame-ancestors 'none'", 'response-header', 'enforce'),
+        'https://xfo.example.test/'
+      );
+      const sameOrigin = checkXfoAndFrameAncestorsConflict(
+        'SAMEORIGIN',
+        parseCSPHeaderValues("frame-ancestors 'self'", 'response-header', 'enforce'),
+        'https://xfo.example.test/'
+      );
+      expect(sameDeny).toBeNull();
+      expect(sameOrigin).toBeNull();
+    });
+
+    it('summarizeCSPIssues が主な問題点の要約文字列を生成すること', () => {
+      const policy = parseCSPPolicy("script-src 'unsafe-inline'", 'response-header', 'enforce');
+      const { issues } = analyzeCSPPolicies([policy], 'https://csp.example.test/');
+      const summary = summarizeCSPIssues(issues);
+
+      expect(summary).toBe(
+        "'unsafe-inline' あり / object-src 未指定 / frame-ancestors 未指定 / base-uri 未指定"
+      );
+    });
   });
 });

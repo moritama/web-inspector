@@ -12,6 +12,7 @@ import {
   generateMarkdownReport,
   sanitizeUrlForReport,
 } from '../src/export/markdown';
+import { analyzeCSPPolicies, parseCSPPolicy } from '../src/security/csp-parser';
 import {
   FindingException,
   InspectionReport,
@@ -682,6 +683,67 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
       // 4 件目・5 件目の根拠は Markdown の代表表示からは省略され、JSON 側には全 5 件残っていること
       expect(sec14).not.toContain('twentytwentyfour/style.css');
       expect(wpReport.technologies[0].evidence.length).toBe(5);
+    });
+
+    it('v1.7.1 T10 (指摘 3): セクション 8 にポリシーごとの問題点の表（ディレクティブ・重大度・内容・推奨）が出て、セクション 5 の観測値に問題点の要約が出ること', () => {
+      const weakPolicy = parseCSPPolicy(
+        "script-src 'self' 'unsafe-inline'; frame-ancestors 'self'",
+        'response-header',
+        'enforce'
+      );
+      const { policies, results } = analyzeCSPPolicies([weakPolicy], 'https://csp.example.test/', true);
+
+      const cspReport: InspectionReport = {
+        ...dummyReportA,
+        url: 'https://csp.example.test/',
+        hostname: 'csp.example.test',
+        securityChecks: results,
+        cspPolicies: policies,
+      };
+
+      const md = generateMarkdownReport(cspReport);
+      const sec5 = md.split('## 5. セキュリティ診断結果')[1]?.split('## 6.')[0] || '';
+      const sec8 = md.split('## 8. CSP（Content Security Policy）診断')[1]?.split('## 9.')[0] || '';
+
+      // セクション 5 の観測値に問題点の要約が出て、「件のポリシーに改善点あり」が出ないこと
+      expect(sec5).toContain("`'unsafe-inline' あり / object-src 未指定 / base-uri 未指定`");
+      expect(sec5).not.toContain('件のポリシーに改善点あり');
+
+      // セクション 8 にポリシーごとの問題点の表が出ること
+      expect(sec8).toContain('| ディレクティブ | 重大度 | 内容 | 推奨 |');
+      expect(sec8).toContain("| `script-src` | MEDIUM | script-src に 'unsafe-inline' が許可されており");
+      expect(sec8).toContain('| `object-src` | LOW |');
+      expect(sec8).toContain('| `base-uri` | LOW |');
+    });
+
+    it('v1.7.1 T10 (指摘 3): 問題点のない堅牢な CSP ポリシーおよび複数ポリシー積集合で防御済みのポリシーでは問題点なしと表示されること', () => {
+      const headerFaOnly = parseCSPPolicy("frame-ancestors 'self'", 'response-header', 'enforce');
+      const metaStrict = parseCSPPolicy(
+        "default-src 'none'; script-src 'self'; object-src 'none'; base-uri 'self'",
+        'meta',
+        'enforce'
+      );
+      const { policies, results } = analyzeCSPPolicies(
+        [headerFaOnly, metaStrict],
+        'https://csp-combo.example.test/',
+        true
+      );
+
+      const comboReport: InspectionReport = {
+        ...dummyReportA,
+        url: 'https://csp-combo.example.test/',
+        hostname: 'csp-combo.example.test',
+        securityChecks: results,
+        cspPolicies: policies,
+      };
+
+      const md = generateMarkdownReport(comboReport);
+      const sec8 = md.split('## 8. CSP（Content Security Policy）診断')[1]?.split('## 9.')[0] || '';
+
+      expect(sec8).toContain('#### ポリシー #1 [取得元: response-header, モード: enforce]');
+      expect(sec8).toContain('#### ポリシー #2 [取得元: meta, モード: enforce]');
+      expect(sec8).toContain('> このポリシーに検出された問題点はありません。');
+      expect(sec8).not.toContain('`script-src / default-src`');
     });
   });
 });

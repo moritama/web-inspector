@@ -15,6 +15,7 @@
  *   (6) R06: コードスパン内に \ がない
  *   (7) R07: 同じ根拠が重複しない
  *   (8) R08: 完全性が「完全」なら通信先が 1 件以上（T05・T06 以降に有効化）
+ *   (9) R09: CSP があるページの CSP の重大度が CSP なしを上回らない（T10）
  *
  * 使い方:
  *   npm run reports:lint
@@ -89,6 +90,13 @@ export const CHECK_DEFINITIONS = [
     id: 'R08',
     number: 8,
     title: '完全性が「完全」なら通信先が 1 件以上',
+    pending: false,
+    pendingUntil: null,
+  },
+  {
+    id: 'R09',
+    number: 9,
+    title: 'CSP があるページの CSP の重大度が CSP なしを上回らない',
     pending: false,
     pendingUntil: null,
   },
@@ -834,6 +842,102 @@ export function checkCompleteCoverageHasConnections(report, markdown) {
 }
 
 /**
+ * (9) R09: CSP があるページの CSP の重大度が CSP なしを上回らない (v1.7.1 T10 / E1)
+ */
+export function checkCspSeverityNotExceedingMissing(report, markdown) {
+  const violations = [];
+  const severityRank = {
+    info: 0,
+    unknown: 0,
+    low: 1,
+    medium: 2,
+    high: 3,
+    critical: 4,
+  };
+
+  const checks = Array.isArray(report?.securityChecks) ? report.securityChecks : [];
+  const hasCspPolicies = Array.isArray(report?.cspPolicies) && report.cspPolicies.length > 0;
+  const missingCspCheck = checks.find((c) => c?.checkId === 'SEC-CSP-01');
+  const missingBaselineRank = missingCspCheck
+    ? Math.min(2, severityRank[String(missingCspCheck.severity || '').toLowerCase()] ?? 2)
+    : 2;
+
+  for (const c of checks) {
+    const checkId = String(c?.checkId || '');
+    if (!checkId.startsWith('SEC-CSP-')) continue;
+
+    const sev = String(c?.severity || '').toLowerCase();
+    const rank = severityRank[sev] ?? 0;
+
+    if ((hasCspPolicies || checkId !== 'SEC-CSP-01') && rank > missingBaselineRank) {
+      violations.push(
+        `CSP があるページの CSP 診断項目 "${c.name}" (${checkId}) の重大度が "${c.severity}" になっており、「CSP なし」(medium) を上回っています`
+      );
+    } else if (checkId === 'SEC-CSP-01' && rank > 2) {
+      violations.push(
+        `CSP なし項目 (${checkId}) の重大度が "${c.severity}" になっており、上限 (medium) を上回っています`
+      );
+    }
+  }
+
+  if (typeof markdown === 'string' && markdown.trim().length > 0) {
+    const sec5 = extractMarkdownSection(markdown, '## 5.');
+    if (sec5) {
+      const dataRows = sec5
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('|') && l.endsWith('|'))
+        .map(splitMarkdownTableRow)
+        .filter(
+          (cells) =>
+            cells &&
+            cells.length >= 3 &&
+            cells[0] !== '診断項目' &&
+            !cells.every((c) => /^:?-{2,}:?$/.test(c))
+        );
+
+      for (const row of dataRows) {
+        const itemName = unescapeTableCell(row[0]);
+        const sevCell = String(row[2] || '').trim().toUpperCase();
+        if (/^CSP\b/i.test(itemName) && (sevCell === 'HIGH' || sevCell === 'CRITICAL')) {
+          violations.push(
+            `Markdown「5. セキュリティ診断結果」の項目 "${itemName}" の重大度が "${sevCell}" になっており、「CSP なし」(MEDIUM) を上回っています`
+          );
+        }
+      }
+    }
+
+    const sec8 = extractMarkdownSection(markdown, '## 8.');
+    if (sec8) {
+      const issueRows = sec8
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('|') && l.endsWith('|'))
+        .map(splitMarkdownTableRow)
+        .filter(
+          (cells) =>
+            cells &&
+            cells.length >= 2 &&
+            cells[0] !== 'ディレクティブ' &&
+            !cells.every((c) => /^:?-{2,}:?$/.test(c))
+        );
+
+      for (const row of issueRows) {
+        const directiveCell = unescapeTableCell(row[0]);
+        const sevCell = String(row[1] || '').trim().toUpperCase();
+        if (sevCell === 'HIGH' || sevCell === 'CRITICAL') {
+          violations.push(
+            `Markdown「8. CSP診断」のディレクティブ ${directiveCell} の重大度が "${sevCell}" になっており、「CSP なし」(MEDIUM) を上回っています`
+          );
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+/**
  * 単一のレポート（JSON オブジェクトと Markdown 文字列の組）を検査する
  *
  * @param {object} report InspectionReport JSON オブジェクト
@@ -854,6 +958,7 @@ export function lintReportPair(report, markdown, options = {}) {
     R06: () => checkNoBackslashInCodeSpans(markdown),
     R07: () => checkNoDuplicateEvidence(report, markdown),
     R08: () => checkCompleteCoverageHasConnections(report, markdown),
+    R09: () => checkCspSeverityNotExceedingMissing(report, markdown),
   };
 
   const results = [];

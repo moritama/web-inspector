@@ -37,9 +37,12 @@ export class SecurityEngine {
     const isHttps = input.url.toLowerCase().startsWith('https://');
     const allChecks: SecurityCheckResult[] = [];
 
-    // 1. HTTPヘッダー診断
+    // 1. HTTPヘッダー診断（meta CSP がある場合はヘッダー CSP と合わせて積集合評価: v1.7.1 T10）
     const headers = input.network?.responseHeaders || {};
-    const headerChecks = checkHttpHeaders(headers, input.url, isHttps);
+    const headerChecks = checkHttpHeaders(headers, input.url, isHttps, {
+      metaCsp: input.dom?.metaCsp,
+      metaCspReportOnly: input.dom?.metaCspReportOnly,
+    });
     allChecks.push(...headerChecks);
 
     // 2. Cookie診断

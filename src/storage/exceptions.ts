@@ -30,6 +30,10 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   { checkId: 'SEC-CSP-03', names: ['CSP (Content-Security-Policy)'] },
   { checkId: 'SEC-CSP-META-RO', names: ['CSP (meta Content-Security-Policy-Report-Only)'] },
   {
+    checkId: 'SEC-CSP-XFO-CONFLICT',
+    names: ['CSP (frame-ancestors と X-Frame-Options の優先関係)'],
+  },
+  {
     checkId: 'SEC-XFO-00',
     names: ['X-Frame-Options', 'クリックジャッキング対策 (frame-ancestors)'],
   },

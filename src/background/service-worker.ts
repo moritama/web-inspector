@@ -812,8 +812,9 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   ];
 
   if (cspPolicies.length > 0) {
-    const hasXfo = isValidXFrameOptions(responseHeaders['x-frame-options']?.join(', '));
-    const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo);
+    const xfoRaw = responseHeaders['x-frame-options']?.join(', ') ?? null;
+    const hasXfo = isValidXFrameOptions(xfoRaw);
+    const { results: advancedCspChecks } = analyzeCSPPolicies(cspPolicies, url, hasXfo, xfoRaw);
     // 既存のCSP項目 (SEC-CSP-*) を詳細解析結果に置き換え
     const nonCspChecks = baseSecurityChecks.filter((c) => !c.checkId.startsWith('SEC-CSP-'));
     baseSecurityChecks.length = 0;
@@ -829,7 +830,11 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
       );
       if (isHeaderDependent) {
         // meta CSP が存在する場合の CSP 解析結果、または meta Report-Only の info 注記は meta 由来として維持
-        if (c.checkId.startsWith('SEC-CSP-') && (hasMetaCsp || c.checkId === 'SEC-CSP-META-RO')) {
+        if (
+          c.checkId.startsWith('SEC-CSP-') &&
+          c.checkId !== 'SEC-CSP-XFO-CONFLICT' &&
+          (hasMetaCsp || c.checkId === 'SEC-CSP-META-RO')
+        ) {
           continue;
         }
         c.status = 'unknown';

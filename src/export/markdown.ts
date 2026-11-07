@@ -27,6 +27,7 @@ import {
   isRequiresAttention,
 } from '../shared/security-status';
 import { normalizeCookieCategory } from '../security/cookies';
+import { evaluatePolicyIssuesWithIntersection } from '../security/csp-parser';
 import { compareReportsEnhanced } from '../storage/diff';
 
 /**
@@ -429,16 +430,28 @@ ${report.cookies.length > 0 ? report.cookies.map((c) => {
 }).join('\n') : '| なし | - | - | - | - | - | - | - |'}
 `);
 
-  // 8. CSP診断 (IMP-02 / IMP-05)
+  // 8. CSP診断 (IMP-02 / IMP-05 / v1.7.1 T10: ポリシーごとの問題点の表)
+  const allCspPolicies = report.cspPolicies || [];
+  const hasValidXfo = (report.securityChecks || []).some(
+    (c) => c.checkId.startsWith('SEC-XFO-') && c.status === 'pass'
+  );
   sections.push(`## 8. CSP（Content Security Policy）診断
 
-- **CSPポリシー保持件数:** ${report.cspPolicies?.length ?? 0} 件
-${report.cspPolicies && report.cspPolicies.length > 0 ? report.cspPolicies.map((p, idx) => `
+- **CSPポリシー保持件数:** ${allCspPolicies.length} 件
+${allCspPolicies.length > 0 ? allCspPolicies.map((p, idx) => {
+  const policyIssues = evaluatePolicyIssuesWithIntersection(p, allCspPolicies, hasValidXfo);
+  const issueBlock = policyIssues.length > 0
+    ? `| ディレクティブ | 重大度 | 内容 | 推奨 |\n|---|:---:|---|---|\n${policyIssues.map((issue) => `| ${formatMarkdownCodeSpan(issue.directive, { inTable: true })} | ${issue.severity.toUpperCase()} | ${escapeMarkdownTableCell(issue.description)} | ${escapeMarkdownTableCell(issue.recommendation)} |`).join('\n')}`
+    : '> このポリシーに検出された問題点はありません。';
+  return `
 #### ポリシー #${idx + 1} [取得元: ${p.source}, モード: ${p.mode}]
 \`\`\`text
 ${p.rawValue}
 \`\`\`
-`).join('\n') : '> CSPヘッダーまたはmetaタグによるCSPは設定されていません。'}
+
+${issueBlock}
+`;
+}).join('\n') : '> CSPヘッダーまたはmetaタグによるCSPは設定されていません。'}
 `);
 
   // 9. 外部通信先・サードパーティ分析 (IMP-11 / v1.7.1 T05: 読み込まれたリソースの取得元)

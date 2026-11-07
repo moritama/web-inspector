@@ -136,9 +136,12 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
         ? Array.from(new Set(tech.advisories.map((a) => getEffectiveFixStatus(a)))).join('; ')
         : '-';
 
+      const kevIds = tech.advisories
+        ? tech.advisories.filter((a) => a.kev === true).map((a) => a.id)
+        : [];
       const kevText = tech.advisories && tech.advisories.length > 0
-        ? tech.advisories.some((a) => a.kev === true)
-          ? 'true (悪用確認済み（CISA KEV）)'
+        ? kevIds.length > 0
+          ? `true (CISA KEV: ${kevIds.join('; ')})`
           : 'false'
         : '-';
 

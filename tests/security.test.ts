@@ -654,4 +654,177 @@ describe('HTTPS & Mixed Content', () => {
       expect(summaryWith.securityFindings.info).toBe(summaryWithout.securityFindings.info + 1);
     });
   });
+
+  describe('v1.7.1 T11: HSTS (N11)・証明書注記 (N12)・項目名の統一 (R05)', () => {
+    it.each([
+      {
+        label: 'max-age=15552000; includeSubDomains; preload で preload の INFO が出ること',
+        header: 'max-age=15552000; includeSubDomains; preload',
+        expectedMainId: 'SEC-HSTS-02',
+        expectedMainStatus: 'warning',
+        expectedMainSeverity: 'low',
+        expectPreloadInfo: true,
+      },
+      {
+        label: 'max-age=31536000; preload (includeSubDomains なし) でも preload の INFO が出ること',
+        header: 'max-age=31536000; preload',
+        expectedMainId: 'SEC-HSTS-00',
+        expectedMainStatus: 'pass',
+        expectedMainSeverity: 'info',
+        expectPreloadInfo: true,
+      },
+      {
+        label: 'max-age=3600 (1日未満・0以外) で MEDIUM になること',
+        header: 'max-age=3600',
+        expectedMainId: 'SEC-HSTS-02',
+        expectedMainStatus: 'warning',
+        expectedMainSeverity: 'medium',
+        expectPreloadInfo: false,
+      },
+      {
+        label: 'max-age=31536000; includeSubDomains; preload で PASS になり preload の INFO は出ないこと',
+        header: 'max-age=31536000; includeSubDomains; preload',
+        expectedMainId: 'SEC-HSTS-00',
+        expectedMainStatus: 'pass',
+        expectedMainSeverity: 'info',
+        expectPreloadInfo: false,
+      },
+    ])('N11 HSTS: $label', ({ header, expectedMainId, expectedMainStatus, expectedMainSeverity, expectPreloadInfo }) => {
+      const checks = checkHttpHeaders(
+        { 'strict-transport-security': [header] },
+        'https://hsts.example.test/',
+        true
+      );
+      const mainCheck = checks.find((c) => c.checkId === expectedMainId);
+      expect(mainCheck).toBeDefined();
+      expect(mainCheck?.name).toBe('HSTS (Strict-Transport-Security)');
+      expect(mainCheck?.status).toBe(expectedMainStatus);
+      expect(mainCheck?.severity).toBe(expectedMainSeverity);
+
+      const preloadInfo = checks.find((c) => c.checkId === 'SEC-HSTS-03');
+      if (expectPreloadInfo) {
+        expect(preloadInfo).toBeDefined();
+        expect(preloadInfo?.name).toBe('HSTS (Strict-Transport-Security)');
+        expect(preloadInfo?.status).toBe('info');
+        expect(preloadInfo?.severity).toBe('info');
+        expect(preloadInfo?.observed).toContain('preload の登録条件を満たしていない');
+        expect(preloadInfo?.description).toContain('preload の登録条件を満たしていない');
+      } else {
+        expect(preloadInfo).toBeUndefined();
+      }
+    });
+
+    it('N12 証明書: HTTPS 接続時の観測値が「HTTPS で接続（証明書の有効性は対象外）」になること', () => {
+      const checks = checkHttpsAndMixedContent('https://cert.example.test/', true, []);
+      const httpsPass = checks.find((c) => c.checkId === 'SEC-HTTPS-00');
+      expect(httpsPass).toBeDefined();
+      expect(httpsPass?.name).toBe('HTTPS暗号化通信');
+      expect(httpsPass?.observed).toBe('HTTPS で接続（証明書の有効性は対象外）');
+    });
+
+    it.each([
+      {
+        group: 'SEC-HTTPS-* (PASS)',
+        run: () => checkHttpsAndMixedContent('https://secure.example.test/', true, []),
+        targetId: 'SEC-HTTPS-00',
+        expectedStatus: 'pass',
+        expectedName: 'HTTPS暗号化通信',
+      },
+      {
+        group: 'SEC-HTTPS-* (FAIL)',
+        run: () => checkHttpsAndMixedContent('http://plain.example.test/', false, []),
+        targetId: 'SEC-HTTPS-01',
+        expectedStatus: 'fail',
+        expectedName: 'HTTPS暗号化通信',
+      },
+      {
+        group: 'SEC-CORS-* (SEC-CORS-01: * + credentials)',
+        run: () =>
+          checkHttpHeaders(
+            {
+              'access-control-allow-origin': ['*'],
+              'access-control-allow-credentials': ['true'],
+            },
+            'https://cors.example.test/',
+            true
+          ),
+        targetId: 'SEC-CORS-01',
+        expectedStatus: 'info',
+        expectedName: 'CORS (Cross-Origin Resource Sharing)',
+      },
+      {
+        group: 'SEC-CORS-* (SEC-CORS-02: *)',
+        run: () =>
+          checkHttpHeaders(
+            { 'access-control-allow-origin': ['*'] },
+            'https://cors.example.test/',
+            true
+          ),
+        targetId: 'SEC-CORS-02',
+        expectedStatus: 'info',
+        expectedName: 'CORS (Cross-Origin Resource Sharing)',
+      },
+      {
+        group: 'SEC-REF-* (PASS: strict-origin-when-cross-origin)',
+        run: () =>
+          checkHttpHeaders(
+            { 'referrer-policy': ['strict-origin-when-cross-origin'] },
+            'https://ref.example.test/',
+            true
+          ),
+        targetId: 'SEC-REF-00',
+        expectedStatus: 'pass',
+        expectedName: 'Referrer-Policy',
+      },
+      {
+        group: 'SEC-REF-* (INFO: 未設定)',
+        run: () => checkHttpHeaders({}, 'https://ref.example.test/', true),
+        targetId: 'SEC-REF-01',
+        expectedStatus: 'info',
+        expectedName: 'Referrer-Policy',
+      },
+      {
+        group: 'SEC-REF-* (WARN: 無効な設定値)',
+        run: () =>
+          checkHttpHeaders(
+            { 'referrer-policy': ['invalid-policy-token'] },
+            'https://ref.example.test/',
+            true
+          ),
+        targetId: 'SEC-REF-02',
+        expectedStatus: 'warning',
+        expectedName: 'Referrer-Policy',
+      },
+      {
+        group: 'SEC-REF-* (WARN: unsafe-url)',
+        run: () =>
+          checkHttpHeaders(
+            { 'referrer-policy': ['unsafe-url'] },
+            'https://ref.example.test/',
+            true
+          ),
+        targetId: 'SEC-REF-02',
+        expectedStatus: 'warning',
+        expectedName: 'Referrer-Policy',
+      },
+      {
+        group: 'SEC-REF-* (INFO: no-referrer-when-downgrade)',
+        run: () =>
+          checkHttpHeaders(
+            { 'referrer-policy': ['no-referrer-when-downgrade'] },
+            'https://ref.example.test/',
+            true
+          ),
+        targetId: 'SEC-REF-03',
+        expectedStatus: 'info',
+        expectedName: 'Referrer-Policy',
+      },
+    ])('R05 項目名の統一: $group で項目名が「$expectedName」に統一されていること', ({ run, targetId, expectedStatus, expectedName }) => {
+      const checks = run();
+      const target = checks.find((c) => c.checkId === targetId);
+      expect(target).toBeDefined();
+      expect(target?.status).toBe(expectedStatus);
+      expect(target?.name).toBe(expectedName);
+    });
+  });
 });

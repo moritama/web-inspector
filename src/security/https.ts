@@ -71,12 +71,12 @@ export function checkHttpsAndMixedContent(
 ): SecurityCheckResult[] {
   const results: SecurityCheckResult[] = [];
 
-  // 1. ページ自体のHTTPS利用チェック
+  // 1. ページ自体のHTTPS利用チェック (v1.7.1 T11: R05 項目名統一・N12 証明書注記)
   if (!isHttps) {
     results.push({
       checkId: 'SEC-HTTPS-01',
       category: 'https-communication',
-      name: '暗号化通信未適用 (平文HTTP接続)',
+      name: 'HTTPS暗号化通信',
       status: 'fail',
       severity: 'high',
       observed: 'HTTP (非暗号化接続)',
@@ -97,8 +97,9 @@ export function checkHttpsAndMixedContent(
     name: 'HTTPS暗号化通信',
     status: 'pass',
     severity: 'info',
-    observed: 'HTTPS (暗号化通信)',
-    description: '基本通信はHTTPSによって暗号化されています。',
+    observed: 'HTTPS で接続（証明書の有効性は対象外）',
+    description:
+      '基本通信はHTTPSによって暗号化されています（TLS/SSL証明書の有効期限や信頼性は診断対象外です）。',
     recommendation: '現状の設定を維持してください。',
     referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/Security/Transport_Layer_Security'],
     scope: url,

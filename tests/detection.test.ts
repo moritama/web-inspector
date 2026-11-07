@@ -1782,7 +1782,7 @@ describe('DetectionEngine', () => {
         expect(tomcatVerResults.find((r) => r.technology === 'Apache')).toBeUndefined();
       });
 
-      it('旧 ASP と ASP.NET (指摘 D): スナップショット testasp・testaspnet でそれぞれ Classic ASP・ASP.NET（CLR 2.0 + EOL）になること', () => {
+      it('旧 ASP と ASP.NET (指摘 D / T11 修正): スナップショット testasp・testaspnet でそれぞれ Classic ASP・ASP.NET（CLR 2.0 / Unknown・サポート期限注記あり）になること', () => {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require('node:fs');
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1824,7 +1824,9 @@ describe('DetectionEngine', () => {
         expect(aspnet).toBeDefined();
         expect(aspnet?.category).toBe('framework');
         expect(aspnet?.version).toBe('.NET Framework 2.0〜3.5（CLR 2.0.50727）');
-        expect(aspnet?.supportStatus).toBe('EOL');
+        expect(aspnet?.supportStatus).toBe('Unknown');
+        expect(aspnet?.eolInfo?.note).toContain('2011-07-12');
+        expect(aspnet?.eolInfo?.note).toContain('2029-01-09');
         expect(testAspNetResults.find((r) => r.technology === 'Classic ASP')).toBeUndefined();
 
         // CLR 4.0.30319 の表示形式確認

@@ -24,9 +24,13 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   { checkId: 'SEC-HSTS-00', names: ['HSTS (Strict-Transport-Security)'] },
   { checkId: 'SEC-HSTS-01', names: ['HSTS (Strict-Transport-Security)'] },
   { checkId: 'SEC-HSTS-02', names: ['HSTS (Strict-Transport-Security)'] },
+  { checkId: 'SEC-HSTS-03', names: ['HSTS (Strict-Transport-Security)'] },
   { checkId: 'SEC-CSP-00', names: ['CSP (Content-Security-Policy)'] },
   { checkId: 'SEC-CSP-01', names: ['CSP (Content-Security-Policy)'] },
-  { checkId: 'SEC-CSP-02', names: ['CSP (Content-Security-Policy-Report-Only)'] },
+  {
+    checkId: 'SEC-CSP-02',
+    names: ['CSP (Content-Security-Policy-Report-Only)', 'CSP (Content-Security-Policy)'],
+  },
   { checkId: 'SEC-CSP-03', names: ['CSP (Content-Security-Policy)'] },
   { checkId: 'SEC-CSP-META-RO', names: ['CSP (meta Content-Security-Policy-Report-Only)'] },
   {
@@ -41,6 +45,7 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   { checkId: 'SEC-XFO-02', names: ['X-Frame-Options (無効または非推奨な設定値)', 'X-Frame-Options'] },
   { checkId: 'SEC-XCTO-00', names: ['X-Content-Type-Options'] },
   { checkId: 'SEC-XCTO-01', names: ['X-Content-Type-Options'] },
+  { checkId: 'SEC-XCTO-02', names: ['X-Content-Type-Options'] },
   { checkId: 'SEC-REF-00', names: ['Referrer-Policy'] },
   { checkId: 'SEC-REF-01', names: ['Referrer-Policy'] },
   {
@@ -49,13 +54,28 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   },
   { checkId: 'SEC-REF-03', names: ['Referrer-Policy (no-referrer-when-downgrade)', 'Referrer-Policy'] },
   { checkId: 'SEC-PERM-01', names: ['Permissions-Policy'] },
-  { checkId: 'SEC-CORS-01', names: ['CORS設定 (クロスオリジン許可)'] },
-  { checkId: 'SEC-CORS-02', names: ['CORS設定 (クロスオリジン許可)'] },
+  {
+    checkId: 'SEC-CORS-01',
+    names: ['CORS設定 (クロスオリジン許可)', 'CORS (Cross-Origin Resource Sharing)'],
+  },
+  {
+    checkId: 'SEC-CORS-02',
+    names: ['CORS設定 (クロスオリジン許可)', 'CORS (Cross-Origin Resource Sharing)'],
+  },
   { checkId: 'SEC-DISC-01', names: ['Webサーバー詳細バージョン露出'] },
   { checkId: 'SEC-DISC-02', names: ['バックエンド技術情報露出 (X-Powered-By)'] },
-  { checkId: 'SEC-DISC-03', names: ['バックエンド技術情報露出 (X-AspNet-Version)'] },
+  {
+    checkId: 'SEC-DISC-03',
+    names: [
+      'バックエンド技術情報露出 (X-AspNet-Version)',
+      'X-AspNet-Version ヘッダーによるバージョン露出',
+    ],
+  },
   { checkId: 'SEC-HTTPS-00', names: ['HTTPS暗号化通信'] },
-  { checkId: 'SEC-HTTPS-01', names: ['暗号化通信未適用 (平文HTTP接続)'] },
+  {
+    checkId: 'SEC-HTTPS-01',
+    names: ['暗号化通信未適用 (平文HTTP接続)', 'HTTPS暗号化通信'],
+  },
   {
     checkId: 'SEC-MIXED-ACTIVE',
     names: [
@@ -142,6 +162,24 @@ export function migrateFindingException(
       }
 
       if (matchedSpecCheckId) {
+        const expectedNewId = generateFindingIdFromCheck(
+          matchedSpecCheckId,
+          referenceUrl,
+          ex.resourceKey || ''
+        );
+        if (nextFindingId !== expectedNewId || nextCheckId !== matchedSpecCheckId) {
+          nextFindingId = expectedNewId;
+          nextCheckId = matchedSpecCheckId;
+          changed = true;
+        }
+      }
+    } else {
+      // 3. 項目名そのもので保存されていた場合、対応する checkId が一意に決まれば新 ID へ移行する
+      const matchingSpecs = KNOWN_SECURITY_CHECK_SPECS.filter((s) =>
+        s.names.includes(ex.findingId)
+      );
+      if (matchingSpecs.length === 1) {
+        const matchedSpecCheckId = matchingSpecs[0].checkId;
         const expectedNewId = generateFindingIdFromCheck(
           matchedSpecCheckId,
           referenceUrl,
@@ -352,6 +390,30 @@ export function matchFindingException(
         ) {
           isMatched = true;
           break;
+        }
+      }
+    }
+
+    // 旧項目名（例: 'CORS設定 (クロスオリジン許可)' 等）で保存された許容設定の照合フォールバック
+    if (!isMatched && checkContext?.checkId) {
+      const spec = KNOWN_SECURITY_CHECK_SPECS.find((s) => s.checkId === checkContext.checkId);
+      if (spec) {
+        if (spec.names.includes(rawEx.findingId)) {
+          isMatched = true;
+        } else {
+          const candidateUrls = Array.from(
+            new Set([rawEx.targetUrl, ex.targetUrl, targetUrl].filter((u): u is string => Boolean(u)))
+          );
+          for (const candUrl of candidateUrls) {
+            for (const oldName of spec.names) {
+              const legacyEmptyCheckId = generateLegacyFindingIdFromCheck('', candUrl, oldName);
+              if (rawEx.findingId === legacyEmptyCheckId) {
+                isMatched = true;
+                break;
+              }
+            }
+            if (isMatched) break;
+          }
         }
       }
     }

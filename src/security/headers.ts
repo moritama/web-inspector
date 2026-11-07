@@ -114,7 +114,8 @@ export function checkHttpHeaders(
     } else {
       const maxAgeMatch = hsts.match(/max-age\s*=\s*(\d+)/i);
       const maxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : null;
-      const hasSubDomains = /includeSubDomains/i.test(hsts);
+      const hasSubDomains = /\bincludeSubDomains\b/i.test(hsts);
+      const hasPreload = /\bpreload\b/i.test(hsts);
 
       if (maxAge === null || maxAge === 0) {
         // max-age=0（HSTSの明示的な無効化）または max-age 未指定
@@ -134,8 +135,22 @@ export function checkHttpHeaders(
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
         });
+      } else if (maxAge < 86400) {
+        // 1日（86400秒）未満（max-age=0 を除く）は MEDIUM (v1.7.1 T11 / N11)
+        results.push({
+          checkId: 'SEC-HSTS-02',
+          category: 'http-headers',
+          name: 'HSTS (Strict-Transport-Security)',
+          status: 'warning',
+          severity: 'medium',
+          observed: hsts,
+          description: `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。`,
+          recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定してください。',
+          referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
+          scope: url,
+        });
       } else if (maxAge < 31536000) {
-        // 1年（31536000秒）未満
+        // 1日以上・1年（31536000秒）未満
         results.push({
           checkId: 'SEC-HSTS-02',
           category: 'http-headers',
@@ -159,6 +174,33 @@ export function checkHttpHeaders(
           description: `適切にHSTSが設定されています (max-age=${maxAge}${hasSubDomains ? ', サブドメイン含む' : ''})。`,
           recommendation: '現在の設定を維持してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
+          scope: url,
+        });
+      }
+
+      // preload があるのに max-age < 1年 または includeSubDomains がない場合は INFO を出す (v1.7.1 T11 / N11)
+      if (hasPreload && (maxAge === null || maxAge < 31536000 || !hasSubDomains)) {
+        const missingPreloadReqs: string[] = [];
+        if (maxAge === null || maxAge < 31536000) {
+          missingPreloadReqs.push('max-age が 1 年（31536000秒）未満');
+        }
+        if (!hasSubDomains) {
+          missingPreloadReqs.push('includeSubDomains が未指定');
+        }
+        results.push({
+          checkId: 'SEC-HSTS-03',
+          category: 'http-headers',
+          name: 'HSTS (Strict-Transport-Security)',
+          status: 'info',
+          severity: 'info',
+          observed: `${hsts} (preload の登録条件を満たしていない: ${missingPreloadReqs.join(' / ')})`,
+          description: `HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（${missingPreloadReqs.join('、')}）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。`,
+          recommendation:
+            'HSTS Preload を利用する場合は max-age=31536000 以上と includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
+          referenceUrls: [
+            'https://hstspreload.org/',
+            'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security',
+          ],
           scope: url,
         });
       }
@@ -327,10 +369,10 @@ export function checkHttpHeaders(
       results.push({
         checkId: 'SEC-REF-02',
         category: 'http-headers',
-        name: 'Referrer-Policy (無効な設定値)',
+        name: 'Referrer-Policy',
         status: 'warning',
         severity: 'low',
-        observed: referrerPolicy,
+        observed: `${referrerPolicy} (無効な設定値)`,
         description: `Referrer-Policy に認識できない値 (${referrerPolicy}) が指定されています。ブラウザによって無視され、意図したリファラー制御が行われない恐れがあります。`,
         recommendation:
           '「strict-origin-when-cross-origin」や「no-referrer」など、仕様で定義された有効なポリシー値を指定してください。',
@@ -341,7 +383,7 @@ export function checkHttpHeaders(
       results.push({
         checkId: 'SEC-REF-02',
         category: 'http-headers',
-        name: 'Referrer-Policy (unsafe-url)',
+        name: 'Referrer-Policy',
         status: 'warning',
         severity: 'low',
         observed: referrerPolicy,
@@ -356,7 +398,7 @@ export function checkHttpHeaders(
       results.push({
         checkId: 'SEC-REF-03',
         category: 'http-headers',
-        name: 'Referrer-Policy (no-referrer-when-downgrade)',
+        name: 'Referrer-Policy',
         status: 'info',
         severity: 'info',
         observed: referrerPolicy,
@@ -401,7 +443,7 @@ export function checkHttpHeaders(
     });
   }
 
-  // --- 7. CORS (Access-Control-Allow-Origin) (v1.7.0 T07 / SPEC-12) ---
+  // --- 7. CORS (Access-Control-Allow-Origin) (v1.7.0 T07 / SPEC-12 / v1.7.1 T11 R05 項目名統一) ---
   const acao = getHeader('access-control-allow-origin');
   const acac = getHeader('access-control-allow-credentials');
   if (acao) {
@@ -409,7 +451,7 @@ export function checkHttpHeaders(
       results.push({
         checkId: 'SEC-CORS-01',
         category: 'cors',
-        name: 'CORS設定 (クロスオリジン許可)',
+        name: 'CORS (Cross-Origin Resource Sharing)',
         status: 'info',
         severity: 'info',
         observed: `Access-Control-Allow-Origin: * / Access-Control-Allow-Credentials: true`,
@@ -424,7 +466,7 @@ export function checkHttpHeaders(
       results.push({
         checkId: 'SEC-CORS-02',
         category: 'cors',
-        name: 'CORS設定 (クロスオリジン許可)',
+        name: 'CORS (Cross-Origin Resource Sharing)',
         status: 'info',
         severity: 'info',
         observed: `Access-Control-Allow-Origin: *`,

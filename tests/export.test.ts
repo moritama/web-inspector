@@ -162,7 +162,7 @@ describe('Export Functions', () => {
     expect(csvStr).toContain('"修正状況 (fixStatus)"');
     expect(csvStr).toContain('"CISA KEV"');
     expect(csvStr).toContain('"fixed; unknown"');
-    expect(csvStr).toContain('"true (悪用確認済み（CISA KEV）)"');
+    expect(csvStr).toContain('"true (CISA KEV: CVE-2020-11023)"');
 
     // 3. Markdown
     const mdStr = generateMarkdownReport(reportWithAdvisories);
@@ -171,7 +171,7 @@ describe('Export Functions', () => {
     expect(mdStr).toContain('CISA KEV');
     expect(mdStr).toContain('`fixed`');
     expect(mdStr).toContain('`unknown`');
-    expect(mdStr).toContain('**悪用確認済み（CISA KEV）**');
+    expect(mdStr).toContain('**CISA KEV: CVE-2020-11023**');
     expect(mdStr).toContain('https://github.com/advisories/GHSA-5cp4-xmrw-59wf');
     expect(mdStr).not.toContain('nvd.nist.gov/vuln/detail/GHSA-');
   });

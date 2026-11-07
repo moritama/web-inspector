@@ -176,17 +176,24 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(result.eolInfo.status).toBe('EOL');
   });
 
-  it('v1.7.1 T08 (指摘 D): ASP.NET の CLR 2.0 系が EOL として判定され、CLR 4.0 系は Unknown となること', () => {
+  it('v1.7.1 T08 / T11 修正 (指摘 D): ASP.NET の CLR 2.0 系・CLR 4.0 系がともに Unknown となり、CLR 2.0 の詳細にサポート期限が記載されること', () => {
     const clr2Formatted = matchOfflineAdvisories(
       'ASP.NET',
       '.NET Framework 2.0〜3.5（CLR 2.0.50727）',
       fixtureDb
     );
-    expect(clr2Formatted.eolInfo.status).toBe('EOL');
-    expect(clr2Formatted.eolInfo.eolDate).toBe('2016-04-12');
+    expect(clr2Formatted.eolInfo.status).toBe('Unknown');
+    expect(clr2Formatted.eolInfo.eolDate).toBeNull();
+    expect(clr2Formatted.eolInfo.note).toContain('2011-07-12');
+    expect(clr2Formatted.eolInfo.note).toContain('2029-01-09');
+    expect(clr2Formatted.eolInfo.recommendation).toContain('2011-07-12');
+    expect(clr2Formatted.eolInfo.recommendation).toContain('2029-01-09');
 
     const clr2Raw = matchOfflineAdvisories('ASP.NET', '2.0.50727', fixtureDb);
-    expect(clr2Raw.eolInfo.status).toBe('EOL');
+    expect(clr2Raw.eolInfo.status).toBe('Unknown');
+    expect(clr2Raw.eolInfo.eolDate).toBeNull();
+    expect(clr2Raw.eolInfo.note).toContain('.NET Framework 2.0・3.0 は 2011-07-12 にサポート終了');
+    expect(clr2Raw.eolInfo.note).toContain('3.5 SP1 は 2029-01-09 まで');
 
     const clr4Formatted = matchOfflineAdvisories(
       'ASP.NET',
@@ -571,6 +578,53 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
       expect(ids).not.toContain('CVE-2026-27970');
       expect(ids).not.toContain('CVE-2026-22610');
       expect(ids).not.toContain('CVE-2021-4231');
+    });
+  });
+
+  describe('v1.7.1 T11 (指摘 C): fixed と none が混在する場合の推奨対応の内訳表示', () => {
+    it('AngularJS 1.5.8 のフィクスチャで、推奨対応に解消できる件数と修正版のない件数があり、合計が該当 CVE 数と一致すること', () => {
+      const res = matchOfflineAdvisories('AngularJS', '1.5.8', fixtureDb);
+      expect(res.advisories.length).toBeGreaterThan(0);
+
+      const rec = formatAdvisoryRecommendation('1.5.8', res.advisories, {
+        isEol: res.eolInfo.status === 'EOL',
+        technologyName: 'AngularJS',
+      });
+
+      expect(rec).toContain('最終版 1.8.3');
+      expect(rec).toContain('移行');
+      expect(rec).toContain('緩和策');
+      expect(rec).not.toContain('更新');
+
+      const countMatch = rec.match(/(\d+)\s*件解消、残り\s*(\d+)\s*件は修正版なし/);
+      expect(countMatch).not.toBeNull();
+      const resolvedCount = Number(countMatch![1]);
+      const noneCount = Number(countMatch![2]);
+      expect(resolvedCount).toBeGreaterThan(0);
+      expect(noneCount).toBeGreaterThan(0);
+      expect(resolvedCount + noneCount).toBe(res.advisories.length);
+    });
+
+    it('他の技術（Bootstrap 3.3.7 など）でも fixed と none が混在する場合に同じ内訳形式になり、合計が該当 CVE 数と一致すること', () => {
+      const res = matchOfflineAdvisories('Bootstrap', '3.3.7', fixtureDb);
+      expect(res.advisories.length).toBeGreaterThan(0);
+
+      const rec = formatAdvisoryRecommendation('3.3.7', res.advisories, {
+        isEol: res.eolInfo.status === 'EOL',
+        technologyName: 'Bootstrap',
+      });
+
+      expect(rec).toContain('v3.4.1 で');
+      expect(rec).toContain('移行');
+      expect(rec).toContain('緩和策');
+
+      const countMatch = rec.match(/(\d+)\s*件解消、残り\s*(\d+)\s*件は修正版なし/);
+      expect(countMatch).not.toBeNull();
+      const resolvedCount = Number(countMatch![1]);
+      const noneCount = Number(countMatch![2]);
+      expect(resolvedCount).toBeGreaterThan(0);
+      expect(noneCount).toBeGreaterThan(0);
+      expect(resolvedCount + noneCount).toBe(res.advisories.length);
     });
   });
 });

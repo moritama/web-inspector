@@ -124,4 +124,83 @@ describe('診断項目の許容・除外設定 (IMP-10)', () => {
     const matchDirect = matchFindingException(newId2, url2, [legacyException]);
     expect(matchDirect.status).toBe('accepted');
   });
+
+  it.each([
+    {
+      checkId: 'SEC-HTTPS-01',
+      url: 'http://legacy-http.example.test/login',
+      oldName: '暗号化通信未適用 (平文HTTP接続)',
+      newName: 'HTTPS暗号化通信',
+    },
+    {
+      checkId: 'SEC-CORS-01',
+      url: 'https://legacy-cors.example.test/api',
+      oldName: 'CORS設定 (クロスオリジン許可)',
+      newName: 'CORS (Cross-Origin Resource Sharing)',
+    },
+    {
+      checkId: 'SEC-CORS-02',
+      url: 'https://legacy-cors.example.test/public',
+      oldName: 'CORS設定 (クロスオリジン許可)',
+      newName: 'CORS (Cross-Origin Resource Sharing)',
+    },
+    {
+      checkId: 'SEC-REF-02',
+      url: 'https://legacy-ref.example.test/',
+      oldName: 'Referrer-Policy (無効な設定値)',
+      newName: 'Referrer-Policy',
+    },
+    {
+      checkId: 'SEC-REF-02',
+      url: 'https://legacy-ref.example.test/',
+      oldName: 'Referrer-Policy (unsafe-url)',
+      newName: 'Referrer-Policy',
+    },
+    {
+      checkId: 'SEC-REF-03',
+      url: 'https://legacy-ref.example.test/',
+      oldName: 'Referrer-Policy (no-referrer-when-downgrade)',
+      newName: 'Referrer-Policy',
+    },
+  ])(
+    'v1.7.1 T11 (R05): 旧い項目名「$oldName」で保存された許容設定が、名前を「$newName」に統一した後も $checkId に効くこと',
+    ({ checkId, url, oldName, newName }) => {
+      const currentFindingId = generateFindingIdFromCheck(checkId, url);
+
+      // 1. v1.6.6 の旧項目名ハッシュ形式で保存された許容設定
+      const legacyHashEx: FindingException = {
+        id: `ex_hash_${checkId}`,
+        findingId: generateLegacyFindingIdFromCheck(checkId, url, oldName),
+        targetUrl: url,
+        status: 'accepted',
+        reason: '旧項目名での保存データ',
+        createdAt: '2026-10-01T00:00:00Z',
+      };
+
+      const { migrated, changed } = migrateFindingException(legacyHashEx);
+      expect(changed).toBe(true);
+      expect(migrated.findingId).toBe(currentFindingId);
+
+      const matchedFromMigrated = matchFindingException(currentFindingId, url, [migrated], {
+        checkId,
+        name: newName,
+      });
+      expect(matchedFromMigrated.status).toBe('accepted');
+
+      // 2. 項目名そのもので保存された許容設定でも同じ checkId に効くこと
+      const rawNameEx: FindingException = {
+        id: `ex_name_${checkId}`,
+        findingId: oldName,
+        targetUrl: url,
+        status: 'accepted',
+        reason: '項目名直接指定の保存データ',
+        createdAt: '2026-10-01T00:00:00Z',
+      };
+      const matchedFromRawName = matchFindingException(currentFindingId, url, [rawNameEx], {
+        checkId,
+        name: newName,
+      });
+      expect(matchedFromRawName.status).toBe('accepted');
+    }
+  );
 });

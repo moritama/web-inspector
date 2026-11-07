@@ -467,21 +467,26 @@ export function matchOfflineAdvisories(
   const { targetKey, targetEntry } = findLibraryEntry(technology, activeDb);
 
   try {
-    // 0. ASP.NET (CLR バージョン) の EOL 判定 (v1.7.1 T08 / 指摘D)
-    // CLR 2.0 系 (2.0.50727 / .NET Framework 2.0〜3.5) および CLR 1.x 系は EOL として扱う
+    // 0. ASP.NET (CLR バージョン) の EOL 判定 (v1.7.1 T08 / T11 修正)
+    // CLR 2.0 (2.0.50727) は .NET Framework 2.0・3.0・3.5 で共通であり、3.5 SP1 は 2029-01-09 まで
+    // サポートされているため、ヘッダーだけでは EOL と断定せず Unknown とする。
     const normTech = technology.trim().toLowerCase();
     if ((normTech === 'asp.net' || normTech === 'aspnet') && version && version.trim() !== '') {
       const trimmedVer = version.trim();
-      const isClr2Or1 =
-        /^(?:2\.0|1\.[01])(?:\.\d+)*$/i.test(trimmedVer) ||
-        /\.NET Framework (?:2\.0|1\.[01])/i.test(trimmedVer) ||
-        /CLR\s+(?:2\.0|1\.[01])\b/i.test(trimmedVer);
+      const isClr1 =
+        /^1\.[01](?:\.\d+)*$/i.test(trimmedVer) ||
+        /\.NET Framework 1\.[01]/i.test(trimmedVer) ||
+        /CLR\s+1\.[01]\b/i.test(trimmedVer);
+      const isClr2 =
+        /^2\.0(?:\.\d+)*$/i.test(trimmedVer) ||
+        /\.NET Framework 2\.0/i.test(trimmedVer) ||
+        /CLR\s+2\.0\b/i.test(trimmedVer);
       const isClr4 =
         /^4\.\d+(?:\.\d+)*$/i.test(trimmedVer) ||
         /\.NET Framework 4\.x/i.test(trimmedVer) ||
         /CLR\s+4\.0\b/i.test(trimmedVer);
 
-      if (isClr2Or1) {
+      if (isClr1) {
         return {
           technology,
           version: trimmedVer,
@@ -493,11 +498,11 @@ export function matchOfflineAdvisories(
           maxCvss: null,
           eolInfo: {
             status: 'EOL',
-            eolDate: '2016-04-12',
+            eolDate: '2009-07-14',
             source: 'Microsoft Lifecycle Policy',
             sourceUrl: 'https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework',
             recommendation:
-              'ASP.NET (CLR 2.0 / .NET Framework 2.0〜3.5) はサポート終了（EOL）として扱われます。サポート中の .NET Framework 4.8 または最新の .NET への移行を推奨します。',
+              'ASP.NET (CLR 1.x / .NET Framework 1.0・1.1) はサポート終了（EOL）です。サポート中の .NET Framework 4.8 または最新の .NET への移行を推奨します。',
           },
           updatedAt: now,
           productAdvisoryCount: 0,
@@ -507,7 +512,9 @@ export function matchOfflineAdvisories(
         };
       }
 
-      if (isClr4) {
+      if (isClr2) {
+        const clr2Detail =
+          'CLR 2.0 (2.0.50727) は .NET Framework 2.0・3.0・3.5 で共通のため、ヘッダーだけでは詳細なバージョンを特定できません（.NET Framework 2.0・3.0 は 2011-07-12 にサポート終了、3.5 SP1 は 2029-01-09 までサポート）。';
         return {
           technology,
           version: trimmedVer,
@@ -522,8 +529,36 @@ export function matchOfflineAdvisories(
             eolDate: null,
             source: 'Microsoft Lifecycle Policy',
             sourceUrl: 'https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework',
-            recommendation:
-              'CLR 4.0 (4.0.30319) は .NET Framework 4.0〜4.8.1 で共通のため、外部からは詳細なマイナーバージョンを特定できません。サーバー側でサポート中の .NET Framework 4.8 以降が適用されているか確認してください。',
+            note: clr2Detail,
+            recommendation: clr2Detail,
+          },
+          updatedAt: now,
+          productAdvisoryCount: 0,
+          productSources: [],
+          advisoryDataVersion: coverageInfo.dataVersion,
+          advisoryStatusLabel: 'この技術の脆弱性は収録していません',
+        };
+      }
+
+      if (isClr4) {
+        const clr4Detail =
+          'CLR 4.0 (4.0.30319) は .NET Framework 4.0〜4.8.1 で共通のため、外部からは詳細なマイナーバージョンを特定できません。サーバー側でサポート中の .NET Framework 4.8 以降が適用されているか確認してください。';
+        return {
+          technology,
+          version: trimmedVer,
+          matchStatus: 'No Data',
+          offlineMatchStatus: 'Not Covered',
+          isStale: freshnessInfo.isStale,
+          dbFreshness: freshnessInfo.freshness,
+          advisories: [],
+          maxCvss: null,
+          eolInfo: {
+            status: 'Unknown',
+            eolDate: null,
+            source: 'Microsoft Lifecycle Policy',
+            sourceUrl: 'https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework',
+            note: clr4Detail,
+            recommendation: clr4Detail,
           },
           updatedAt: now,
           productAdvisoryCount: 0,
@@ -1029,8 +1064,9 @@ export function resolveRecommendedVersion(
 }
 
 /**
- * 脆弱性検出に対する推奨文を生成する (SPEC-13)
- * - fixStatus === 'none': 「公式の修正版はありません」と後継技術への移行・緩和策を案内
+ * 脆弱性検出に対する推奨文を生成する (SPEC-13 / v1.7.1 T11 指摘 C)
+ * - fixed（または partial）と none が混在する場合: 解消できる件数と修正版なしの件数を内訳表示し、移行か緩和策を案内
+ * - fixStatus === 'none' のみ: 「公式の修正版はありません」と後継技術への移行・緩和策を案内
  * - fixStatus === 'unknown': 「修正版の情報が DB にありません。ベンダーの情報を確認してください」を案内（「公式の修正版はありません」は出さない）
  * - fixStatus === 'partial': 「一部の系列には修正版がありません」を含めて案内
  * - fixStatus === 'fixed': 推奨修正バージョンへのアップデートを案内
@@ -1047,13 +1083,40 @@ export function formatAdvisoryRecommendation(
 ): string {
   const isEol = options?.isEol ?? false;
   const techName = options?.technologyName ?? '';
+  const isAngularJs = techName.trim().toLowerCase() === 'angularjs';
 
-  const hasNone = advisories.some((a) => getEffectiveFixStatus(a) === 'none');
+  const resolvableAdvisories = advisories.filter((a) => {
+    const fs = getEffectiveFixStatus(a);
+    return fs === 'fixed' || fs === 'partial';
+  });
+  const noneAdvisories = advisories.filter((a) => getEffectiveFixStatus(a) === 'none');
+  const unknownAdvisories = advisories.filter((a) => getEffectiveFixStatus(a) === 'unknown');
+
+  const hasNone = noneAdvisories.length > 0;
   const hasPartial = advisories.some((a) => getEffectiveFixStatus(a) === 'partial');
-  const hasUnknown = advisories.some((a) => getEffectiveFixStatus(a) === 'unknown');
+  const hasUnknown = unknownAdvisories.length > 0;
+
+  // fixed（または修正版ありの partial）と none が混在する場合: 解消できる件数と修正版なしの件数を明記する
+  if (resolvableAdvisories.length > 0 && hasNone) {
+    const fixedTargetVer = resolveRecommendedVersion(detectedVersion, resolvableAdvisories);
+    let verLabel: string;
+    if (isAngularJs) {
+      const finalVer =
+        fixedTargetVer && compareVersions(fixedTargetVer, '1.8.3') > 0 ? fixedTargetVer : '1.8.3';
+      verLabel = `最終版 ${finalVer}`;
+    } else {
+      verLabel = fixedTargetVer ? `v${fixedTargetVer}` : '修正版';
+    }
+    const alt = isAngularJs
+      ? 'Angularなど'
+      : 'サポート対象の後継技術・現行メジャーバージョン';
+    const unknownExtra =
+      unknownAdvisories.length > 0 ? `、修正版情報未確認 ${unknownAdvisories.length} 件` : '';
+    return `${verLabel} で ${resolvableAdvisories.length} 件解消、残り ${noneAdvisories.length} 件は修正版なし${unknownExtra}（${alt}への移行、またはサニタイズ/CSPなどの緩和策を検討してください）。`;
+  }
 
   if (hasNone || (advisories.length === 0 && isEol)) {
-    const alt = techName.toLowerCase() === 'angularjs' ? 'Angularなど' : 'サポート対象の後継技術';
+    const alt = isAngularJs ? 'Angularなど' : 'サポート対象の後継技術';
     return `公式の修正版はありません。${alt}への移行、またはサニタイズ/CSPなどの緩和策の適用を検討してください。`;
   }
 

@@ -378,9 +378,12 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const fixStatusCol = t.advisories && t.advisories.length > 0
     ? Array.from(new Set(t.advisories.map((a) => getEffectiveFixStatus(a)))).map((s) => formatMarkdownCodeSpan(s, { inTable: true })).join(', ')
     : '-';
+  const kevIds = t.advisories
+    ? t.advisories.filter((a) => a.kev === true).map((a) => escapeMarkdownTableCell(a.id))
+    : [];
   const kevCol = t.advisories && t.advisories.length > 0
-    ? t.advisories.some((a) => a.kev === true)
-      ? '**悪用確認済み（CISA KEV）**'
+    ? kevIds.length > 0
+      ? `**CISA KEV: ${kevIds.join(', ')}**`
       : 'なし'
     : '-';
   const isUnknownVersion =
@@ -579,6 +582,8 @@ ${report.technologies.map(formatTechEvidenceSection).join('\n')}
    ログインや特定セッションを必要とする深層ページは、閲覧した範囲に限定して診断されます。
 4. **機密情報の非保持:**
    Cookieの値、認証トークン、Authorizationヘッダーなどのシークレット情報はメモリ保持およびレポート出力から完全に除外されています。
+5. **TLS/SSL証明書の検証対象外:**
+   本拡張機能は通信プロトコル（HTTPS/HTTP）およびヘッダー設定を確認しますが、TLS/SSL証明書の有効期限や信頼性（失効状態・発行元認証局の妥当性など）は診断しないため、証明書の有効性は対象外です。
 `);
 
   return sections.join('\n\n');

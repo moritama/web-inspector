@@ -5,10 +5,13 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { executeInspection } from '../src/background/service-worker';
+import { AdvisoryDatabase, setTestAdvisoryDatabase } from '../src/detection/advisory';
 import { generateMarkdownReport } from '../src/export/markdown';
 import { summarizeSecurityChecks } from '../src/shared/security-status';
 import { InspectionReport } from '../src/shared/types';
+import rawFixtureDb from './fixtures/advisory-db.fixture.json';
 import {
   CHECK_DEFINITIONS as rawCheckDefinitions,
   getPendingChecks as rawGetPendingChecks,
@@ -735,6 +738,130 @@ describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.
       expect(summaryMd).toContain('| 不合格 (R01) |');
       expect(summaryMd).toContain('## 整合性チェックの違反詳細');
       expect(summaryMd).toContain('CRITICAL〜LOWの合計が一致しません');
+    });
+  });
+
+  describe('v1.7.1 T11 (R05): http.badssl.com スナップショットおよび CORS が info のレポートでの R05 合格検証', () => {
+    const fixtureDb = rawFixtureDb as unknown as AdvisoryDatabase;
+
+    it('http.badssl.com のスナップショットから生成したレポートで SEC-HTTPS-01 が「HTTPS暗号化通信」となり、R05 を含む全整合性チェックが合格すること', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+      const snapPath = path.resolve(
+        __dirname,
+        'fixtures',
+        'snapshots',
+        'http.badssl.com.json'
+      );
+      const snap = JSON.parse(fs.readFileSync(snapPath, 'utf-8'));
+
+      const report = await executeInspection({
+        tab: { id: 201, url: snap.finalUrl || snap.url },
+        fetchDomSignals: vi.fn().mockResolvedValue({
+          url: snap.finalUrl || snap.url,
+          title: 'http.badssl.com',
+          metaTags: [],
+          scriptUrls: [],
+          linkUrls: [
+            { rel: 'stylesheet', href: 'http://http.badssl.com/style.css' },
+            { rel: 'shortcut icon', href: 'http://http.badssl.com/icons/favicon-red.ico' },
+          ],
+          domMarkers: [],
+          htmlSnippets: [],
+          mixedContent: [],
+          cookiesFromDocument: [],
+          cssAssets: [],
+        }),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: {},
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: snap.finalUrl || snap.url,
+          headers: snap.responseHeaders,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue(snap.cookies || []),
+        getAllFindingExceptions: vi.fn().mockResolvedValue([]),
+        saveReport: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const httpsFail = report.securityChecks.find((c) => c.checkId === 'SEC-HTTPS-01');
+      expect(httpsFail).toBeDefined();
+      expect(httpsFail?.status).toBe('fail');
+      expect(httpsFail?.name).toBe('HTTPS暗号化通信');
+
+      const md = generateMarkdownReport(report);
+      const lintResult = lintReportPair(report, md, { includePending: true });
+      const r05 = lintResult.results.find((r) => r.id === 'R05');
+      expect(r05?.passed).toBe(true);
+      expect(lintResult.ok).toBe(true);
+      expect(lintResult.violations).toEqual([]);
+    });
+
+    it.each([
+      {
+        label: 'SEC-CORS-01 (Access-Control-Allow-Origin: * + Credentials: true)',
+        headers: {
+          'strict-transport-security': ['max-age=31536000; includeSubDomains'],
+          'x-frame-options': ['SAMEORIGIN'],
+          'x-content-type-options': ['nosniff'],
+          'referrer-policy': ['unsafe-url'],
+          'access-control-allow-origin': ['*'],
+          'access-control-allow-credentials': ['true'],
+        },
+        expectedCorsId: 'SEC-CORS-01',
+      },
+      {
+        label: 'SEC-CORS-02 (Access-Control-Allow-Origin: *)',
+        headers: {
+          'strict-transport-security': ['max-age=31536000; includeSubDomains'],
+          'x-frame-options': ['SAMEORIGIN'],
+          'x-content-type-options': ['nosniff'],
+          'referrer-policy': ['no-referrer-when-downgrade'],
+          'access-control-allow-origin': ['*'],
+        },
+        expectedCorsId: 'SEC-CORS-02',
+      },
+    ])('CORS が info のレポート ($label) で R05 を含む全整合性チェックが合格すること', async ({ headers, expectedCorsId }) => {
+      setTestAdvisoryDatabase(fixtureDb);
+      const url = 'https://cors-api.example.test/';
+      const report = await executeInspection({
+        tab: { id: 202, url },
+        fetchDomSignals: vi.fn().mockResolvedValue({
+          url,
+          title: 'CORS API Test',
+          metaTags: [],
+          scriptUrls: ['https://cors-api.example.test/app.js'],
+          linkUrls: [],
+          domMarkers: [],
+          htmlSnippets: [],
+          mixedContent: [],
+          cookiesFromDocument: [],
+          cssAssets: [],
+        }),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: {},
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url,
+          headers,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+        getAllFindingExceptions: vi.fn().mockResolvedValue([]),
+        saveReport: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const corsCheck = report.securityChecks.find((c) => c.checkId === expectedCorsId);
+      expect(corsCheck).toBeDefined();
+      expect(corsCheck?.status).toBe('info');
+      expect(corsCheck?.name).toBe('CORS (Cross-Origin Resource Sharing)');
+
+      const md = generateMarkdownReport(report);
+      const lintResult = lintReportPair(report, md, { includePending: true });
+      const r05 = lintResult.results.find((r) => r.id === 'R05');
+      expect(r05?.passed).toBe(true);
+      expect(lintResult.ok).toBe(true);
+      expect(lintResult.violations).toEqual([]);
     });
   });
 });

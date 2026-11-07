@@ -746,4 +746,35 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
       expect(sec8).not.toContain('`script-src / default-src`');
     });
   });
+
+  describe('v1.7.1 T11 (指摘 N12 / 指摘 E): 証明書の有効性対象外の表示と KEV 名指し表示', () => {
+    it('HTTPS レポートのセキュリティ診断表および第 15 章の制限事項に「証明書の有効性は対象外」「証明書の有効期限や信頼性…は診断しない」が出ること', () => {
+      const httpsReport: InspectionReport = {
+        ...dummyReportA,
+        securityChecks: [
+          {
+            checkId: 'SEC-HTTPS-00',
+            category: 'https-communication',
+            name: 'HTTPS暗号化通信',
+            status: 'pass',
+            severity: 'info',
+            observed: 'HTTPS で接続（証明書の有効性は対象外）',
+            description: '基本通信はHTTPSによって暗号化されています。',
+            recommendation: '現状の設定を維持してください。',
+            referenceUrls: [],
+            scope: 'https://example.com/',
+          },
+        ],
+      };
+
+      const md = generateMarkdownReport(httpsReport);
+      const sec5 = md.split('## 5. セキュリティ診断結果')[1]?.split('## 6.')[0] || '';
+      const sec15 = md.split('## 15. 調査上の制限事項・免責事項')[1] || '';
+
+      expect(sec5).toContain('`HTTPS で接続（証明書の有効性は対象外）`');
+      expect(sec15).toContain('証明書の有効期限や信頼性');
+      expect(sec15).toContain('診断しない');
+      expect(sec15).toContain('証明書の有効性は対象外');
+    });
+  });
 });

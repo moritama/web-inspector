@@ -1168,4 +1168,135 @@ describe('HTTPレスポンスヘッダーキャッシュ セキュリティ & UR
       expect(report.coverage?.overallStatus).toBe('complete');
     });
   });
+
+  describe('v1.7.1 T11: KEV 名指し表示・AngularJS 1.5.8 推奨対応・CLR 2.0 Unknown 修正', () => {
+    it('指摘 E: jQuery 3.1.1 の観測値と Markdown 表に CVE-2020-11023 が KEV として名指しされ、他の 2 件は KEV と書かれないこと', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+      const deps = createMockDeps({
+        tab: { id: 101, url: 'https://jq-kev.example.test/' },
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            url: 'https://jq-kev.example.test/',
+            metaTags: [],
+            scriptUrls: ['https://jq-kev.example.test/js/jquery-3.1.1.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { jquery: '3.1.1' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://jq-kev.example.test/',
+          headers: {},
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const jqueryTech = report.technologies.find((t) => t.technology === 'jQuery');
+      expect(jqueryTech?.advisories).toHaveLength(3);
+
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-JQUERY');
+      expect(cveCheck).toBeDefined();
+      expect(cveCheck?.observed).toContain('CISA KEV: CVE-2020-11023');
+      // 他の 2 件 (CVE-2020-11022, CVE-2019-11358) は観測値で KEV として書かれないこと
+      expect(cveCheck?.observed).not.toContain('CVE-2020-11022');
+      expect(cveCheck?.observed).not.toContain('CVE-2019-11358');
+
+      // Markdown セクション 6 の CISA KEV 列でも CVE-2020-11023 のみが KEV として名指しされること
+      const md = generateMarkdownReport(report);
+      const sec6 = md.split('## 6. EOL・既知脆弱性情報')[1]?.split('## 7.')[0] || '';
+      expect(sec6).toContain('**CISA KEV: CVE-2020-11023**');
+      expect(sec6).not.toContain('CISA KEV: CVE-2020-11022');
+      expect(sec6).not.toContain('CISA KEV: CVE-2019-11358');
+    });
+
+    it('指摘 C: AngularJS 1.5.8 の調査レポートで推奨対応に解消できる件数と修正版なしの件数があり、合計が該当 CVE 数と一致すること', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+      const deps = createMockDeps({
+        tab: { id: 101, url: 'https://ng1.example.test/' },
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            url: 'https://ng1.example.test/',
+            metaTags: [],
+            scriptUrls: ['https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js'],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: { angularjs: '1.5.8' },
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: 'https://ng1.example.test/',
+          headers: {},
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue([]),
+      });
+
+      const report = await executeInspection(deps);
+      const ngTech = report.technologies.find((t) => t.technology === 'AngularJS');
+      expect(ngTech).toBeDefined();
+      const totalCves = ngTech?.advisories?.length ?? 0;
+      expect(totalCves).toBeGreaterThan(0);
+
+      const cveCheck = report.securityChecks.find((c) => c.checkId === 'SEC-CVE-ANGULARJS');
+      expect(cveCheck).toBeDefined();
+      const match = cveCheck?.recommendation.match(/(\d+)\s*件解消、残り\s*(\d+)\s*件は修正版なし/);
+      expect(match).not.toBeNull();
+      expect(Number(match![1]) + Number(match![2])).toBe(totalCves);
+    });
+
+    it('T08 の修正: testaspnet スナップショット (X-AspNet-Version: 2.0.50727) で ASP.NET が EOL にならず Unknown になり、詳細に 2.0・3.0 と 3.5 SP1 の期限が出て SEC-DISC-03 が LOW で出ること', async () => {
+      setTestAdvisoryDatabase(fixtureDb);
+      const snapPath = path.resolve(
+        __dirname,
+        'fixtures',
+        'snapshots',
+        'testaspnet.vulnweb.com.json'
+      );
+      const snap = JSON.parse(fs.readFileSync(snapPath, 'utf-8'));
+
+      const deps = createMockDeps({
+        tab: { id: 101, url: snap.finalUrl || snap.url },
+        fetchDomSignals: vi.fn().mockResolvedValue(
+          createMockDomSignals({
+            url: snap.finalUrl || snap.url,
+            metaTags: [],
+            scriptUrls: [],
+            linkUrls: [{ rel: 'stylesheet', href: 'http://testaspnet.vulnweb.com/styles.css' }],
+          })
+        ),
+        fetchRuntimeVersions: vi.fn().mockResolvedValue({
+          versions: {},
+          frameworkMarkers: [],
+        }),
+        getCachedHeaders: vi.fn().mockResolvedValue({
+          url: snap.finalUrl || snap.url,
+          headers: snap.responseHeaders,
+        }),
+        getInspectedCookies: vi.fn().mockResolvedValue(snap.cookies || []),
+      });
+
+      const report = await executeInspection(deps);
+      const aspnet = report.technologies.find((t) => t.technology === 'ASP.NET');
+      expect(aspnet).toBeDefined();
+      expect(aspnet?.supportStatus).toBe('Unknown');
+      expect(aspnet?.eolInfo?.status).toBe('Unknown');
+      expect(aspnet?.eolInfo?.note).toContain('2011-07-12');
+      expect(aspnet?.eolInfo?.note).toContain('2029-01-09');
+
+      // EOL チェック (SEC-EOL-ASP.NET) が発生していないこと
+      expect(report.securityChecks.find((c) => c.checkId === 'SEC-EOL-ASP.NET')).toBeUndefined();
+
+      // SEC-DISC-03 は引き続き LOW で出ること
+      const disc03 = report.securityChecks.find((c) => c.checkId === 'SEC-DISC-03');
+      expect(disc03).toBeDefined();
+      expect(disc03?.status).toBe('warning');
+      expect(disc03?.severity).toBe('low');
+
+      const md = generateMarkdownReport(report);
+      expect(md).toContain('2011-07-12');
+      expect(md).toContain('2029-01-09');
+    });
+  });
 });

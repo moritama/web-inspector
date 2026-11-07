@@ -966,8 +966,10 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
           technologyName: tech.technology,
         });
 
-        const kevNote = hasKev ? ' / 悪用確認済み（CISA KEV）' : '';
-        const kevDescSuffix = hasKev ? '（悪用確認済み（CISA KEV）の脆弱性を含みます）' : '';
+        const kevIds = instAdvisories.filter((a) => a.kev === true).map((a) => a.id);
+        const kevNote = kevIds.length > 0 ? ` / CISA KEV: ${kevIds.join(', ')}` : '';
+        const kevDescSuffix =
+          kevIds.length > 0 ? `（悪用確認済み（CISA KEV）: ${kevIds.join(', ')}）` : '';
 
         const cveCheckId =
           techCveCheckIdx === 0

@@ -121,7 +121,7 @@ if (typeof document !== 'undefined') {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.0';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.1';
     badgeEl.textContent = `v${ver}`;
   }
 }

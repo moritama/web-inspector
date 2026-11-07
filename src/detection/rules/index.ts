@@ -50,7 +50,7 @@ export interface TechnologyRule {
 }
 
 /**
- * 統合ルールセット (v1.7.0)
+ * 統合ルールセット (v1.7.1)
  */
 export const ALL_TECHNOLOGY_RULES: TechnologyRule[] = [
   ...(serverRules as unknown as TechnologyRule[]),
@@ -70,4 +70,4 @@ export const SSR_INFERENCE_HEADER_NAMES: readonly string[] = [
   'x-nitro-cache',
 ];
 
-export const RULES_VERSION = '1.7.0';
+export const RULES_VERSION = '1.7.1';

@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ALL_TECHNOLOGY_RULES, TechnologyRule } from '../src/detection/rules';
+import { ALL_TECHNOLOGY_RULES, RULES_VERSION, TechnologyRule } from '../src/detection/rules';
 
 describe('仕様書・ルール定義の整合性テスト (Specification Integrity)', () => {
   const specPath = path.resolve(__dirname, '../docs/DETECTION_SPECIFICATION.md');
@@ -445,6 +445,62 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     expect(readmeContent).not.toContain('全125テスト');
     expect(readmeContent).not.toContain('v1.6.0');
     expect(readmeContent).not.toContain('siteChecker/');
+  });
+
+  it('v1.7.1 T12: 版の表記が 1.7.1 に統一され、旧フォールバック文字列が無く、DB の minExtensionVersion は 1.7.0 のままであること', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const targetVersion = '1.7.1';
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8'));
+    const lock = JSON.parse(fs.readFileSync(path.join(rootDir, 'package-lock.json'), 'utf-8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
+    const advisoryDb = JSON.parse(
+      fs.readFileSync(path.join(rootDir, 'src', 'detection', 'advisory-db.json'), 'utf-8')
+    );
+
+    expect(pkg.version).toBe(targetVersion);
+    expect(lock.version).toBe(targetVersion);
+    expect(lock.packages?.['']?.version).toBe(targetVersion);
+    expect(manifest.version).toBe(targetVersion);
+    expect(RULES_VERSION).toBe(targetVersion);
+    expect(advisoryDb.minExtensionVersion).toBe('1.7.0');
+
+    const fallbackFiles = [
+      'src/background/service-worker.ts',
+      'src/popup/popup.ts',
+      'src/dashboard/dashboard.ts',
+      'src/export/markdown.ts',
+      'src/export/csv.ts',
+    ];
+    for (const rel of fallbackFiles) {
+      const text = fs.readFileSync(path.join(rootDir, rel), 'utf-8');
+      const stale = text.match(/'1\.(?:6\.\d+|7\.0)(?:\.\d+)?'/g) || [];
+      expect(stale, `${rel} に旧バージョン文字列が残っています`).toEqual([]);
+      expect(text).toContain(`'${targetVersion}'`);
+    }
+
+    expect(specContent).toContain(`**対象バージョン：** v${targetVersion}`);
+  });
+
+  it('v1.7.1 T12: 仕様書と保守ガイドが T01〜T11 の結果および一括取得・チェッカーの運用ルールと整合していること', () => {
+    const rootDir = path.resolve(__dirname, '..');
+    const guideContent = fs.readFileSync(path.join(rootDir, 'docs', 'MAINTENANCE_GUIDE.md'), 'utf-8');
+
+    // 仕様書: 件数の定義・通信先の定義・Cookie 6 用途・CSP 最大 MEDIUM
+    expect(specContent).toContain('requiresAttentionCount');
+    expect(specContent).toContain("performance.getEntriesByType('resource')");
+    expect(specContent).toContain('referenceOnlyUrls');
+    expect(specContent).toContain('advertising');
+    expect(specContent).toContain('consent');
+    expect(specContent).toContain('SEC-COOKIE-SECURE-GENERAL');
+    expect(specContent).toContain('最大 `MEDIUM`');
+
+    // 保守ガイド: 一括取得スクリプト・チェッカーの使い方と公開リポジトリ掲載禁止の明記
+    expect(guideContent).toContain('scripts/report-lint.mjs');
+    expect(guideContent).toContain('npm run reports:lint');
+    expect(guideContent).toContain('scripts/collect-reports.mjs');
+    expect(guideContent).toContain('npm run reports:collect');
+    expect(guideContent).toContain('実サイトの診断レポートを公開リポジトリに載せないでください');
   });
 });
 

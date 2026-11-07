@@ -187,3 +187,10 @@
       3. **T06 の DOM 検出漏れ調査結果（一部完了の根拠）**: `angular.dev` は `ng-version="22.2.5+sha-d881689"` の `+sha-...` に対応して Angular `22.2.5` が検出されるようになった。一方、`angularjs.org` のスナップショット（`tests/fixtures/snapshots/angularjs.org.html` 7 行目 `<title>Site Not Found</title>`、95〜99 行目 Firebase Hosting の 404 ページ）および `www.drupal.org` のスナップショット（`tests/fixtures/snapshots/www.drupal.org.html` 1 行目 `<title>Client Challenge</title>`、`<img id="fastlyLogo">` の Fastly Bot/CAPTCHA チャレンジページ）は、取得時の応答自体に当該技術の印が一切含まれていなかったためスナップショット単体からは検出不可であり、通常のページ向けに代替シグナルと否定コントロールを追加した。
       4. **T08 / T11 における ASP.NET CLR 2.0 系の EOL 扱いと根拠**: T08 で一旦 `X-AspNet-Version: 2.0.50727` を EOL（`2016-04-12`）としたが、T11 の指示に従い、CLR 2.0 は `.NET Framework 2.0 / 3.0`（**2011-07-12** サポート終了）と `.NET Framework 3.5 SP1`（**2029-01-09** までサポート、出典: Microsoft Lifecycle Policy `https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-framework`）で共通でありヘッダー単体では断定できないため、EOL 判定を取り消して `Unknown` とし、詳細に両者のサポート期限を併記した（`X-AspNet-Version` の露出指摘 `SEC-DISC-03` は `LOW` として継続）。
 - 未解決: なし（E2E 実行および実サイトでのレポート再取得・目視確認は夜間モード対象外のため人間が実施）
+
+## REPORT 完了報告書の作成  (2026-11-08 07:05)
+- 変更ファイル: `docs/dev/v1.7.1/COMPLETION_REPORT.md`, `docs/dev/v1.7.1/WORKLOG.md`
+- 判断したこと:
+  - `docs/dev/v1.7.1/REPORT_TEMPLATE.md` をもとに、`REPORT_DATA.json`・`check-result.json`・`WORKLOG.md`・コミット履歴・差分統計の数値とテスト名をそのまま転記して `docs/dev/v1.7.1/COMPLETION_REPORT.md` を作成した。
+  - §3 と §7 に T06（一部完了: `angularjs.org` の 404 応答および `www.drupal.org` の Fastly チャレンジ応答にはサイト側の印が含まれていない根拠）を記載し、§4 に `vitest`（`passed 588 / skipped 0 / failed 0`）・`reports:lint`（全 9 項目合格・保留 0 件）・ビルドサイズ・同梱 DB 統計・総合チェック結果（C08 は本報告書の作成で解消）と期待値を変更した既存テスト全件を記載し、§8 に実サイトレポート再取得・UI 目視確認・E2E 実行・T05 の `PRIVACY_POLICY.md` 更新文言・T06 の 3 サイト調査結果・T08/T11 の ASP.NET CLR 2.0 系の根拠日付と参照先・`advisoryDrift` 全 11 件を漏れなく記載した。
+- 未解決: なし（再チェックおよびコミットは夜間スクリプトが実行）

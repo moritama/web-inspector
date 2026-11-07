@@ -1,0 +1,161 @@
+{
+  "checkedAt": "2026-11-07T22:06:19.472Z",
+  "targetVersion": "1.7.1",
+  "baseRef": "v1.7.0",
+  "mode": "full",
+  "passed": 25,
+  "failed": 0,
+  "warned": 0,
+  "results": [
+    {
+      "id": "C01",
+      "title": "バージョンが 1.7.1 に統一されている",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C02a",
+      "title": "整合性チェッカー（reports:lint、scripts/report-lint.mjs）と回帰用フィクスチャがある",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C03",
+      "title": "markdown.ts にロードマップの固定文が無く、利用者に見える文言に「Rev.2.1」が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C04",
+      "title": "一般 Cookie のチェックが、認証系の指摘の有無に依存しない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C05",
+      "title": "CSP の指摘に HIGH が無い（E1）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C06",
+      "title": "公開していない実サイトのホスト名と取得結果がリポジトリに無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C07a",
+      "title": "manifest の権限が v1.7.0 と同じで、content_scripts が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C08",
+      "title": "完了報告書の件数・テスト名が REPORT_DATA.json と一致し、未記入が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C09",
+      "title": "コミット対象に禁止語・キットへのリンク・変更禁止領域の変更が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C09b",
+      "title": "WORKLOG に 11 タスクすべての記録がある",
+      "status": "PASS",
+      "detail": "記録済み: 11/11"
+    },
+    {
+      "id": "R01",
+      "title": "review-v1.6.5-acceptance.test.ts に it.skip / describe.skip が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R02",
+      "title": "src/ 配下に HTML が無く、インラインイベントハンドラも無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "K01",
+      "title": "キットが改変されていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10a",
+      "title": "npm test (typecheck + links + vitest)",
+      "status": "PASS",
+      "detail": "Tests  588 passed (588) (4s)"
+    },
+    {
+      "id": "C02b",
+      "title": "npm run reports:lint が回帰用フィクスチャの全件で合格",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C02c",
+      "title": "整合性チェッカーの保留の項目が 0 件",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10b",
+      "title": "npm run build",
+      "status": "PASS",
+      "detail": " (1s)"
+    },
+    {
+      "id": "C07b",
+      "title": "ビルド後の manifest に content_scripts が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C07c",
+      "title": "content-script.js に import / export 文が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10c",
+      "title": "npm run advisories:validate",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C10d",
+      "title": "npm run advisories:verify-nvd",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "C10e",
+      "title": "build-db --check（DB が手編集されていない）",
+      "status": "PASS",
+      "detail": " (0s)"
+    },
+    {
+      "id": "R03a",
+      "title": "NVD を全製品取り込んだ DB でもテストが通る",
+      "status": "PASS",
+      "detail": "Tests  529 passed (529) (2s)"
+    },
+    {
+      "id": "R03b",
+      "title": "自動取得のエントリを半分にした DB でも、照合のテストが通る（invariants テストは除く）",
+      "status": "PASS",
+      "detail": "Tests  523 passed (523) (1s)"
+    },
+    {
+      "id": "R04",
+      "title": "actionlint",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

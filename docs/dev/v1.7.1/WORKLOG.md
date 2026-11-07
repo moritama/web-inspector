@@ -105,3 +105,27 @@
   - **既存テストの期待値の変更（全 1 件）**:
     1. `tests/spec-integrity.test.ts` の「ルール定義と仕様書カタログの登録技術数が完全に一致すること」において、登録技術数の期待値を `70` から `74` に変更した（理由: T08 の仕様に従い `Tomcat`、`Classic ASP`、`Azure Application Gateway`、`Application Insights` の 4 技術を追加し、`ASP.NET` を `language.json` から `backend.json` へ移動して合計 74 技術になったため）。
 - 未解決: なし
+
+## T09 フロント・CMS・計測タグの検出  (2026-11-07 20:11)
+- 変更ファイル: `src/shared/types.ts`, `src/detection/rules/frontend.json`, `src/detection/rules/cms.json`, `src/detection/rules/services.json`, `src/detection/engine.ts`, `src/content/content-script.ts`, `src/background/service-worker.ts`, `src/security/domain-analyzer.ts`, `src/security/engine.ts`, `src/storage/exceptions.ts`, `src/storage/history.ts`, `src/export/markdown.ts`, `src/popup/render.ts`, `src/dashboard/render.ts`, `docs/DETECTION_SPECIFICATION.md`, `README.md`, `test-server/server.mjs`, `scripts/test-e2e-smoke.mjs`, `tests/fixtures/reports/wordpress-legacy-ga.json`, `tests/fixtures/reports/wordpress-legacy-ga.md`, `tests/detection.test.ts`, `tests/content-script.test.ts`, `tests/domain-analyzer.test.ts`, `tests/security.test.ts`, `tests/markdown.test.ts`, `tests/spec-integrity.test.ts`
+- 判断したこと:
+  - **Bootstrap と Tailwind（指摘 N5・E）**:
+    1. Bootstrap 6 は `lg:d-none`、`md:flex-row`、`sm:gap-2` のようなブレークポイント接頭辞付きのユーティリティクラスを使用するため、`src/detection/engine.ts` に `isBootstrapResponsiveClassToken()` と `stripBootstrapResponsiveClasses()` を実装し、Tailwind CSS ルールの HTML スニペット照合前に、接頭辞の後ろが Bootstrap のクラス（`d-*`、`container`、`container-*`、`row`、`col`、`col-*`、`navbar`、`navbar-*`、`nav`、`nav-*`、`btn`、`btn-*`、`gap-*`、`g-*`、`gx-*`、`gy-*`、`flex-*`、`justify-content-*`、`align-items-*`、`align-self-*`、`order-*`、`m/p` 系の 0〜5 および auto 等）であるトークンを除外するようにした。これにより `getbootstrap.com` のスナップショットで Tailwind CSS が誤検出されなくなり、`react.dev` のスナップショットでは引き続き Tailwind CSS が検出されることを確認した。
+    2. Bootstrap の版抽出について、実行時（`src/background/service-worker.ts` の `fetchRuntimeVersions` で `window.bootstrap.VERSION` に加え `window.bootstrap.Tooltip.VERSION` 等の各コンポーネントの静的 `VERSION` プロパティを走査）および URL パス（`src/detection/rules/frontend.json` と `src/content/content-script.ts` の `inspectCssAssets` で `/bootstrap-4.3.1/`、`/docs/6.0/`、`bootstrap@5.3.3` 等）から取得できるようにした。
+    3. Bootstrap の根拠がバージョンを含まないファイル名（`bootstrap.min.css`、`bootstrap.bundle.min.js` 等）のみの場合は、確信度を `medium`（スコア上限 75）に抑えるようにした。
+    4. `test-server/server.mjs` に `/bootstrap6-only` エンドポイントを追加し、`scripts/test-e2e-smoke.mjs` の否定コントロール検証に「Bootstrap 6 のページで Bootstrap 6.0 が検出され、Tailwind CSS が未検出であること」を追加した。
+  - **根拠の整理（指摘 J）**:
+    1. `src/detection/engine.ts` で、(a) `rawScriptUrls`・`scriptUrls`・`resourceEntries` および `rawLinkUrls`・`linkUrls`・`referenceOnlyUrls` をページ URL 基準で絶対 URL に正規化してから重複排除することで、同一ファイルが相対 URL と絶対 URL で 2 回記録されるのを防ぎ、(b) `deduplicateEvidenceEntries()` で同じ種別（`type`）・同じ値（`value`、または URL クエリ除去後のベース URL）の根拠を 1 件に統合し（バージョン付き表記があれば優先）、(c) `.container` のような汎用クラス名だけの根拠（`isGenericClassEvidence`）は他の根拠があるときに除外し（IMPL-06 の上限 20 件は維持）、(d) `link[rel="alternate"]` や `link[rel="https://api.w.org/"]` 等の非 stylesheet リンクの根拠種別を `'css-url'` ではなく `'link'` に設定するようにした。
+    2. Markdown レポート（`src/export/markdown.ts` のセクション 14）、ポップアップ（`src/popup/render.ts`）、ダッシュボード（`src/dashboard/render.ts`）のエビデンス表示を、技術ごとに代表 3 件＋「他 ○ 件」で表示するようにした（JSON レポートには上限 20 件までの全件を保持）。
+  - **WordPress（指摘 K・E4）**:
+    1. `src/detection/engine.ts` の `script` / `link` シグナル照合において、URL からクエリ文字列を除去する前に `?ver=` パラメータからバージョンを抽出し、表示・保存用のエビデンス URL からは `stripUrlQueryAndFragment` でクエリを除去するようにした。
+    2. `src/detection/rules/cms.json` と `src/detection/engine.ts` において、WordPress コアのバージョンを `meta[name="generator"]` に加えて `wp-includes/` 配下のコアファイル（`wp-embed.min.js`、`wp-emoji-release.min.js`、`wp-includes/css/dist/...` 等）の `ver` パラメータから取得するようにし、`wp-includes/js/jquery/` や `underscore`、`backbone`、`twemoji`、`mediaelement`、`codemirror`、`tinymce`、`plupload` 等の同梱サードパーティライブラリの `ver` は WordPress 本体の版として扱わないように区別した。
+    3. `extractWordPressExtensions()` を実装し、`wp-content/plugins/<名前>/` と `wp-content/themes/<名前>/` からプラグイン名・テーマ名と `ver` パラメータを集約して `DetectedTechnology` の `wpPlugins`・`wpThemes` に格納し、Markdown レポート（セクション 14）・ポップアップ・ダッシュボードの WordPress 詳細に一覧表示するようにした（脆弱性 DB との照合対象には含めない）。
+  - **計測タグ（指摘 L・E5）**:
+    1. `src/detection/rules/services.json` で Google Tag Manager のスクリプトパターンに `googletagmanager.com/gtag/js` を追加し、新規ルールとして `facebook-sdk`（`Facebook SDK`, `category: 'analytics-tracking'`, `connect.facebook.net`）を追加した。
+    2. `src/security/domain-analyzer.ts` に `checkLegacyAnalyticsTags()` を追加し（`src/security/engine.ts` から呼び出し）、廃止済みの旧世代 Google Analytics タグ（`ga.js`・`analytics.js`）が読み込まれているページで `SEC-LEGACY-TAG-01`（`status: 'info'`, `severity: 'info'`, 「計測されていない可能性、削除を検討」）を 1 件出力し、要確認（`requiresAttentionCount`）の件数は増えないようにした。
+    3. `src/security/domain-analyzer.ts` の `inferServiceCategory()` で `www.google.com/recaptcha/`（および `www.gstatic.com/recaptcha/`、`recaptcha.net`）の通信先カテゴリを `'security'`（セキュリティ・認証）に分類するようにした。
+  - **既存テスト・フィクスチャの期待値の変更（全 2 件）**:
+    1. `tests/spec-integrity.test.ts` の「ルール定義と仕様書カタログの登録技術数が完全に一致すること」において、登録技術数の期待値を `74` から `75` に変更した（理由: T09 の仕様に従い `services.json` に `Facebook SDK` を 1 件追加して合計 75 技術になったため）。
+    2. `tests/fixtures/reports/wordpress-legacy-ga.json` および `tests/fixtures/reports/wordpress-legacy-ga.md` に、WordPress の 5 件の根拠（Markdown セクション 14 で代表 3 件＋`- 他 2 件` となる構成）、`wpPlugins`・`wpThemes` 一覧、および `ga.js` に対する `SEC-LEGACY-TAG-01`（INFO 指摘、`summary.securityFindings.info` を 3→4 に更新、`requiresAttentionCount: 2` は維持）を反映した（理由: T03 で作成した WordPress + `ga.js` の回帰フィクスチャを T09 の受け入れ条件に合わせて拡充し、`generateMarkdownReport` の出力と完全一致させるため）。
+- 未解決: なし

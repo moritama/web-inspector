@@ -38,10 +38,10 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
   const ruleIds = allRules.map((r) => r.id);
   const ruleIdSet = new Set(ruleIds);
 
-  it('ルール定義と仕様書カタログの登録技術数が完全に一致すること (全74技術)', () => {
-    expect(allRules.length).toBe(74);
-    expect(specTechIds.length).toBe(74);
-    expect(new Set(specTechIds).size).toBe(74);
+  it('ルール定義と仕様書カタログの登録技術数が完全に一致すること (全75技術)', () => {
+    expect(allRules.length).toBe(75);
+    expect(specTechIds.length).toBe(75);
+    expect(new Set(specTechIds).size).toBe(75);
   });
 
   it('ルール定義(rules/*.json)に存在する全技術IDが仕様書に含まれていること', () => {

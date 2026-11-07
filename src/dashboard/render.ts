@@ -8,6 +8,7 @@ import {
   resolveTechAdvisoryDisplayInfo,
   sortAdvisoriesByPriority,
 } from '../detection/advisory';
+import { filterDisplayEvidences } from '../detection/engine';
 import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
@@ -594,19 +595,58 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
 
         ${advisoriesSectionHtml}
 
+        ${
+          (t.wpPlugins && t.wpPlugins.length > 0) || (t.wpThemes && t.wpThemes.length > 0)
+            ? `
+          <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+            <strong>WordPress プラグイン・テーマ:</strong>
+            ${
+              t.wpPlugins && t.wpPlugins.length > 0
+                ? `<div style="font-size:12px;margin-top:4px;"><strong>プラグイン:</strong> ${t.wpPlugins
+                    .map((p) =>
+                      p.version
+                        ? `<code>${escapeHtml(p.name)}</code> (ver: <code>${escapeHtml(p.version)}</code>)`
+                        : `<code>${escapeHtml(p.name)}</code>`
+                    )
+                    .join(', ')}</div>`
+                : ''
+            }
+            ${
+              t.wpThemes && t.wpThemes.length > 0
+                ? `<div style="font-size:12px;margin-top:4px;"><strong>テーマ:</strong> ${t.wpThemes
+                    .map((th) =>
+                      th.version
+                        ? `<code>${escapeHtml(th.name)}</code> (ver: <code>${escapeHtml(th.version)}</code>)`
+                        : `<code>${escapeHtml(th.name)}</code>`
+                    )
+                    .join(', ')}</div>`
+                : ''
+            }
+          </div>
+        `
+            : ''
+        }
+
         <div style="font-weight:700;margin-top:8px;">判定根拠 (Evidence):</div>
         <ul style="padding-left:18px;">
-          ${(t.evidence || [])
-            .map(
-              (e) => `
+          ${(() => {
+            const dispEv = filterDisplayEvidences(t.evidence || []);
+            const visEv = dispEv.slice(0, 3);
+            const remEv = dispEv.length - visEv.length;
+            const itemsHtml = visEv
+              .map(
+                (e) => `
             <li>
               <strong>[${escapeHtml(e.type)}] ${escapeHtml(e.name)}:</strong>
               <code>${escapeHtml(e.value)}</code>
               ${e.detail ? `<span style="color:var(--text-muted);margin-left:6px;">(${escapeHtml(e.detail)})</span>` : ''}
             </li>
           `
-            )
-            .join('')}
+              )
+              .join('');
+            const remHtml = remEv > 0 ? `<li style="color:var(--text-muted);">他 ${remEv} 件</li>` : '';
+            return itemsHtml + remHtml;
+          })()}
         </ul>
       </div>
     </div>
@@ -720,6 +760,7 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
     advertising: '広告・マーケティング',
     fonts: 'Webフォント',
     social: 'SNSウィジェット',
+    security: 'セキュリティ・Bot対策',
     api: '外部API',
     other: 'その他',
   };

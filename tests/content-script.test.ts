@@ -767,5 +767,92 @@ describe('extractDomSignals (Content Script)', () => {
         qsaSpy.mockRestore();
       }
     });
+
+    it('v1.7.1 T09 (N5, E): getbootstrap.com と react.dev のスナップショットを extractDomSignals + executeInspection で評価したとき、getbootstrap.com では Bootstrap 6.0 が検出され Tailwind CSS が出ず、react.dev では Tailwind CSS が出ること', async () => {
+      const origConsoleError = console.error;
+      console.error = (...args: unknown[]) => {
+        const msg = String(args[0] ?? '');
+        if (
+          msg.includes('CSS file loading is disabled') ||
+          msg.includes('JavaScript file loading is disabled')
+        ) {
+          return;
+        }
+        origConsoleError(...args);
+      };
+
+      try {
+        const snapshotsDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+
+        // 1. getbootstrap.com
+        const bsSnap = JSON.parse(
+          fs.readFileSync(path.join(snapshotsDir, 'getbootstrap.com.json'), 'utf-8')
+        );
+        const bsHtml = fs.readFileSync(path.join(snapshotsDir, 'getbootstrap.com.html'), 'utf-8');
+        const bsUrl = bsSnap.finalUrl || bsSnap.url;
+        document.documentElement.innerHTML = bsHtml;
+        const bsSignals = extractDomSignals(bsUrl);
+        bsSignals.resourceEntries = (bsSnap.resourceTiming || []).map(
+          (r: { name: string; initiatorType?: string }) => ({
+            url: r.name,
+            initiatorType: r.initiatorType || 'other',
+          })
+        );
+
+        const bsReport = await executeInspection({
+          tab: { id: 1, url: bsUrl },
+          fetchDomSignals: async () => bsSignals,
+          fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+          getCachedHeaders: async () => ({
+            url: bsUrl,
+            headers: bsSnap.responseHeaders || {},
+            observed: true,
+          }),
+          getInspectedCookies: async () => bsSnap.cookies || [],
+          getAllFindingExceptions: async () => [],
+          saveReport: async () => {},
+          hasWebRequestPermission: true,
+        });
+
+        const bsTech = bsReport.technologies.find((t) => t.technology === 'Bootstrap');
+        expect(bsTech).toBeDefined();
+        expect(bsTech?.version).toBe('6.0');
+        expect(bsReport.technologies.find((t) => t.technology === 'Tailwind CSS')).toBeUndefined();
+
+        // 2. react.dev
+        const reactSnap = JSON.parse(
+          fs.readFileSync(path.join(snapshotsDir, 'react.dev.json'), 'utf-8')
+        );
+        const reactHtml = fs.readFileSync(path.join(snapshotsDir, 'react.dev.html'), 'utf-8');
+        const reactUrl = reactSnap.finalUrl || reactSnap.url;
+        document.documentElement.innerHTML = reactHtml;
+        const reactSignals = extractDomSignals(reactUrl);
+        reactSignals.resourceEntries = (reactSnap.resourceTiming || []).map(
+          (r: { name: string; initiatorType?: string }) => ({
+            url: r.name,
+            initiatorType: r.initiatorType || 'other',
+          })
+        );
+
+        const reactReport = await executeInspection({
+          tab: { id: 1, url: reactUrl },
+          fetchDomSignals: async () => reactSignals,
+          fetchRuntimeVersions: async () => ({ versions: {}, frameworkMarkers: [] }),
+          getCachedHeaders: async () => ({
+            url: reactUrl,
+            headers: reactSnap.responseHeaders || {},
+            observed: true,
+          }),
+          getInspectedCookies: async () => reactSnap.cookies || [],
+          getAllFindingExceptions: async () => [],
+          saveReport: async () => {},
+          hasWebRequestPermission: true,
+        });
+
+        expect(reactReport.technologies.find((t) => t.technology === 'Tailwind CSS')).toBeDefined();
+      } finally {
+        console.error = origConsoleError;
+      }
+    });
   });
 });

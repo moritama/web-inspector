@@ -588,6 +588,7 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
           fonts: 0,
           social: 0,
           api: 0,
+          security: 0,
           other: 1,
         },
         connections: [
@@ -604,6 +605,83 @@ describe('Markdown Report Generation (Rev.2.1 IMP-12)', () => {
       });
       expect(dashHtml).toContain('読み込まれたリソースの取得元ドメイン集計');
       expect(dashHtml).toContain('読み込みを伴わない参照は通信先に含めません');
+    });
+
+    it('v1.7.1 T09 (J, K, E4): セクション 14 で根拠の表示が代表 3 件＋「他 ○ 件」になり、WordPress のプラグイン・テーマ一覧が出力されること', () => {
+      const wpReport: InspectionReport = {
+        ...dummyReportA,
+        technologies: [
+          {
+            technology: 'WordPress',
+            category: 'cms',
+            detected: true,
+            version: '6.4.3',
+            confidence: 95,
+            confidenceLevel: 'high',
+            detectionMethod: 'direct',
+            runtimeStatus: 'confirmed',
+            supportStatus: 'Supported',
+            eolDate: null,
+            advisoryMatchStatus: 'Not Affected',
+            advisories: [],
+            wpPlugins: [
+              { name: 'contact-form-7', version: '5.8.7' },
+              { name: 'akismet' },
+            ],
+            wpThemes: [{ name: 'twentytwentyfour', version: '1.0' }],
+            evidence: [
+              {
+                type: 'script-url',
+                name: 'script[src]',
+                value: 'https://wp.example.test/wp-includes/js/wp-embed.min.js (v6.4.3)',
+                source: 'https://wp.example.test/wp-includes/js/wp-embed.min.js',
+                weight: 90,
+              },
+              {
+                type: 'css-url',
+                name: 'link[rel="stylesheet"]',
+                value:
+                  'https://wp.example.test/wp-includes/css/dist/block-library/style.min.css (v6.4.3)',
+                source: 'https://wp.example.test/wp-includes/css/dist/block-library/style.min.css',
+                weight: 85,
+              },
+              {
+                type: 'script-url',
+                name: 'script[src]',
+                value:
+                  'https://wp.example.test/wp-content/plugins/contact-form-7/includes/js/index.js',
+                source:
+                  'https://wp.example.test/wp-content/plugins/contact-form-7/includes/js/index.js',
+                weight: 90,
+              },
+              {
+                type: 'css-url',
+                name: 'link[rel="stylesheet"]',
+                value: 'https://wp.example.test/wp-content/themes/twentytwentyfour/style.css',
+                source: 'https://wp.example.test/wp-content/themes/twentytwentyfour/style.css',
+                weight: 85,
+              },
+              {
+                type: 'link',
+                name: 'link[rel="https://api.w.org/"]',
+                value: 'https://wp.example.test/wp-json/',
+                source: 'https://wp.example.test/wp-json/',
+                weight: 95,
+              },
+            ],
+          },
+        ],
+      };
+
+      const md = generateMarkdownReport(wpReport);
+      const sec14 = md.split('## 14. 検出根拠 (エビデンス詳細)')[1] || '';
+
+      expect(sec14).toContain('- **検出されたプラグイン:** `contact-form-7` (ver: `5.8.7`), `akismet`');
+      expect(sec14).toContain('- **検出されたテーマ:** `twentytwentyfour` (ver: `1.0`)');
+      expect(sec14).toContain('- 他 2 件');
+      // 4 件目・5 件目の根拠は Markdown の代表表示からは省略され、JSON 側には全 5 件残っていること
+      expect(sec14).not.toContain('twentytwentyfour/style.css');
+      expect(wpReport.technologies[0].evidence.length).toBe(5);
     });
   });
 });

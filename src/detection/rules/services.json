@@ -186,7 +186,7 @@
       {
         "type": "script",
         "target": "src",
-        "pattern": "googletagmanager\\.com/gtm\\.js",
+        "pattern": "googletagmanager\\.com/(?:gtm\\.js|gtag/js)",
         "weight": 95,
         "detail": "読み込まれたスクリプトからGoogle Tag Managerを検出"
       },
@@ -196,6 +196,22 @@
         "pattern": "googletagmanager\\.com/ns\\.html",
         "weight": 95,
         "detail": "GTMフォールバック用iframeからGoogle Tag Managerを検出"
+      }
+    ]
+  },
+  {
+    "id": "facebook-sdk",
+    "name": "Facebook SDK",
+    "category": "analytics-tracking",
+    "website": "https://developers.facebook.com/docs/javascript",
+    "description": "Facebookのソーシャルプラグイン、ログイン連携、Pixelイベント計測等を提供するJavaScript SDK",
+    "signals": [
+      {
+        "type": "script",
+        "target": "src",
+        "pattern": "connect\\.facebook\\.net",
+        "weight": 90,
+        "detail": "読み込まれたスクリプト (connect.facebook.net) からFacebook SDKを検出"
       }
     ]
   },

@@ -72,7 +72,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ## 対応技術スタック & 診断カバレッジ (Coverage)
 
-本拡張機能が検出・診断に対応している全 74 技術の一覧です（`npm run spec:generate` により `src/detection/rules/*.json` および `data/advisories/catalog.json` から自動生成）。  
+本拡張機能が検出・診断に対応している全 75 技術の一覧です（`npm run spec:generate` により `src/detection/rules/*.json` および `data/advisories/catalog.json` から自動生成）。  
 ※「バージョン特定」はシグナル定義に `versionRegex` を持つ技術、またはページ実行時（MAIN world）からバージョンを取得できる技術のみ `✅` としています。  
 ※「EOL判定」「既知脆弱性 (CVE)」が `✅` の技術は、外部送信を行わず拡張機能内蔵のオフライン脆弱性データベース（`advisory-db.json`）と完全ローカルで照合されます。
 
@@ -143,6 +143,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 |  | AWS API Gateway (`aws-api-gateway`) | - | - | - | header (x-amzn-requestid), header (x-amz-apigw-id) |
 |  | Google Analytics (`google-analytics`) | - | - | - | script (src), cookie (_ga) |
 |  | Google Tag Manager (`google-tag-manager`) | - | - | - | script (src), dom (iframe) |
+|  | Facebook SDK (`facebook-sdk`) | - | - | - | script (src) |
 |  | Microsoft Clarity (`microsoft-clarity`) | - | - | - | script (src), cookie (_clck) |
 |  | Application Insights (`application-insights`) | - | - | - | script (src), cookie (ai_session), cookie (ai_user) |
 |  | Sentry (`sentry`) | - | - | - | script (src) |

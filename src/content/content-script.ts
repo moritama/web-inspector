@@ -196,11 +196,15 @@ function inspectCssAssets(baseUri?: string): InspectedCssAsset[] {
     const patterns = [
       {
         lib: 'Bootstrap',
-        regex: /(?:bootstrap(?:-theme)?)[.-]([0-9.]+)(?:\.min)?\.css/i,
+        regex: /(?:bootstrap(?:-theme)?)[.-]([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-(?:alpha|beta|rc)[0-9.]*)?)(?:\.min)?\.css/i,
       },
       {
         lib: 'Bootstrap',
-        regex: /\/bootstrap[/@-]([0-9.]+)\//i,
+        regex: /\/bootstrap[/@-]([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-(?:alpha|beta|rc)[0-9.]*)?)(?:\/|-dist\/)/i,
+      },
+      {
+        lib: 'Bootstrap',
+        regex: /\/docs\/([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-(?:alpha|beta|rc)[0-9.]*)?)\/.*bootstrap[^/]*\.css/i,
       },
       {
         lib: 'jQuery UI',

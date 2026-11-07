@@ -237,19 +237,21 @@
       {
         "type": "link",
         "target": "href",
-        "pattern": "bootstrap(?:\\.min)?\\.css",
+        "pattern": "bootstrap(?:[.-][0-9]+(?:\\.[0-9]+)*(?:-[a-z0-9.]+)?)?(?:\\.[A-Za-z0-9_-]+)?(?:\\.min)?\\.css|/bootstrap-[0-9]+(?:\\.[0-9]+)*[^/]*/.*\\.css",
+        "versionRegex": "(?:bootstrap[@/.-]|/docs/)([0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-(?:alpha|beta|rc)[0-9.]*)?)",
         "weight": 85
       },
       {
         "type": "script",
         "target": "src",
-        "pattern": "bootstrap(?:\\.bundle)?(?:\\.min)?\\.js",
+        "pattern": "bootstrap(?:\\.bundle)?(?:[.-][0-9]+(?:\\.[0-9]+)*(?:-[a-z0-9.]+)?)?(?:\\.[A-Za-z0-9_-]+)?(?:\\.min)?\\.js|/bootstrap-[0-9]+(?:\\.[0-9]+)*[^/]*/.*\\.js",
+        "versionRegex": "(?:bootstrap(?:\\.bundle)?[@/.-]|/docs/)([0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-(?:alpha|beta|rc)[0-9.]*)?)",
         "weight": 80
       },
       {
         "type": "dom",
         "target": ".container, .row, .col-",
-        "pattern": "container",
+        "pattern": "container|(?:^|\\s)(?:sm|md|lg|xl|2xl):(?:d-(?:none|block|flex|inline|inline-block|inline-flex|grid|table)|navbar-expand|col-\\d+|offset-\\d+)",
         "weight": 40
       }
     ]

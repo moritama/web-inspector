@@ -66,6 +66,7 @@ const KNOWN_SECURITY_CHECK_SPECS: ReadonlyArray<{ checkId: string; names: readon
   { checkId: 'SEC-COOKIE-SECURE-CSRF', names: ['CSRFトークン Secure属性未設定'] },
   { checkId: 'SEC-COOKIE-SECURE-GENERAL', names: ['Cookie Secure属性未設定 (一般・解析用)'] },
   { checkId: 'SEC-COOKIE-00', names: ['Cookie属性セキュリティ'] },
+  { checkId: 'SEC-LEGACY-TAG-01', names: ['旧世代の計測タグ (ga.js / analytics.js) の残存'] },
 ];
 
 /**

@@ -421,6 +421,18 @@ export async function runSmokeTest() {
     }
     console.log(`  ✓ 否定: /bootstrap-only から Tailwind CSS が除外されていることを確認`);
 
+    // 否定: Bootstrap 6 のページ (lg:d-none 等のレスポンシブクラス) で Bootstrap 6.0 が検出され、Tailwind CSS が誤検出されないこと (v1.7.1 T09 / N5)
+    const bootstrap6Report = await inspectUrl('http://localhost:3000/bootstrap6-only');
+    const bs6Tech = bootstrap6Report.technologies.find((t) => t.technology === 'Bootstrap');
+    if (!bs6Tech || bs6Tech.version !== '6.0') {
+      throw new Error(`/bootstrap6-only: Bootstrap 6.0 が検出されませんでした (実際: ${JSON.stringify(bs6Tech)})`);
+    }
+    const falseTailwindBs6 = bootstrap6Report.technologies.find((t) => t.technology === 'Tailwind CSS');
+    if (falseTailwindBs6) {
+      throw new Error(`/bootstrap6-only: Bootstrap 6 のページで Tailwind CSS が誤検出されました (検出: ${JSON.stringify(falseTailwindBs6)})`);
+    }
+    console.log(`  ✓ 否定: Bootstrap 6 のページ (/bootstrap6-only) で Bootstrap 6.0 検出 & Tailwind CSS 未検出を確認`);
+
     // -------------------------------------------------------------
     // 検証 4: AngularJS EOL & CVE-2022-25869 修正版なし案内 (assert)
     // -------------------------------------------------------------

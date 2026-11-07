@@ -15,11 +15,13 @@ import {
 import {
   DetailedDiffItem,
   DetectedTechnology,
+  Evidence,
   FindingException,
   InspectedCookieInfo,
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
+import { isGenericClassEvidence } from '../detection/engine';
 import {
   formatMarkdownStatusBadge,
   isRequiresAttention,
@@ -506,12 +508,51 @@ ${buildRoadmapSectionBody(report.securityChecks)}
 `);
 
   // 14. 検出根拠 (エビデンス)
+  const formatTechEvidenceSection = (t: DetectedTechnology): string => {
+    const rawEvidences: Evidence[] = Array.isArray(t.evidence) ? t.evidence : [];
+    const hasNonGeneric = rawEvidences.some((e) => !isGenericClassEvidence(e));
+    const displayEvidences = hasNonGeneric
+      ? rawEvidences.filter((e) => !isGenericClassEvidence(e))
+      : rawEvidences;
+
+    const visibleEvidences = displayEvidences.slice(0, 3);
+    const remainingCount = displayEvidences.length - visibleEvidences.length;
+    const evidenceLines = visibleEvidences.map(
+      (e) =>
+        `- **[${e.type}]** ${formatMarkdownCodeSpan(e.name)}: ${formatMarkdownCodeSpan(e.value)} ${e.detail ? `(${escapeMarkdown(e.detail)})` : ''}`
+    );
+    if (remainingCount > 0) {
+      evidenceLines.push(`- 他 ${remainingCount} 件`);
+    }
+
+    if (t.wpPlugins && t.wpPlugins.length > 0) {
+      const pluginList = t.wpPlugins
+        .map((p) =>
+          p.version
+            ? `${formatMarkdownCodeSpan(p.name)} (ver: ${formatMarkdownCodeSpan(p.version)})`
+            : formatMarkdownCodeSpan(p.name)
+        )
+        .join(', ');
+      evidenceLines.push(`- **検出されたプラグイン:** ${pluginList}`);
+    }
+
+    if (t.wpThemes && t.wpThemes.length > 0) {
+      const themeList = t.wpThemes
+        .map((th) =>
+          th.version
+            ? `${formatMarkdownCodeSpan(th.name)} (ver: ${formatMarkdownCodeSpan(th.version)})`
+            : formatMarkdownCodeSpan(th.name)
+        )
+        .join(', ');
+      evidenceLines.push(`- **検出されたテーマ:** ${themeList}`);
+    }
+
+    return `\n### ${t.technology} (確信度: ${t.confidenceLevel} - ${t.confidence}%)\n${evidenceLines.join('\n')}\n`;
+  };
+
   sections.push(`## 14. 検出根拠 (エビデンス詳細)
 
-${report.technologies.map((t) => `
-### ${t.technology} (確信度: ${t.confidenceLevel} - ${t.confidence}%)
-${t.evidence.map((e) => `- **[${e.type}]** ${formatMarkdownCodeSpan(e.name)}: ${formatMarkdownCodeSpan(e.value)} ${e.detail ? `(${escapeMarkdown(e.detail)})` : ''}`).join('\n')}
-`).join('\n')}
+${report.technologies.map(formatTechEvidenceSection).join('\n')}
 `);
 
   // 15. 調査上の制限事項

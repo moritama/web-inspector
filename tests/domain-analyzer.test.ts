@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   analyzeExternalConnections,
+  checkLegacyAnalyticsTags,
   collectLoadedResourceUrls,
   determinePartyType,
   guessServiceCategory,
@@ -334,6 +335,76 @@ describe('Domain Analyzer (Rev.2.1 IMP-11)', () => {
         expect(selfConn).toBeDefined();
         expect(selfConn?.resourceCount).toBeGreaterThanOrEqual(1);
       }
+    });
+
+    it('v1.7.1 T09 (L, E5): www.google.com/recaptcha/ の通信先カテゴリが security になること', () => {
+      const analysis = analyzeExternalConnections('https://app.example.test/', [
+        'https://app.example.test/',
+        'https://www.google.com/recaptcha/api.js?render=explicit',
+        'https://www.gstatic.com/recaptcha/releases/v1/recaptcha__ja.js',
+      ]);
+
+      const googleConn = analysis.connections.find((c) => c.hostname === 'www.google.com');
+      expect(googleConn).toBeDefined();
+      expect(googleConn?.category).toBe('security');
+
+      const gstaticConn = analysis.connections.find((c) => c.hostname === 'www.gstatic.com');
+      expect(gstaticConn).toBeDefined();
+      expect(gstaticConn?.category).toBe('security');
+      expect(analysis.categoryBreakdown.security).toBe(2);
+
+      expect(
+        guessServiceCategory('www.google.com', 'google.com', [
+          'https://www.google.com/recaptcha/api.js',
+        ])
+      ).toBe('security');
+    });
+
+    it('v1.7.1 T09 (L, E5): ga.js / analytics.js で廃止済みタグの INFO 指摘 (SEC-LEGACY-TAG-01) が 1 件出力され、gtag/js や gtm.js では出力されないこと', () => {
+      const baseDom = {
+        url: 'https://app.example.test/',
+        title: '',
+        metaTags: [],
+        scriptUrls: [] as string[],
+        linkUrls: [],
+        domMarkers: [],
+        htmlSnippets: [],
+        mixedContent: [],
+        cookiesFromDocument: [],
+        cssAssets: [],
+      };
+
+      const gaChecks = checkLegacyAnalyticsTags('https://app.example.test/', {
+        ...baseDom,
+        scriptUrls: [
+          'https://ssl.google-analytics.com/ga.js',
+          'https://www.googletagmanager.com/gtm.js?id=GTM-XXXX',
+        ],
+      });
+      expect(gaChecks.length).toBe(1);
+      expect(gaChecks[0].checkId).toBe('SEC-LEGACY-TAG-01');
+      expect(gaChecks[0].status).toBe('info');
+      expect(gaChecks[0].severity).toBe('info');
+      expect(gaChecks[0].observed).toContain('ga.js');
+      expect(gaChecks[0].recommendation).toContain('削除を検討');
+
+      const analyticsChecks = checkLegacyAnalyticsTags('https://app.example.test/', {
+        ...baseDom,
+        scriptUrls: ['https://www.google-analytics.com/analytics.js'],
+      });
+      expect(analyticsChecks.length).toBe(1);
+      expect(analyticsChecks[0].checkId).toBe('SEC-LEGACY-TAG-01');
+      expect(analyticsChecks[0].status).toBe('info');
+      expect(analyticsChecks[0].observed).toContain('analytics.js');
+
+      const modernOnly = checkLegacyAnalyticsTags('https://app.example.test/', {
+        ...baseDom,
+        scriptUrls: [
+          'https://www.googletagmanager.com/gtag/js?id=G-XXXX',
+          'https://www.googletagmanager.com/gtm.js?id=GTM-XXXX',
+        ],
+      });
+      expect(modernOnly.length).toBe(0);
     });
   });
 });

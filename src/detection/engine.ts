@@ -9,18 +9,200 @@ import {
   DetectedTechnology,
   DomSignals,
   Evidence,
+  EvidenceType,
   NetworkSignals,
   SecurityAdvisory,
   TechnologyInstance,
   VersionIntegrityInfo,
   VersionMismatchStatus,
+  WpExtensionInfo,
 } from '../shared/types';
+import { stripUrlQueryAndFragment } from '../shared/identity';
 import { compareVersions } from '../security/version-matcher';
 import { calculateConfidence } from './confidence';
 import { ALL_TECHNOLOGY_RULES, TechnologyRule } from './rules';
 
 /** 1技術あたりのインスタンス保持上限 (v1.7.0 T08 / SPEC-10) */
 const MAX_TECHNOLOGY_INSTANCES = 5;
+
+/** 1技術あたりのエビデンス保持上限 (v1.7.0 IMPL-06 / v1.7.1 T09 J) */
+const MAX_EVIDENCE_PER_TECH = 20;
+
+/**
+ * 相対アセットURLをページURL基準の絶対URLに解決する（解決不能な場合は元の文字列を返す）
+ */
+function resolveAssetUrlAgainstPage(rawUrl: string, pageUrl?: string): string {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (pageUrl && /^https?:\/\//i.test(pageUrl)) {
+    try {
+      return new URL(trimmed, pageUrl).href;
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+}
+
+/**
+ * Bootstrap 6 のレスポンシブ接頭辞付きクラス（lg:d-none, xl:container, lg:navbar-expand, lg:gap-1 等）かどうかを判定する (v1.7.1 T09 / N5)
+ */
+export function isBootstrapResponsiveClassToken(token: string): boolean {
+  const trimmed = token.trim();
+  if (!trimmed) return false;
+  return /^(?:sm|md|lg|xl|2xl):(?:container(?:-fluid|-(?:sm|md|lg|xl|xxl))?|d-(?:none|inline|inline-block|block|grid|inline-grid|table|table-cell|table-row|flex|inline-flex)|navbar(?:-expand)?(?:-[a-z0-9-]+)?|gap-\d+|row-gap-\d+|column-gap-\d+|flex-(?:row|column|row-reverse|column-reverse|wrap|nowrap|wrap-reverse|fill|grow-\d+|shrink-\d+|stretch)|(?:m|p)[tbesxy]?-(?:auto|\d+)|col(?:-(?:auto|\d+))?|offset-\d+|g[xy]?-\d+|align-(?:items|self|content)-[a-z-]+|justify-content-[a-z-]+|order-(?:first|last|\d+)|float-(?:start|end|none)|fs-(?:[1-6]|sm|md|lg|xl)|fw-[a-z]+|lh-[1a-z]+|text-(?:start|end|center|wrap|nowrap)|vstack|hstack)$/i.test(
+    trimmed
+  );
+}
+
+/**
+ * クラス文字列から Bootstrap 6 のレスポンシブ接頭辞クラスを除外した文字列を返す (v1.7.1 T09 / N5)
+ */
+function stripBootstrapResponsiveClasses(snippet: string): string {
+  return snippet
+    .split(/\s+/)
+    .filter((token) => token.length > 0 && !isBootstrapResponsiveClassToken(token))
+    .join(' ');
+}
+
+/**
+ * 汎用クラス（.container 等）のみを示す根拠かどうかを判定する (v1.7.1 T09 / J)
+ */
+export function isGenericClassEvidence(ev: Evidence): boolean {
+  if (!ev) return false;
+  if (ev.detail && ev.detail.includes('汎用クラス')) {
+    return true;
+  }
+  if (ev.type === 'html' || ev.type === 'dom-marker' || ev.type === 'pattern') {
+    const val = (ev.value || '').trim();
+    if (/^\.container\b/i.test(val) || /^(?:(?:sm|md|lg|xl|2xl):)?container$/i.test(val)) {
+      return true;
+    }
+    if (
+      ev.name === 'HTMLコンテンツ' &&
+      /\bcontainer\b/i.test(val) &&
+      !/(?:ng-|v-|hx-|x-|svelte|astro|mui|chakra|ant-)/i.test(val)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 汎用クラス（.container 等）だけの根拠は、ほかに根拠があるときは省略し、
+ * 同じ type と value の重複エビデンスを 1 件にまとめる (v1.7.1 T09 / J)
+ */
+export function filterDisplayEvidences(evidences: Evidence[]): Evidence[] {
+  if (!Array.isArray(evidences) || evidences.length === 0) return [];
+  const hasNonGeneric = evidences.some((e) => !isGenericClassEvidence(e));
+  const filtered = hasNonGeneric ? evidences.filter((e) => !isGenericClassEvidence(e)) : evidences;
+
+  const deduped: Evidence[] = [];
+  const seen = new Set<string>();
+  for (const ev of filtered) {
+    const key = `${ev.type}\0${(ev.value || '').trim()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(ev);
+    }
+  }
+  return deduped;
+}
+
+/**
+ * WordPress コアバージョンとして妥当なバージョン文字列かどうかを判定する (v1.7.1 T09 / K, E4)
+ * （タイムスタンプやハッシュ値、1.x/2.x 等のサードパーティライブラリバージョンを除外）
+ */
+function isValidWordPressCoreVersion(ver: string): boolean {
+  const trimmed = ver.trim();
+  if (!trimmed) return false;
+  // WordPress 3.x 〜 9.x (または 3.0 以降の x.y / x.y.z / x.y-beta 等)
+  if (!/^[3-9]\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)[0-9A-Za-z.-]*)?$/i.test(trimmed)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * WordPress の wp-includes 配下のうち、独自バージョンを持つ同梱サードパーティライブラリかどうかを判定する
+ */
+function isWordPressBundledThirdPartyAsset(url: string): boolean {
+  return /\/wp-includes\/js\/(?:jquery\/|underscore|backbone|lodash|moment|tinymce\/|mediaelement\/|twemoji|clipboard|hoverIntent|imagesloaded|masonry|plupload\/|swfupload\/|thickbox\/|jcrop\/|imgareaselect\/|codemirror\/|colorpicker\/|farbtastic|iris|json2|sack|schedule|suggest|wp-ajax-response|dist\/)/i.test(
+    url
+  );
+}
+
+/**
+ * DOM シグナル内のアセット URL 群から WordPress のプラグインおよびテーマの名前と ver パラメータを収集する (v1.7.1 T09 / K)
+ */
+export function extractWordPressExtensions(dom?: DomSignals): {
+  wpPlugins: WpExtensionInfo[];
+  wpThemes: WpExtensionInfo[];
+} {
+  const pluginsMap = new Map<string, string | null>();
+  const themesMap = new Map<string, string | null>();
+
+  if (!dom) {
+    return { wpPlugins: [], wpThemes: [] };
+  }
+
+  const candidateUrls: string[] = [
+    ...(Array.isArray(dom.rawScriptUrls) ? dom.rawScriptUrls : []),
+    ...(Array.isArray(dom.scriptUrls) ? dom.scriptUrls : []),
+    ...(Array.isArray(dom.rawLinkUrls) ? dom.rawLinkUrls.map((l) => l?.href) : []),
+    ...(Array.isArray(dom.linkUrls) ? dom.linkUrls.map((l) => l?.href) : []),
+    ...(Array.isArray(dom.cssAssets) ? dom.cssAssets.map((c) => c?.href) : []),
+    ...(Array.isArray(dom.resourceEntries) ? dom.resourceEntries.map((r) => r?.url) : []),
+    ...(Array.isArray(dom.domResourceUrls) ? dom.domResourceUrls : []),
+  ];
+
+  const extractVerParam = (rawUrl: string): string | null => {
+    const m = rawUrl.match(/[?&]ver=([^&#\s]+)/i);
+    if (!m || !m[1]) return null;
+    try {
+      const decoded = decodeURIComponent(m[1]).trim();
+      return decoded.length > 0 && decoded.length <= 32 ? decoded : null;
+    } catch {
+      const raw = m[1].trim();
+      return raw.length > 0 && raw.length <= 32 ? raw : null;
+    }
+  };
+
+  for (const rawUrl of candidateUrls) {
+    if (!rawUrl || typeof rawUrl !== 'string') continue;
+
+    const pluginMatch = rawUrl.match(/\/wp-content\/plugins\/([a-zA-Z0-9._-]+)\//i);
+    if (pluginMatch && pluginMatch[1]) {
+      const slug = pluginMatch[1];
+      const ver = extractVerParam(rawUrl);
+      const existing = pluginsMap.get(slug);
+      if (existing === undefined || (existing === null && ver !== null)) {
+        pluginsMap.set(slug, ver);
+      }
+    }
+
+    const themeMatch = rawUrl.match(/\/wp-content\/themes\/([a-zA-Z0-9._-]+)\//i);
+    if (themeMatch && themeMatch[1]) {
+      const slug = themeMatch[1];
+      const ver = extractVerParam(rawUrl);
+      const existing = themesMap.get(slug);
+      if (existing === undefined || (existing === null && ver !== null)) {
+        themesMap.set(slug, ver);
+      }
+    }
+  }
+
+  const wpPlugins: WpExtensionInfo[] = Array.from(pluginsMap.entries()).map(([name, version]) =>
+    version ? { name, version } : { name }
+  );
+  const wpThemes: WpExtensionInfo[] = Array.from(themesMap.entries()).map(([name, version]) =>
+    version ? { name, version } : { name }
+  );
+
+  return { wpPlugins, wpThemes };
+}
 
 /**
  * ASP.NET の X-AspNet-Version ヘッダー値（CLRバージョン）を表示用文字列に変換する (v1.7.1 T08 / 指摘D)
@@ -166,12 +348,15 @@ export class DetectionEngine {
       }
 
       if (rule.id === 'bootstrap') {
-        const bsVer = runtime.bootstrap5 || runtime.bootstrap4;
+        const bsVer = runtime.bootstrap5 || runtime.bootstrap4 || runtime.bootstrap;
         if (bsVer) {
           jsVersion = bsVer;
           detectedVersion = bsVer;
           versionSource = 'runtime';
-          const srcName = runtime.bootstrap5 ? 'window.bootstrap.Modal.VERSION' : 'jQuery.fn.modal.Constructor.VERSION';
+          const srcName =
+            runtime.bootstrap5 || runtime.bootstrap
+              ? 'window.bootstrap.Modal.VERSION'
+              : 'jQuery.fn.modal.Constructor.VERSION';
           addEvidence(
             {
               type: 'runtime',
@@ -280,15 +465,28 @@ export class DetectionEngine {
               }
             }
 
+            // ファイル名だけ（バージョンなし）で Bootstrap を検出した場合は確信度を medium (70) に抑える (v1.7.1 T09 / E)
+            const cssWeight =
+              rule.id === 'bootstrap' && !css.inferredVersion
+                ? 70
+                : css.confidence === 'high'
+                  ? 95
+                  : css.inferredVersion
+                    ? 85
+                    : 80;
+
+            const resolvedCssHref = stripUrlQueryAndFragment(
+              resolveAssetUrlAgainstPage(css.href, input.url)
+            );
             addEvidence(
               {
                 type: css.evidenceType,
                 name: css.evidenceType === 'css-comment' ? 'CSSファイルコメント' : 'CSSファイルURL',
                 value: css.inferredVersion ? `${css.filename} (v${css.inferredVersion})` : css.filename,
-                source: css.href,
+                source: resolvedCssHref || css.href,
                 detail: `読み込まれたCSSアセットから${rule.name}の特徴を検出`,
-                confidence: css.confidence,
-                weight: css.confidence === 'high' ? 95 : 80,
+                confidence: css.inferredVersion ? 'high' : css.confidence,
+                weight: cssWeight,
               },
               css.inferredVersion || null,
               css.inferredVersion ? css.evidenceType : undefined
@@ -429,71 +627,192 @@ export class DetectionEngine {
           }
 
           case 'script': {
-            if (input.dom?.scriptUrls) {
-              for (const scriptSrc of input.dom.scriptUrls) {
-                if (this.matchPattern(scriptSrc, signal.pattern)) {
-                  let scriptVersion: string | null = null;
-                  if (signal.versionRegex) {
-                    const v = this.extractVersion(scriptSrc, signal.versionRegex);
-                    if (v) {
-                      scriptVersion = v;
-                      if (!detectedVersion) {
-                        detectedVersion = v;
-                        versionSource = 'script-url';
-                      }
-                      if (!jsVersion) {
-                        jsVersion = v;
+            const scriptCandidates: string[] = [];
+            const pushScriptCandidate = (rawSrc: string | undefined) => {
+              if (!rawSrc || typeof rawSrc !== 'string') return;
+              const resolved = resolveAssetUrlAgainstPage(rawSrc, input.url);
+              if (resolved && !scriptCandidates.includes(resolved)) {
+                scriptCandidates.push(resolved);
+              }
+            };
+            if (Array.isArray(input.dom?.rawScriptUrls)) {
+              for (const rawSrc of input.dom.rawScriptUrls) {
+                pushScriptCandidate(rawSrc);
+              }
+            }
+            if (Array.isArray(input.dom?.scriptUrls)) {
+              for (const src of input.dom.scriptUrls) {
+                pushScriptCandidate(src);
+              }
+            }
+            if (Array.isArray(input.dom?.resourceEntries)) {
+              for (const entry of input.dom.resourceEntries) {
+                if (
+                  entry &&
+                  entry.initiatorType === 'script' &&
+                  typeof entry.url === 'string' &&
+                  entry.url
+                ) {
+                  pushScriptCandidate(entry.url);
+                }
+              }
+            }
+
+            for (const scriptSrc of scriptCandidates) {
+              if (this.matchPattern(scriptSrc, signal.pattern)) {
+                let scriptVersion: string | null = null;
+                if (signal.versionRegex) {
+                  // クエリを消す前に ver 等を取り出す (v1.7.1 T09 / K)
+                  const v = this.extractVersion(scriptSrc, signal.versionRegex);
+                  if (v) {
+                    const isValidVer =
+                      rule.id === 'wordpress'
+                        ? !isWordPressBundledThirdPartyAsset(scriptSrc) &&
+                          !/\/wp-content\/(?:plugins|themes)\//i.test(scriptSrc) &&
+                          isValidWordPressCoreVersion(v)
+                        : true;
+                    if (isValidVer) {
+                      // WordPress で既に meta[generator] からバージョンが特定されている場合はそちらを優先
+                      if (rule.id === 'wordpress' && detectedVersion && versionSource === 'html' && v !== detectedVersion) {
+                        scriptVersion = null;
+                      } else {
+                        scriptVersion = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'script-url';
+                        }
+                        if (!jsVersion) {
+                          jsVersion = v;
+                        }
                       }
                     }
                   }
-
-                  addEvidence(
-                    {
-                      type: 'script-url',
-                      name: 'script[src]',
-                      value: scriptVersion ? `${this.truncateUrl(scriptSrc)} (v${scriptVersion})` : this.truncateUrl(scriptSrc),
-                      source: scriptSrc,
-                      detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
-                      weight: signal.weight,
-                    },
-                    scriptVersion,
-                    scriptVersion ? 'script-url' : undefined
-                  );
                 }
+
+                const scriptWeight =
+                  rule.id === 'bootstrap' && !scriptVersion
+                    ? Math.min(signal.weight, 70)
+                    : signal.weight;
+                const cleanScriptUrl = stripUrlQueryAndFragment(scriptSrc);
+                const displayScriptUrl = this.truncateUrl(cleanScriptUrl);
+
+                addEvidence(
+                  {
+                    type: 'script-url',
+                    name: 'script[src]',
+                    value: scriptVersion ? `${displayScriptUrl} (v${scriptVersion})` : displayScriptUrl,
+                    source: cleanScriptUrl,
+                    detail: signal.detail || `読み込まれたスクリプトURLにシグネチャを検出`,
+                    weight: scriptWeight,
+                  },
+                  scriptVersion,
+                  scriptVersion ? 'script-url' : undefined
+                );
               }
             }
             break;
           }
 
           case 'link': {
-            if (input.dom?.linkUrls) {
-              for (const link of input.dom.linkUrls) {
-                if (this.matchPattern(link.href, signal.pattern)) {
-                  let linkVersion: string | null = null;
-                  if (signal.versionRegex) {
-                    const v = this.extractVersion(link.href, signal.versionRegex);
-                    if (v) {
-                      linkVersion = v;
-                      if (!detectedVersion) {
-                        detectedVersion = v;
-                        versionSource = 'html';
+            const linkCandidates: Array<{ rel: string; href: string }> = [];
+            const seenLinkKey = new Set<string>();
+            const pushLinkCandidate = (rel: string, href: string) => {
+              if (!href) return;
+              const resolvedHref = resolveAssetUrlAgainstPage(href, input.url);
+              if (!resolvedHref) return;
+              const key = `${(rel || '').toLowerCase()}\0${resolvedHref}`;
+              if (!seenLinkKey.has(key)) {
+                seenLinkKey.add(key);
+                linkCandidates.push({ rel: rel || 'stylesheet', href: resolvedHref });
+              }
+            };
+
+            if (Array.isArray(input.dom?.rawLinkUrls)) {
+              for (const l of input.dom.rawLinkUrls) {
+                if (l && l.href) {
+                  pushLinkCandidate(l.rel, l.href);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.linkUrls)) {
+              for (const l of input.dom.linkUrls) {
+                if (l && l.href) {
+                  pushLinkCandidate(l.rel, l.href);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.referenceOnlyUrls)) {
+              for (const ref of input.dom.referenceOnlyUrls) {
+                if (ref && ref.url && ref.sourceType && ref.sourceType !== 'form') {
+                  pushLinkCandidate(ref.sourceType, ref.url);
+                }
+              }
+            }
+            if (Array.isArray(input.dom?.resourceEntries)) {
+              for (const entry of input.dom.resourceEntries) {
+                if (
+                  entry &&
+                  (entry.initiatorType === 'link' || entry.initiatorType === 'css') &&
+                  typeof entry.url === 'string' &&
+                  entry.url
+                ) {
+                  pushLinkCandidate('stylesheet', entry.url);
+                }
+              }
+            }
+
+            for (const link of linkCandidates) {
+              if (this.matchPattern(link.href, signal.pattern)) {
+                let linkVersion: string | null = null;
+                if (signal.versionRegex) {
+                  // クエリを消す前に ver 等を取り出す (v1.7.1 T09 / K)
+                  const v = this.extractVersion(link.href, signal.versionRegex);
+                  if (v) {
+                    const isValidVer =
+                      rule.id === 'wordpress'
+                        ? !isWordPressBundledThirdPartyAsset(link.href) &&
+                          !/\/wp-content\/(?:plugins|themes)\//i.test(link.href) &&
+                          isValidWordPressCoreVersion(v)
+                        : true;
+                    if (isValidVer) {
+                      if (rule.id === 'wordpress' && detectedVersion && versionSource === 'html' && v !== detectedVersion) {
+                        linkVersion = null;
+                      } else {
+                        linkVersion = v;
+                        if (!detectedVersion) {
+                          detectedVersion = v;
+                          versionSource = 'html';
+                        }
+                        if (rule.id === 'bootstrap' && !cssVersion) {
+                          cssVersion = v;
+                        }
                       }
                     }
                   }
-
-                  addEvidence(
-                    {
-                      type: 'css-url',
-                      name: `link[rel="${link.rel}"]`,
-                      value: linkVersion ? `${this.truncateUrl(link.href)} (v${linkVersion})` : this.truncateUrl(link.href),
-                      source: link.href,
-                      detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
-                      weight: signal.weight,
-                    },
-                    linkVersion,
-                    linkVersion ? 'html' : undefined
-                  );
                 }
+
+                const relTokens = (link.rel || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+                const isStylesheet = relTokens.length === 0 || relTokens.includes('stylesheet');
+                const evidenceType: EvidenceType = isStylesheet ? 'css-url' : 'link';
+                const linkWeight =
+                  rule.id === 'bootstrap' && !linkVersion
+                    ? Math.min(signal.weight, 70)
+                    : signal.weight;
+                const cleanLinkUrl = stripUrlQueryAndFragment(link.href);
+                const displayLinkUrl = this.truncateUrl(cleanLinkUrl);
+
+                addEvidence(
+                  {
+                    type: evidenceType,
+                    name: `link[rel="${link.rel}"]`,
+                    value: linkVersion ? `${displayLinkUrl} (v${linkVersion})` : displayLinkUrl,
+                    source: cleanLinkUrl,
+                    detail: signal.detail || `読み込まれたアセットURLにシグネチャを検出`,
+                    weight: linkWeight,
+                  },
+                  linkVersion,
+                  linkVersion ? (isStylesheet ? 'css-url' : 'html') : undefined
+                );
               }
             }
             break;
@@ -584,7 +903,10 @@ export class DetectionEngine {
           case 'css': {
             if (input.dom?.htmlSnippets) {
               for (const snippet of input.dom.htmlSnippets) {
-                if (this.matchPattern(snippet, signal.pattern)) {
+                // Tailwind CSS のクラスパターン判定では Bootstrap 6 のレスポンシブ接頭辞クラスを除外して評価する (v1.7.1 T09 / N5)
+                const effectiveSnippet =
+                  rule.id === 'tailwind' ? stripBootstrapResponsiveClasses(snippet) : snippet;
+                if (effectiveSnippet && this.matchPattern(effectiveSnippet, signal.pattern)) {
                   addEvidence({
                     type: 'pattern',
                     name: 'CSSクラスパターン',
@@ -601,9 +923,27 @@ export class DetectionEngine {
         }
       }
 
+      // エビデンスの重複排除と汎用クラス（.container 等）の省略 (v1.7.1 T09 / J)
+      const cleanedEntries = this.deduplicateEvidenceEntries(evidenceEntries);
+      const cleanedEvidences = cleanedEntries.map((e) => e.evidence);
+
       // エビデンスが1件以上検出された場合
-      if (evidences.length > 0) {
-        const { confidence, level } = calculateConfidence(evidences);
+      if (cleanedEvidences.length > 0) {
+        let { confidence, level } = calculateConfidence(cleanedEvidences);
+
+        // ファイル名だけ（バージョンなし、ほかの根拠なし）で Bootstrap を検出したときは確信度を medium (50〜79) にする (v1.7.1 T09 / E)
+        if (
+          rule.id === 'bootstrap' &&
+          !detectedVersion &&
+          !jsVersion &&
+          !cssVersion &&
+          cleanedEvidences.every((e) => e.type === 'css-url' || e.type === 'script-url')
+        ) {
+          if (confidence >= 80) {
+            confidence = 75;
+          }
+          level = confidence >= 50 ? 'medium' : 'low';
+        }
 
         // --- D. CSS・JavaScriptバージョン整合性判定 (ADD-03) ---
         let versionIntegrity: VersionIntegrityInfo | undefined = undefined;
@@ -612,7 +952,7 @@ export class DetectionEngine {
         }
 
         // --- E/F. バージョン別インスタンス構築 & オフラインEOL・既知脆弱性 (CVE) 照合 (T08 / SPEC-10) ---
-        const instances = this.buildInstances(rule.name, evidenceEntries, distroHint);
+        const instances = this.buildInstances(rule.name, cleanedEntries, distroHint);
         const primaryInstance = instances[0];
         const primaryVersion = primaryInstance ? primaryInstance.version : detectedVersion;
         const primaryVersionSource = primaryInstance?.versionSource || versionSource;
@@ -654,6 +994,12 @@ export class DetectionEngine {
           ? affectedInstance.advisoryStatusLabel
           : (primaryInstance?.advisoryStatusLabel ?? offlineResult.advisoryStatusLabel);
 
+        // WordPress の場合はプラグインとテーマの一覧を収集して付与 (v1.7.1 T09 / K)
+        const wpExt =
+          rule.id === 'wordpress'
+            ? extractWordPressExtensions(input.dom)
+            : { wpPlugins: [], wpThemes: [] };
+
         results.push({
           technology: rule.name,
           category: rule.category,
@@ -663,8 +1009,10 @@ export class DetectionEngine {
           distroHint: primaryDistroHint,
           confidence,
           confidenceLevel: level,
-          evidence: evidences,
+          evidence: cleanedEvidences,
           instances,
+          ...(wpExt.wpPlugins.length > 0 ? { wpPlugins: wpExt.wpPlugins } : {}),
+          ...(wpExt.wpThemes.length > 0 ? { wpThemes: wpExt.wpThemes } : {}),
           cssVersion,
           jsVersion,
           versionIntegrity,
@@ -1131,6 +1479,80 @@ export class DetectionEngine {
         maxCvss: advRes.maxCvss,
       },
     ];
+  }
+
+  /**
+   * 同一技術内のエビデンスから重複（同じ type と value、または同じアセット URL）を 1 件にまとめ、
+   * ほかに根拠がある場合は汎用クラス（.container 等）の根拠を省略する (v1.7.1 T09 / J)
+   */
+  private deduplicateEvidenceEntries(entries: EvidenceEntry[]): EvidenceEntry[] {
+    if (entries.length === 0) return [];
+
+    // 1. ほかに非汎用根拠があるときは汎用クラス根拠を省略
+    const hasNonGeneric = entries.some((e) => !isGenericClassEvidence(e.evidence));
+    const filtered = hasNonGeneric
+      ? entries.filter((e) => !isGenericClassEvidence(e.evidence))
+      : entries;
+
+    // 2. 同じ type と value（または同じアセット URL）のエビデンスを 1 件に統合
+    const result: EvidenceEntry[] = [];
+    const keyToIndex = new Map<string, number>();
+
+    const normalizeAssetKey = (entry: EvidenceEntry): string => {
+      const ev = entry.evidence;
+      if (ev.type === 'css-url' || ev.type === 'script-url' || ev.type === 'link') {
+        const rawSource = (ev.source || ev.value || '').trim();
+        const withoutVerSuffix = rawSource.replace(/\s+\(v[^)]+\)$/, '');
+        const stripped = stripUrlQueryAndFragment(withoutVerSuffix);
+        return `${ev.type}\0${stripped}`;
+      }
+      return `${ev.type}\0${(ev.value || '').trim()}`;
+    };
+
+    for (const entry of filtered) {
+      const key = normalizeAssetKey(entry);
+      const existingIdx = keyToIndex.get(key);
+      if (existingIdx === undefined) {
+        keyToIndex.set(key, result.length);
+        result.push({
+          ...entry,
+          evidence: { ...entry.evidence },
+        });
+      } else {
+        const existing = result[existingIdx];
+        const existingWeight = existing.evidence.weight ?? 0;
+        const incomingWeight = entry.evidence.weight ?? 0;
+        const hasExistingVer = Boolean(existing.version);
+        const hasIncomingVer = Boolean(entry.version);
+        const preferIncomingEvidence =
+          (!hasExistingVer && hasIncomingVer) ||
+          (hasExistingVer === hasIncomingVer &&
+            ((!existing.evidence.value.includes('/') && entry.evidence.value.includes('/')) ||
+              incomingWeight > existingWeight));
+
+        if (preferIncomingEvidence) {
+          result[existingIdx] = {
+            evidence: {
+              ...entry.evidence,
+              weight: Math.max(existingWeight, incomingWeight),
+            },
+            version: entry.version || existing.version,
+            versionSource: entry.versionSource || existing.versionSource,
+            distroHint: entry.distroHint || existing.distroHint,
+          };
+        } else {
+          if (!existing.version && entry.version) {
+            existing.version = entry.version;
+            existing.versionSource = entry.versionSource || existing.versionSource;
+          }
+          if ((entry.evidence.weight ?? 0) > (existing.evidence.weight ?? 0)) {
+            existing.evidence.weight = entry.evidence.weight;
+          }
+        }
+      }
+    }
+
+    return result.slice(0, MAX_EVIDENCE_PER_TECH);
   }
 
   /**

@@ -12,8 +12,9 @@ import {
   ExternalConnectionItem,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
+  SecurityCheckResult,
 } from '../shared/types';
-import { stripUrlQueryAndFragment } from '../shared/identity';
+import { generateFindingIdFromCheck, stripUrlQueryAndFragment } from '../shared/identity';
 import {
   PSL_SOURCE,
   PUBLIC_SUFFIX_EXCEPTIONS,
@@ -262,11 +263,27 @@ export function parseRegistrableDomain(
 }
 
 /**
- * ホスト名と登録可能ドメインからサービスの用途カテゴリを推定分類する (Rev.2.1 IMP-11 / 10.5)
+ * ホスト名と登録可能ドメイン（およびサンプルURL）からサービスの用途カテゴリを推定分類する (Rev.2.1 IMP-11 / 10.5 / v1.7.1 T09 L)
  */
-export function inferServiceCategory(hostname: string, registrableDomain: string): ExternalServiceCategory {
+export function inferServiceCategory(
+  hostname: string,
+  registrableDomain: string,
+  sampleUrls?: string[]
+): ExternalServiceCategory {
   const h = hostname.toLowerCase();
   const d = registrableDomain.toLowerCase();
+
+  // セキュリティ / CAPTCHA / Bot対策 (reCAPTCHA, hCaptcha 等) (v1.7.1 T09 / L)
+  if (
+    h.includes('recaptcha') ||
+    d === 'recaptcha.net' ||
+    d === 'hcaptcha.com' ||
+    h.includes('hcaptcha.com') ||
+    /\/recaptcha\//i.test(hostname) ||
+    (Array.isArray(sampleUrls) && sampleUrls.some((u) => typeof u === 'string' && /\/recaptcha\//i.test(u)))
+  ) {
+    return 'security';
+  }
 
   // アナリティクス / タグ管理
   if (
@@ -346,9 +363,24 @@ export function inferServiceCategory(hostname: string, registrableDomain: string
  * 補助関数: 公開エイリアス
  */
 export const parsePublicSuffixAndRegistrableDomain = parseRegistrableDomain;
-export const guessServiceCategory = (hostname: string, registrableDomain?: string): ExternalServiceCategory => {
-  const regDomain = registrableDomain || parseRegistrableDomain(hostname).registrableDomain;
-  return inferServiceCategory(hostname, regDomain);
+export const guessServiceCategory = (
+  hostnameOrUrl: string,
+  registrableDomain?: string,
+  sampleUrls?: string[]
+): ExternalServiceCategory => {
+  let host = hostnameOrUrl;
+  const urls = Array.isArray(sampleUrls) ? [...sampleUrls] : [];
+  if (hostnameOrUrl.includes('://') || hostnameOrUrl.includes('/')) {
+    urls.push(hostnameOrUrl);
+    try {
+      const parsed = new URL(hostnameOrUrl.includes('://') ? hostnameOrUrl : `https://${hostnameOrUrl}`);
+      host = parsed.hostname;
+    } catch {
+      host = hostnameOrUrl.split('/')[0] || hostnameOrUrl;
+    }
+  }
+  const regDomain = registrableDomain || parseRegistrableDomain(host).registrableDomain;
+  return inferServiceCategory(host, regDomain, urls);
 };
 
 /**
@@ -655,6 +687,7 @@ export function analyzeExternalConnections(
     advertising: 0,
     fonts: 0,
     social: 0,
+    security: 0,
     api: 0,
     other: 0,
   };
@@ -675,8 +708,8 @@ export function analyzeExternalConnections(
       thirdPartyCount++;
     }
 
-    const category = inferServiceCategory(resHost, resInfo.registrableDomain);
-    categoryBreakdown[category]++;
+    const category = inferServiceCategory(resHost, resInfo.registrableDomain, data.sampleUrls);
+    categoryBreakdown[category] = (categoryBreakdown[category] ?? 0) + 1;
 
     connections.push({
       hostname: resHost,
@@ -699,4 +732,60 @@ export function analyzeExternalConnections(
     categoryBreakdown,
     connections,
   };
+}
+
+/**
+ * 旧世代の Google Analytics タグ（ga.js / analytics.js）が読み込まれているかを検査し、
+ * 該当する場合は INFO レベルの診断結果 1 件を返す (v1.7.1 T09 / L, E5)
+ */
+export function checkLegacyAnalyticsTags(
+  targetUrl: string,
+  dom?: DomSignals | null
+): SecurityCheckResult[] {
+  if (!dom) return [];
+
+  const candidateUrls: string[] = [
+    ...(Array.isArray(dom.scriptUrls) ? dom.scriptUrls : []),
+    ...(Array.isArray(dom.rawScriptUrls) ? dom.rawScriptUrls : []),
+    ...(Array.isArray(dom.resourceEntries)
+      ? dom.resourceEntries
+          .filter((e) => e && typeof e.url === 'string' && (!e.initiatorType || e.initiatorType === 'script'))
+          .map((e) => e.url)
+      : []),
+  ];
+
+  const legacyGaRegex = /(?:google-analytics\.com\/(?:[a-z0-9/_-]*\/)?(?:ga|analytics)\.js|(?:^|\/)(?:ga|analytics)\.js)(?:[?#]|$)/i;
+  const matchedScripts: string[] = [];
+
+  for (const raw of candidateUrls) {
+    if (!raw || typeof raw !== 'string') continue;
+    if (legacyGaRegex.test(raw)) {
+      const cleaned = stripUrlQueryAndFragment(raw);
+      if (cleaned && !matchedScripts.includes(cleaned)) {
+        matchedScripts.push(cleaned);
+      }
+    }
+  }
+
+  if (matchedScripts.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      checkId: 'SEC-LEGACY-TAG-01',
+      category: 'library-security',
+      name: '旧世代の計測タグ (ga.js / analytics.js) の残存',
+      status: 'info',
+      severity: 'info',
+      observed: matchedScripts.join(', '),
+      description:
+        'サポートが終了した旧世代の Google Analytics タグ（ga.js / analytics.js）が読み込まれています。現在は計測されていない可能性があり、不要な外部スクリプト読み込みの原因となります。',
+      recommendation:
+        '旧世代の計測タグは現在計測されていない可能性が高いため、不要であればタグの削除を検討してください（GA4 / Google Tag Manager へ移行済みの場合は旧タグを除去してください）。',
+      referenceUrls: ['https://support.google.com/analytics/answer/11583528'],
+      scope: targetUrl,
+      findingId: generateFindingIdFromCheck('SEC-LEGACY-TAG-01', targetUrl),
+    },
+  ];
 }

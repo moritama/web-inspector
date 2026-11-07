@@ -555,6 +555,48 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  // --- 13b. /bootstrap6-only (Bootstrap 6 のページで Tailwind CSS 未検出検証: v1.7.1 T09 / N5) ---
+  if (pathname === '/docs/6.0/dist/css/bootstrap.min.css') {
+    res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/*! Bootstrap v6.0.0-alpha.1 */ .d-none { display: none; }');
+  }
+  if (pathname === '/docs/6.0/assets/bootstrap.bundle.CuYdWjy9.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    res.writeHead(200);
+    return res.end('/* Bootstrap 6 bundle */');
+  }
+  if (pathname === '/bootstrap6-only') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+    return res.end(`<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <title>Bootstrap 6 誤検知防止検証 (/bootstrap6-only)</title>
+  <link rel="stylesheet" href="/docs/6.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <header class="navbar lg:navbar-expand bd-navbar">
+    <nav class="2xl:container flex-wrap lg:flex-nowrap justify-content-start">
+      <div class="d-flex align-items-center gap-2 lg:gap-1">
+        <span class="lg:d-none">Menu</span>
+        <ul class="nav navbar-nav flex-row d-none lg:d-flex">
+          <li class="nav-item"><a class="nav-link px-2" href="/docs/6.0/">Docs</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+  <main class="xl:container">
+    <div class="lg:col-10 mx-auto d-flex flex-column md:flex-row gap-4">
+      <h1>Bootstrap 6 Responsive Prefix Test</h1>
+    </div>
+  </main>
+  <script type="module" src="/docs/6.0/assets/bootstrap.bundle.CuYdWjy9.js"></script>
+</body>
+</html>`);
+  }
+
   // --- 14. /distro-apache (Linuxディストリビューション版バックポート考慮検証: SPEC-02) ---
   if (pathname === '/distro-apache') {
     res.setHeader('Server', 'Apache/2.4.41 (Ubuntu)');

@@ -8,6 +8,7 @@ import {
   resolveTechAdvisoryDisplayInfo,
   sortAdvisoriesByPriority,
 } from '../detection/advisory';
+import { filterDisplayEvidences } from '../detection/engine';
 import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
 import {
@@ -307,6 +308,41 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     `
       : '';
 
+  const displayEvidences = filterDisplayEvidences(tech.evidence || []);
+  const visibleEvidences = displayEvidences.slice(0, 3);
+  const remainingEvidenceCount = displayEvidences.length - visibleEvidences.length;
+
+  const wpExtensionsHtml =
+    (tech.wpPlugins && tech.wpPlugins.length > 0) || (tech.wpThemes && tech.wpThemes.length > 0)
+      ? `
+      <div>
+        <div class="detail-section-title">WordPress プラグイン・テーマ</div>
+        ${
+          tech.wpPlugins && tech.wpPlugins.length > 0
+            ? `<div style="font-size:12px;margin-bottom:4px;"><strong>プラグイン:</strong> ${tech.wpPlugins
+                .map((p) =>
+                  p.version
+                    ? `<code>${escapeHtml(p.name)}</code> (ver: <code>${escapeHtml(p.version)}</code>)`
+                    : `<code>${escapeHtml(p.name)}</code>`
+                )
+                .join(', ')}</div>`
+            : ''
+        }
+        ${
+          tech.wpThemes && tech.wpThemes.length > 0
+            ? `<div style="font-size:12px;"><strong>テーマ:</strong> ${tech.wpThemes
+                .map((th) =>
+                  th.version
+                    ? `<code>${escapeHtml(th.name)}</code> (ver: <code>${escapeHtml(th.version)}</code>)`
+                    : `<code>${escapeHtml(th.name)}</code>`
+                )
+                .join(', ')}</div>`
+            : ''
+        }
+      </div>
+    `
+      : '';
+
   return `
     ${candidateHtml}
     <div>
@@ -323,6 +359,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
       ${websiteHtml}
     </div>
 
+    ${tech.isCandidateGroup ? '' : wpExtensionsHtml}
     ${tech.isCandidateGroup ? '' : instancesDetailHtml}
     ${tech.isCandidateGroup ? '' : integrityHtml}
     ${tech.isCandidateGroup ? '' : eolHtml}
@@ -330,7 +367,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
 
     <div>
       <div class="detail-section-title">判定根拠 (エビデンス)</div>
-      ${tech.evidence
+      ${visibleEvidences
         .map(
           (e) => `
         <div class="evidence-item">
@@ -341,6 +378,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
       `
         )
         .join('')}
+      ${remainingEvidenceCount > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">他 ${remainingEvidenceCount} 件</div>` : ''}
     </div>
   `;
 }

@@ -546,10 +546,23 @@ async function fetchRuntimeVersions(tabId: number): Promise<{
       world: 'MAIN',
       func: () => {
         const w = window as any;
+        let bootstrapRuntimeVer: string | null = w.bootstrap?.Modal?.VERSION ?? w.bootstrap?.Tooltip?.VERSION ?? null;
+        if (!bootstrapRuntimeVer && w.bootstrap && typeof w.bootstrap === 'object') {
+          try {
+            for (const comp of Object.values(w.bootstrap)) {
+              if (comp && (typeof comp === 'function' || typeof comp === 'object') && typeof (comp as any).VERSION === 'string') {
+                bootstrapRuntimeVer = (comp as any).VERSION;
+                break;
+              }
+            }
+          } catch {
+            // 例外防止
+          }
+        }
         const versions: Record<string, string | null> = {
           jquery: w.jQuery?.fn?.jquery ?? null,
           bootstrap4: w.jQuery?.fn?.modal?.Constructor?.VERSION ?? null,
-          bootstrap5: w.bootstrap?.Modal?.VERSION ?? null,
+          bootstrap5: bootstrapRuntimeVer,
           vue: w.Vue?.version ?? null,
           // Underscore.js との誤認防止: window._.VERSION は Underscore にも存在するため、cloneDeep 関数の有無で判別 (T07 / DOC-02)
           lodash:

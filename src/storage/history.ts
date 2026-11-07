@@ -48,6 +48,38 @@ function sanitizeEvidenceItem(ev: Evidence): Evidence {
 }
 
 /**
+ * URLクエリマスク後のエビデンス一覧から、同じ type と value の重複を 1 件にまとめ、
+ * ほかに根拠がある場合は汎用クラス（.container 等）のみの根拠を省略する (v1.7.1 T09 / J)
+ */
+function dedupeAndFilterEvidences(evidences: Evidence[]): Evidence[] {
+  if (!Array.isArray(evidences) || evidences.length === 0) return [];
+  const isGeneric = (ev: Evidence): boolean => {
+    if (!ev) return false;
+    if (ev.detail && ev.detail.includes('汎用クラス')) return true;
+    if (ev.type === 'html' || ev.type === 'dom-marker' || ev.type === 'pattern') {
+      const val = (ev.value || '').trim();
+      if (/^\.container\b/i.test(val) || /^(?:(?:sm|md|lg|xl|2xl):)?container$/i.test(val)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const hasNonGeneric = evidences.some((e) => !isGeneric(e));
+  const filtered = hasNonGeneric ? evidences.filter((e) => !isGeneric(e)) : evidences;
+
+  const deduped: Evidence[] = [];
+  const seen = new Set<string>();
+  for (const ev of filtered) {
+    const key = `${ev.type}\0${(ev.value || '').trim()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(ev);
+    }
+  }
+  return deduped;
+}
+
+/**
  * レポート内の URL からクエリパラメータ (?...) とフラグメント (#...) を除去する (v1.7.0 T10 / IMPL-07)
  */
 export function sanitizeReportUrls(report: InspectionReport): InspectionReport {
@@ -55,12 +87,12 @@ export function sanitizeReportUrls(report: InspectionReport): InspectionReport {
 
   const technologies: DetectedTechnology[] = (report.technologies || []).map((tech) => ({
     ...tech,
-    evidence: (tech.evidence || []).map(sanitizeEvidenceItem),
+    evidence: dedupeAndFilterEvidences((tech.evidence || []).map(sanitizeEvidenceItem)),
     ...(tech.instances
       ? {
           instances: tech.instances.map((inst) => ({
             ...inst,
-            evidence: (inst.evidence || []).map(sanitizeEvidenceItem),
+            evidence: dedupeAndFilterEvidences((inst.evidence || []).map(sanitizeEvidenceItem)),
           })),
         }
       : {}),

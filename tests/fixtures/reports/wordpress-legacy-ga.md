@@ -39,7 +39,7 @@
 | **HIGH (危険)** | **0** | 直ちに対応・修正が推奨される設定不備・脆弱性 |
 | **MEDIUM (警告)** | **2** | セキュリティ基準に抵触、またはサポート終了の技術 |
 | **LOW (注意)** | **0** | 改善が望ましい設定上の軽微な不備 |
-| **INFO (情報)** | **3** | 参考情報・問題のない項目 |
+| **INFO (情報)** | **4** | 参考情報・問題のない項目 |
 
 
 ## 4. 検出技術スタック
@@ -62,6 +62,7 @@
 | X-Frame-Options | **WARN** | MEDIUM | `ヘッダー未設定` | - |
 | X-Content-Type-Options | PASS | INFO | `nosniff` | - |
 | Referrer-Policy | INFO | INFO | `ヘッダー未設定（ブラウザ既定: strict-origin-when-cross-origin 相当）` | - |
+| 旧世代の計測タグ (ga.js / analytics.js) の残存 | INFO | INFO | `https://ssl.google-analytics.com/ga.js` | - |
 
 
 ## 6. EOL・既知脆弱性情報 (ライブラリセキュリティ)
@@ -102,7 +103,7 @@
 
 | 接続先ホスト名 | 登録可能ドメイン (eTLD+1) | 所属種別 | 推定カテゴリ | 観測リソース数 |
 |---|---|:---:|:---:|:---:|
-| `wp-blog.example.test` | `example.test` | First-Party | `other` | 2 |
+| `wp-blog.example.test` | `example.test` | First-Party | `other` | 5 |
 | `ssl.google-analytics.com` | `google-analytics.com` | **Third-Party** | `analytics` | 1 |
 
 
@@ -132,7 +133,12 @@
 
 
 ### WordPress (確信度: high - 95%)
-- **[script-url]** `script[src]`: `https://wp-blog.example.test/wp-includes/js/wp-embed.min.js` 
+- **[script-url]** `script[src]`: `https://wp-blog.example.test/wp-includes/js/wp-embed.min.js (v6.4.3)` 
+- **[css-url]** `link[rel="stylesheet"]`: `https://wp-blog.example.test/wp-includes/css/dist/block-library/style.min.css (v6.4.3)` 
+- **[script-url]** `script[src]`: `https://wp-blog.example.test/wp-content/plugins/contact-form-7/includes/js/index.js` 
+- 他 2 件
+- **検出されたプラグイン:** `contact-form-7` (ver: `5.8.7`)
+- **検出されたテーマ:** `twentytwentyfour` (ver: `1.0`)
 
 
 ### Google Analytics (確信度: high - 90%)

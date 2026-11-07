@@ -96,7 +96,7 @@ v1.6.0で導入されたImplication Engineでは、「検出方式（直接検�
 
 ---
 
-## 3. 全調査対象技術 判定基準カタログ (計74技術)
+## 3. 全調査対象技術 判定基準カタログ (計75技術)
 
 > [!NOTE]
 > **カタログの自動整合保証:**  
@@ -163,7 +163,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 
 | 技術ID | 技術名 | 判定シグナル | 照合パターン / 正規表現 | 重み | 連動推論先 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `wordpress` | **WordPress** | `meta`: `generator`<br>`script`: `src`<br>`link`: `href`<br>`script`: `src`<br>`link`: `href`<br>`header`: `link` | WordPress(?:\s+([0-9.]+))?<br>/wp-includes/js/wp-embed(?:\.min)?\.js(?:\?ver=([0-9.]+))?<br>/wp-includes/css/dist/block-library/style(?:\.min)?\.css(?:\?ver=([0-9.]+))?<br>/wp-includes/\|/wp-content/<br>/wp-content/\|/wp-includes/\|/wp-json/<br><https?://[^>]+/wp-json/>; rel="https://api\.w\.org/" | 95<br>90<br>90<br>85<br>80<br>85 | $\rightarrow$ **PHP** (`unknown`) |
+| `wordpress` | **WordPress** | `meta`: `generator`<br>`script`: `src`<br>`link`: `href`<br>`script`: `src`<br>`link`: `href`<br>`header`: `link` | WordPress(?:\s+([0-9.]+))?<br>/wp-includes/(?!js/(?:jquery/\|underscore\|backbone\|lodash\|moment\|tinymce/\|mediaelement/\|twemoji\|clipboard\|hoverIntent\|imagesloaded\|masonry\|plupload/\|swfupload/\|thickbox/\|jcrop/\|imgareaselect/\|codemirror/\|colorpicker/\|farbtastic\|iris\|json2\|sack\|schedule\|suggest\|wp-ajax-response\|dist/))[a-z0-9_./-]+\.js(?:[?&]ver=([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[a-zA-Z0-9.-]+)?))?<br>/wp-includes/[a-z0-9_./-]+\.css(?:[?&]ver=([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[a-zA-Z0-9.-]+)?))?<br>/wp-includes/\|/wp-content/<br>/wp-content/\|/wp-includes/\|/wp-json/<br><https?://[^>]+/wp-json/>; rel="https://api\.w\.org/" | 95<br>90<br>90<br>85<br>80<br>85 | $\rightarrow$ **PHP** (`unknown`) |
 | `drupal` | **Drupal** | `meta`: `generator`<br>`header`: `x-generator`<br>`header`: `x-drupal-cache`<br>`header`: `x-drupal-dynamic-cache`<br>`dom`: `[data-drupal-selector], [data-drupal-messages], [data-drupal-link-system-path], script[data-drupal-selector='drupal-settings-json']`<br>`script`: `src`<br>`link`: `href` | Drupal(?:\s+([0-9.]+))?<br>Drupal(?:\s+([0-9.]+))?<br>.*<br>.*<br>data-drupal-<br>/sites/(?:default\|all)/(?:files\|themes\|modules)/\|/misc/drupal\.js\|/core/misc/drupal(?:\.init)?\.js\|/core/assets/vendor/\|/core/modules/<br>/sites/(?:default\|all)/(?:files\|themes\|modules)/\|/core/(?:themes\|modules\|assets)/ | 95<br>95<br>85<br>85<br>85<br>80<br>80 | $\rightarrow$ **PHP** (`unknown`) |
 | `joomla` | **Joomla** | `meta`: `generator`<br>`script`: `src` | Joomla!(?:\s+([0-9.]+))?<br>/media/system/js/\|/media/jui/js/ | 95<br>80 | $\rightarrow$ **PHP** (`unknown`) |
 | `shopify` | **Shopify** | `header`: `server`<br>`script`: `src`<br>`link`: `href` | cloudflare.*shopify\|Shopify<br>cdn\.shopify\.com<br>cdn\.shopify\.com | 90<br>90<br>85 | - |
@@ -183,7 +183,7 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `angularjs` | **AngularJS** | `dom`: `[ng-app], [data-ng-app], [ng-controller], [data-ng-controller], [ng-model], [data-ng-model], [ng-bind], [ng-repeat], [ng-cloak], .ng-scope, .ng-binding`<br>`script`: `src` | (?:\b\|data-)ng-(?:app\|controller\|model\|bind\|repeat\|cloak)\b\|\.ng-(?:scope\|binding)\b<br>angular(?:\.min)?\.js | 90<br>85 | - |
 | `svelte` | **Svelte** | `dom`: `[class*='svelte-']`<br>`script`: `src` | svelte-<br>/_app/immutable/ | 90<br>75 | - |
 | `jquery` | **jQuery** | `script`: `src`<br>`script`: `src` | jquery[.-\]\([0-9.]+)(?:\.min)?\.js<br>jquery(?:\.min)?\.js | 90<br>75 | - |
-| `bootstrap` | **Bootstrap** | `link`: `href`<br>`script`: `src`<br>`dom`: `.container, .row, .col-` | bootstrap(?:\.min)?\.css<br>bootstrap(?:\.bundle)?(?:\.min)?\.js<br>container | 85<br>80<br>40 | - |
+| `bootstrap` | **Bootstrap** | `link`: `href`<br>`script`: `src`<br>`dom`: `.container, .row, .col-` | bootstrap(?:[.-][0-9]+(?:\.[0-9]+)*(?:-[a-z0-9.]+)?)?(?:\.[A-Za-z0-9_-]+)?(?:\.min)?\.css\|/bootstrap-[0-9]+(?:\.[0-9]+)*[^/]*/.*\.css<br>bootstrap(?:\.bundle)?(?:[.-][0-9]+(?:\.[0-9]+)*(?:-[a-z0-9.]+)?)?(?:\.[A-Za-z0-9_-]+)?(?:\.min)?\.js\|/bootstrap-[0-9]+(?:\.[0-9]+)*[^/]*/.*\.js<br>container\|(?:^\|\s)(?:sm\|md\|lg\|xl\|2xl):(?:d-(?:none\|block\|flex\|inline\|inline-block\|inline-flex\|grid\|table)\|navbar-expand\|col-\d+\|offset-\d+) | 85<br>80<br>40 | - |
 | `tailwind` | **Tailwind CSS** | `css`: `class`<br>`script`: `src` | (?:sm\|md\|lg\|xl\|2xl\|hover\|focus\|dark):[a-z0-9_-]+\|[a-z0-9_-]+-\[[^\]]+\]\|(?:text\|bg\|border\|ring\|from\|to\|via)-[a-z]+-(?:50\|[1-9]00\|950)<br>tailwindcss\|cdn\.tailwindcss\.com | 70<br>90 | - |
 | `alpine` | **Alpine.js** | `dom`: `[x-data], [x-init], [x-bind]`<br>`script`: `src` | x-data\|x-init\|x-bind<br>alpine(?:\.min)?\.js\|cdn\.jsdelivr\.net/npm/alpinejs | 90<br>85 | - |
 | `htmx` | **htmx** | `dom`: `[hx-get], [hx-post], [hx-target], [hx-swap]`<br>`script`: `src` | hx-get\|hx-post\|hx-target\|hx-swap\|hx-trigger<br>htmx(?:\.org)?(?:\.min)?\.js | 90<br>85 | - |
@@ -214,7 +214,8 @@ Webサーバーは主にHTTPレスポンスの `Server` ヘッダーを主たる
 | `aws-alb` | **AWS Application Load Balancer** | `hosting-cloud` | `cookie`: `AWSALB`<br>`cookie`: `AWSALBCORS` | ^(?:AWSALB\|AWSELB)$<br>^(?:AWSALBCORS\|AWSELBCORS)$ | 90<br>90 |
 | `aws-api-gateway` | **AWS API Gateway** | `hosting-cloud` | `header`: `x-amzn-requestid`<br>`header`: `x-amz-apigw-id` | .*<br>.* | 85<br>95 |
 | `google-analytics` | **Google Analytics** | `analytics-tracking` | `script`: `src`<br>`cookie`: `_ga` | google-analytics\.com/(?:analytics\|ga)\.js\|googletagmanager\.com/gtag/js<br>^_ga$ | 90<br>85 |
-| `google-tag-manager` | **Google Tag Manager** | `analytics-tracking` | `script`: `src`<br>`dom`: `iframe` | googletagmanager\.com/gtm\.js<br>googletagmanager\.com/ns\.html | 95<br>95 |
+| `google-tag-manager` | **Google Tag Manager** | `analytics-tracking` | `script`: `src`<br>`dom`: `iframe` | googletagmanager\.com/(?:gtm\.js\|gtag/js)<br>googletagmanager\.com/ns\.html | 95<br>95 |
+| `facebook-sdk` | **Facebook SDK** | `analytics-tracking` | `script`: `src` | connect\.facebook\.net | 90 |
 | `microsoft-clarity` | **Microsoft Clarity** | `analytics-tracking` | `script`: `src`<br>`cookie`: `_clck` | clarity\.ms/tag/<br>^_clck$ | 95<br>85 |
 | `application-insights` | **Application Insights** | `analytics-tracking` | `script`: `src`<br>`cookie`: `ai_session`<br>`cookie`: `ai_user` | (?:^\|//)(?:[a-z0-9-]+\.)+vo\.msecnd\.net(?:/\|$)\|(?:^\|//)js\.monitor\.azure\.com(?:/\|$)<br>^ai_session$<br>^ai_user$ | 90<br>85<br>85 |
 | `sentry` | **Sentry** | `security-service` | `script`: `src` | browser\.sentry-cdn\.com\|js\.sentry-cdn\.com | 95 |

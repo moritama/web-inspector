@@ -9,6 +9,7 @@ import { exportReportToCsv } from '../src/export/csv';
 import { generateMarkdownReport } from '../src/export/markdown';
 import { renderSecurityCheckRowHtml } from '../src/popup/render';
 import { checkCookies } from '../src/security/cookies';
+import { SecurityEngine } from '../src/security/engine';
 import { checkHttpHeaders } from '../src/security/headers';
 import { checkHttpsAndMixedContent } from '../src/security/https';
 import { summarizeSecurityChecks } from '../src/shared/security-status';
@@ -593,6 +594,64 @@ describe('HTTPS & Mixed Content', () => {
       expect(passive?.observed).toBe(
         '5件 (img: http://img.example.test/1.jpg, img: http://img.example.test/2.jpg, video: http://img.example.test/3.mp4（他 2 件）)'
       );
+    });
+  });
+
+  describe('v1.7.1 T09 (L, E5): 廃止済み計測タグ (ga.js / analytics.js) の INFO 指摘と要確認件数の非増加', () => {
+    it('ga.js を読むページで SEC-LEGACY-TAG-01 (INFO) が 1 件出て、要確認 (requiresAttentionCount) の件数が増えないこと', () => {
+      const engine = new SecurityEngine();
+      const baseDom = {
+        url: 'https://wp.example.test/',
+        title: 'WP',
+        metaTags: [],
+        scriptUrls: ['https://wp.example.test/app.js'],
+        linkUrls: [],
+        domMarkers: [],
+        htmlSnippets: [],
+        mixedContent: [],
+        cookiesFromDocument: [],
+        cssAssets: [],
+      };
+      const baseNetwork = {
+        url: 'https://wp.example.test/',
+        responseHeaders: {
+          'strict-transport-security': ['max-age=31536000; includeSubDomains'],
+          'x-content-type-options': ['nosniff'],
+          'x-frame-options': ['SAMEORIGIN'],
+          'referrer-policy': ['strict-origin-when-cross-origin'],
+          'permissions-policy': ['geolocation=()'],
+          'content-security-policy': ["default-src 'self'"],
+        },
+        cookies: [],
+      };
+
+      const withoutLegacy = engine.evaluate({
+        url: 'https://wp.example.test/',
+        dom: baseDom,
+        network: baseNetwork,
+      });
+      const summaryWithout = summarizeSecurityChecks(withoutLegacy.checks);
+
+      const withLegacy = engine.evaluate({
+        url: 'https://wp.example.test/',
+        dom: {
+          ...baseDom,
+          scriptUrls: ['https://wp.example.test/app.js', 'https://ssl.google-analytics.com/ga.js'],
+        },
+        network: baseNetwork,
+      });
+      const summaryWith = summarizeSecurityChecks(withLegacy.checks);
+
+      const legacyCheck = withLegacy.checks.find((c) => c.checkId === 'SEC-LEGACY-TAG-01');
+      expect(legacyCheck).toBeDefined();
+      expect(legacyCheck?.status).toBe('info');
+      expect(legacyCheck?.severity).toBe('info');
+      expect(legacyCheck?.description).toContain('計測されていない可能性');
+      expect(legacyCheck?.recommendation).toContain('削除を検討');
+
+      // 要確認件数（requiresAttentionCount）は増えず、INFO が 1 件増えること
+      expect(summaryWith.requiresAttentionCount).toBe(summaryWithout.requiresAttentionCount);
+      expect(summaryWith.securityFindings.info).toBe(summaryWithout.securityFindings.info + 1);
     });
   });
 });

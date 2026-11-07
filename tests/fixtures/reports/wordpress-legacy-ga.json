@@ -27,7 +27,7 @@
       "high": 0,
       "medium": 2,
       "low": 0,
-      "info": 3,
+      "info": 4,
       "unknown": 0
     },
     "librarySecurity": {
@@ -57,13 +57,53 @@
       "productSources": ["curated", "NVD"],
       "advisoryDataVersion": "20261031",
       "advisories": [],
+      "wpPlugins": [
+        {
+          "name": "contact-form-7",
+          "version": "5.8.7"
+        }
+      ],
+      "wpThemes": [
+        {
+          "name": "twentytwentyfour",
+          "version": "1.0"
+        }
+      ],
       "evidence": [
         {
           "type": "script-url",
           "name": "script[src]",
-          "value": "https://wp-blog.example.test/wp-includes/js/wp-embed.min.js",
-          "source": "https://wp-blog.example.test/",
-          "weight": 95
+          "value": "https://wp-blog.example.test/wp-includes/js/wp-embed.min.js (v6.4.3)",
+          "source": "https://wp-blog.example.test/wp-includes/js/wp-embed.min.js",
+          "weight": 90
+        },
+        {
+          "type": "css-url",
+          "name": "link[rel=\"stylesheet\"]",
+          "value": "https://wp-blog.example.test/wp-includes/css/dist/block-library/style.min.css (v6.4.3)",
+          "source": "https://wp-blog.example.test/wp-includes/css/dist/block-library/style.min.css",
+          "weight": 90
+        },
+        {
+          "type": "script-url",
+          "name": "script[src]",
+          "value": "https://wp-blog.example.test/wp-content/plugins/contact-form-7/includes/js/index.js",
+          "source": "https://wp-blog.example.test/wp-content/plugins/contact-form-7/includes/js/index.js",
+          "weight": 85
+        },
+        {
+          "type": "css-url",
+          "name": "link[rel=\"stylesheet\"]",
+          "value": "https://wp-blog.example.test/wp-content/themes/twentytwentyfour/style.css",
+          "source": "https://wp-blog.example.test/wp-content/themes/twentytwentyfour/style.css",
+          "weight": 80
+        },
+        {
+          "type": "link",
+          "name": "link[rel=\"https://api.w.org/\"]",
+          "value": "https://wp-blog.example.test/wp-json/",
+          "source": "https://wp-blog.example.test/wp-json/",
+          "weight": 80
         }
       ]
     },
@@ -165,6 +205,22 @@
       "scope": "https://wp-blog.example.test/",
       "findingId": "SEC-REF-01:https://wp-blog.example.test",
       "exceptionStatus": "active"
+    },
+    {
+      "checkId": "SEC-LEGACY-TAG-01",
+      "category": "library-security",
+      "name": "旧世代の計測タグ (ga.js / analytics.js) の残存",
+      "status": "info",
+      "severity": "info",
+      "observed": "https://ssl.google-analytics.com/ga.js",
+      "description": "サポートが終了した旧世代の Google Analytics タグ（ga.js / analytics.js）が読み込まれています。現在は計測されていない可能性があり、不要な外部スクリプト読み込みの原因となります。",
+      "recommendation": "旧世代の計測タグは現在計測されていない可能性が高いため、不要であればタグの削除を検討してください（GA4 / Google Tag Manager へ移行済みの場合は旧タグを除去してください）。",
+      "referenceUrls": [
+        "https://support.google.com/analytics/answer/11583528"
+      ],
+      "scope": "https://wp-blog.example.test/",
+      "findingId": "SEC-LEGACY-TAG-01:https://wp-blog.example.test",
+      "exceptionStatus": "active"
     }
   ],
   "cookies": [
@@ -217,10 +273,11 @@
         "publicSuffix": "test",
         "partyType": "first-party",
         "category": "other",
-        "resourceCount": 2,
+        "resourceCount": 5,
         "sampleUrls": [
           "https://wp-blog.example.test/",
-          "https://wp-blog.example.test/wp-includes/js/wp-embed.min.js"
+          "https://wp-blog.example.test/wp-includes/js/wp-embed.min.js",
+          "https://wp-blog.example.test/wp-includes/css/dist/block-library/style.min.css"
         ]
       },
       {

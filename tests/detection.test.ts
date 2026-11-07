@@ -1961,6 +1961,412 @@ describe('DetectionEngine', () => {
         expect(negResults.find((r) => r.technology === 'Application Insights')).toBeUndefined();
       });
     });
+
+    describe('v1.7.1 T09: フロント・CMS・計測タグの検出 (N5, E, J, K, E4, L)', () => {
+      it('N5 & E: getbootstrap.com のスナップショットで Bootstrap 6.0 が検出され Tailwind CSS が出ず、react.dev のスナップショットでは Tailwind CSS が引き続き出ること', () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require('node:fs');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const path = require('node:path');
+        const snapDir = path.resolve(__dirname, 'fixtures', 'snapshots');
+
+        const buildDomFromSnapshot = (
+          html: string,
+          pageUrl: string,
+          resourceTiming: Array<{ name: string; initiatorType?: string }> = []
+        ): DomSignals => {
+          const metaTags: Array<{ name?: string; property?: string; content: string }> = [];
+          for (const m of html.matchAll(/<meta\b([^>]+)>/gi)) {
+            const attrs = m[1];
+            const nameMatch = attrs.match(/\bname=["']([^"']+)["']/i);
+            const propMatch = attrs.match(/\bproperty=["']([^"']+)["']/i);
+            const contentMatch = attrs.match(/\bcontent=["']([^"']*)["']/i);
+            if (contentMatch && contentMatch[1]) {
+              metaTags.push({
+                name: nameMatch?.[1],
+                property: propMatch?.[1],
+                content: contentMatch[1],
+              });
+            }
+          }
+
+          const rawScriptUrls: string[] = [];
+          const scriptUrls: string[] = [];
+          for (const m of html.matchAll(/<script\b([^>]+)>/gi)) {
+            const srcMatch = m[1].match(/\bsrc=["']([^"']+)["']/i);
+            if (srcMatch && srcMatch[1]) {
+              const raw = srcMatch[1].trim();
+              rawScriptUrls.push(raw);
+              try {
+                scriptUrls.push(new URL(raw, pageUrl).href);
+              } catch {
+                scriptUrls.push(raw);
+              }
+            }
+          }
+
+          const rawLinkUrls: Array<{ rel: string; href: string }> = [];
+          const linkUrls: Array<{ rel: string; href: string }> = [];
+          for (const m of html.matchAll(/<link\b([^>]+)>/gi)) {
+            const attrs = m[1];
+            const hrefMatch = attrs.match(/\bhref=["']([^"']+)["']/i);
+            const relMatch = attrs.match(/\brel=["']([^"']+)["']/i);
+            if (hrefMatch && hrefMatch[1]) {
+              const rawHref = hrefMatch[1].trim();
+              const rel = relMatch?.[1] || '';
+              rawLinkUrls.push({ rel, href: rawHref });
+              let resolvedHref = rawHref;
+              try {
+                resolvedHref = new URL(rawHref, pageUrl).href;
+              } catch {
+                // ignore
+              }
+              linkUrls.push({ rel, href: resolvedHref });
+            }
+          }
+
+          const classSet = new Set<string>();
+          for (const m of html.matchAll(/\bclass=["']([^"']+)["']/gi)) {
+            const tokens = m[1].split(/\s+/);
+            for (const tok of tokens) {
+              if (tok && tok.length > 2) {
+                classSet.add(tok);
+              }
+            }
+          }
+
+          return {
+            ...emptyDom,
+            url: pageUrl,
+            metaTags,
+            rawScriptUrls,
+            scriptUrls,
+            rawLinkUrls,
+            linkUrls,
+            htmlSnippets: Array.from(classSet).slice(0, 60),
+            resourceEntries: resourceTiming.map((r) => ({
+              url: r.name,
+              initiatorType: r.initiatorType || 'other',
+            })),
+          };
+        };
+
+        // 1. getbootstrap.com スナップショット
+        const bsSnap = JSON.parse(
+          fs.readFileSync(path.join(snapDir, 'getbootstrap.com.json'), 'utf-8')
+        );
+        const bsHtml = fs.readFileSync(path.join(snapDir, 'getbootstrap.com.html'), 'utf-8');
+        const bsPageUrl = bsSnap.finalUrl || bsSnap.url;
+        const bsDom = buildDomFromSnapshot(bsHtml, bsPageUrl, bsSnap.resourceTiming || []);
+
+        const bsResults = engine.detect({
+          url: bsPageUrl,
+          dom: bsDom,
+          network: {
+            url: bsPageUrl,
+            responseHeaders: bsSnap.responseHeaders,
+            cookies: bsSnap.cookies,
+          },
+        });
+
+        const bootstrap = bsResults.find((r) => r.technology === 'Bootstrap');
+        expect(bootstrap).toBeDefined();
+        expect(bootstrap?.version).toBe('6.0');
+        expect(bsResults.find((r) => r.technology === 'Tailwind CSS')).toBeUndefined();
+
+        // 2. react.dev スナップショット
+        const reactSnap = JSON.parse(
+          fs.readFileSync(path.join(snapDir, 'react.dev.json'), 'utf-8')
+        );
+        const reactHtml = fs.readFileSync(path.join(snapDir, 'react.dev.html'), 'utf-8');
+        const reactPageUrl = reactSnap.finalUrl || reactSnap.url;
+        const reactDom = buildDomFromSnapshot(
+          reactHtml,
+          reactPageUrl,
+          reactSnap.resourceTiming || []
+        );
+
+        const reactResults = engine.detect({
+          url: reactPageUrl,
+          dom: reactDom,
+          network: {
+            url: reactPageUrl,
+            responseHeaders: reactSnap.responseHeaders,
+            cookies: reactSnap.cookies,
+          },
+        });
+
+        const tailwind = reactResults.find((r) => r.technology === 'Tailwind CSS');
+        expect(tailwind).toBeDefined();
+      });
+
+      it('E: Bootstrap の版が runtime および URL パス (/bootstrap-4.3.1/, /docs/6.0/, bootstrap@5.3.3) から取れ、ファイル名だけの根拠では確信度が medium になること', () => {
+        // 1. /bootstrap-4.3.1/ パス
+        const resPath4 = engine.detect({
+          url: 'https://bs4.example.test/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              {
+                rel: 'stylesheet',
+                href: 'https://bs4.example.test/lib/bootstrap-4.3.1/css/bootstrap.min.css',
+              },
+            ],
+          },
+        });
+        const bs4 = resPath4.find((r) => r.technology === 'Bootstrap');
+        expect(bs4?.version).toBe('4.3.1');
+        expect(bs4?.confidenceLevel).toBe('high');
+
+        // 2. /docs/6.0/ パス
+        const resDocs6 = engine.detect({
+          url: 'https://bs6.example.test/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              {
+                rel: 'stylesheet',
+                href: 'https://bs6.example.test/docs/6.0/dist/css/bootstrap.min.css',
+              },
+            ],
+          },
+        });
+        expect(resDocs6.find((r) => r.technology === 'Bootstrap')?.version).toBe('6.0');
+
+        // 3. bootstrap@5.3.3 パス
+        const resCdn5 = engine.detect({
+          url: 'https://bs5.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js',
+            ],
+          },
+        });
+        expect(resCdn5.find((r) => r.technology === 'Bootstrap')?.version).toBe('5.3.3');
+
+        // 4. ファイル名だけ（バージョンなし）の根拠では確信度が medium (50〜79) になること
+        const resFilenameOnly = engine.detect({
+          url: 'https://bs-fileonly.example.test/',
+          dom: {
+            ...emptyDom,
+            linkUrls: [
+              {
+                rel: 'stylesheet',
+                href: 'https://bs-fileonly.example.test/assets/css/bootstrap.min.css',
+              },
+            ],
+            cssAssets: [
+              {
+                href: 'https://bs-fileonly.example.test/assets/css/bootstrap.min.css',
+                filename: 'bootstrap.min.css',
+                inferredLibrary: 'Bootstrap',
+                inferredVersion: null,
+                evidenceType: 'css-url',
+                confidence: 'medium',
+              },
+            ],
+          },
+        });
+        const bsFileOnly = resFilenameOnly.find((r) => r.technology === 'Bootstrap');
+        expect(bsFileOnly).toBeDefined();
+        expect(bsFileOnly?.version).toBeNull();
+        expect(bsFileOnly?.confidenceLevel).toBe('medium');
+        expect(bsFileOnly!.confidence).toBeGreaterThanOrEqual(50);
+        expect(bsFileOnly!.confidence).toBeLessThan(80);
+      });
+
+      it('J: 根拠の整理（同じ種別・同じ値の統合、.container 汎用クラスの省略、link[rel="alternate"] の [link] 種別、上限 20 件の維持）', () => {
+        // 1. 同じアセットが rawLinkUrls・linkUrls・cssAssets・htmlSnippets(.container) にあっても 1 件にまとまり、.container が省略されること
+        const resBs = engine.detect({
+          url: 'https://dedupe.example.test/',
+          dom: {
+            ...emptyDom,
+            rawLinkUrls: [{ rel: 'stylesheet', href: '/css/bootstrap-5.3.3.min.css' }],
+            linkUrls: [
+              { rel: 'stylesheet', href: 'https://dedupe.example.test/css/bootstrap-5.3.3.min.css' },
+            ],
+            cssAssets: [
+              {
+                href: 'https://dedupe.example.test/css/bootstrap-5.3.3.min.css',
+                filename: 'bootstrap-5.3.3.min.css',
+                inferredLibrary: 'Bootstrap',
+                inferredVersion: '5.3.3',
+                evidenceType: 'css-url',
+                confidence: 'medium',
+              },
+            ],
+            htmlSnippets: ['container', 'xl:container'],
+          },
+        });
+        const bs = resBs.find((r) => r.technology === 'Bootstrap');
+        expect(bs).toBeDefined();
+        expect(bs?.evidence.length).toBe(1);
+        expect(bs?.evidence[0].type).toBe('css-url');
+        expect(bs?.evidence.some((e) => e.value === 'container')).toBe(false);
+
+        // 2. link[rel="alternate"] の根拠種別が css-url ではなく link になること
+        const resWpLink = engine.detect({
+          url: 'https://wp-link.example.test/',
+          dom: {
+            ...emptyDom,
+            rawLinkUrls: [
+              {
+                rel: 'alternate',
+                href: 'https://wp-link.example.test/wp-json/wp/v2/pages/10',
+              },
+            ],
+            referenceOnlyUrls: [
+              {
+                sourceType: 'alternate',
+                url: 'https://wp-link.example.test/wp-json/wp/v2/pages/10',
+              },
+            ],
+          },
+        });
+        const wpFromLink = resWpLink.find((r) => r.technology === 'WordPress');
+        expect(wpFromLink).toBeDefined();
+        expect(wpFromLink?.evidence.length).toBe(1);
+        expect(wpFromLink?.evidence[0].type).toBe('link');
+        expect(wpFromLink?.evidence[0].name).toBe('link[rel="alternate"]');
+
+        // 3. IMPL-06 の上限 20 件が維持されること
+        const manyScripts = Array.from(
+          { length: 25 },
+          (_, i) => `https://wp-many.example.test/wp-content/plugins/plugin-${i}/app.js`
+        );
+        const resMany = engine.detect({
+          url: 'https://wp-many.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: manyScripts,
+          },
+        });
+        const wpMany = resMany.find((r) => r.technology === 'WordPress');
+        expect(wpMany).toBeDefined();
+        expect(wpMany?.evidence.length).toBe(20);
+      });
+
+      it('K & E4: WordPress で generator がなくてもコアの ver から版が出て、同梱ライブラリやプラグインの ver と区別され、プラグイン・テーマ一覧と重複なし根拠が得られること', () => {
+        const wpDom = {
+          ...emptyDom,
+          rawScriptUrls: [
+            '/wp-includes/js/jquery/jquery.min.js?ver=3.7.1',
+            '/wp-includes/js/underscore.min.js?ver=1.13.4',
+            '/wp-includes/js/wp-embed.min.js?ver=6.4.3',
+            '/wp-content/plugins/contact-form-7/includes/js/index.js?ver=5.8.7',
+            '/wp-content/plugins/akismet/_inc/akismet-frontend.js?ver=5.3',
+          ],
+          scriptUrls: [
+            'https://wp-synth.example.test/wp-includes/js/jquery/jquery.min.js?ver=3.7.1',
+            'https://wp-synth.example.test/wp-includes/js/underscore.min.js?ver=1.13.4',
+            'https://wp-synth.example.test/wp-includes/js/wp-embed.min.js?ver=6.4.3',
+            'https://wp-synth.example.test/wp-content/plugins/contact-form-7/includes/js/index.js?ver=5.8.7',
+            'https://wp-synth.example.test/wp-content/plugins/akismet/_inc/akismet-frontend.js?ver=5.3',
+          ],
+          rawLinkUrls: [
+            {
+              rel: 'stylesheet',
+              href: '/wp-includes/css/dist/block-library/style.min.css?ver=6.4.3',
+            },
+            {
+              rel: 'stylesheet',
+              href: '/wp-content/themes/twentytwentyfour/style.css?ver=1.0',
+            },
+            {
+              rel: 'alternate',
+              href: '/wp-json/wp/v2/pages/42',
+            },
+          ],
+          linkUrls: [
+            {
+              rel: 'stylesheet',
+              href: 'https://wp-synth.example.test/wp-includes/css/dist/block-library/style.min.css?ver=6.4.3',
+            },
+            {
+              rel: 'stylesheet',
+              href: 'https://wp-synth.example.test/wp-content/themes/twentytwentyfour/style.css?ver=1.0',
+            },
+          ],
+          referenceOnlyUrls: [
+            {
+              sourceType: 'alternate',
+              url: 'https://wp-synth.example.test/wp-json/wp/v2/pages/42',
+            },
+          ],
+        };
+
+        const results = engine.detect({
+          url: 'https://wp-synth.example.test/',
+          dom: wpDom,
+        });
+
+        const wp = results.find((r) => r.technology === 'WordPress');
+        expect(wp).toBeDefined();
+        // jQuery の 3.7.1 やプラグインの 5.8.7 ではなく、コアの 6.4.3 が特定されること
+        expect(wp?.version).toBe('6.4.3');
+        expect(wp?.instances?.length).toBe(1);
+        expect(wp?.instances?.[0].version).toBe('6.4.3');
+
+        // プラグインとテーマの一覧が取得されていること
+        expect(wp?.wpPlugins).toEqual([
+          { name: 'contact-form-7', version: '5.8.7' },
+          { name: 'akismet', version: '5.3' },
+        ]);
+        expect(wp?.wpThemes).toEqual([{ name: 'twentytwentyfour', version: '1.0' }]);
+
+        // 同じ根拠が 2 回出ていないこと & クエリ (?ver=...) が除去されていること
+        const evKeys = wp!.evidence.map((e) => `${e.type}:${e.value}`);
+        expect(new Set(evKeys).size).toBe(evKeys.length);
+        for (const ev of wp!.evidence) {
+          expect(ev.value.includes('?ver=')).toBe(false);
+        }
+        // alternate リンクの種別が link であること
+        const altEv = wp!.evidence.find((e) => e.value.includes('/wp-json/'));
+        expect(altEv?.type).toBe('link');
+      });
+
+      it('L: Google Tag Manager (gtm.js / gtag/js) と Facebook SDK (connect.facebook.net) の検出（陽性・陰性）', () => {
+        // 1. 陽性: gtag/js と connect.facebook.net
+        const posResults = engine.detect({
+          url: 'https://tags.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://www.googletagmanager.com/gtag/js?id=G-TEST1234',
+              'https://connect.facebook.net/en_US/fbevents.js',
+            ],
+          },
+        });
+        expect(posResults.find((r) => r.technology === 'Google Tag Manager')).toBeDefined();
+        expect(posResults.find((r) => r.technology === 'Google Analytics')).toBeDefined();
+        expect(posResults.find((r) => r.technology === 'Facebook SDK')).toBeDefined();
+
+        // 2. 陽性: gtm.js のみ
+        const gtmOnlyResults = engine.detect({
+          url: 'https://gtm-only.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: ['https://www.googletagmanager.com/gtm.js?id=GTM-XXXX'],
+          },
+        });
+        expect(gtmOnlyResults.find((r) => r.technology === 'Google Tag Manager')).toBeDefined();
+
+        // 3. 陰性: 関係ないスクリプトでは検出しないこと
+        const negResults = engine.detect({
+          url: 'https://no-tags.example.test/',
+          dom: {
+            ...emptyDom,
+            scriptUrls: [
+              'https://no-tags.example.test/assets/gtm-helper.js',
+              'https://no-tags.example.test/assets/facebook-share.js',
+            ],
+          },
+        });
+        expect(negResults.find((r) => r.technology === 'Google Tag Manager')).toBeUndefined();
+        expect(negResults.find((r) => r.technology === 'Facebook SDK')).toBeUndefined();
+      });
+    });
   });
 });
 

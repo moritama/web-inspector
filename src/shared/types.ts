@@ -72,6 +72,7 @@ export type EvidenceType =
   | 'html'                  // HTML要素・属性 (ng-version, data-reactroot等)
   | 'script-url'            // JavaScriptファイルURL
   | 'css-url'               // CSSファイルURL
+  | 'link'                  // link要素 (rel=alternate 等)
   | 'css-comment'           // CSSファイル内のコメント
   | 'response-header'       // HTTPレスポンスヘッダー
   | 'cookie-name'           // Cookie名
@@ -280,6 +281,16 @@ export interface TechnologyInstance {
 }
 
 /**
+ * WordPress プラグイン・テーマの検出情報 (v1.7.1 T09 / K)
+ */
+export interface WpExtensionInfo {
+  /** プラグインまたはテーマのスラッグ名 */
+  name: string;
+  /** アセットURLの ver クエリパラメータ（観測された場合） */
+  version?: string | null;
+}
+
+/**
  * 検出されたWeb技術 (Version 1.1 拡張)
  */
 export interface DetectedTechnology {
@@ -303,6 +314,10 @@ export interface DetectedTechnology {
   evidence: Evidence[];
   /** 同一技術のバージョン別インスタンス一覧（最大5件、古いバージョン順） (v1.7.0 T08 / SPEC-10) */
   instances?: TechnologyInstance[];
+  /** WordPress プラグイン一覧（WordPress 検出時のみ。脆弱性DBとは照合しない） (v1.7.1 T09 / K) */
+  wpPlugins?: WpExtensionInfo[];
+  /** WordPress テーマ一覧（WordPress 検出時のみ。脆弱性DBとは照合しない） (v1.7.1 T09 / K) */
+  wpThemes?: WpExtensionInfo[];
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */
@@ -778,6 +793,7 @@ export type ExternalServiceCategory =
   | 'advertising'   // 広告・マーケティング配信 (DoubleClick, Ads等)
   | 'fonts'         // Webフォント (Google Fonts, Adobe Typekit等)
   | 'social'        // SNSウィジェット・埋め込み (X/Twitter, Facebook等)
+  | 'security'      // セキュリティ・CAPTCHA・Bot対策 (reCAPTCHA等)
   | 'api'           // 外部API・バックエンドサービス
   | 'other';        // その他
 
@@ -801,7 +817,7 @@ export interface ExternalConnectionsAnalysis {
   totalConnections: number;
   firstPartyCount: number;
   thirdPartyCount: number;
-  categoryBreakdown: Record<ExternalServiceCategory, number>;
+  categoryBreakdown: Record<Exclude<ExternalServiceCategory, 'security'>, number> & { security?: number };
   connections: ExternalConnectionItem[];
 }
 

@@ -1,6 +1,6 @@
 {
   "target": "wordpress:wordpress",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cves": [
     {
       "id": "CVE-2003-1598",
@@ -8071,7 +8071,7 @@
     {
       "id": "CVE-2011-4899",
       "published": "2012-01-30",
-      "lastModified": "2026-06-16",
+      "lastModified": "2026-11-03",
       "vulnStatus": "Modified",
       "description": "wp-admin/setup-config.php in the installation component in WordPress 3.3.1 and earlier does not ensure that the specified MySQL database service is appropriate, which allows remote attackers to configure an arbitrary database via the dbhost and dbname parameters, and subsequently conduct static code injection and cross-site scripting (XSS) attacks via (1) an HTTP request or (2) a MySQL query.  NOTE: the vendor disputes the significance of this issue; however, remote code execution makes the issue important in many realistic environments",
       "cvss": null,
@@ -27316,6 +27316,158 @@
         "https://core.trac.wordpress.org/changeset/57951/branches/6.4/src/wp-includes/blocks/avatar.php",
         "https://core.trac.wordpress.org/changeset?sfp_email=&sfph_mail=&reponame=&old=57950%40%2F&new=57950%40%2F&sfp_email=&sfph_mail=#file3",
         "https://wordpress.org/news/2024/04/wordpress-6-5-2-maintenance-and-security-release/"
+      ]
+    },
+    {
+      "id": "CVE-2026-119977",
+      "published": "2026-10-31",
+      "lastModified": "2026-11-04",
+      "vulnStatus": "Analyzed",
+      "description": "WordPress Core is vulnerable to Remote Code Execution in versions 4.7 through 7.1.3. This is due to predictable, web-accessible staging paths used during full-package core upgrades. This makes it possible for unauthenticated attackers to execute code on the server during the upgrade window.",
+      "cvss": {
+        "score": 8.1,
+        "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "source": "security@wordfence.com (Secondary)",
+        "secondaryScore": null,
+        "secondarySource": null
+      },
+      "matches": [
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "4.7",
+          "vee": "4.7.39"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "4.8",
+          "vee": "4.8.34"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "4.9",
+          "vee": "4.9.35"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.0",
+          "vee": "5.0.31"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.1",
+          "vee": "5.1.28"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.2",
+          "vee": "5.2.30"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.3",
+          "vee": "5.3.27"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.4",
+          "vee": "5.4.25"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.5",
+          "vee": "5.5.24"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.6",
+          "vee": "5.6.23"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.7",
+          "vee": "5.7.21"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.8",
+          "vee": "5.8.19"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "5.9",
+          "vee": "5.9.20"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.0",
+          "vee": "6.0.18"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.1",
+          "vee": "6.1.16"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.2",
+          "vee": "6.2.15"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.3",
+          "vee": "6.3.14"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.4",
+          "vee": "6.4.14"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.5",
+          "vee": "6.5.14"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.6",
+          "vee": "6.6.11"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.7",
+          "vee": "6.7.11"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.8",
+          "vee": "6.8.12"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "6.9",
+          "vee": "6.9.11"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "7.0",
+          "vee": "7.0.8"
+        },
+        {
+          "criteria": "cpe:2.3:a:wordpress:wordpress:*:*:*:*:*:*:*:*",
+          "vsi": "7.1",
+          "vee": "7.1.4"
+        }
+      ],
+      "conditions": [],
+      "references": [
+        "https://core.trac.wordpress.org/browser/tags/7.1.3/src/wp-admin/includes/class-core-upgrader.php#L162",
+        "https://core.trac.wordpress.org/browser/tags/7.1.3/src/wp-admin/includes/class-wp-upgrader.php#L378",
+        "https://core.trac.wordpress.org/browser/tags/7.1.3/src/wp-admin/includes/update-core.php#L1549",
+        "https://core.trac.wordpress.org/browser/tags/7.1.3/src/wp-admin/setup-config.php#L282",
+        "https://core.trac.wordpress.org/browser/tags/7.1.4/src/wp-admin/includes/class-wp-upgrader.php#L346",
+        "https://core.trac.wordpress.org/browser/tags/7.1.4/src/wp-admin/includes/update-core.php#L1545",
+        "https://wordpress.org/news/2026/10/wordpress-7-1-4/",
+        "https://www.wordfence.com/threat-intel/vulnerabilities/id/4b4da0cf-d9f4-47c4-a0e8-6c4dc5a6f250?source=cve"
       ]
     },
     {

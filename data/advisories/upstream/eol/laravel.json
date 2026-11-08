@@ -1,20 +1,20 @@
 {
   "slug": "laravel",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cycles": [
     {
       "cycle": "13",
       "releaseDate": "2026-03-17",
       "eol": "2028-03-17",
       "support": "2027-09-30",
-      "latest": "13.39.0"
+      "latest": "13.40.0"
     },
     {
       "cycle": "12",
       "releaseDate": "2025-02-24",
       "eol": "2027-02-24",
       "support": "2026-08-13",
-      "latest": "12.70.2"
+      "latest": "12.71.0"
     },
     {
       "cycle": "11",

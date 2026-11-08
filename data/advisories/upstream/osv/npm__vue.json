@@ -3,7 +3,7 @@
     "ecosystem": "npm",
     "name": "vue"
   },
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "vulns": [
     {
       "id": "GHSA-5j4c-8p2g-v4jx",

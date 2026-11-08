@@ -1,6 +1,6 @@
 {
   "target": "php:php",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cves": [
     {
       "id": "CVE-1999-0058",
@@ -68062,8 +68062,8 @@
     {
       "id": "CVE-2026-109618",
       "published": "2026-10-21",
-      "lastModified": "2026-10-30",
-      "vulnStatus": "Undergoing Analysis",
+      "lastModified": "2026-11-05",
+      "vulnStatus": "Analyzed",
       "description": "PHP uses longjmp() for out-of-memory (OOM) errors to exit the current context and abort handling of the request. Some contexts may not properly account for this scenario and leave request memory in an uninitialized state before performing an allocation. The subsequent request cleanup procedure may read or branch on this memory. Multiple OOM strategies can consistently trigger this condition and lead to remote code execution (RCE).",
       "cvss": {
         "score": 9.8,
@@ -68109,8 +68109,8 @@
     {
       "id": "CVE-2026-109619",
       "published": "2026-10-21",
-      "lastModified": "2026-10-30",
-      "vulnStatus": "Undergoing Analysis",
+      "lastModified": "2026-11-05",
+      "vulnStatus": "Analyzed",
       "description": "PHP has various global state that temporarily points into request memory. In some scenarios, global state may not be correctly reset, or may be repopulated after being reset. The global state may then refer to request memory even after it has been freed. Subsequent requests may read or branch on this stale state before it is fully initialized. Multiple strategies can trigger this condition and produce remote code execution (RCE).",
       "cvss": {
         "score": 8.1,

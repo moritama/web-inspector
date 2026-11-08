@@ -1,6 +1,6 @@
 {
   "target": "nodejs:node.js",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cves": [
     {
       "id": "CVE-2013-2882",
@@ -7541,7 +7541,7 @@
     {
       "id": "CVE-2023-30588",
       "published": "2023-11-28",
-      "lastModified": "2026-06-17",
+      "lastModified": "2026-11-02",
       "vulnStatus": "Modified",
       "description": "When an invalid public key is used to create an x509 certificate using the crypto.X509Certificate() API a non-expect termination occurs making it susceptible to DoS attacks when the attacker could force interruptions of application processing, as the process terminates when accessing public key info of provided certificates from user code. The current context of the users will be gone, and that will cause a DoS scenario. This vulnerability affects all active Node.js versions v16, v18, and, v20.",
       "cvss": {
@@ -7834,7 +7834,7 @@
     {
       "id": "CVE-2023-32558",
       "published": "2023-09-12",
-      "lastModified": "2026-06-17",
+      "lastModified": "2026-11-02",
       "vulnStatus": "Modified",
       "description": "The use of the deprecated API `process.binding()` can bypass the permission model through path traversal. \n\nThis vulnerability affects all users using the experimental permission model in Node.js 20.x.\n\nPlease note that at the time this CVE was issued, the permission model is an experimental feature of Node.js.",
       "cvss": {
@@ -8508,7 +8508,7 @@
     {
       "id": "CVE-2026-111497",
       "published": "2026-10-22",
-      "lastModified": "2026-10-30",
+      "lastModified": "2026-11-06",
       "vulnStatus": "Analyzed",
       "description": "A buffer overflow vulnerability in the Brotli decoder (c/dec/decode.c) in Google Brotli versions 1.0.3 through 1.2.0 on all platforms allows a remote unauthenticated attacker to corrupt adjacent decoder state memory, disclose sensitive memory contents, cause a denial of service, or potentially execute arbitrary code using a crafted Brotli-compressed stream.\n\n\n\n\n\nUsers need to update any Brotli libraries or binaries between 1.0.3 through 1.2.0 to the latest available version: 1.0.10 or 1.1.1 or 1.2.1.",
       "cvss": {
@@ -8543,7 +8543,7 @@
         "http://www.openwall.com/lists/oss-security/2026/10/26/12",
         "http://www.openwall.com/lists/oss-security/2026/10/26/13",
         "http://www.openwall.com/lists/oss-security/2026/10/26/16",
-        "https://broccoli2shell.com"
+        "http://www.openwall.com/lists/oss-security/2026/11/03/2"
       ]
     },
     {

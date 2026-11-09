@@ -3,7 +3,7 @@
     "ecosystem": "npm",
     "name": "moment"
   },
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "vulns": [
     {
       "id": "GHSA-446m-mv8f-q348",

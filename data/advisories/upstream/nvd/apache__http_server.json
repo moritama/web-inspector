@@ -1,6 +1,6 @@
 {
   "target": "apache:http_server",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cves": [
     {
       "id": "CVE-1999-0045",
@@ -13053,7 +13053,7 @@
     {
       "id": "CVE-2024-38472",
       "published": "2024-07-01",
-      "lastModified": "2026-06-17",
+      "lastModified": "2026-11-03",
       "vulnStatus": "Analyzed",
       "description": "SSRF in Apache HTTP Server on Windows allows to potentially leak NTLM hashes to a malicious server via SSRF and malicious requests or content \nUsers are recommended to upgrade to version 2.4.60 which fixes this issue.  Note: Existing configurations that access UNC paths will have to configure new directive \"UNCList\" to allow access during request processing.",
       "cvss": {
@@ -13489,7 +13489,7 @@
     {
       "id": "CVE-2025-3891",
       "published": "2025-04-29",
-      "lastModified": "2026-06-29",
+      "lastModified": "2026-11-04",
       "vulnStatus": "Modified",
       "description": "A flaw was found in the mod_auth_openidc module for Apache httpd. This flaw allows a remote, unauthenticated attacker to trigger a denial of service by sending an empty POST request when the OIDCPreservePost directive is enabled. The server crashes consistently, affecting availability.",
       "cvss": {

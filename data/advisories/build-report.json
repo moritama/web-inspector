@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-10-31",
+  "asOf": "2026-11-08",
   "products": {
     "jquery": {
       "curated": 4,
@@ -73,8 +73,8 @@
     },
     "wordpress": {
       "curated": 1,
-      "auto": 34,
-      "nvdCandidates": 35,
+      "auto": 35,
+      "nvdCandidates": 36,
       "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
       "skipped": {

@@ -1,27 +1,27 @@
 {
   "slug": "angular",
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "cycles": [
     {
       "cycle": "22",
       "releaseDate": "2026-06-03",
       "eol": "2028-06-30",
       "support": "2027-06-30",
-      "latest": "22.2.4"
+      "latest": "22.2.5"
     },
     {
       "cycle": "21",
       "releaseDate": "2025-11-19",
       "eol": "2027-06-30",
       "support": "2026-06-03",
-      "latest": "21.2.25"
+      "latest": "21.2.26"
     },
     {
       "cycle": "20",
       "releaseDate": "2025-05-28",
       "eol": "2026-11-28",
       "support": "2025-11-19",
-      "latest": "20.3.34"
+      "latest": "20.3.35"
     },
     {
       "cycle": "19",

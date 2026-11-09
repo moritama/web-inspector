@@ -1,152 +1,157 @@
 {
   "schemaVersion": 1,
-  "fetchedAt": "2026-10-31T16:02:25.248Z",
+  "fetchedAt": "2026-11-08T23:46:54.136Z",
   "sources": {
     "eol:angular": {
       "status": "ok",
       "count": 14,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:apache-http-server": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:bootstrap": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:jquery": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:laravel": {
       "status": "ok",
       "count": 10,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:nginx": {
       "status": "ok",
       "count": 32,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:nodejs": {
       "status": "ok",
       "count": 26,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:php": {
       "status": "ok",
       "count": 23,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:react": {
       "status": "ok",
       "count": 5,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:vue": {
       "status": "ok",
       "count": 15,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "eol:wordpress": {
       "status": "ok",
       "count": 56,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "kev": {
       "status": "ok",
-      "count": 1766,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "count": 1769,
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd-scores": {
       "status": "ok",
       "count": 84,
-      "fetchedAt": "2026-10-31T16:02:25.248Z",
+      "fetchedAt": "2026-11-08T23:46:54.136Z",
       "errors": 0
     },
     "nvd:apache:http_server": {
       "status": "ok",
       "count": 371,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd:f5:nginx": {
       "status": "ok",
       "count": 41,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd:nginx:nginx": {
       "status": "ok",
       "count": 2,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd:nodejs:node.js": {
       "status": "ok",
       "count": 189,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd:php:php": {
       "status": "ok",
       "count": 760,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "nvd:wordpress:wordpress": {
       "status": "ok",
-      "count": 584,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "count": 585,
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:@angular/core": {
       "status": "ok",
       "count": 9,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:angular": {
       "status": "ok",
       "count": 15,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:bootstrap": {
       "status": "ok",
       "count": 9,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:jquery": {
       "status": "ok",
       "count": 8,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:lodash": {
       "status": "ok",
       "count": 10,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:moment": {
       "status": "ok",
       "count": 5,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:react": {
       "status": "ok",
       "count": 2,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:react-dom": {
       "status": "ok",
       "count": 1,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:npm:vue": {
       "status": "ok",
       "count": 1,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     },
     "osv:Packagist:laravel/framework": {
       "status": "ok",
       "count": 28,
-      "fetchedAt": "2026-10-31T16:02:25.248Z"
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
+    },
+    "psl:public_suffix_list": {
+      "status": "ok",
+      "count": 8952,
+      "fetchedAt": "2026-11-08T23:46:54.136Z"
     }
   }
 }

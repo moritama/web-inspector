@@ -461,7 +461,8 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     expect(pkg.version).toBe(targetVersion);
     expect(lock.version).toBe(targetVersion);
     expect(lock.packages?.['']?.version).toBe(targetVersion);
-    expect(manifest.version).toBe(targetVersion);
+    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける（例: 1.7.1.1）。package.json と RULES_VERSION は 3 つのまま
+    expect(manifest.version).toMatch(new RegExp(`^${targetVersion.replace(/\./g, '\\.')}(\\.\\d+)?$`));
     expect(RULES_VERSION).toBe(targetVersion);
     expect(advisoryDb.minExtensionVersion).toBe('1.7.0');
 

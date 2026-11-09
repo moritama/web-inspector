@@ -112,7 +112,8 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
 
   it('T05 (P1): NVD 自動取り込みが有効化され、minExtensionVersion が 1.7.0 であり、Apache 2.4.52 で CVE-2023-25690 が該当し、Apache/2.4.41 (Ubuntu) は Needs Review のままであること', () => {
     expect(advisoryDbJson.minExtensionVersion).toBe('1.7.0');
-    expect(manifestJson.version).toBe('1.7.1');
+    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける（例: 1.7.1.1）
+    expect(manifestJson.version).toMatch(/^1\.7\.1(\.\d+)?$/);
 
     // C04c（エントリ半減テスト）で間引かれていない本物の DB では収録件数が 400 件前後（350 件以上）であり、CVE-2023-25690 が確実に含まれること
     const isUnmodifiedApache =

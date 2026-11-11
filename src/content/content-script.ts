@@ -551,6 +551,19 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     });
   });
 
+  // 5c. WAF・ボット確認画面マーカー収集 (v1.8.0 T04 / G6)
+  const interstitialMarkers: string[] = [];
+  runStep('interstitialMarkers', () => {
+    if (typeof document !== 'undefined') {
+      if (document.getElementById('fastlyLogo')) {
+        interstitialMarkers.push('id="fastlyLogo"');
+      }
+      if (document.getElementById('captchaTitle')) {
+        interstitialMarkers.push('id="captchaTitle"');
+      }
+    }
+  });
+
   // 6. 混在コンテンツ (Mixed Content) の収集 (v1.7.0 T07 / SPEC-15)
   const mixedContent: MixedContentItem[] = [];
   if (isPageHttps) {
@@ -718,6 +731,7 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     metaCsp,
     metaCspReportOnly,
     elementTexts,
+    ...(interstitialMarkers.length > 0 ? { interstitialMarkers } : {}),
     ...(collectionErrors.length > 0
       ? {
           collectionPartial: true,

@@ -5,6 +5,7 @@
  */
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
+import { detectInterstitial, INTERSTITIAL_HEADER_NAMES } from '../detection/interstitial';
 import { ALL_TECHNOLOGY_RULES, RULES_VERSION, SSR_INFERENCE_HEADER_NAMES } from '../detection/rules';
 import { isValidXFrameOptions, SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
@@ -71,6 +72,7 @@ export interface HeaderCacheEntry {
 export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
   ...SECURITY_HEADER_NAMES.map((h) => h.toLowerCase()),
   ...SSR_INFERENCE_HEADER_NAMES.map((h) => h.toLowerCase()),
+  ...INTERSTITIAL_HEADER_NAMES.map((h) => h.toLowerCase()),
   ...ALL_TECHNOLOGY_RULES.flatMap((rule) =>
     rule.signals
       .filter((s) => s.type === 'header' && s.target)
@@ -1073,6 +1075,22 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     externalConnectionCount: externalConnections.totalConnections,
   });
 
+  // 8.2 WAF・ボット対策の確認画面検出 (v1.8.0 T04 / G6)
+  const interstitial = detectInterstitial(domSignals, responseHeaders);
+  if (interstitial) {
+    coverage.overallStatus = 'partial';
+    if (!coverage.details) {
+      coverage.details = {};
+    }
+    if (!coverage.details.partialReasons) {
+      coverage.details.partialReasons = [];
+    }
+    const reason = `WAF・ボット対策の確認画面（${interstitial.vendor}）を診断している可能性があります`;
+    if (!coverage.details.partialReasons.includes(reason)) {
+      coverage.details.partialReasons.push(reason);
+    }
+  }
+
   const advMeta = getAdvisoryDbMetadata();
   let advDbVersion = advMeta.dataVersion || '2026.10';
   if (/^\d{8}$/.test(advDbVersion)) {
@@ -1090,6 +1108,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     rulesVersion: RULES_VERSION,
     advisoryDatabaseVersion: advDbVersion,
     coverage,
+    ...(interstitial ? { interstitial } : {}),
     summary: {
       totalTechnologies: technologies.length,
       requiresAttentionCount,

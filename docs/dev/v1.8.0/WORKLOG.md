@@ -163,3 +163,31 @@
   - Cloudflare の JavaScript Detections は全 HTML ページに `/cdn-cgi/challenge-platform/…` を挿入する — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/（2026-11-12）
   - AWS WAF の Challenge / CAPTCHA のレスポンスには `x-amzn-waf-action: challenge`（202）/ `captcha`（405） — https://docs.aws.amazon.com/waf/latest/developerguide/waf-captcha-and-challenge-actions.html（2026-11-12）
 - 未解決: なし
+
+---
+
+## T04 実装  (2026-11-12 01:48)
+- 変更ファイル: src/shared/types.ts, src/detection/interstitial.ts, src/content/content-script.ts, src/background/service-worker.ts, src/export/markdown.ts, src/popup/render.ts, src/popup/popup.ts
+- 判断したこと:
+  - 型定義（`src/shared/types.ts`）:
+    - `InterstitialVendor`（`'Cloudflare' | 'AWS WAF' | 'Fastly'`）と `InterstitialInfo`（`vendor`, `evidence: string[]`）を定義。
+    - `DomSignals` に `interstitialMarkers?: string[]` を追加し、`InspectionReport` に `interstitial?: InterstitialInfo` を追加した。
+  - 判定ロジック（`src/detection/interstitial.ts`）:
+    - レスポンスヘッダー判定（ヘッダー1件で判定）: `cf-mitigated: challenge`（Cloudflare）、`x-amzn-waf-action: captcha / challenge`（AWS WAF）を判定。大文字小文字や前後の空白を無視して照合。
+    - ページ内印判定（同一ベンダーで2件以上で判定）: Fastly の印としてタイトル `Client Challenge`、DOM要素ID `id="fastlyLogo"`、`id="captchaTitle"` を対象とし、2件以上該当した場合に Fastly と判定。
+    - 異なるベンダーの印を合算しないこと、およびタイトル単体・`/cdn-cgi/challenge-platform/` 単体では判定しない設計ルールを順守。
+  - シグナル収集（`src/content/content-script.ts`）:
+    - `extractDomSignals` 内で `fastlyLogo` および `captchaTitle` の要素存在を安全に検査し、`interstitialMarkers` に格納した。
+  - 調査統括・完全性（`src/background/service-worker.ts`）:
+    - `ALLOWED_RESPONSE_HEADERS` に `cf-mitigated` と `x-amzn-waf-action` を追加（G5）。
+    - `executeInspection` で `detectInterstitial` を呼び出し、確認画面を検出した場合は `coverage.overallStatus` を `'partial'` に設定し、`coverage.details.partialReasons` に理由を追加。診断処理自体（技術検出・セキュリティ診断）は中断せず継続させた（G6）。
+  - レポート出力（`src/export/markdown.ts`）:
+    - `report.interstitial` が存在する場合、タイトル部と `## 1. 調査概要` の間に注意ブロック（`> [!WARNING]`）を出力。「確認画面を診断している可能性」、ベンダー名、「不完全」を含む文言を構成した。
+  - UI表示（`src/popup/render.ts`, `src/popup/popup.ts`）:
+    - `renderInterstitialNoticeHtml` を実装。エスケープ処理を通すことで XSS を防止し、インラインイベントハンドラを使用しない形とした。未検出時は空文字を返却。
+    - `popup.ts` の `renderTechnologies` から呼び出してポップアップ一覧の先頭に警告バナーを表示させた。
+- 外部の事実:
+  - Cloudflare の確認画面には `cf-mitigated: challenge`（唯一の値） — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/（2026-11-12）
+  - Cloudflare の JavaScript Detections は全 HTML ページに `/cdn-cgi/challenge-platform/…` を挿入する — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/（2026-11-12）
+  - AWS WAF の Challenge / CAPTCHA のレスポンスには `x-amzn-waf-action: challenge`（202）/ `captcha`（405） — https://docs.aws.amazon.com/waf/latest/developerguide/waf-captcha-and-challenge-actions.html（2026-11-12）
+- 未解決: なし

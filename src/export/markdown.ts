@@ -259,6 +259,23 @@ export function generateMarkdownReport(
   // タイトル
   sections.push(`# Web Technology & Security Inspection Report\n\n**対象ホスト:** ${formatMarkdownCodeSpan(hostname)}  \n**調査実施日時:** ${inspectedDate} (JST)  \n**Inspector バージョン:** v${extVer} (Manifest V3)  \n**解析方式:** 受動的解析 (Passive Inspection) / 完全ローカル突合  \n\n---`);
 
+  // WAF・ボット確認画面の警告 (v1.8.0 T04 / G6)
+  if (report.interstitial) {
+    const vendor = escapeMarkdownTableCell(report.interstitial.vendor);
+    const evidenceList = (report.interstitial.evidence || [])
+      .map((e) => `- ${formatMarkdownCodeSpan(e)}`)
+      .join('\n');
+    sections.push(`> [!WARNING]
+> **確認画面の可能性:** このページは **${vendor}** の WAF・ボット対策確認画面を診断している可能性があります。そのため、技術検出やセキュリティ診断の結果は**不完全**である可能性があります。${
+      evidenceList
+        ? `\n>\n> **検出された印:**\n${evidenceList
+            .split('\n')
+            .map((line) => `> ${line}`)
+            .join('\n')}`
+        : ''
+    }\n\n---`);
+  }
+
   // 1. 調査概要
   sections.push(`## 1. 調査概要
 

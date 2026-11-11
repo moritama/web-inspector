@@ -767,6 +767,8 @@ export interface DomSignals {
   collectionPartial?: boolean;
   /** Content Script の収集が部分的になった理由一覧 (v1.7.1 T06) */
   collectionErrors?: string[];
+  /** WAF・ボット確認画面のDOMマーカー (v1.8.0 T04 / G6) */
+  interstitialMarkers?: string[];
 }
 
 /**
@@ -822,6 +824,21 @@ export interface ExternalConnectionsAnalysis {
 }
 
 /**
+ * WAF・ボット確認画面のベンダー種別 (v1.8.0 T04 / G6)
+ */
+export type InterstitialVendor = 'Cloudflare' | 'AWS WAF' | 'Fastly';
+
+/**
+ * WAF・ボット対策の確認画面検出情報 (v1.8.0 T04 / G6)
+ */
+export interface InterstitialInfo {
+  /** 検出されたベンダー名 */
+  vendor: InterstitialVendor;
+  /** 判定に使った印（例: 'title: Client Challenge', 'id="fastlyLogo"', 'cf-mitigated: challenge'） */
+  evidence: string[];
+}
+
+/**
  * 総合調査レポート (Version 1.2 / Rev.2.1)
  */
 export interface InspectionReport {
@@ -833,6 +850,8 @@ export interface InspectionReport {
   rulesVersion: string;
   advisoryDatabaseVersion?: string;
   coverage?: InspectionCoverage;
+  /** WAF・ボット対策の確認画面の検出結果 (v1.8.0 T04 / G6) */
+  interstitial?: InterstitialInfo;
   summary: {
     totalTechnologies: number;
     requiresAttentionCount: number;

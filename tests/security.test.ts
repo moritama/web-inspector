@@ -659,12 +659,13 @@ describe('HTTPS & Mixed Content', () => {
   describe('v1.7.1 T11: HSTS (N11)・証明書注記 (N12)・項目名の統一 (R05)', () => {
     it.each([
       {
-        label: 'max-age=15552000; includeSubDomains; preload で preload の INFO が出ること',
+        // v1.8.0 T03: max-age が 1 年未満なら SEC-HSTS-02 の 1 行だけにする（preload の INFO は出さない）
+        label: 'max-age=15552000; includeSubDomains; preload で SEC-HSTS-02 だけが出て preload の INFO は出ないこと',
         header: 'max-age=15552000; includeSubDomains; preload',
         expectedMainId: 'SEC-HSTS-02',
         expectedMainStatus: 'warning',
         expectedMainSeverity: 'low',
-        expectPreloadInfo: true,
+        expectPreloadInfo: false,
       },
       {
         label: 'max-age=31536000; preload (includeSubDomains なし) でも preload の INFO が出ること',

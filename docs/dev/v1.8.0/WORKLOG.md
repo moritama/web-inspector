@@ -90,3 +90,21 @@
 - 外部の事実:
   - GitHub Actions の `::warning` / `::error` は注記を作るのみで手順は失敗しないため、終了コード 1 で失敗を伝える — https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands（2026-11-11）
 - 未解決: なし
+
+---
+
+## T03 設計  (2026-11-11 23:26)
+- 変更ファイル（新規）: tests/hsts-prerelease.test.ts, docs/dev/v1.8.0/design/T03.md
+- 変更ファイル（既存）: tests/security.test.ts
+- 期待値を変えた既存テスト（全件）:
+  - tests/security.test.ts の「v1.7.1 T11: HSTS (N11)…」の it.each の 1 件目（`max-age=15552000; includeSubDomains; preload`）: `expectPreloadInfo` を true → false にし、題名を直した。理由: T03 で SEC-HSTS-03 を「max-age が 1 年以上で includeSubDomains だけが無いとき」に限る仕様に変わったため。SEC-HSTS-02（warning / low）の期待は変えていない
+- 判断したこと:
+  - HSTS: preload があり 0 < max-age < 1 年なら SEC-HSTS-02 の 1 行だけにし、説明に指示書の文言「preload の登録条件も満たしていない」を含める。重大度は preload の有無で変えない。max-age が 0・未指定で preload がある場合も SEC-HSTS-03 は出さない（1 年以上ではないため）。この場合の説明への文言の追加は任意とした
+  - レポートの受け入れ条件は、executeInspection で作ったレポートと Markdown で、HSTS の指摘と表の行がそれぞれ 1 つであり、lintReportPair が合格することで確かめる
+  - version-matcher: 既存テストは `1.0.0-nxt` を壊れた字句として扱う（`satisfiesVersionRange('1.5.0', '>= 1.0.0-nxt')` が false、`isValidRange('>= 1.0.0-nxt')` が false）。SemVer 2.0 では `nxt` は正しい識別子なので、すべての場所で書式全般を受け付けると既存テストが落ちる。そこで、観測した版（第 1 引数、compareVersions）は SemVer 2.0 の書式全般を受け付け、DB の range の比較節の版は従来の固定の語の規則のまま（scripts/validate-advisories.mjs の isValidRange と一致させる）とした。検証が拒否する range にはどの版も一致しないことをテストする
+  - 既存の表記（`rc1` の語と数字の分解、`-next.0.0.0`）と Linux ディストリビューションの印の扱いは変えない。大文字・小文字の比較（既存は小文字にする）と、数字だけの識別子の先頭の 0 は既存の挙動を保ち、テストでは求めない
+- 確認したこと: `npx vitest run tests/hsts-prerelease.test.ts tests/security.test.ts` で 30 件が失敗。理由は機能が無いこと（SEC-HSTS-03 が追加で出て行が 2 つになる、固定の語に無いプレリリースが解析できない）で、テスト自身の誤りではない。既存の版照合テスト（version-check・advisory-db-invariants・review-v1.6.5-acceptance）と test-hygiene は現状で合格。`npx tsc --noEmit` は合格
+- 外部の事実:
+  - SemVer 2.0.0 §9〜§11（プレリリースとビルドメタデータの書式、順位の規則、例の順序） — https://semver.org/spec/v2.0.0.html（2026-11-11）
+  - HSTS preload の登録条件（max-age 31536000 以上、includeSubDomains、preload） — https://hstspreload.org/（2026-11-11）
+- 未解決: 「SemVer 2.0 の書式全般」と既存テストの `1.0.0-nxt` の拒否は、上の「観測した版と range の比較節で規則を分ける」解釈で両立させた。DB の range でも書式全般を受け付けたい場合は、既存テストと validate-advisories.mjs の変更を伴うので人の判断が要る

@@ -144,3 +144,22 @@
   - SemVer 2.0.0 §9〜§11（プレリリース・ビルドメタデータ・順位規則） — https://semver.org/spec/v2.0.0.html（2026-11-11）
   - HSTS preload の登録条件（max-age 31536000 以上、includeSubDomains、preload） — https://hstspreload.org/（2026-11-11）
 - 未解決: なし
+
+---
+
+## T04 設計  (2026-11-12 01:36)
+- 変更ファイル（新規）: tests/interstitial.test.ts, docs/dev/v1.8.0/design/T04.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - テストは公開 API（extractDomSignals → executeInspection → generateMarkdownReport / lintReportPair）を通して確かめ、判定の内部関数には依存させない。新しく前提にするのは `InspectionReport.interstitial?: { vendor: 'Cloudflare' | 'AWS WAF' | 'Fastly'; evidence: string[] }` と `src/popup/render.ts` の `renderInterstitialNoticeHtml(info)` だけ
+  - 「不完全」: 完全性の値は既存の partial にし、partialReasons に確認画面の理由を足す。「不完全」の語は Markdown とポップアップの注意の文に入れる。表示ラベルは変えない
+  - 印はベンダーごとに数える。cf-mitigated は値 challenge、x-amzn-waf-action は値 captcha / challenge のときだけ印にする。ヘッダーは origin が一致した観測済みのものだけを使う
+  - /cdn-cgi/challenge-platform/ は普通のページにも挿入されるので 1 つの印にしかならない。Cloudflare のページ内の印は他に一次資料で確かめられず、採用しなかった（Cloudflare は実際にはヘッダーで判定する）
+  - 指示書の候補以外の印は採用しなかった
+  - 「フィクスチャ」は tests/fixtures の DOM シグナルのフィクスチャとレポートのフィクスチャとした（test-server のページは対象外）
+- 確認したこと: `npx vitest run tests/interstitial.test.ts` で 33 件中 17 件が失敗。理由はすべて機能が無いこと（interstitial が無い、完全性が complete のまま、注意が出ない、許可リストにヘッダーが無い、renderInterstitialNoticeHtml が無い）。陰性・互換・lint の 16 件は現状で合格（前提の確認で、テストの文書からタイトルと id が読めることも確かめた）。`npx tsc --noEmit` は合格。test-hygiene と content-script のテストも合格
+- 外部の事実:
+  - Cloudflare の確認画面には `cf-mitigated: challenge`（唯一の値） — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/（2026-11-12）
+  - Cloudflare の JavaScript Detections は全 HTML ページに `/cdn-cgi/challenge-platform/…` を挿入する — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/（2026-11-12）
+  - AWS WAF の Challenge / CAPTCHA のレスポンスには `x-amzn-waf-action: challenge`（202）/ `captcha`（405） — https://docs.aws.amazon.com/waf/latest/developerguide/waf-captcha-and-challenge-actions.html（2026-11-12）
+- 未解決: なし

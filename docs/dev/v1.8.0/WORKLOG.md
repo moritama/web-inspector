@@ -191,3 +191,20 @@
   - Cloudflare の JavaScript Detections は全 HTML ページに `/cdn-cgi/challenge-platform/…` を挿入する — https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/（2026-11-12）
   - AWS WAF の Challenge / CAPTCHA のレスポンスには `x-amzn-waf-action: challenge`（202）/ `captcha`（405） — https://docs.aws.amazon.com/waf/latest/developerguide/waf-captcha-and-challenge-actions.html（2026-11-12）
 - 未解決: なし
+
+---
+
+## T05 設計  (2026-11-12 01:55)
+- 変更ファイル（新規）: tests/collect-settle.test.ts, docs/dev/v1.8.0/design/T05.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - 判定は scripts/collect-reports.mjs の純粋関数 `judgeSettle(samples, opts)` と、観測・時計・待ちを差し替えられる `waitForSettle(probe, opts)` に分け、どちらもブラウザなしで確かめる
+  - URL は `#` 以降を含めて比べる。DOM の変化は MutationObserver の累計の数が前回と違うこと。「URL が止まっている」かつ「DOM が止まっている」が settleMs 以上続けば落ち着いたとする（境界を含む）
+  - 上限は最初の観測から数える。上限と落ち着いた条件が同時なら落ち着いたを優先（打ち切りの誤記録を避ける）。観測の例外は失敗にせず変化として扱う
+  - 新しい CLI 引数は指示書のとおり `--settle-ms`（既定 1500）だけ。上限は `parseArgs` の戻り値 `settleMaxMs`（既定 15000 を推奨）。`--wait` は変えない
+  - _summary.md では、結果の `settle.status` が `timeout` のサイトの行に「待ち打ち切り」を出す。settle の無い従来の結果では出さない
+  - test-server は import すると待ち受けを始めるため、`/spa-settle` の経路の有無をソースの文字列で確かめるだけにした。3 回取得して同じになることは人が朝に確かめる
+- 確認したこと: `npx vitest run tests/collect-settle.test.ts` で 24 件中 22 件が失敗。理由はすべて機能が無いこと（judgeSettle / waitForSettle が無い、--settle-ms が不明なオプション、settleMs が無い、「待ち打ち切り」が出ない、/spa-settle が無い）。合格の 2 件は陰性（settle の無い行に出ない）と入力エラーの検査。`npx tsc --noEmit` は合格
+- 外部の事実:
+  - Playwright の page.addInitScript は遷移のたび、ページのスクリプトより前に評価される。waitUntil 'networkidle' は DISCOURAGED — https://playwright.dev/docs/api/class-page（2026-11-12）
+- 未解決: 3 回取得して技術の一覧が同じになること（受け入れ条件 1）は人が test-server で確かめる

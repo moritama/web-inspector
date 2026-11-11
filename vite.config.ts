@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
@@ -27,5 +28,8 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
+  },
+  test: {
+    setupFiles: ['tests/setup/advisory-db.ts'],
   },
 });

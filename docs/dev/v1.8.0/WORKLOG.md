@@ -41,3 +41,12 @@
 - 未解決: なし
 
 ---
+
+## T01 実装  (2026-11-11 22:35)
+- 変更ファイル: vite.config.ts
+- 判断したこと:
+  - 設計メモの方針に従い、`vite.config.ts` の `test.setupFiles` に `'tests/setup/advisory-db.ts'` を追加した
+  - `build` 設定や他の設定は変更せず維持した
+- 未解決: なし
+
+---

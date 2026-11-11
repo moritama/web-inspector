@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ALL_TECHNOLOGY_RULES, RULES_VERSION, TechnologyRule } from '../src/detection/rules';
+import { isSameRelease, readPackageVersion } from './helpers/release-version';
 
 describe('仕様書・ルール定義の整合性テスト (Specification Integrity)', () => {
   const specPath = path.resolve(__dirname, '../docs/DETECTION_SPECIFICATION.md');
@@ -125,9 +126,10 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     const version = pkg.version;
 
     // 1. manifest.json との一致 (DBのみ更新リリースでは第4要素 = DBリビジョンが付与される: 例 1.6.5.2)
-    const [mBase, mRev] = [manifest.version.split('.').slice(0, 3).join('.'), manifest.version.split('.')[3]];
-    expect(mBase).toBe(version);
-    if (mRev !== undefined) expect(mRev).toMatch(/^\d+$/);
+    expect(
+      isSameRelease(manifest.version, version),
+      `manifest の版 ${manifest.version} が package.json の版 ${version} と同じリリースではありません`
+    ).toBe(true);
 
     // 2. HTMLファイルのバージョンバッジ表示一致（ルート直下の popup.html / dashboard.html に一本化）
     const htmlFiles = [
@@ -447,24 +449,22 @@ describe('仕様書・ルール定義の整合性テスト (Specification Integr
     expect(readmeContent).not.toContain('siteChecker/');
   });
 
-  it('v1.7.1 T12: 版の表記が 1.7.1 に統一され、旧フォールバック文字列が無く、DB の minExtensionVersion は 1.7.0 のままであること', () => {
+  it('v1.7.1 T12: 版の表記が package.json の版に統一され、旧フォールバック文字列が無いこと', () => {
     const rootDir = path.resolve(__dirname, '..');
-    const targetVersion = '1.7.1';
+    // 版の期待値は package.json から取る（v1.8.0 T01）。DB の minExtensionVersion は advisory-db-invariants.test.ts で build-db と比べる
+    const targetVersion = readPackageVersion();
 
-    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8'));
     const lock = JSON.parse(fs.readFileSync(path.join(rootDir, 'package-lock.json'), 'utf-8'));
     const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public', 'manifest.json'), 'utf-8'));
-    const advisoryDb = JSON.parse(
-      fs.readFileSync(path.join(rootDir, 'src', 'detection', 'advisory-db.json'), 'utf-8')
-    );
 
-    expect(pkg.version).toBe(targetVersion);
     expect(lock.version).toBe(targetVersion);
     expect(lock.packages?.['']?.version).toBe(targetVersion);
-    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける（例: 1.7.1.1）。package.json と RULES_VERSION は 3 つのまま
-    expect(manifest.version).toMatch(new RegExp(`^${targetVersion.replace(/\./g, '\\.')}(\\.\\d+)?$`));
+    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける。package.json と RULES_VERSION は 3 つのまま
+    expect(
+      isSameRelease(manifest.version, targetVersion),
+      `manifest の版 ${manifest.version} が package.json の版 ${targetVersion} と同じリリースではありません`
+    ).toBe(true);
     expect(RULES_VERSION).toBe(targetVersion);
-    expect(advisoryDb.minExtensionVersion).toBe('1.7.0');
 
     const fallbackFiles = [
       'src/background/service-worker.ts',

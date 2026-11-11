@@ -10,7 +10,6 @@ import {
   AdvisoryDatabase,
   calculateDbFreshness,
   formatAdvisoryRecommendation,
-  getAdvisoryDbMetadata,
   matchOfflineAdvisories,
   resolveRecommendedVersion,
 } from '../src/detection/advisory';
@@ -146,18 +145,7 @@ describe('オフライン既知脆弱性・EOL照合テスト (Rev.2.1 IMP-06 / 
     expect(invalid.isStale).toBe(false);
   });
 
-  // D17: DBメタデータ検証テスト
-  it('D17: getAdvisoryDbMetadata() で Rev.2.1 スキーマメタデータが取得できること', () => {
-    const meta = getAdvisoryDbMetadata();
-
-    expect(['2.1', '2.2']).toContain(meta.schemaVersion); // 2.2 = 自動生成パイプライン (2.1 上位互換)
-    expect(meta.dataVersion).toMatch(/^\d{8}$/); // YYYYMMDD形式
-    expect(meta.productCount).toBeGreaterThanOrEqual(5);
-    expect(meta.advisoryCount).toBeGreaterThanOrEqual(10);
-    expect(meta.sources.length).toBeGreaterThan(0);
-    expect(meta.coverage.technologies.length).toBeGreaterThanOrEqual(5);
-    expect(['success', 'partial']).toContain(meta.syncStatus);
-  });
+  // D17: DBメタデータ検証テストは、同梱 DB の中身を読むため tests/advisory-db-invariants.test.ts に移した (v1.8.0 T01)
 
   it('古いLaravel 8.0.0 に対してEOLおよびCVE-2021-3129が検出されること', () => {
     const result = matchOfflineAdvisories('Laravel', '8.0.0', fixtureDb);

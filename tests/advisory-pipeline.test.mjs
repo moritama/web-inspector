@@ -785,9 +785,10 @@ describe('リリース種別判定 (classify-release)', () => {
       },
     },
     {
-      caseName: '(c) 1.7.1 (3要素) → 手動 (STAGED_PUBLISH / chrome-web-store)',
+      caseName: '(c) 1.7.2 (3要素) → 手動 (STAGED_PUBLISH / chrome-web-store)',
       input: {
-        version: '1.7.1',
+        // 合成の版。現在の package.json の版と重ならないようにする（v1.8.0 T01 の test-hygiene）
+        version: '1.7.2',
         changedFiles: [
           'src/detection/advisory-db.json',
           'public/manifest.json',

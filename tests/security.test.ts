@@ -14,6 +14,7 @@ import { checkHttpHeaders } from '../src/security/headers';
 import { checkHttpsAndMixedContent } from '../src/security/https';
 import { summarizeSecurityChecks } from '../src/shared/security-status';
 import { InspectedCookieInfo, InspectionReport, SecurityCheckResult } from '../src/shared/types';
+import { readPackageVersion } from './helpers/release-version';
 
 describe('Security Headers', () => {
   it('HSTSが未設定の場合にwarningを返すこと', () => {
@@ -415,7 +416,7 @@ describe('Security Headers', () => {
         url: 'https://clean.example.test/',
         hostname: 'clean.example.test',
         inspectedAt: '2026-11-07T00:00:00.000Z',
-        extensionVersion: '1.7.1',
+        extensionVersion: readPackageVersion(),
         rulesVersion: '2026.10.2',
         technologies: [],
         securityChecks: checks,

@@ -1,41 +1,39 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error scripts/validate-advisories.mjs は型定義を持たない .mjs モジュール
 import { isValidRange, validateDb } from '../scripts/validate-advisories.mjs';
+// @ts-expect-error scripts/advisories/build-db.mjs は型定義を持たない .mjs モジュール
+import { MIN_EXTENSION_VERSION, OUTPUT_SCHEMA_VERSION } from '../scripts/advisories/build-db.mjs';
 import advisoryDbJson from '../src/detection/advisory-db.json';
+import catalogJson from '../data/advisories/catalog.json';
 import manifestJson from '../public/manifest.json';
-import { AdvisoryDatabase, matchOfflineAdvisories } from '../src/detection/advisory';
+import { AdvisoryDatabase, getAdvisoryDbMetadata, matchOfflineAdvisories } from '../src/detection/advisory';
 import { compareVersions } from '../src/security/version-matcher';
+import { isSameRelease, readPackageVersion } from './helpers/release-version';
+import rawFixtureDb from './fixtures/advisory-db.fixture.json';
 
-const EXPECTED_PRODUCTS = [
-  'jquery',
-  'bootstrap',
-  'react',
-  'vue',
-  'angular',
-  'angularjs',
-  'lodash',
-  'moment',
-  'wordpress',
-  'php',
-  'nginx',
-  'apache',
-  'laravel',
-  'nodejs',
-];
+/**
+ * 同梱 DB を読んでよいテスト（tests/test-hygiene.test.ts の許可リスト）。
+ * DB だけの自動リリースで中身が変わっても落ちないよう、件数・日付・特定の CVE の有無は比べない。
+ * 比べるのはスキーマ・書式・不変条件と、値の出どころ（build-db.mjs・catalog.json）との一致だけ（v1.8.0 T01）。
+ */
+
+/** DB の製品の出どころ（catalog.json のキーは advisory-db.json の libraries のキーと一致させる決まり） */
+const CATALOG_PRODUCTS = Object.keys((catalogJson as { products: Record<string, unknown> }).products);
 
 describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
-  it('schemaVersion が 2.2 であり、基本メタデータが揃っていること', () => {
-    expect(advisoryDbJson.schemaVersion).toBe('2.2');
+  it('schemaVersion が build-db の出力スキーマと一致し、基本メタデータの書式が正しいこと', () => {
+    expect(advisoryDbJson.schemaVersion).toBe(OUTPUT_SCHEMA_VERSION);
     expect(advisoryDbJson.dataVersion).toMatch(/^\d{8}$/);
     expect(typeof advisoryDbJson.generatedAt).toBe('string');
     expect(Number.isNaN(Date.parse(advisoryDbJson.generatedAt))).toBe(false);
   });
 
-  it('全 14 製品が libraries に存在し、それぞれ aliases / versions / eol を持つこと', () => {
+  it('catalog.json の全製品が libraries に存在し（過不足なし）、それぞれ aliases / versions / eol を持つこと', () => {
+    expect(CATALOG_PRODUCTS.length).toBeGreaterThan(0);
     const productKeys = Object.keys(advisoryDbJson.libraries).sort();
-    expect(productKeys).toEqual([...EXPECTED_PRODUCTS].sort());
+    expect(productKeys).toEqual([...CATALOG_PRODUCTS].sort());
 
-    for (const key of EXPECTED_PRODUCTS) {
+    for (const key of CATALOG_PRODUCTS) {
       const lib = (advisoryDbJson.libraries as Record<string, { aliases: string[]; versions: unknown[]; eol: unknown[] }>)[key];
       expect(lib, `${key} が存在すること`).toBeDefined();
       expect(Array.isArray(lib.aliases) && lib.aliases.length > 0, `${key}.aliases が非空配列であること`).toBe(true);
@@ -96,7 +94,7 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
       advisoryCount: number;
       warnings: string[];
     };
-    expect(validReport.productCount).toBe(EXPECTED_PRODUCTS.length);
+    expect(validReport.productCount).toBe(CATALOG_PRODUCTS.length);
     expect(validReport.advisoryCount).toBe(totalChecked);
   });
 
@@ -110,28 +108,42 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
     expect(() => validateDb(brokenDb)).toThrow(/range が version-matcher で解釈できない書式です/);
   });
 
-  it('T05 (P1): NVD 自動取り込みが有効化され、minExtensionVersion が 1.7.0 であり、Apache 2.4.52 で CVE-2023-25690 が該当し、Apache/2.4.41 (Ubuntu) は Needs Review のままであること', () => {
-    expect(advisoryDbJson.minExtensionVersion).toBe('1.7.0');
-    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける（例: 1.7.1.1）
-    expect(manifestJson.version).toMatch(/^1\.7\.1(\.\d+)?$/);
+  it('v1.8.0 T01: manifest の版が package.json の版と同じリリースであり、minExtensionVersion が build-db の MIN_EXTENSION_VERSION と一致すること', () => {
+    // DB だけの自動リリースは manifest に 4 つ目の番号を付ける（isSameRelease が許す）
+    expect(
+      isSameRelease(manifestJson.version, readPackageVersion()),
+      `manifest の版 ${manifestJson.version} が package.json の版 ${readPackageVersion()} と同じリリースではありません`
+    ).toBe(true);
+    expect(advisoryDbJson.minExtensionVersion).toBe(MIN_EXTENSION_VERSION);
+  });
 
-    // C04c（エントリ半減テスト）で間引かれていない本物の DB では収録件数が 400 件前後（350 件以上）であり、CVE-2023-25690 が確実に含まれること
-    const isUnmodifiedApache =
-      advisoryDbJson.libraries.apache.versions.length === advisoryDbJson.coverage.byProduct.apache.count;
-    if (isUnmodifiedApache) {
-      expect(advisoryDbJson.coverage.totalAdvisories).toBeGreaterThanOrEqual(350);
-    }
+  it('v1.8.0 T01（旧 D17）: getAdvisoryDbMetadata() が同梱 DB のメタデータをそのまま返すこと', () => {
+    const meta = getAdvisoryDbMetadata();
+    const libs = advisoryDbJson.libraries as Record<string, { versions: unknown[] }>;
+    const computedCount = Object.values(libs).reduce((acc, lib) => acc + lib.versions.length, 0);
+    const coverage = advisoryDbJson.coverage as { totalAdvisories?: number } | undefined;
 
-    const realDb = advisoryDbJson as unknown as AdvisoryDatabase;
-    const apache2452 = matchOfflineAdvisories('Apache', '2.4.52', realDb);
-    expect(apache2452.matchStatus).toBe('Potentially Affected');
-    expect(apache2452.advisories.length).toBeGreaterThan(0);
+    expect(['2.1', '2.2']).toContain(meta.schemaVersion);
+    expect(meta.schemaVersion).toBe(advisoryDbJson.schemaVersion);
+    expect(meta.dataVersion).toBe(advisoryDbJson.dataVersion);
+    expect(meta.dataVersion).toMatch(/^\d{8}$/); // YYYYMMDD形式
+    expect(meta.productCount).toBe(Object.keys(libs).length);
+    expect(meta.advisoryCount).toBe(coverage?.totalAdvisories ?? computedCount);
+    expect(meta.sources.length).toBeGreaterThan(0);
+    expect(meta.coverage.technologies.length).toBeGreaterThan(0);
+    expect(['success', 'partial']).toContain(meta.syncStatus);
+  });
+});
 
-    if (isUnmodifiedApache) {
-      expect(apache2452.advisories.map((a) => a.id)).toContain('CVE-2023-25690');
-    }
+describe('照合の挙動（固定 DB で確かめる）', () => {
+  const fixtureDb = rawFixtureDb as unknown as AdvisoryDatabase;
 
-    const ubuntuApache = matchOfflineAdvisories('Apache', 'Apache/2.4.41 (Ubuntu)', realDb);
+  it('T05 (P1): 固定 DB で Apache 2.4.49 は該当し、Apache/2.4.41 (Ubuntu) はディストリビューション版として Needs Review のまま（上流版での参考件数あり）であること', () => {
+    const apache = matchOfflineAdvisories('Apache', '2.4.49', fixtureDb);
+    expect(apache.matchStatus).toBe('Potentially Affected');
+    expect(apache.advisories.length).toBeGreaterThan(0);
+
+    const ubuntuApache = matchOfflineAdvisories('Apache', 'Apache/2.4.41 (Ubuntu)', fixtureDb);
     expect(ubuntuApache.matchStatus).toBe('Needs Review');
     expect(ubuntuApache.advisories).toHaveLength(0);
     expect(ubuntuApache.upstreamAdvisoriesCount).toBeGreaterThan(0);

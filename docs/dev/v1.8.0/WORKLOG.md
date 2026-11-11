@@ -293,3 +293,32 @@
   - Structured Field の Dictionary の解析 — https://www.rfc-editor.org/rfc/rfc9651.html §4.2（2026-11-12）
   - X-XSS-Protection・X-AspNetMvc-Version — https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html（2026-11-12）
 - 未解決: なし
+
+---
+
+## T07 設計  (2026-11-12 06:34)
+- 変更ファイル（新規）: tests/csp-extras.test.ts, docs/dev/v1.8.0/design/T07.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - 4 項目は新しい ID `SEC-CSPX-TT-01`（info）・`SEC-CSPX-UIR-01`（info）・`SEC-CSPX-FORM-01`（warning / low）・`SEC-CSPX-REPORT-01`（info）にする。接頭辞を `SEC-CSP-` にしないのは、既存の SEC-CSP-00 / SEC-CSP-03 の集計、SW の CSP の置き換え、SPEC-01 の meta の例外、csp-parser.test.ts の件数の期待値に巻き込まないため。`SEC-CSPX-` を `HEADER_DEPENDENT_CHECK_PREFIXES` に足す
+  - 新しい指摘は `analyzeCSPPolicies` の結果・指摘に入れない。csp-parser.test.ts には form-action や Trusted Types の無い CSP で SEC-CSP-00（合格）や要約の文字列の完全一致を期待するテストが多いため（受け入れ条件 3）
+  - 評価は新しい `src/security/csp-extras.ts` の `checkCspExtras(policies, url, context)` と `evaluateCspExtraIssues(policy, allPolicies, context)`。csp-parser.ts は `evaluatePolicyIssuesWithIntersection` に 4 番目の任意の引数（文脈）を足すだけにする（30 行以内）
+  - 複数の CSP: TT・UIR・FORM は、どれか 1 つの強制ポリシー（ヘッダーか meta）が指定していれば「ある」。Report-Only の指定は数えない（UIR は仕様上 Report-Only では無視される）
+  - UIR は、CSP がまったく無いページでも、混在コンテンツがあれば出す。指示書の表で、この項目だけ「強制の CSP があり」と書かれていないため。info なので警告は増えない
+  - REPORT は、ヘッダーのポリシー（強制と Report-Only）の report-to のグループが Reporting-Endpoints の Dictionary のキーに無いとき。積集合は当てはまらない（防御の能力ではなく、レポートが届くかの確認のため）。meta のポリシーの report-to は対象にせず、既存の CSP-META-INVALID-REPORT-TO を残す
+  - 問題点の表（Markdown 第 8 節）には、文脈が渡されたときだけ足し、重大度と内容は診断の項目と同じ文字列にする。ヘッダー未観測のときは文脈を保存せず、表に新しい行を出さない（診断の項目が unknown なのに表で指摘すると矛盾するため）。文脈の無い古いレポートでは、既存のテストどおり「問題点はありません」のまま
+  - G5 のうち T07 で使う reporting-endpoints を、取得するヘッダーに足すことを確かめる
+  - 受け入れ条件 2・3（差分の行数）は、起点 `a5bd583` からの `git diff --numstat` で確かめる。CI の浅い clone で起点が無いときは、起点の行数（1113 行）＋30 行以下と、既存の代表的な期待値の文字列で代わりに確かめる
+- 確認したこと: `npx vitest run tests/csp-extras.test.ts` は、新しいモジュールが無いためファイルの読み込みで失敗（機能が無いことが理由）。`npx tsc --noEmit` のエラーも、新しいモジュールが無いことと、`evaluatePolicyIssuesWithIntersection` の 4 番目の引数がまだ無いことだけ。作業用の参照実装（コミットしない）で csp-extras だけを差し替えると 92 件中 74 件が合格し、4 項目の単一・複数・meta のケースはすべて合格した。残る 18 件は未実装の接続部分（表、SW、接頭辞、G5、Markdown、仕様書）が原因
+- 外部の事実（詳細は設計メモ）:
+  - meta の CSP で無効なのは report-uri・frame-ancestors・sandbox と Report-Only — https://w3c.github.io/webappsec-csp/#meta-element（2026-11-12）
+  - upgrade-insecure-requests は Report-Only では無視される — https://w3c.github.io/webappsec-upgrade-insecure-requests/#delivery（2026-11-12）
+  - default-src のフォールバックはフェッチ用のディレクティブだけ（form-action は Navigation Directives） — https://w3c.github.io/webappsec-csp/#directive-default-src（2026-11-12）
+  - Reporting-Endpoints は Dictionary の Structured Field、値は文字列 — https://w3c.github.io/reporting/#header（2026-11-12）
+  - Chrome の Reporting-Endpoints と Report-To の使い分け — https://developer.chrome.com/blog/reporting-api-migration（2026-11-12）
+  - require-trusted-types-for と 'script' — https://w3c.github.io/trusted-types/dist/spec/（2026-11-12）
+- 未解決:
+  - 旧式の Report-To ヘッダーだけで定義したグループを、新しい Chrome が CSP の report-to に使うかは未確認。表どおり Reporting-Endpoints だけを見る（info）
+  - require-trusted-types-for の ABNF の原文は未確認。`'script'` の大文字・小文字の扱いはテストしない
+  - SEC-CSPX-FORM-01（low）は、form-action の無い CSP のページで要確認が 1 件増える（指示書の表のとおり）
+  - PRIVACY_POLICY に reporting-endpoints を足す場合の文面は、人が承認する（G5）

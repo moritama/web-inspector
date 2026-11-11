@@ -208,3 +208,34 @@
 - 外部の事実:
   - Playwright の page.addInitScript は遷移のたび、ページのスクリプトより前に評価される。waitUntil 'networkidle' は DISCOURAGED — https://playwright.dev/docs/api/class-page（2026-11-12）
 - 未解決: 3 回取得して技術の一覧が同じになること（受け入れ条件 1）は人が test-server で確かめる
+
+---
+
+## T05 実装  (2026-11-12 02:02)
+- 変更ファイル: scripts/collect-reports.mjs, test-server/server.mjs
+- 判断したこと:
+  - `judgeSettle(samples, opts)`:
+    - 純粋関数として実装し、空観測配列は `waiting` を返却。
+    - 直前観測と `url` または `domMutations` が変化した最後の時刻 `lastChangeAt` を追跡し、`stableMs = last.at - lastChangeAt`、`elapsedMs = last.at - first.at` を算出。
+    - `stableMs >= opts.settleMs` の場合は上限時刻到達時であっても `settled` を優先判定。
+    - それ以外で `elapsedMs >= opts.maxWaitMs` なら `timeout`、いずれでもなければ `waiting` を返却。
+  - `waitForSettle(probe, opts)`:
+    - 開始時刻からの経過を `now()` で測定。
+    - `probe` の評価時に例外（コンテキスト破棄など）が発生した場合、前回と異なる番兵観測データ（`__error_${++errorSeq}`, domMutations: -1）を記録して変化として継続待機。
+    - `judgeSettle` が `settled` または `timeout` を返した時点でループを抜け、`waitedMs = now() - startAt` を返却。
+  - `parseArgs`:
+    - `opts.settleMs`（既定 1500）と `opts.settleMaxMs`（既定 15000）を追加。
+    - CLI 引数 `--settle-ms <ms>` のパースと、0以上の有限数値かどうかのバリデーション（負数・非数値・引数不足時に例外送出）を実装。
+  - `inspectOne` / `main`:
+    - `page.addInitScript` により MutationObserver（`childList`, `subtree`, `characterData`）をあらかじめ注入し、変化数を `window.__wiSettleMutations` に蓄積。
+    - `load` および `networkidle` の待機後、`waitForSettle` を実行。`status === 'timeout'` の場合は `notes` に「待ち打ち切り」を追加。
+    - 取得結果オブジェクトに `settle: { status, waitedMs }` を格納。
+  - `buildSummary`:
+    - `r.settle?.status === 'timeout'` の行の備考列に「待ち打ち切り」を追加（すでに notes に存在する場合の重複を防止）。
+  - `test-server/server.mjs`:
+    - `/spa-settle` ルートを追加。初期表示から 300ms 後に `location.hash = '#/'` に遷移し、さらに 900ms 後に jQuery 3.6.0 の定義、Bootstrap 4.3.1 の link 要素および DOM 要素を描画する SPA ページを実装。
+    - ナビゲーションメニューおよび起動ログに `/spa-settle` を追加。
+- 外部の事実:
+  - Playwright の `page.addInitScript` はページ遷移のたび、ページスクリプト実行前に評価される — https://playwright.dev/docs/api/class-page（2026-11-12）
+- 未解決:
+  - 受け入れ条件 1（test-server の /spa-settle を 3 回取得して技術の一覧が同じであること）は、ブラウザとサーバーを起動して人が朝に確認する。

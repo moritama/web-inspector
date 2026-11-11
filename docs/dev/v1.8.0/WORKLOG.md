@@ -266,3 +266,30 @@
   - Server-Timing を指摘する根拠の一次資料は未確認（指示書の判断のとおり info にとどめる）
   - PRIVACY_POLICY に足す取得ヘッダーの文面は、人が承認する（G5）
   - SEC-COOP-01 は COOP の無いページのほとんどで INFO が 1 件増える（要確認件数は増えない）
+
+---
+
+## T06 実装  (2026-11-12 06:21)
+- 変更ファイル: src/security/headers.ts, src/background/service-worker.ts, docs/DETECTION_SPECIFICATION.md
+- 判断したこと:
+  - `src/security/headers.ts`:
+    - `SECURITY_HEADER_NAMES` に `'x-aspnetmvc-version'`, `'x-xss-protection'`, `'server-timing'` を追加（これにより `service-worker.ts` の `ALLOWED_RESPONSE_HEADERS` にも自動反映）
+    - Permissions-Policy の解析関数 `parsePermissionsPolicy` および型 `PermissionsPolicyAllowlist` を RFC 9651 Dictionary に準拠して実装。構文エラー時（Feature-Policy 記法、末尾カンマ、連続カンマ、閉じない括弧等）は null を返し、`SEC-PERM-03`（info / info）を発火。正常パース時は強い権限 5 つ（camera, microphone, geolocation, payment, usb）のいずれかがトークン `*` または Inner List 内の `*` を持つ場合に 1 件に集約して `SEC-PERM-02`（warning / low）を発火（項目名は両者とも `Permissions-Policy` で統一）
+    - Inner List 内のアイテム間区切り（SP）の解析処理において、アイテム直後の空白文字・閉じ括弧の判定順序を修正し、`camera=(self "https://cdn.example.test")` などの複数アイテムを持つ Inner List が正しく解析されるように対応
+    - Cross-Origin 系ヘッダーの評価:
+      - COOP (`SEC-COOP-01`): 未設定、`unsafe-none`、または仕様外の値を info / info で指摘。`same-origin`, `same-origin-allow-popups`, `noopener-allow-popups` を有効値として許容
+      - COEP (`SEC-COEP-01`): 既定では推奨せず、ヘッダーが存在し仕様値（`require-corp`, `credentialless`, `unsafe-none`）以外の場合のみ info / info で指摘
+      - CORP (`SEC-CORP-01`): ヘッダーが存在し仕様値（`same-origin`, `same-site`, `cross-origin`）以外の場合に info / info で指摘（引数なし・大文字小文字区別）
+    - X-XSS-Protection (`SEC-XXSS-01`): ヘッダー値の主部が `1` の場合のみ info / info で指摘（`0` または未設定は非指摘）
+    - 情報露出: `X-AspNetMvc-Version` が存在する場合に `SEC-DISC-04`（warning / low）、`Server-Timing` が存在する場合に `SEC-DISC-05`（info / info）を `information-disclosure` カテゴリで指摘
+  - `src/background/service-worker.ts`:
+    - `HEADER_DEPENDENT_CHECK_PREFIXES` に `'SEC-COOP-'`, `'SEC-COEP-'`, `'SEC-CORP-'`, `'SEC-XXSS-'` を追加（ヘッダー未観測時の unknown 化および要確認件数 0 を保証）
+  - `docs/DETECTION_SPECIFICATION.md`:
+    - §8.3 に 8 つの ID（SEC-COOP-01, SEC-COEP-01, SEC-CORP-01, SEC-XXSS-01, SEC-PERM-02, SEC-PERM-03, SEC-DISC-04, SEC-DISC-05）の判定基準・status・重大度を手動で追記
+- 外部の事実（設計メモを引用）:
+  - COOP・COEP の値と無効な値の扱い — https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-opener-policies（2026-11-12）
+  - CORP の ABNF（大文字・小文字を区別） — https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header（2026-11-12）
+  - Permissions-Policy の `*`（トークンか、`*` を含むリスト） — https://w3c.github.io/webappsec-permissions-policy/（2026-11-12）
+  - Structured Field の Dictionary の解析 — https://www.rfc-editor.org/rfc/rfc9651.html §4.2（2026-11-12）
+  - X-XSS-Protection・X-AspNetMvc-Version — https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html（2026-11-12）
+- 未解決: なし

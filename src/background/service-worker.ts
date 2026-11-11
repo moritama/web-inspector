@@ -92,6 +92,10 @@ export const HEADER_DEPENDENT_CHECK_PREFIXES = [
   'SEC-PERM-',
   'SEC-CORS-',
   'SEC-DISC-',
+  'SEC-COOP-',
+  'SEC-COEP-',
+  'SEC-CORP-',
+  'SEC-XXSS-',
 ] as const;
 
 /**

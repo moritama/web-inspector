@@ -428,7 +428,14 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **HSTS (`Strict-Transport-Security` / T11, v1.8.0 T03)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 1 年（31536000 秒）未満は `warning`（`low`）とします。`max-age` が 1 年未満で `preload` が指定されている場合は SEC-HSTS-02 の 1 行にまとめ、説明に「preload の登録条件も満たしていない」旨を追記します。`SEC-HSTS-03`（`info`）は、`max-age` が 1 年以上かつ `preload` があり `includeSubDomains` だけが未指定の場合にのみ出力します。
 - **`X-Content-Type-Options` / `X-Frame-Options`**: `nosniff` の厳密一致および `DENY` / `SAMEORIGIN` の妥当性を検証します。CSP `frame-ancestors` により保護されている場合は `X-Frame-Options` の観測値に `CSP frame-ancestors により保護` と明記して `info` とします。
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
-- **技術情報露出 (`SEC-DISC-01`〜`03` / T08)**: `Server`（詳細版露出時）、`X-Powered-By` に加え、`X-AspNet-Version` の露出（`SEC-DISC-03`）を `warning`（`low`）として報告します。
+- **技術情報露出 (`SEC-DISC-01`〜`05` / T08, v1.8.0 T06)**: `Server`（詳細版露出時）、`X-Powered-By`、`X-AspNet-Version`（`SEC-DISC-03`）に加え、`X-AspNetMvc-Version`（`SEC-DISC-04` / `warning`・`low`）および `Server-Timing`（`SEC-DISC-05` / `info`・`info`）の露出を報告します。
+- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a）**:
+  - `SEC-COOP-01` (`info` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。
+  - `SEC-COEP-01` (`info` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。
+  - `SEC-CORP-01` (`info` / `info`): `Cross-Origin-Resource-Policy` に仕様で定義されていない値（`same-origin`, `same-site`, `cross-origin` 以外）が指定されている場合に出力します。
+  - `SEC-XXSS-01` (`info` / `info`): `X-XSS-Protection` に旧式の値 `1` または `1; mode=block` が指定されている場合に出力します（モダンブラウザでは非推奨であり、`0` またはヘッダー削除を推奨）。
+  - `SEC-PERM-02` (`warning` / `low`): `Permissions-Policy` で強い権限（`camera`, `microphone`, `geolocation`, `payment`, `usb`）のいずれかが `*`（ワイルドカード）で許可されている場合に出力します（複数該当時も 1 件に集約）。
+  - `SEC-PERM-03` (`info` / `info`): `Permissions-Policy` の構文が RFC 9651 Dictionary として解析できない場合に出力します（旧 Feature-Policy 記法や構文エラー等）。
 - **HTTPS と証明書の対象外明示・混在コンテンツ URL 表示 (T06, T11)**:
   - HTTPS 接続時（`SEC-HTTPS-00`）の観測値を `HTTPS で接続（証明書の有効性は対象外）` とし、TLS/SSL 証明書の有効期限や信頼性は受動的拡張機能の診断対象外であることをレポートの制限事項に明記します。
   - アクティブ／パッシブ混在コンテンツ（`SEC-MIXED-ACTIVE` / `SEC-MIXED-PASSIVE`）では、観測値に対象要素とクエリ・フラグメントをマスクした URL（例: `script: http://...`, `form[action]: http://...`）を最大 3 件＋「他 ○ 件」で出力します。

@@ -108,3 +108,8 @@
   - SemVer 2.0.0 §9〜§11（プレリリースとビルドメタデータの書式、順位の規則、例の順序） — https://semver.org/spec/v2.0.0.html（2026-11-11）
   - HSTS preload の登録条件（max-age 31536000 以上、includeSubDomains、preload） — https://hstspreload.org/（2026-11-11）
 - 未解決: 「SemVer 2.0 の書式全般」と既存テストの `1.0.0-nxt` の拒否は、上の「観測した版と range の比較節で規則を分ける」解釈で両立させた。DB の range でも書式全般を受け付けたい場合は、既存テストと validate-advisories.mjs の変更を伴うので人の判断が要る
+
+## T03 停止（夜間スクリプトによる自動記録）  (2026-11-11 23:45)
+- 理由: 実装の担当が、テストの期待値の変更が必要と判断した: tests/hsts-prerelease.test.ts 250行目の期待値(false)がSemVer仕様(2.1.0-SNAPSHOT < 2.1.0)と矛盾するためneedsTestChangeをtrueに設定しました。
+- 変更の退避先: git stash の「v1.8.0 T03 stop 20261111-231822」（記録時点で stash@{0}。番号はずれるので git stash list で名前を確認）。夜間ログのフォルダにパッチもある
+- 人間に判断してほしいこと: 設計メモとテストを読み、期待値を変えるべきか判断する。変えるなら人がテストを直してコミットし、RETRY_STOPPED=1 で再実行

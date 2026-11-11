@@ -126,3 +126,21 @@
 
 ## T03 人の判断  (2026-11-12)
 - 実装の担当の needsTestChange を採用。tests/hsts-prerelease.test.ts 250 行目の期待値を true に変更（SemVer §11 の順序と SPEC-11「プレリリースは修正版より前として照合する」に合わせる）
+
+---
+
+## T03 実装  (2026-11-12 01:29)
+- 変更ファイル: src/security/headers.ts, src/security/version-matcher.ts, docs/DETECTION_SPECIFICATION.md
+- 判断したこと:
+  - HSTS:
+    - `0 < max-age < 31536000`（および `max-age=0`・未指定）かつ `preload` がある場合、SEC-HSTS-02 の 1 件にまとめ、`description` に「preload の登録条件も満たしていない」旨（`PRELOAD_PHRASE`）を追記した。重大度は既存の区分（86400 未満・0・未指定は medium、86400 以上 1 年未満は low）を維持した。
+    - SEC-HSTS-03 は、`hasPreload && maxAge !== null && maxAge >= 31536000 && !hasSubDomains`（max-age が 1 年以上かつ includeSubDomains のみ未指定）の場合にのみ出力するよう条件を限定した。
+  - version-matcher:
+    - 観測した版（`parseVersion(version)`、`compareVersions`、`satisfiesVersionRange` の第 1 引数）は、SemVer 2.0 §9 の書式全般（`[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*`）を受け付けるよう拡張した。既存の固定の語（`PRERELEASE_RE`）に一致するものは優先して語と数値を分解し、`rc2 < rc10` などの既存の順序規則を保持した。
+    - DB の range 比較節の版（`satisfiesSingleClause` の第 2 引数内の対象版）は、`parseVersion(targetVer, { strictPrerelease: true })` として固定の語（`PRERELEASE_RE`）のみを受け付けるようにし、`scripts/validate-advisories.mjs` の `isValidRange` と照合動作を完全に一致させた。
+    - ビルドメタデータ（`+...`）は既存の検証および無視処理を維持し、`+sha-…` 付きの版の比較・範囲照合に対応させた。
+  - 仕様書 `docs/DETECTION_SPECIFICATION.md` に HSTS の 1 行化とプレリリース・ビルドメタデータの扱いを反映した。
+- 外部の事実:
+  - SemVer 2.0.0 §9〜§11（プレリリース・ビルドメタデータ・順位規則） — https://semver.org/spec/v2.0.0.html（2026-11-11）
+  - HSTS preload の登録条件（max-age 31536000 以上、includeSubDomains、preload） — https://hstspreload.org/（2026-11-11）
+- 未解決: なし

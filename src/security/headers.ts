@@ -117,6 +117,11 @@ export function checkHttpHeaders(
       const hasSubDomains = /\bincludeSubDomains\b/i.test(hsts);
       const hasPreload = /\bpreload\b/i.test(hsts);
 
+      // preload が指定されているが max-age が 1 年未満の場合の注記 (v1.8.0 T03)
+      const preloadNote = hasPreload
+        ? ' また、preload が指定されていますが、preload の登録条件も満たしていない状態です（max-age が 1 年（31536000秒）未満）。'
+        : '';
+
       if (maxAge === null || maxAge === 0) {
         // max-age=0（HSTSの明示的な無効化）または max-age 未指定
         results.push({
@@ -127,9 +132,9 @@ export function checkHttpHeaders(
           severity: 'medium',
           observed: hsts,
           description:
-            maxAge === 0
+            (maxAge === 0
               ? 'HSTSのmax-ageが 0 に設定されており、HSTSが明示的に無効化されています。中間者攻撃やダウングレード攻撃（SSL Stripping）のリスクがあります。'
-              : 'HSTSヘッダーに有効なmax-ageディレクティブが含まれていません。',
+              : 'HSTSヘッダーに有効なmax-ageディレクティブが含まれていません。') + preloadNote,
           recommendation:
             'HSTSを有効にするため、max-age=31536000（1年）以上の値を設定してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
@@ -144,7 +149,9 @@ export function checkHttpHeaders(
           status: 'warning',
           severity: 'medium',
           observed: hsts,
-          description: `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。`,
+          description:
+            `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。` +
+            preloadNote,
           recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
@@ -158,7 +165,9 @@ export function checkHttpHeaders(
           status: 'warning',
           severity: 'low',
           observed: hsts,
-          description: `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と1年（31536000秒）未満に設定されています。`,
+          description:
+            `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と1年（31536000秒）未満に設定されています。` +
+            preloadNote,
           recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定することを検討してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
@@ -178,25 +187,19 @@ export function checkHttpHeaders(
         });
       }
 
-      // preload があるのに max-age < 1年 または includeSubDomains がない場合は INFO を出す (v1.7.1 T11 / N11)
-      if (hasPreload && (maxAge === null || maxAge < 31536000 || !hasSubDomains)) {
-        const missingPreloadReqs: string[] = [];
-        if (maxAge === null || maxAge < 31536000) {
-          missingPreloadReqs.push('max-age が 1 年（31536000秒）未満');
-        }
-        if (!hasSubDomains) {
-          missingPreloadReqs.push('includeSubDomains が未指定');
-        }
+      // preload があり max-age が 1 年以上で includeSubDomains だけが無いときに限る (v1.8.0 T03)
+      if (hasPreload && maxAge !== null && maxAge >= 31536000 && !hasSubDomains) {
         results.push({
           checkId: 'SEC-HSTS-03',
           category: 'http-headers',
           name: 'HSTS (Strict-Transport-Security)',
           status: 'info',
           severity: 'info',
-          observed: `${hsts} (preload の登録条件を満たしていない: ${missingPreloadReqs.join(' / ')})`,
-          description: `HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（${missingPreloadReqs.join('、')}）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。`,
+          observed: `${hsts} (preload の登録条件を満たしていない: includeSubDomains が未指定)`,
+          description:
+            'HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（includeSubDomains が未指定）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。',
           recommendation:
-            'HSTS Preload を利用する場合は max-age=31536000 以上と includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
+            'HSTS Preload を利用する場合は includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
           referenceUrls: [
             'https://hstspreload.org/',
             'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security',

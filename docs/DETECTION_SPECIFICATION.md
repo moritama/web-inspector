@@ -376,7 +376,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 ## 7. オフライン脆弱性・EOL照合およびバージョン比較仕様 (v1.7.1)
 
 ### 7.1 SemVer・4要素以上・プレリリース・複数ブランチ範囲の比較 (`src/security/version-matcher.ts`)
-- **多要素バージョンの正規化 (SPEC-05)**: `major.minor.patch` の3要素に加え、第4要素以降（例: `1.2.3.4`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（`-alpha.1`, `-beta.2`, `-rc.1`）を解析し、辞書順ではなく数値・識別子優先順位に従って比較します。
+- **多要素バージョンの正規化 (SPEC-05, v1.8.0 T03)**: `major.minor.patch` の3要素に加え、第4要素以降（例: `1.2.3.4`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（SemVer 2.0 書式全般および `-rc1` などの既存表記）を解析し、ビルドメタデータ（`+sha-...` 等）は比較で無視します。辞書順ではなく数値・識別子優先順位に従って比較します。なお脆弱性 DB の range 比較節の版では固定の語（alpha, beta, rc, next 等）のみを受け付けます。
 - **プレリリース版の同一ブランチ境界ガード (SPEC-05)**:
   `>= 18.0.0, < 18.2.15 || >= 19.0.0, < 19.2.15` のように `||`（OR）で複数ブランチが連結された範囲式や単一上限（`< 4.0.0` 等）において、プレリリース版（例: `4.0.0-beta.1` や `5.0.0-alpha.1`）は、同じ `major.minor` ブランチを対象とする条件節に対してのみ一致させます。これにより、別メジャー・マイナーのプレリリース版が過去ブランチの `< X` に誤って一致する偽陽性を防止します。
 - **複合範囲表現の解釈**: カンマ区切り（`>= 4.0.0, < 4.3.1`）や空白区切り（`>=1.0.0 <1.2.0`）の AND 条件、チルダ範囲（`~1.2.3`）、キャレット範囲（`^1.2.3`）、ワイルドカード（`1.2.x`, `1.2.*`）をすべて解釈します。
@@ -425,7 +425,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   `SEC-CSP-03` の観測値（`observed`）には主な問題点の要約（例: `script-src 未指定 / 'unsafe-inline' あり`）を表示し、Markdown レポートのセクション 8 には各ポリシーのコードブロック直下に問題点の表（ディレクティブ・重大度・内容・推奨）を出力します。また `X-Frame-Options` とレスポンスヘッダーの `frame-ancestors` の意味が異なる場合（例: XFO `DENY` と `frame-ancestors 'self'`）は、「実際に効くのは frame-ancestors」という `INFO` 注記（`SEC-CSP-XFO-CONFLICT`）を出力します。
 
 ### 8.3 HTTPセキュリティヘッダー・HTTPS・混在コンテンツ・廃止済みタグ診断 (`src/security/headers.ts`, `https.ts`, `domain-analyzer.ts`)
-- **HSTS (`Strict-Transport-Security` / T11)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 180 日未満は `warning`（`low`）とします。また `preload` があるのに `max-age < 31536000`（1 年未満）または `includeSubDomains` 未指定の場合は、「preload の登録条件を満たしていない」旨の `info`（`SEC-HSTS-03`）を出力します。
+- **HSTS (`Strict-Transport-Security` / T11, v1.8.0 T03)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 1 年（31536000 秒）未満は `warning`（`low`）とします。`max-age` が 1 年未満で `preload` が指定されている場合は SEC-HSTS-02 の 1 行にまとめ、説明に「preload の登録条件も満たしていない」旨を追記します。`SEC-HSTS-03`（`info`）は、`max-age` が 1 年以上かつ `preload` があり `includeSubDomains` だけが未指定の場合にのみ出力します。
 - **`X-Content-Type-Options` / `X-Frame-Options`**: `nosniff` の厳密一致および `DENY` / `SAMEORIGIN` の妥当性を検証します。CSP `frame-ancestors` により保護されている場合は `X-Frame-Options` の観測値に `CSP frame-ancestors により保護` と明記して `info` とします。
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
 - **技術情報露出 (`SEC-DISC-01`〜`03` / T08)**: `Server`（詳細版露出時）、`X-Powered-By` に加え、`X-AspNet-Version` の露出（`SEC-DISC-03`）を `warning`（`low`）として報告します。

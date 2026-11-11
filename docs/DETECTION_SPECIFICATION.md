@@ -423,6 +423,11 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   複数の強制 `Content-Security-Policy` レスポンスヘッダーおよび `<meta http-equiv="Content-Security-Policy">` が存在する場合、すべての強制ポリシーの能力（Capability）の積集合（AND）で評価します。たとえばレスポンスヘッダーが `frame-ancestors 'self'` のみであっても、`meta` に厳格な `script-src` が設定されていれば「スクリプトの制限なし（`CSP-SCRIPT-MISSING`）」とは判定しません。また `'nonce-...'` や `'sha256-...'` と `'strict-dynamic'` を併用した堅牢なポリシーは `PASS` となります。
 - **問題点の要約とポリシー別テーブル出力**:
   `SEC-CSP-03` の観測値（`observed`）には主な問題点の要約（例: `script-src 未指定 / 'unsafe-inline' あり`）を表示し、Markdown レポートのセクション 8 には各ポリシーのコードブロック直下に問題点の表（ディレクティブ・重大度・内容・推奨）を出力します。また `X-Frame-Options` とレスポンスヘッダーの `frame-ancestors` の意味が異なる場合（例: XFO `DENY` と `frame-ancestors 'self'`）は、「実際に効くのは frame-ancestors」という `INFO` 注記（`SEC-CSP-XFO-CONFLICT`）を出力します。
+- **CSP の追加項目（v1.8.0 T07 / NEW-03b / `src/security/csp-extras.ts`）**:
+  - `SEC-CSPX-TT-01` (`info` / `info`): 強制の CSP が存在し、どの強制ポリシーにも `require-trusted-types-for 'script'` が指定されていない場合に出力します。
+  - `SEC-CSPX-UIR-01` (`info` / `info`): 混在コンテンツが検出されていて、強制ポリシーに `upgrade-insecure-requests` が指定されていない場合に出力します（CSP が全くない場合も含みます）。
+  - `SEC-CSPX-FORM-01` (`warning` / `low`): 強制の CSP が存在し、どの強制ポリシーにも `form-action` が指定されていない場合に出力します（`default-src` にフォールバックしないため）。
+  - `SEC-CSPX-REPORT-01` (`info` / `info`): HTTP レスポンスヘッダーの CSP ポリシーで `report-to` に指定されたエンドポイントグループ名が、`Reporting-Endpoints` ヘッダーに定義されていない場合に出力します（meta タグの CSP は対象外）。
 
 ### 8.3 HTTPセキュリティヘッダー・HTTPS・混在コンテンツ・廃止済みタグ診断 (`src/security/headers.ts`, `https.ts`, `domain-analyzer.ts`)
 - **HSTS (`Strict-Transport-Security` / T11, v1.8.0 T03)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 1 年（31536000 秒）未満は `warning`（`low`）とします。`max-age` が 1 年未満で `preload` が指定されている場合は SEC-HSTS-02 の 1 行にまとめ、説明に「preload の登録条件も満たしていない」旨を追記します。`SEC-HSTS-03`（`info`）は、`max-age` が 1 年以上かつ `preload` があり `includeSubDomains` だけが未指定の場合にのみ出力します。

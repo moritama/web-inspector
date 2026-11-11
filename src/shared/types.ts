@@ -839,6 +839,16 @@ export interface InterstitialInfo {
 }
 
 /**
+ * CSP の追加項目（v1.8.0 T07）の評価に使う、CSP 以外の観測結果
+ */
+export interface CspExtrasContext {
+  /** DOM で混在コンテンツが 1 件以上検出されたか */
+  mixedContentDetected: boolean;
+  /** Reporting-Endpoints ヘッダーの値（受け取った行のまま）。ヘッダーが無ければ空配列か undefined */
+  reportingEndpoints?: string[];
+}
+
+/**
  * 総合調査レポート (Version 1.2 / Rev.2.1)
  */
 export interface InspectionReport {
@@ -878,6 +888,8 @@ export interface InspectionReport {
   mixedContent: MixedContentItem[];
   /** 外部通信先・サードパーティ分析結果 (Rev.2.1 IMP-11) */
   externalConnections?: ExternalConnectionsAnalysis;
+  /** CSP追加項目診断用のコンテキスト (v1.8.0 T07) */
+  cspExtrasContext?: CspExtrasContext;
   /** 履歴保存に失敗したかどうかのフラグ (v1.7.0 T10 / IMPL-06) */
   historySaveFailed?: boolean;
   /** 履歴保存失敗などのストレージ関連警告メッセージ (v1.7.0 T10 / IMPL-06) */

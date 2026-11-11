@@ -322,3 +322,23 @@
   - require-trusted-types-for の ABNF の原文は未確認。`'script'` の大文字・小文字の扱いはテストしない
   - SEC-CSPX-FORM-01（low）は、form-action の無い CSP のページで要確認が 1 件増える（指示書の表のとおり）
   - PRIVACY_POLICY に reporting-endpoints を足す場合の文面は、人が承認する（G5）
+
+---
+
+## T07 実装  (2026-11-12 06:48)
+- 変更ファイル: src/security/csp-extras.ts, src/security/csp-parser.ts, src/background/service-worker.ts, src/security/headers.ts, src/shared/types.ts, src/export/markdown.ts, docs/DETECTION_SPECIFICATION.md
+- 判断したこと:
+  - `src/security/csp-extras.ts` を新規作成し、4 つのチェック項目（`SEC-CSPX-TT-01`, `SEC-CSPX-UIR-01`, `SEC-CSPX-FORM-01`, `SEC-CSPX-REPORT-01`）の評価関数 `checkCspExtras`、ポリシー別問題点表用指摘関数 `evaluateCspExtraIssues`、および Reporting-Endpoints ヘッダー解析関数 `parseReportingEndpoints` を実装した
+  - `src/security/csp-parser.ts` では `evaluatePolicyIssuesWithIntersection` に任意の第 4 引数 `extrasContext?: CspExtrasContext` を追加し、既存の積集合評価や SEC-CSP-00 / SEC-CSP-03 集計には一切干渉せず、変更行数を 11 行（追加 8 / 削除 3）にとどめた（30 行以内制限を遵守）
+  - `src/background/service-worker.ts` では `HEADER_DEPENDENT_CHECK_PREFIXES` に `'SEC-CSPX-'` を追加し、CSP 解析直後に `checkCspExtras` を呼び出して診断結果に追加するようにした。また `headersObserved` のときのみ `report.cspExtrasContext` を保存し、ヘッダー未観測時は Markdown 表に新しい指摘が出ないようにした
+  - `src/security/headers.ts` の `SECURITY_HEADER_NAMES` に `'reporting-endpoints'` を追加し、`ALLOWED_RESPONSE_HEADERS` 経由で取得・サニタイズ保持されるようにした（G5）
+  - `src/export/markdown.ts` の第 8 節で `evaluatePolicyIssuesWithIntersection` に `report.cspExtrasContext` を渡し、診断項目と同一の重大度・内容で問題点表に出力するようにした
+  - `docs/DETECTION_SPECIFICATION.md` の §8.2 末尾に 4 つのチェック ID の判定・status・重大度を記載した
+- 外部の事実（設計メモ T07 より引用）:
+  - meta の CSP で無効なのは report-uri・frame-ancestors・sandbox と Report-Only — https://w3c.github.io/webappsec-csp/#meta-element（2026-11-12）
+  - upgrade-insecure-requests は Report-Only では無視される — https://w3c.github.io/webappsec-upgrade-insecure-requests/#delivery（2026-11-12）
+  - default-src のフォールバックはフェッチ用のディレクティブだけ（form-action は Navigation Directives） — https://w3c.github.io/webappsec-csp/#directive-default-src（2026-11-12）
+  - Reporting-Endpoints は Dictionary の Structured Field、値は文字列 — https://w3c.github.io/reporting/#header（2026-11-12）
+  - require-trusted-types-for と 'script' — https://w3c.github.io/trusted-types/dist/spec/（2026-11-12）
+- 未解決:
+  - 設計メモに記載のとおり、旧式の Report-To ヘッダーのみで定義されたグループの扱いは対象外とし、Reporting-Endpoints のみを評価対象としている（指摘は info）

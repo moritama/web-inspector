@@ -459,7 +459,12 @@ ${report.cookies.length > 0 ? report.cookies.map((c) => {
 
 - **CSPポリシー保持件数:** ${allCspPolicies.length} 件
 ${allCspPolicies.length > 0 ? allCspPolicies.map((p, idx) => {
-  const policyIssues = evaluatePolicyIssuesWithIntersection(p, allCspPolicies, hasValidXfo);
+  const policyIssues = evaluatePolicyIssuesWithIntersection(
+    p,
+    allCspPolicies,
+    hasValidXfo,
+    report.cspExtrasContext
+  );
   const issueBlock = policyIssues.length > 0
     ? `| ディレクティブ | 重大度 | 内容 | 推奨 |\n|---|:---:|---|---|\n${policyIssues.map((issue) => `| ${formatMarkdownCodeSpan(issue.directive, { inTable: true })} | ${issue.severity.toUpperCase()} | ${escapeMarkdownTableCell(issue.description)} | ${escapeMarkdownTableCell(issue.recommendation)} |`).join('\n')}`
     : '> このポリシーに検出された問題点はありません。';

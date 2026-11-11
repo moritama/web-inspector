@@ -29,6 +29,7 @@ import {
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
+import { checkCspExtras, CspExtrasContext } from '../security/csp-extras';
 import {
   analyzeExternalConnections,
   collectLoadedResourceUrls,
@@ -86,6 +87,7 @@ export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
 export const HEADER_DEPENDENT_CHECK_PREFIXES = [
   'SEC-HSTS-',
   'SEC-CSP-',
+  'SEC-CSPX-',
   'SEC-XFO-',
   'SEC-XCTO-',
   'SEC-REF-',
@@ -827,6 +829,13 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     baseSecurityChecks.push(...nonCspChecks, ...advancedCspChecks);
   }
 
+  // CSP 追加項目診断 (v1.8.0 T07 / NEW-03b)
+  const cspExtrasContext: CspExtrasContext = {
+    mixedContentDetected: (domSignals.mixedContent || []).length > 0,
+    reportingEndpoints: responseHeaders['reporting-endpoints'] || [],
+  };
+  baseSecurityChecks.push(...checkCspExtras(cspPolicies, url, cspExtrasContext));
+
   // SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「未観測」とする
   if (!headersObserved) {
     const hasMetaCsp = Boolean(domSignals.metaCsp && domSignals.metaCsp.length > 0);
@@ -1131,6 +1140,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     cspPolicies,
     mixedContent: domSignals.mixedContent,
     externalConnections,
+    ...(headersObserved ? { cspExtrasContext } : {}),
   };
 
   // URLマスク（クエリ・フラグメント除去）および単一レポートサイズ・evidence上限の適用 (IMPL-06, IMPL-07)

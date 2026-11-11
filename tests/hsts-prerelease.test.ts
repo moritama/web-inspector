@@ -247,7 +247,7 @@ describe('v1.8.0 T03: version-matcher — プレリリース識別子を SemVer 
   it('観測した版が固定の語に無いプレリリースでも、範囲の照合ができる', () => {
     expect(satisfiesVersionRange('1.0.0-x.7.z.92', '< 1.0.0')).toBe(true);
     expect(satisfiesVersionRange('1.0.0-x.7.z.92', '>= 1.0.0')).toBe(false);
-    expect(satisfiesVersionRange('2.1.0-SNAPSHOT', '>= 2.0.0, < 2.1.0')).toBe(false);
+    expect(satisfiesVersionRange('2.1.0-SNAPSHOT', '>= 2.0.0, < 2.1.0')).toBe(true);
     expect(satisfiesVersionRange('2.1.0-SNAPSHOT', '>= 2.0.0, < 2.1.1')).toBe(true);
   });
 });

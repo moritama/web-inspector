@@ -67,3 +67,26 @@
 - 未解決: 予行を全体の npm test で実際に走らせた結果（受け入れ条件 1 の本番）は、実装の後に CI（PR）か人の実行で確かめる。設計の工程ではスクリプトの実行が許可されておらず、一時コピーでの模擬はできなかった
 
 ---
+
+## T02 実装  (2026-11-11 22:58)
+- 変更ファイル（新規）: scripts/ci/check-size.mjs, scripts/ci/rehearse-db-release.mjs
+- 変更ファイル（既存）: .github/workflows/ci.yml
+- 判断したこと:
+  - scripts/ci/check-size.mjs:
+    - G7 の上限値（advisoryDb: 2 MiB, dist: 3 MiB, WARN_RATIO: 0.8）を定義。MB は 1024 × 1024 バイト
+    - classifySize は `bytes > limit` で fail、`bytes > limit * 0.8` で warn、境界（80% ちょうど、上限ちょうど）は超えていないものとして判定
+    - measureDirBytes でディレクトリ配下の全通常ファイルのサイズを再帰的に合計
+    - checkSizes は dist や DB ファイルが存在しない場合に fail とし、CLI 実行時は GitHub Actions の注記（`::warning` / `::error`）を出力し、fail が無ければ終了コード 0、1件でもあれば終了コード 1 で終了
+  - scripts/ci/rehearse-db-release.mjs:
+    - nextDataVersion は YYYYMMDD の書式・日付妥当性を確認し、UTC の暦で翌日を算出
+    - bumpAdvisoryDb は入力を変更せず複製し、dataVersion を進めて integrity を libraries の sha256 で再計算
+    - 一時コピーは `os.tmpdir()` 直下に作成。Git 作業ツリーなら `git ls-files`、非 Git なら再帰コピーを使用し、`.git`・`node_modules`・`dist`・`reports` を確実に除外。node_modules はシンボリックリンクを作成
+    - コピー内の bump-db-revision.mjs を実行する際、macOS などのシンボリックリンク付き一時ディレクトリで ESM のエントリーポイント判定（`import.meta.url === pathToFileURL(process.argv[1]).href`）が一致するよう `fs.realpathSync` を通したパスを指定。環境変数から GITHUB_OUTPUT を削除
+    - 採番失敗時は ok: false で終了。正常時はコピー内 DB を更新して testCommand を実行し、終了コードをそのまま返す
+  - .github/workflows/ci.yml:
+    - verify ジョブの `Build Extension (Vite)` の直後に `node scripts/ci/check-size.mjs` を追加
+    - ジョブ `db-release-rehearsal` を追加。アクションは既存と同じ 40 桁 SHA で固定し、npm ci の後に `node scripts/ci/rehearse-db-release.mjs` を実行。permissions はワークフロー全体の `contents: read` を継承
+    - actionlint がエラーなく通過することを確認
+- 外部の事実:
+  - GitHub Actions の `::warning` / `::error` は注記を作るのみで手順は失敗しないため、終了コード 1 で失敗を伝える — https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands（2026-11-11）
+- 未解決: なし

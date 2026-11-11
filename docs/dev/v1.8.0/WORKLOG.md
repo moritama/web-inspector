@@ -239,3 +239,30 @@
   - Playwright の `page.addInitScript` はページ遷移のたび、ページスクリプト実行前に評価される — https://playwright.dev/docs/api/class-page（2026-11-12）
 - 未解決:
   - 受け入れ条件 1（test-server の /spa-settle を 3 回取得して技術の一覧が同じであること）は、ブラウザとサーバーを起動して人が朝に確認する。
+
+---
+
+## T06 設計  (2026-11-12 06:06)
+- 変更ファイル（新規）: tests/header-extras.test.ts, docs/dev/v1.8.0/design/T06.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - 8 つの ID はすべて既存の `checkHttpHeaders(headers, url, isHttps)` の結果で確かめる。新しい公開 API は必須にしない（Permissions-Policy の解析関数 `parsePermissionsPolicy` は推奨の名前だけ設計メモに書いた）
+  - SEC-COOP-01 は「無い」「unsafe-none」に加え、仕様にない値（ブラウザは無視して unsafe-none 扱い）でも info で出す。指摘は info だけなので警告は増えない
+  - SEC-PERM-02 の強い権限は、指示書に名前がある camera・microphone・geolocation・payment・usb の 5 つだけにする（「など」を広げない。安全側）。複数あっても 1 件にまとめ、根拠に権限名をすべて書く。`*` はトークンか Inner List の要素のとき（文字列の中の `*` は数えない）
+  - SEC-PERM-03 は RFC 9651 の Dictionary として解析できないとき。解析できないときは SEC-PERM-02 を出さない（ブラウザがヘッダー全体を無視するので断定しない）
+  - COEP は、無いときは何も出さない（指示書「既定で推奨しない」）。CORP は大文字・小文字を区別し、引数も認めない（Fetch の ABNF）
+  - X-XSS-Protection の `0` と未設定は出さない。`1` で始まらない解釈できない値も出さない
+  - 新しい接頭辞 SEC-COOP- / SEC-COEP- / SEC-CORP- / SEC-XXSS- を `HEADER_DEPENDENT_CHECK_PREFIXES` に足す（SEC-PERM- と SEC-DISC- は既にある）。未観測のとき、キャッシュなしでも origin 違いでも unknown・要確認 0 になることを確かめる
+  - G5 のうち T06 で使う x-xss-protection・server-timing・x-aspnetmvc-version を、取得するヘッダーに足すことも確かめる
+  - 指示書 §5「仕様書のカタログに出ること」: `npm run spec:generate` が作り直すのは §3（技術のカタログ）と README の表だけで、セキュリティの ID は出さない。そのため「`docs/DETECTION_SPECIFICATION.md` に 8 つの ID がある」で確かめる（§8.3 に手で書く）
+- 確認したこと: `npx vitest run tests/header-extras.test.ts` で 97 件中 49 件が失敗。理由はすべて機能が無いこと（新しい ID が出ない、接頭辞が無い、3 つのヘッダーが取得の対象に無い、仕様書に ID が無い）。合格の 48 件は陰性のケースと、今の整合性チェッカーの確認。`npx tsc --noEmit` は合格
+- 外部の事実（詳細は設計メモ）:
+  - COOP・COEP の値と無効な値の扱い — https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-opener-policies（2026-11-12）
+  - CORP の ABNF（大文字・小文字を区別） — https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header（2026-11-12）
+  - Permissions-Policy の `*`（トークンか、`*` を含むリスト） — https://w3c.github.io/webappsec-permissions-policy/（2026-11-12）
+  - Structured Field の Dictionary の解析 — https://www.rfc-editor.org/rfc/rfc9651.html §4.2（2026-11-12）
+  - X-XSS-Protection・X-AspNetMvc-Version — https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html（2026-11-12）
+- 未解決:
+  - Server-Timing を指摘する根拠の一次資料は未確認（指示書の判断のとおり info にとどめる）
+  - PRIVACY_POLICY に足す取得ヘッダーの文面は、人が承認する（G5）
+  - SEC-COOP-01 は COOP の無いページのほとんどで INFO が 1 件増える（要確認件数は増えない）

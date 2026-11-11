@@ -50,3 +50,20 @@
 - 未解決: なし
 
 ---
+
+## T02 設計  (2026-11-11 22:46)
+- 変更ファイル（新規）: tests/ci-db-release-rehearsal.test.ts, tests/ci-check-size.test.ts, tests/ci-workflow.test.ts, docs/dev/v1.8.0/design/T02.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - 予行は `scripts/ci/rehearse-db-release.mjs` の `rehearseDbRelease({ sourceDir, testCommand, advisoryDbPath, keepWorkDir })` とし、テストではテストのコマンドと DB の場所を差し替える。全体の npm test をテストの中で走らせない（時間がかかり、予行の中で予行のテストが再び走る入れ子になるため）
+  - 受け入れ条件 1（現在のツリーで予行が通る）: CI のジョブ db-release-rehearsal で npm test による予行を行う。Vitest の中では、現在のツリーのコピーで版と dataVersion を進め、テストの代わりに scripts/validate-advisories.mjs を走らせて通ることと、元のツリー（manifest と git status）が変わらないことを確かめる
+  - 受け入れ条件 2（旧来の書き方のテストを足すと予行が失敗する）: 実装の担当は tests/ を変えられないので、合成の作業ツリーに「manifest の版を完全一致で比べる」検査を置き、元のツリーでは通るのに予行では失敗することを自動のテストにした（対照として「同じリリースか」で書けば通る）。実際のリポジトリに一時的にテストを足す手順は行っていない
+  - 受け入れ条件 3（actionlint）: actionlint がある環境でだけ実行する（CI の実行環境に無く、依存も足せないため skipIf）。夜間の実行環境では実行され、現在の ci.yml で合格することを確かめた
+  - dataVersion の進め方は「元より後の正しい YYYYMMDD」だけを求める（推奨は翌日）。MB は既存の validate-advisories.mjs に合わせて 1024 × 1024。「超えたら」は `>`。dist や DB が無いときは失敗（安全側）
+  - .gitignore で除外されるもの（dist・reports）はコピーしない。node_modules はシンボリックリンク。コピーは元のツリーの外（os.tmpdir()）
+  - 合成のツリーの版（3.4.5）と dataVersion（20990101）は合成データで、実際の値への依存ではない
+- 確認したこと: 3 ファイルとも実装の前に失敗する。理由は scripts/ci/ のモジュールが無いこと（読み込みの失敗）と、ci.yml にジョブ db-release-rehearsal と check-size の手順が無いこと。`npx tsc --noEmit` は合格
+- 外部の事実: GitHub Actions の `::warning` / `::error` はログに注記を作り、`::error` だけでは手順は失敗しない — https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands（2026-11-11）
+- 未解決: 予行を全体の npm test で実際に走らせた結果（受け入れ条件 1 の本番）は、実装の後に CI（PR）か人の実行で確かめる。設計の工程ではスクリプトの実行が許可されておらず、一時コピーでの模擬はできなかった
+
+---

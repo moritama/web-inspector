@@ -423,3 +423,6 @@
 - 理由: 実装の担当が、テストの期待値の変更が必要と判断した: tests/advisory-pipeline.test.mjs:444の'1.8.0'がtest-hygieneに抵触。tests/は変更禁止のためテスト側の修正が必要です。
 - 変更の退避先: git stash の「v1.8.0 T09 stop 20261112-132316」（記録時点で stash@{0}。番号はずれるので git stash list で名前を確認）。夜間ログのフォルダにパッチもある
 - 人間に判断してほしいこと: 設計メモとテストを読み、期待値を変えるべきか判断する。変えるなら人がテストを直してコミットし、RETRY_STOPPED=1 で再実行
+
+## T09 人の判断  (2026-11-12)
+- 実装の担当の needsTestChange を採用。tests/advisory-pipeline.test.mjs 444 行目（minExtensionVersion の変更を major と判定するテストの合成データ）の '1.8.0' が新しい版と重なり test-hygiene に当たるため、'1.8.9' に変更（判定の結果は変わらない。v1.7.0 T16 で入った値）

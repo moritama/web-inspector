@@ -441,7 +441,7 @@ describe('DB 差分分類 (diff-db)', () => {
     expect(dSchema.reasonsMajor.join('\n')).toContain('schemaVersion');
 
     // 2. minExtensionVersion の変更 -> major
-    const headMinExt = { ...structuredClone(db), minExtensionVersion: '1.8.0' };
+    const headMinExt = { ...structuredClone(db), minExtensionVersion: '1.8.9' };
     const dMinExt = diffDatabases(db, headMinExt);
     expect(dMinExt.classification).toBe('major');
     expect(dMinExt.reasonsMajor.join('\n')).toContain('minExtensionVersion');

@@ -248,7 +248,7 @@ export function generateMarkdownReport(
   const sanitizedUrl = sanitizeUrlForReport(report.url);
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const extVer = report.extensionVersion || '1.7.1';
+  const extVer = report.extensionVersion || '1.8.0';
   const advDbVer = formatAdvisoryDbVersion(report.advisoryDatabaseVersion);
 
   // 差分分析の計算

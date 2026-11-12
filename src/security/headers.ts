@@ -32,6 +32,7 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
   'x-xss-protection',
   'server-timing',
   'reporting-endpoints',
+  'report-to',
 ];
 
 /**

@@ -429,3 +429,29 @@
 
 ## T09 人の判断  (2026-11-12)
 - 実装の担当の needsTestChange を採用。tests/advisory-pipeline.test.mjs 444 行目（minExtensionVersion の変更を major と判定するテストの合成データ）の '1.8.0' が新しい版と重なり test-hygiene に当たるため、'1.8.9' に変更（判定の結果は変わらない。v1.7.0 T16 で入った値）
+
+---
+
+## T09 実装  (2026-11-12 16:55)
+- 変更ファイル:
+  - package.json, package-lock.json, public/manifest.json, src/detection/rules/index.ts
+  - src/background/service-worker.ts, src/popup/popup.ts, src/dashboard/dashboard.ts, src/export/markdown.ts, src/export/csv.ts
+  - popup.html, dashboard.html
+  - src/security/headers.ts
+  - docs/DETECTION_SPECIFICATION.md
+  - README.md
+  - PRIVACY_POLICY.md
+  - docs/MAINTENANCE_GUIDE.md
+- 判断したこと:
+  - 版の統一（1.8.0）: package.json, package-lock.json（自パッケージ2か所のみ）, public/manifest.json, src/detection/rules/index.ts（RULES_VERSION）をすべて 1.8.0 に更新した
+  - フォールバック文字列・HTML バッジ: service-worker.ts, popup.ts, dashboard.ts, markdown.ts, csv.ts の版フォールバック文字列を '1.8.0' に更新し、popup.html, dashboard.html の初期バッジテキストを 'v1.8.0' に更新した
+  - G5 レスポンスヘッダー許可リスト: src/security/headers.ts の SECURITY_HEADER_NAMES に 'report-to' を追加し、ALLOWED_RESPONSE_HEADERS に G5 で指定された 8 つのヘッダー（x-xss-protection, cache-control, server-timing, x-aspnetmvc-version, reporting-endpoints, report-to, cf-mitigated, x-amzn-waf-action）がすべて含まれるようにした
+  - PRIVACY_POLICY.md: 英語および日本語の両セクションに、G5 の 8 つのヘッダーの取得目的を明記した。レビュー指摘に基づき、X-XSS-Protection のチェック ID を `SEC-XXSS-01` に修正し、Server-Timing の用途を実装に合わせて内部処理情報の露出診断（`SEC-DISC-05`）に修正した。Set-Cookie の完全除外および SRI の integrity 属性有無のみ取得・値非保持の文面を維持した
+  - docs/MAINTENANCE_GUIDE.md: §5 を新設し、テスト作成規約（版・件数の直接記述禁止、固定 DB tests/fixtures/advisory-db.fixture.json の使用、readPackageVersion、tests/test-hygiene.test.ts による検査）、サイズ上限（scripts/ci/check-size.mjs、advisory-db.json 2 MB / dist 3 MB）を追記した。レビュー指摘に基づき、§5.2 の CI ジョブ名を `db-release-rehearsal` に修正し、予行スクリプトの動作説明（一時コピーで manifest の 4 つ目の数字を採番、dataVersion 更新、テスト実行を行い元の作業ツリーは変更しない）を正確な内容に修正した
+  - README.md: バッジおよび機能一覧見出し・目次リンクを v1.8.0 に更新し、機能一覧表に v1.8.0 の主要変更を追記した。レビュー指摘に基づき、NEW-03 の行で CSP 追加項目を Trusted Types、upgrade-insecure-requests、form-action、Reporting-Endpoints の 4 項目に修正し、Cookie の説明を認証系 Cookie の属性診断（SameSite=None・過大な有効期限の指摘）に修正した
+  - docs/DETECTION_SPECIFICATION.md: 対象バージョンを v1.8.0 に更新した
+- 外部の事実: なし（指示書および設計メモに基づく）
+- 未解決:
+  - PRIVACY_POLICY.md の文面変更（G5 の 8 ヘッダー追加）は、人が承認する（完了報告書に記載）
+
+

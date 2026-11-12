@@ -1,6 +1,6 @@
 # Privacy Policy for Web Technology & Security Inspector
 
-Last updated: November 1, 2026
+Last updated: November 12, 2026
 
 **Web Technology & Security Inspector** (hereinafter referred to as "the Extension") is committed to protecting your privacy. This Privacy Policy explains our practices regarding user information and data collection.
 
@@ -22,6 +22,13 @@ The Extension performs all technology detection and security evaluations **local
 - **Handling of Response Headers & URLs (webRequest)**:
   - **v1.6.4 and earlier**: HTTP response headers (which may include `Set-Cookie`) are temporarily cached in memory for the active browser session only. These headers are never transmitted externally.
   - **v1.6.5 and later**: Credential-bearing headers such as `Set-Cookie` are completely excluded and never cached. For all visited pages, only response headers of the main frame that are included in the [allowlist](src/background/service-worker.ts) ([view on GitHub](https://github.com/moritama/web-inspector/blob/main/src/background/service-worker.ts)) (e.g., security headers and `Cache-Control` for cache security evaluation) are retained in session storage until the tab is closed or the browser is terminated. Stored URLs in the temporary header cache exclude query strings and fragments. Secrets embedded in the URL path (e.g., tokens in path segments) are not removed.
+  - **v1.8.0 and later**: To support enhanced passive diagnostics and technology detection, the response header allowlist includes the following headers for specific purposes:
+    - `Cache-Control`: for cache security evaluation (SEC-CACHE-*)
+    - `X-XSS-Protection`: for legacy browser XSS filter evaluation (SEC-XXSS-01)
+    - `Server-Timing`: for internal processing information disclosure evaluation (SEC-DISC-05)
+    - `X-AspNetMvc-Version`: for framework technology and version inference
+    - `Reporting-Endpoints` & `Report-To`: for CSP reporting destination and configuration verification
+    - `cf-mitigated` & `x-amzn-waf-action`: for Cloudflare and AWS WAF interstitial and challenge page detection
 - **Content Scripts & No Page Content Scraping**: Content scripts are injected on demand via `chrome.scripting.executeScript` only when the user initiates an inspection, and only analyze the DOM and the browser's Performance Resource Timing API (`performance.getEntriesByType('resource')`) at that time. The full HTML text and user input forms are never saved. Only technical signatures (meta tags, script/stylesheet/resource URLs and initiator types, presence of integrity attributes for Subresource Integrity evaluation without capturing integrity values, CSS utility class names) are evaluated in memory, and sample resource URLs stored in reports have query strings and fragments removed.
 - **Inspection history and exports**: The URL of each page you inspect is stored in your local inspection history and included in reports you export (query strings and fragments are removed before saving). History stays on your device and can be deleted at any time.
 - **No Passwords or Form Inputs**: Passwords and form inputs are never captured. HTTP `Authorization` headers are request headers and are outside the scope of response header observation.
@@ -30,6 +37,13 @@ The Extension performs all technology detection and security evaluations **local
 - **レスポンスヘッダーおよびURLの取り扱い（webRequest）**:
   - **v1.6.4以前**: HTTPレスポンスヘッダー（`Set-Cookie` を含む場合がある）をブラウザのメモリ上（セッション限り）に一時保持します。外部への送信は一切行いません。
   - **v1.6.5以降**: `Set-Cookie` など認証情報を含みうるヘッダーは一切保持しません。閲覧中のすべてのページのメインフレームのレスポンスヘッダーのうち、[許可リスト（一覧）](src/background/service-worker.ts)（[GitHub](https://github.com/moritama/web-inspector/blob/main/src/background/service-worker.ts)）に含まれるもののみ（セキュリティヘッダーおよびキャッシュ診断のための `Cache-Control` など）を、タブを閉じるかブラウザを終了するまでセッションストレージに保持します。ヘッダーの一時保持に使うURLからクエリとフラグメントは除きますが、パスに含まれる値（パスセグメント内のトークン等）は除去しません。
+  - **v1.8.0以降**: 受動的診断の強化および技術検出のため、以下のレスポンスヘッダーを許可リストに含めています：
+    - `Cache-Control`: キャッシュ設定のセキュリティ診断（SEC-CACHE-*）
+    - `X-XSS-Protection`: レガシーXSSフィルター設定の診断（SEC-XXSS-01）
+    - `Server-Timing`: サーバー内部処理情報の露出診断（SEC-DISC-05）
+    - `X-AspNetMvc-Version`: バックエンドフレームワークの技術・バージョン推定
+    - `Reporting-Endpoints` / `Report-To`: CSP違反レポート送信先エンドポイント設定の確認
+    - `cf-mitigated` / `x-amzn-waf-action`: Cloudflare / AWS WAF 等のボット確認・ブロック画面（インタースティシャル）の検出
 - **コンテンツスクリプトとページ本文の非保存**: コンテンツスクリプトはユーザーが調査を実行したときにのみ `chrome.scripting.executeScript` によって対象タブへオンデマンド注入され、その時点でのみ DOM および Performance Resource Timing API（`performance.getEntriesByType('resource')`）による読み込み済みサブリソース一覧（URLおよび `initiatorType`）を解析します。ページのHTML全文やユーザーの入力フォームは保存せず、技術的な特徴（metaタグ、スクリプト・スタイルシート・読み込み済みリソースのURL、SRI診断のためのintegrity属性の有無［値そのものは一切取得・保持しません］、CSSクラス名など）のみをメモリ上で受動的に評価します（外部通信先のサンプルURLをレポートへ記録する際もクエリ文字列とフラグメントは除去・マスクされます）。
 - **調査履歴とエクスポート**: 調査したページのURLは、端末内の調査履歴に保存され、エクスポートしたレポートにも含まれます（保存時にURLのクエリ文字列とフラグメントは除去・マスクされます）。履歴は端末内にのみ保存され、いつでも削除できます。
 - **パスワードおよび入力フォームの完全非取得**: パスワードやフォーム入力値を取得することは一切ありません。なお、HTTP `Authorization` ヘッダーはリクエストヘッダーであり、本拡張機能のレスポンスヘッダー観測の対象外です。

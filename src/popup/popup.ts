@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.1';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.0';
     versionEl.textContent = `v${ver}`;
   }
 }

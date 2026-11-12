@@ -70,4 +70,4 @@ export const SSR_INFERENCE_HEADER_NAMES: readonly string[] = [
   'x-nitro-cache',
 ];
 
-export const RULES_VERSION = '1.7.1';
+export const RULES_VERSION = '1.8.0';

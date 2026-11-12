@@ -72,11 +72,11 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
   const BOM = '\uFEFF';
 
   // 1. レポートヘッダーサマリー
-  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.7.1'})`].map(escapeCsv).join(','));
+  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.8.0'})`].map(escapeCsv).join(','));
   rows.push(['調査日時', report.inspectedAt].map(escapeCsv).join(','));
   rows.push(['調査対象URL', report.url].map(escapeCsv).join(','));
   rows.push(['ホスト名', report.hostname].map(escapeCsv).join(','));
-  rows.push(['ツールバージョン', report.extensionVersion || '1.7.1'].map(escapeCsv).join(','));
+  rows.push(['ツールバージョン', report.extensionVersion || '1.8.0'].map(escapeCsv).join(','));
   rows.push(['ルールバージョン', report.rulesVersion].map(escapeCsv).join(','));
   rows.push(['脆弱性DBバージョン', report.advisoryDatabaseVersion || '2026.10'].map(escapeCsv).join(','));
   rows.push(['HTTPS利用', report.summary.isHttps ? 'はい' : 'いいえ (HTTP)'].map(escapeCsv).join(','));

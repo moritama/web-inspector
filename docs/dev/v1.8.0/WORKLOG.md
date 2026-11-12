@@ -398,3 +398,23 @@
 - 未解決:
   - PRIVACY_POLICY.md の文面変更（Cache-Control および SRI integrity 属性有無の受動的確認）は、人の承認を前提とする（G5）
 
+---
+
+## T09 設計  (2026-11-12 13:52)
+- 変更ファイル: docs/dev/v1.8.0/design/T09.md、tests/release-docs.test.ts（新規）
+- 判断したこと:
+  - テストに版を書けないため、目標の版（1.8.0）は総合チェック C12 に任せ、テストは「各所の版の表記が package.json の版と一致すること」を見る。既存の spec-integrity.test.ts（lock・manifest・RULES_VERSION・HTML・README バッジ・仕様書の対象バージョン）は変えず、足りない部分を足した
+    - 予備の文字列: 既存のテストは 1.6.x・1.7.0 しか見ないため、5 ファイル（service-worker.ts・popup.ts・dashboard.ts・markdown.ts・csv.ts）の版らしいリテラルがすべて package.json の版であることを足した。日付の予備の値は対象外
+    - バッジ: 要素（brandVersion・dashboardVersion）の中身が `v<版>` と完全一致
+    - README: 「機能一覧」の見出しの版（保守ガイド §1.2 No.9）。本文の内容は指示書が指定していないので縛らない
+  - PRIVACY_POLICY: G5 の 8 つのヘッダー名が許可リストにあり、PP に書かれていること。Set-Cookie を保持しない記述と、integrity 属性の有無だけを見る（値は取得しない）記述が英日で残ること
+  - G5 の `report-to` が `ALLOWED_RESPONSE_HEADERS` に無い（T07 では「任意」とされた）。G5 は決定済みの事項なので、`SECURITY_HEADER_NAMES` に足すことを実装の方針に書き、テストで求める。どのチェックも読まないので警告は増えない
+  - MAINTENANCE_GUIDE: test-hygiene・固定 DB・readPackageVersion（テストの書き方）、rehearse-db-release.mjs（予行）、check-size.mjs と 2 MB・3 MB（G7）の記述
+  - 総合チェック FAIL 0・完了報告書・check-result.json は完了報告書の工程で作るため、Vitest では確かめない
+- 確認したこと: `npx vitest run tests/release-docs.test.ts` は 23 件中 10 件が失敗（PP に G5 のヘッダー名が無い 6 件、report-to が許可リストに無い 1 件、保守ガイドの記述が無い 3 件）。版の一致のテストは、版上げ前の現在の版同士で一致しているため合格する（expectRed は false）。`tests/test-hygiene.test.ts` と `npx tsc --noEmit` は合格
+- 外部の事実: なし
+- 期待値を変えた既存テスト: なし
+- 未解決:
+  - PRIVACY_POLICY の文面（G5 のヘッダーの追加）は人が承認する
+  - `report-to` を許可リストに足す判断（G5 に従った。T07 の「任意」との違い）は、朝の確認で人が見る
+

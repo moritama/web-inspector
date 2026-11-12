@@ -98,6 +98,7 @@ export const HEADER_DEPENDENT_CHECK_PREFIXES = [
   'SEC-COEP-',
   'SEC-CORP-',
   'SEC-XXSS-',
+  'SEC-CACHE-',
 ] as const;
 
 /**

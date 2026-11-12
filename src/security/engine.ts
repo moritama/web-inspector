@@ -11,8 +11,9 @@ import {
 } from '../shared/types';
 import { checkCookies } from './cookies';
 import { checkLegacyAnalyticsTags } from './domain-analyzer';
-import { checkHttpHeaders } from './headers';
+import { checkAuthPageCacheControl, checkHttpHeaders } from './headers';
 import { checkHttpsAndMixedContent } from './https';
+import { checkSubresourceIntegrity } from './sri';
 
 /**
  * セキュリティ診断入力パラメータ
@@ -58,6 +59,14 @@ export class SecurityEngine {
     // 4. 旧世代の計測タグ (ga.js / analytics.js) の残存確認 (v1.7.1 T09 / L, E5)
     const legacyTagChecks = checkLegacyAnalyticsTags(input.url, input.dom);
     allChecks.push(...legacyTagChecks);
+
+    // 5. サードパーティ資源の Subresource Integrity (SRI) 診断 (v1.8.0 T08 / NEW-03c)
+    const sriChecks = checkSubresourceIntegrity(input.url, input.dom?.sriResources);
+    allChecks.push(...sriChecks);
+
+    // 6. 認証ページの Cache-Control 診断 (v1.8.0 T08 / NEW-03c)
+    const cacheChecks = checkAuthPageCacheControl(headers, rawCookies, input.url);
+    allChecks.push(...cacheChecks);
 
     // 重大度順（high -> medium -> low -> info -> unknown）にソート
     const severityOrder: Record<string, number> = {

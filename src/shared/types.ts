@@ -732,6 +732,17 @@ export interface ReferenceOnlyUrlItem {
 }
 
 /**
+ * SRI の診断に使う script・stylesheet の情報（integrity の値は持たない）(v1.8.0 T08)
+ */
+export interface SriResourceItem {
+  kind: 'script' | 'stylesheet';
+  /** 絶対 URL */
+  url: string;
+  /** integrity 属性があるか（値は集めない） */
+  hasIntegrity: boolean;
+}
+
+/**
  * Content ScriptおよびMAIN WorldがDOMから収集するシグナル
  */
 export interface DomSignals {
@@ -769,6 +780,8 @@ export interface DomSignals {
   collectionErrors?: string[];
   /** WAF・ボット確認画面のDOMマーカー (v1.8.0 T04 / G6) */
   interstitialMarkers?: string[];
+  /** SRI の診断に使う script・stylesheet の情報（integrity の値は持たない）(v1.8.0 T08) */
+  sriResources?: SriResourceItem[];
 }
 
 /**

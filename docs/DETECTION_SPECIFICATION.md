@@ -446,6 +446,10 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   - アクティブ／パッシブ混在コンテンツ（`SEC-MIXED-ACTIVE` / `SEC-MIXED-PASSIVE`）では、観測値に対象要素とクエリ・フラグメントをマスクした URL（例: `script: http://...`, `form[action]: http://...`）を最大 3 件＋「他 ○ 件」で出力します。
 - **廃止済み計測タグの通知 (`SEC-LEGACY-TAG-01` / E5, T09)**:
   廃止済みの旧 Google Analytics タグ（`ga.js`、`analytics.js`）が読み込まれているページでは、`status: 'info'`, `severity: 'info'`（「計測されていない可能性、削除を検討」）を 1 件出力します（要確認件数は増えません）。
+- **サブリソース完全性 (SRI) および認証ページのキャッシュ制御（v1.8.0 T08 / NEW-03c）**:
+  - `SEC-SRI-01` (`warning` / `low`): サードパーティ（PSL で別サイト）の script および stylesheet（`rel` に `stylesheet` を含む `link`）に integrity 属性が設定されていない場合に出力します。クエリ・フラグメントを除去した URL を最大 10 件まで観測値に表示します（ヘッダー非依存）。
+  - `SEC-SRI-02` (`info` / `info`): タグマネージャー（`www.googletagmanager.com`）、Stripe.js（`js.stripe.com`）、PayPal SDK（`www.paypal.com/sdk/js`）、Google Identity Services（`accounts.google.com/gsi/`）など、内容が自動更新され SRI の適用が推奨されない配信元の資源について、CSP 等での読み込み元制限を促す情報として出力します（SEC-SRI-01 とは排他）。
+  - `SEC-CACHE-01` (`warning` / `low`): 認証系 Cookie が存在するページにおいて、HTTP レスポンスヘッダーの `Cache-Control` に `no-store` ディレクティブが指定されていない（ヘッダー未設定、または `no-cache` / `private` 等のみで `no-store` が欠落している）場合に出力します（ヘッダー依存）。
 
 ### 8.4 Cookie の用途分類（6 区分）と一般 Cookie の独立チェック (`src/security/cookies.ts` / T07)
 - **6 つの用途分類 (`CookieCategory`) と優先順位**:
@@ -459,6 +463,9 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **一般 Cookie の独立チェック (`SEC-COOKIE-SECURE-GENERAL`) と HTTP 書き分け**:
   - HTTPS ページにおける一般・解析・広告・同意・設定 Cookie の `Secure` 属性欠落チェック（`SEC-COOKIE-SECURE-GENERAL`, `low`）は、認証系 Cookie の指摘（`FAIL` 等）の有無に依存せず独立して出力し、対象 Cookie 名を最大 3 件＋「他 ○ 件」で観測値に表示します。
   - HTTP ページでは `Secure` 属性を付与できないため、Cookie の `PASS` 時の観測値を `HTTP のため Secure は評価対象外` と書き分けます。また親ドメインスコープの Cookie がある場合に備え、Markdown レポートの Cookie 節に「このページが設定したとは限らない」旨の注記を付します。
+- **認証系 Cookie の有効期限・SameSite チェック（v1.8.0 T08 / NEW-03c）**:
+  - `SEC-COOKIE-EXPIRY` (`warning` / `low`): 認証系 Cookie（`classifyCookieAdvanced` で `authentication` に分類される Cookie）のうち、セッション Cookie ではなく有効期限（`expirationDate`）が調査時刻から 1 年（365 日）を超えるものがある場合に出力します。観測値に対象 Cookie 名を最大 3 件＋「他 ○ 件」で表示します。
+  - `SEC-COOKIE-SAMESITE-NONE` (`warning` / `low`): 認証系 Cookie に `SameSite=None`（Chrome API の `no_restriction`）かつ `Secure` 属性が設定されている場合に出力します（Secure なしの SameSite=None はブラウザで保存されないため対象外）。クロスサイトリクエスト時の送信制限（Lax / Strict）を促します。
 
 ### 8.5 外部通信先の定義と調査完全性 (`src/content/content-script.ts`, `src/security/domain-analyzer.ts`, `src/shared/coverage.ts` / T05, T06)
 - **外部通信先（読み込まれたリソースの取得元）の定義 (E2)**:

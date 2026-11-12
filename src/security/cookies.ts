@@ -538,6 +538,63 @@ export function checkCookies(
     }
   }
 
+  // 3b. 認証系 Cookie の有効期限・SameSite チェック (v1.8.0 T08 / NEW-03c)
+  const authCookies = processedCookies.filter((c) => c.category === 'authentication');
+  if (authCookies.length > 0) {
+    const nowSec = Date.now() / 1000;
+    const ONE_YEAR_SEC = 365 * 24 * 60 * 60;
+
+    // SEC-COOKIE-EXPIRY: 有効期限が 1 年（365日）を超える認証系 Cookie
+    const expiryCookies = authCookies.filter(
+      (c) => !c.session && typeof c.expirationDate === 'number' && c.expirationDate > nowSec + ONE_YEAR_SEC
+    );
+    if (expiryCookies.length > 0) {
+      const namesSummary = formatCookieNamesForObserved(
+        expiryCookies.map((c) => c.name),
+        3
+      );
+      checks.push({
+        checkId: 'SEC-COOKIE-EXPIRY',
+        category: 'cookies',
+        name: '認証系 Cookie の有効期限が長い',
+        status: 'warning',
+        severity: 'low',
+        observed: `${expiryCookies.length} 件の認証系Cookieで有効期限が1年（365日）を超過 (${namesSummary})`,
+        description:
+          '認証・セッションCookieの有効期限が1年（365日）を超えて設定されています。長期間有効な認証Cookieは、端末の紛失やセッションハイジャック時のリスクを高めます。',
+        recommendation:
+          'セッションCookieとするか、認証Cookieの有効期限を必要最小限（例: 数時間〜数日、長くても数週間以内）に設定してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
+        scope: url,
+      });
+    }
+
+    // SEC-COOKIE-SAMESITE-NONE: SameSite=None かつ Secure ありの認証系 Cookie
+    const samesiteNoneCookies = authCookies.filter(
+      (c) => normalizeSameSite(c.sameSite) === 'none' && c.secure === true
+    );
+    if (samesiteNoneCookies.length > 0) {
+      const namesSummary = formatCookieNamesForObserved(
+        samesiteNoneCookies.map((c) => c.name),
+        3
+      );
+      checks.push({
+        checkId: 'SEC-COOKIE-SAMESITE-NONE',
+        category: 'cookies',
+        name: '認証系 Cookie の SameSite=None',
+        status: 'warning',
+        severity: 'low',
+        observed: `${samesiteNoneCookies.length} 件の認証系CookieでSameSite=Noneが設定されています (${namesSummary})`,
+        description:
+          '認証・セッションCookieにSameSite=Noneが設定されているため、外部サイトからのクロスサイトリクエスト（CSRFなど）でもCookieが送信されます。',
+        recommendation:
+          'クロスサイトでの送信が必須でない場合は、SameSite属性をLaxまたはStrictに設定し、クロスサイトリクエスト時の送信を制限してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Set-Cookie/SameSite'],
+        scope: url,
+      });
+    }
+  }
+
   // 4. 課題が一切検出されなかった場合（v1.7.1 T07: HTTPページでは「HTTP のため Secure は評価対象外」と書き分ける）
   if (checks.length === 0) {
     checks.push({

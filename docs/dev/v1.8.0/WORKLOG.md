@@ -372,3 +372,29 @@
   - RFC 9111 §5.2（ディレクティブ名の大文字・小文字）は原文を確認できなかった。区別しない比較は警告を減らす向きなので採用
   - SEC-CACHE-01（low）は、認証系 Cookie があり no-store の無いページで要確認が 1 件増える（指示書の表のとおり）
   - PRIVACY_POLICY に cache-control と「integrity 属性の有無の確認（値は集めない）」を足す場合の文面は、人が承認する（G5）
+
+---
+
+## T08 実装  (2026-11-12 13:46)
+- 変更ファイル: src/shared/types.ts, src/content/content-script.ts, src/security/sri.ts, src/security/cookies.ts, src/security/headers.ts, src/security/engine.ts, src/background/service-worker.ts, docs/DETECTION_SPECIFICATION.md, PRIVACY_POLICY.md
+- 判断したこと:
+  - `src/shared/types.ts` に `SriResourceItem` インターフェースを定義し、`DomSignals` に任意のフィールド `sriResources?: SriResourceItem[]` を追加した。`InspectionReport` には含めず、DOM 生データがレポートや保存領域に漏洩しないようにした
+  - `src/content/content-script.ts` の `extractDomSignals` に `sri` ステップを追加し、`script[src]` および `rel` に `stylesheet` を含む `link[href]` から絶対 URL と `hasIntegrity`（boolean のみ）を最大 200 件収集するようにした。`noscript` / `template` 内の要素は除外し、integrity の属性値は一切変数に保持せず戻り値にも含めないようにした
+  - `src/security/sri.ts` を新規作成し、`checkSubresourceIntegrity` および `isSriUnsupportedProvider` を実装した。入力検証を行い、`hasIntegrity === false` かつ PSL による `determinePartyType === 'third-party'` のリソースを対象とした。`stripUrlQueryAndFragment` で URL のクエリ・フラグメントを除去し、自動更新配信元（GTM, Stripe, PayPal, Google Identity）は `SEC-SRI-02`（`info` / `info`）、一般サードパーティは `SEC-SRI-01`（`warning` / `low`）に排他分類した。同一 URL は 1 回のみ計上し、最大 10 件まで観測値に列挙（11 件以上は「他 N 件」）した
+  - `src/security/cookies.ts` の `checkCookies` に、認証系 Cookie（`classifyCookieAdvanced(name).category === 'authentication'`）を対象とする有効期限チェック（`SEC-COOKIE-EXPIRY` / 365日超過で `warning`・`low`）と SameSite チェック（`SEC-COOKIE-SAMESITE-NONE` / `normalizeSameSite === 'none'` かつ `secure === true` で `warning`・`low`）を追加した。複数件ある場合も 1 件に集約し、観測値に対象 Cookie 名を表示した
+  - `src/security/headers.ts` の `SECURITY_HEADER_NAMES` に `'cache-control'` を追加し（G5）、認証ページのキャッシュ診断関数 `checkAuthPageCacheControl` を実装した。認証系 Cookie が存在し、`Cache-Control` ヘッダーに `no-store` ディレクティブ（大文字小文字不問・完全一致）が含まれない場合に `SEC-CACHE-01`（`warning` / `low`）を出力するようにした
+  - `src/security/engine.ts` の `SecurityEngine.evaluate` で `checkSubresourceIntegrity` および `checkAuthPageCacheControl` を呼び出し、診断結果配列に追加した
+  - `src/background/service-worker.ts` の `HEADER_DEPENDENT_CHECK_PREFIXES` に `'SEC-CACHE-'` のみを追加した（`SEC-SRI-` や `SEC-COOKIE-` は追加せず、ヘッダー未観測時でも DOM/Cookie 診断結果が維持されるようにした）
+  - `docs/DETECTION_SPECIFICATION.md` の §8.3（SRI・Cache-Control）および §8.4（Cookie）に 5 つの ID（`SEC-SRI-01`, `SEC-SRI-02`, `SEC-CACHE-01`, `SEC-COOKIE-EXPIRY`, `SEC-COOKIE-SAMESITE-NONE`）の仕様・判定基準・重大度を手動で追記した
+  - `PRIVACY_POLICY.md` に、キャッシュ診断のための `Cache-Control` 取得と、SRI 診断のためのスクリプト・スタイルシートの URL および integrity 属性の有無の確認（値そのものは一切取得・保持しない旨）を日英両表記で追記した
+- 外部の事実（設計メモ T08 より引用）:
+  - Google タグマネージャー（`www.googletagmanager.com`）: 公開のたびに動くコンテナが変わる — https://support.google.com/tagmanager/answer/6107163 、ホスト名 https://developers.google.com/tag-platform/security/guides/csp （2026-11-12 確認）
+  - Stripe.js（`js.stripe.com`）: 直接読み込み推奨、バンドル・自前ホスト非推奨 — https://docs.stripe.com/js/including （2026-11-12 確認）
+  - PayPal JavaScript SDK（`www.paypal.com/sdk/js`）: 直接読み込み推奨、自動更新 — https://developer.paypal.com/sdk/js/configuration/ （2026-11-12 確認）
+  - Google Identity Services（`accounts.google.com/gsi/`）: 自前ホスト非対応、自動更新 — https://developers.google.com/identity/gsi/web/guides/client-library （2026-11-12 確認）
+  - Cache-Control: RFC 9111 §3（no-store があれば保存しない）・§4（no-cache は保存を禁じない） — https://www.rfc-editor.org/rfc/rfc9111.html （2026-11-12 確認）
+  - chrome.cookies: expirationDate は秒、no_restriction は SameSite=None — https://developer.chrome.com/docs/extensions/reference/api/cookies （2026-11-12 確認）
+  - SRI integrity 属性: 空の integrity は検証しない — https://w3c.github.io/webappsec-subresource-integrity/ （2026-11-12 確認）
+- 未解決:
+  - PRIVACY_POLICY.md の文面変更（Cache-Control および SRI integrity 属性有無の受動的確認）は、人の承認を前提とする（G5）
+

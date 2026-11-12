@@ -10,6 +10,7 @@ import {
   MixedContentItem,
   ObservedResourceEntry,
   ReferenceOnlyUrlItem,
+  SriResourceItem,
 } from '../shared/types';
 import { DOM_MARKER_SELECTORS } from './dom-selectors.generated';
 
@@ -712,6 +713,50 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     });
   });
 
+  // SRI 診断用スクリプト・スタイルシート収集 (v1.8.0 T08 / NEW-03c)
+  // integrity の値は一切収集・保持せず、属性の有無（真偽値）のみを抽出する
+  const sriResources: SriResourceItem[] = [];
+  runStep('sri', () => {
+    const MAX_SRI_RESOURCES = 200;
+
+    // script[src]
+    const scriptElements = document.querySelectorAll<HTMLScriptElement>('script[src]');
+    for (const el of scriptElements) {
+      if (sriResources.length >= MAX_SRI_RESOURCES) break;
+      if (isInInactiveContainer(el)) continue;
+      const rawSrc = el.getAttribute('src');
+      if (!rawSrc || !rawSrc.trim()) continue;
+      const resolved = resolveToAbsoluteUrl(rawSrc.trim(), baseUri);
+      if (!resolved) continue;
+      const hasIntegrity = el.hasAttribute('integrity') && (el.getAttribute('integrity') || '').trim() !== '';
+      sriResources.push({
+        kind: 'script',
+        url: resolved,
+        hasIntegrity,
+      });
+    }
+
+    // link[rel~="stylesheet"][href]
+    const linkElements = document.querySelectorAll<HTMLLinkElement>('link[href]');
+    for (const el of linkElements) {
+      if (sriResources.length >= MAX_SRI_RESOURCES) break;
+      if (isInInactiveContainer(el)) continue;
+      const rel = (el.getAttribute('rel') || '').toLowerCase().trim();
+      const tokens = rel.split(/\s+/).filter(Boolean);
+      if (!tokens.includes('stylesheet')) continue;
+      const rawHref = el.getAttribute('href');
+      if (!rawHref || !rawHref.trim()) continue;
+      const resolved = resolveToAbsoluteUrl(rawHref.trim(), baseUri);
+      if (!resolved) continue;
+      const hasIntegrity = el.hasAttribute('integrity') && (el.getAttribute('integrity') || '').trim() !== '';
+      sriResources.push({
+        kind: 'stylesheet',
+        url: resolved,
+        hasIntegrity,
+      });
+    }
+  });
+
   return {
     url: pageUrl,
     title: typeof document !== 'undefined' ? document.title || '' : '',
@@ -731,6 +776,7 @@ export function extractDomSignals(baseUrlOverride?: string): DomSignals {
     metaCsp,
     metaCspReportOnly,
     elementTexts,
+    sriResources,
     ...(interstitialMarkers.length > 0 ? { interstitialMarkers } : {}),
     ...(collectionErrors.length > 0
       ? {

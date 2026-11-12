@@ -5,6 +5,7 @@
 
 import { SecurityCheckResult } from '../shared/types';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from './csp-parser';
+import { classifyCookieAdvanced } from './cookies';
 
 /**
  * セキュリティ診断 (checkHttpHeaders) で評価・参照されるHTTPヘッダー名一覧（小文字）
@@ -23,6 +24,7 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
   'cross-origin-opener-policy',
   'cross-origin-embedder-policy',
   'cross-origin-resource-policy',
+  'cache-control',
   'server',
   'x-powered-by',
   'x-aspnet-version',
@@ -973,3 +975,77 @@ export function checkHttpHeaders(
 
   return results;
 }
+
+/**
+ * 認証系Cookieが存在するページで Cache-Control に no-store が設定されているか検証する (v1.8.0 T08 / NEW-03c)
+ *
+ * @param headers HTTP レスポンスヘッダー一覧
+ * @param cookies ページ内で観測された Cookie 一覧
+ * @param url 調査対象ページの URL
+ * @returns セキュリティ診断結果配列（該当なしの場合は空配列）
+ */
+export function checkAuthPageCacheControl(
+  headers: Record<string, string[]>,
+  cookies: Array<{ name: string }>,
+  url: string
+): SecurityCheckResult[] {
+  // 認証系Cookieの存在確認
+  const hasAuthCookie = (cookies || []).some(
+    (c) => c && typeof c.name === 'string' && classifyCookieAdvanced(c.name).category === 'authentication'
+  );
+  if (!hasAuthCookie) {
+    return [];
+  }
+
+  // Cache-Control ヘッダーの取得（大文字小文字対応）
+  const headerKeys = Object.keys(headers || {});
+  const ccKey = headerKeys.find((k) => k.toLowerCase() === 'cache-control');
+  const cacheControlValues = ccKey ? headers[ccKey] || [] : [];
+
+  if (cacheControlValues.length === 0) {
+    return [
+      {
+        checkId: 'SEC-CACHE-01',
+        category: 'http-headers',
+        name: '認証ページの Cache-Control (no-store なし)',
+        status: 'warning',
+        severity: 'low',
+        observed: 'Cache-Control ヘッダー未設定（認証系Cookieが存在）',
+        description:
+          '認証系Cookieが存在するページで Cache-Control ヘッダーが設定されていません。ブラウザや共有キャッシュに機密情報が保存されるリスクがあります。',
+        recommendation: 'ログイン後や認証が必要なページには Cache-Control: no-store を設定してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cache-Control'],
+        scope: url,
+      },
+    ];
+  }
+
+  const rawJoined = cacheControlValues.join(', ');
+  // カンマで分割し、各ディレクティブの '=' より前をトリムして小文字化
+  const directives = rawJoined
+    .split(',')
+    .map((d) => d.split('=')[0].trim().toLowerCase())
+    .filter(Boolean);
+
+  const hasNoStore = directives.includes('no-store');
+  if (hasNoStore) {
+    return [];
+  }
+
+  return [
+    {
+      checkId: 'SEC-CACHE-01',
+      category: 'http-headers',
+      name: '認証ページの Cache-Control (no-store なし)',
+      status: 'warning',
+      severity: 'low',
+      observed: `Cache-Control: ${rawJoined}（no-store ディレクティブなし）`,
+      description:
+        '認証系Cookieが存在するページで Cache-Control ヘッダーに no-store が指定されていません。ブラウザや共有キャッシュに機密情報が保存されるリスクがあります。',
+      recommendation: 'ログイン後や認証が必要なページには Cache-Control: no-store を設定してください。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cache-Control'],
+      scope: url,
+    },
+  ];
+}
+

@@ -342,3 +342,33 @@
   - require-trusted-types-for と 'script' — https://w3c.github.io/trusted-types/dist/spec/（2026-11-12）
 - 未解決:
   - 設計メモに記載のとおり、旧式の Report-To ヘッダーのみで定義されたグループの扱いは対象外とし、Reporting-Endpoints のみを評価対象としている（指摘は info）
+
+---
+
+## T08 設計  (2026-11-12 13:33)
+- 変更ファイル（新規）: tests/sri-cache-cookie.test.ts, docs/dev/v1.8.0/design/T08.md
+- 期待値を変えた既存テスト: なし
+- 判断したこと:
+  - content-script は `DomSignals.sriResources?: { kind: 'script' | 'stylesheet'; url; hasIntegrity }[]` を返す。integrity の値は集めない。レポートには `sriResources` を入れない
+  - SRI-01 / SRI-02 は `determinePartyType`（PSL）で third-party のものだけ。同一サイト（cdn.example.test と www.example.test、co.jp の同じ登録ドメイン）は対象外。URL は最大 10 件で 1 行、同じ URL は 1 回、クエリとフラグメントは除く（IMPL-07 と同じ）
+  - SRI はヘッダーに依存しないので接頭辞を足さない。`SEC-CACHE-` だけを `HEADER_DEPENDENT_CHECK_PREFIXES` に足す。cache-control を取得するヘッダーに足す（G5）
+  - 「認証系」は `classifyCookieAdvanced(name).category === 'authentication'`（既存の分類。CSRF は対象外）
+  - SEC-CACHE-01 は Cache-Control が無いときも出す。ディレクティブは大文字・小文字を区別せず、`no-store` と完全一致で比べる
+  - SEC-COOKIE-EXPIRY の「1 年」は 365 日で、ちょうど 365 日は出さない（「超える」）。セッション Cookie と、expirationDate が無いものは出さない
+  - SEC-COOKIE-SAMESITE-NONE は Secure ありだけ（D7）。Partitioned は分けない
+  - 新しい ID は、1 ページにつき各 1 件にまとめる（警告を増やしすぎない）
+- SEC-SRI-02 の配信元一覧と採用した理由（一次資料。2026-11-12 確認）:
+  - `www.googletagmanager.com` — タグマネージャー。公開のたびにサイトで動くコンテナが変わる — https://support.google.com/tagmanager/answer/6107163 、ホスト名は https://developers.google.com/tag-platform/security/guides/csp
+  - `js.stripe.com` — 「always be loaded directly from https://js.stripe.com, rather than included in a bundle or hosted yourself」 — https://docs.stripe.com/js/including
+  - `www.paypal.com`（path `/sdk/js`） — 「Load the JavaScript SDK directly from https://www.paypal.com/sdk/js. Don't include it in a bundle or host it yourself」、互換のある変更は自動で反映 — https://developer.paypal.com/sdk/js/configuration/
+  - `accounts.google.com`（path `/gsi/`） — 「self-hosting or using an offline copy is not a supported use case」、更新が自動で反映 — https://developers.google.com/identity/gsi/web/guides/client-library
+  - 採用しなかった: Apple Pay JS SDK（自動更新版での SRI を勧めない旨の回答は https://developer.apple.com/forums/thread/821972 にあるが、配信元のホスト名を一次資料で確認できなかった）
+- そのほかの外部の事実（詳細は設計メモ）:
+  - RFC 9111 §3（no-store があれば保存しない）・§4（no-cache は保存を禁じない） — https://www.rfc-editor.org/rfc/rfc9111.html（2026-11-12）
+  - chrome.cookies の expirationDate は秒、no_restriction は SameSite=None — https://developer.chrome.com/docs/extensions/reference/api/cookies（2026-11-12）
+  - 空の integrity は検証しない — https://w3c.github.io/webappsec-subresource-integrity/（2026-11-12）
+- 確認したこと: `npx vitest run tests/sri-cache-cookie.test.ts` は 65 件中 36 件が失敗。すべて AssertionError で、機能が無いこと（sriResources が無い、新しい ID が出ない、接頭辞・許可リスト・仕様書に無い）が理由。合格の 29 件は陰性のケース。`npx tsc --noEmit` は合格
+- 未解決:
+  - RFC 9111 §5.2（ディレクティブ名の大文字・小文字）は原文を確認できなかった。区別しない比較は警告を減らす向きなので採用
+  - SEC-CACHE-01（low）は、認証系 Cookie があり no-store の無いページで要確認が 1 件増える（指示書の表のとおり）
+  - PRIVACY_POLICY に cache-control と「integrity 属性の有無の確認（値は集めない）」を足す場合の文面は、人が承認する（G5）

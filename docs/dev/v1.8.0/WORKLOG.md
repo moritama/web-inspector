@@ -466,3 +466,6 @@
 
 
 
+
+## T09 人の判断  (2026-11-12)
+- 実装の担当の needsTestChange を採用。tests/advisory-pipeline.test.mjs 444 行目（minExtensionVersion の変更を major と判定するテストの合成データ）の '1.8.0' が新しい版と重なり test-hygiene に当たるため、'1.8.9' に変更（判定の結果は変わらない。v1.7.0 T16 で入った値）

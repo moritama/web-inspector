@@ -32,3 +32,13 @@
   - dpkg のテストの比較例・解析の例 — https://salsa.debian.org/dpkg-team/dpkg/-/raw/main/lib/dpkg/t/t-version.c （2026-11-14。git.dpkg.org は自動取得を拒否したため Salsa で確認）
   - dpkg の比較と解析の実装（`order`・`verrevcmp`・`parseversion`）— https://salsa.debian.org/dpkg-team/dpkg/-/raw/main/lib/dpkg/version.c 、https://salsa.debian.org/dpkg-team/dpkg/-/raw/main/lib/dpkg/parsehelp.c （2026-11-14）
 - 未解決: なし
+
+## T01 実装  (2026-11-14 03:38)
+- 変更ファイル: src/security/dpkg-version.ts（新規）
+- 判断したこと:
+  - 設計メモ（T01.md）の「実装の方針」に従い、`src/security/dpkg-version.ts` を新規作成して `parseDpkgVersion` と `compareDpkgVersions` を実装した。
+  - `parseDpkgVersion` では、前後の空白（スペース・タブ）を除去し、途中の空白や空文字列は null を返却。epoch は 1 文字以上の数字かつ `INT_MAX`（2147483647）以下のみ許容し、upstream は数字始まりかつ `[0-9A-Za-z.+~:-]`（コロン許容）、revision は省略時空文字 `''`、存在時は `[0-9A-Za-z.+~]` の文字種検査を行い、不正な入力には例外を投げず null を返すようにした。
+  - `compareDpkgVersions` では、Debian Policy 5.6.12 および dpkg の `order()` / `verrevcmp()` アルゴリズムに準拠し、非数字部分と数字部分（先頭ゼロ無視、桁数および数値差判定）の交互比較を実装。結果を `-1 | 0 | 1 | null` に正規化して返却するようにした。revision 省略（空文字）と `0` の比較も自然に等価として判定される。
+  - `src/security/version-matcher.ts` など既存モジュールは一切変更せず、既存の挙動を維持した。
+- 未解決: なし
+

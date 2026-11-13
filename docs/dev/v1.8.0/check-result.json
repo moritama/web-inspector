@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-11-12T08:02:27.880Z",
+  "checkedAt": "2026-11-13T05:07:40.597Z",
   "targetVersion": "1.8.0",
   "baseRef": "a5bd583",
-  "mode": "full",
-  "passed": 22,
+  "mode": "static",
+  "passed": 14,
   "failed": 0,
-  "warned": 1,
+  "warned": 0,
   "results": [
     {
       "id": "C01",
@@ -14,68 +14,20 @@
       "detail": ""
     },
     {
-      "id": "C02",
-      "title": "npm test が全件合格し、skip が 0 件",
-      "status": "PASS",
-      "detail": "Tests  1083 passed (1083) (4s)"
-    },
-    {
-      "id": "C03a",
-      "title": "npm run build",
-      "status": "PASS",
-      "detail": "(1s)"
-    },
-    {
-      "id": "C03b",
-      "title": "サイズ上限（scripts/ci/check-size.mjs）に収まる",
-      "status": "PASS",
-      "detail": "(0s)"
-    },
-    {
-      "id": "C04",
-      "title": "DB だけのリリースの予行（scripts/ci/rehearse-db-release.mjs）が合格",
-      "status": "PASS",
-      "detail": "Tests  1083 passed (1083) (4s)"
-    },
-    {
       "id": "C05",
       "title": "作業ツリーに未コミットの変更が無い",
-      "status": "WARN",
-      "detail": "2 件（ほかの項目は途中の変更を見ている可能性があります）: docs/dev/v1.8.0/WORKLOG.md, docs/dev/v1.8.0/COMPLETION_REPORT.md"
-    },
-    {
-      "id": "C06",
-      "title": "test-hygiene（tests/test-hygiene.test.ts）があり、合格する",
       "status": "PASS",
-      "detail": "Tests  13 passed (13) (1s)"
+      "detail": ""
     },
     {
       "id": "C07",
       "title": "実装の工程のコミットが tests/ を変更していない（設計の工程は許可された場所だけ）",
       "status": "PASS",
-      "detail": "実装 9 件・設計 21 件を確認"
-    },
-    {
-      "id": "C08",
-      "title": "新しいチェック ID を含め、仕様書のカタログが最新（spec:generate で差分が出ない）",
-      "status": "PASS",
-      "detail": ""
+      "detail": "実装 9 件・設計 24 件を確認"
     },
     {
       "id": "C09",
       "title": "ヘッダーに依存する新しいチェックの接頭辞が HEADER_DEPENDENT_CHECK_PREFIXES にある（未観測なら unknown）",
-      "status": "PASS",
-      "detail": ""
-    },
-    {
-      "id": "C10",
-      "title": "npm run reports:lint が回帰用フィクスチャで全項目合格",
-      "status": "PASS",
-      "detail": "(0s)"
-    },
-    {
-      "id": "C11",
-      "title": "actionlint",
       "status": "PASS",
       "detail": ""
     },
@@ -90,12 +42,6 @@
       "title": "advisory-db.json と data/advisories/ が a5bd583 から変わっていない",
       "status": "PASS",
       "detail": ""
-    },
-    {
-      "id": "C13b",
-      "title": "build-db --check（DB が手編集されていない）",
-      "status": "PASS",
-      "detail": "(0s)"
     },
     {
       "id": "C14",

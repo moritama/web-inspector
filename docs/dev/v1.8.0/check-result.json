@@ -1,9 +1,9 @@
 {
-  "checkedAt": "2026-11-13T05:07:40.597Z",
+  "checkedAt": "2026-11-13T12:15:27.545Z",
   "targetVersion": "1.8.0",
   "baseRef": "a5bd583",
-  "mode": "static",
-  "passed": 14,
+  "mode": "full+e2e",
+  "passed": 24,
   "failed": 0,
   "warned": 0,
   "results": [
@@ -14,10 +14,40 @@
       "detail": ""
     },
     {
+      "id": "C02",
+      "title": "npm test が全件合格し、skip が 0 件",
+      "status": "PASS",
+      "detail": "Tests  1083 passed (1083) (4s)"
+    },
+    {
+      "id": "C03a",
+      "title": "npm run build",
+      "status": "PASS",
+      "detail": "(2s)"
+    },
+    {
+      "id": "C03b",
+      "title": "サイズ上限（scripts/ci/check-size.mjs）に収まる",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
+      "id": "C04",
+      "title": "DB だけのリリースの予行（scripts/ci/rehearse-db-release.mjs）が合格",
+      "status": "PASS",
+      "detail": "Tests  1083 passed (1083) (4s)"
+    },
+    {
       "id": "C05",
       "title": "作業ツリーに未コミットの変更が無い",
       "status": "PASS",
       "detail": ""
+    },
+    {
+      "id": "C06",
+      "title": "test-hygiene（tests/test-hygiene.test.ts）があり、合格する",
+      "status": "PASS",
+      "detail": "Tests  13 passed (13) (1s)"
     },
     {
       "id": "C07",
@@ -26,8 +56,26 @@
       "detail": "実装 9 件・設計 24 件を確認"
     },
     {
+      "id": "C08",
+      "title": "新しいチェック ID を含め、仕様書のカタログが最新（spec:generate で差分が出ない）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "id": "C09",
       "title": "ヘッダーに依存する新しいチェックの接頭辞が HEADER_DEPENDENT_CHECK_PREFIXES にある（未観測なら unknown）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10",
+      "title": "npm run reports:lint が回帰用フィクスチャで全項目合格",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
+      "id": "C11",
+      "title": "actionlint",
       "status": "PASS",
       "detail": ""
     },
@@ -44,6 +92,12 @@
       "detail": ""
     },
     {
+      "id": "C13b",
+      "title": "build-db --check（DB が手編集されていない）",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
       "id": "C14",
       "title": "完了報告書があり、件数・skip のテスト名が REPORT_DATA.json と一致し、TODO(報告書) が残っていない",
       "status": "PASS",
@@ -54,6 +108,12 @@
       "title": "キットのログに、全タスクのモデル・retry 回数・所要時間がある",
       "status": "PASS",
       "detail": "10 タスク分"
+    },
+    {
+      "id": "C16",
+      "title": "npm run test:e2e（test-server を別に起動しておく）",
+      "status": "PASS",
+      "detail": "(40s)"
     },
     {
       "id": "K01",

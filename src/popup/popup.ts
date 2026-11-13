@@ -16,6 +16,7 @@ import {
   formatCategory,
   formatMultiVersionSummary,
   renderCookieModalHtml,
+  renderInterstitialNoticeHtml,
   renderSecurityCheckRowHtml,
   renderSecurityModalHtml,
   renderTechModalHtml,
@@ -59,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.7.1';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.0';
     versionEl.textContent = `v${ver}`;
   }
 }
@@ -163,7 +164,12 @@ function renderReport(report: InspectionReport): void {
   tabCookieCountEl.textContent = String(report.cookies.length);
 
   // 1. 使用技術一覧
-  renderTechnologies(report.technologies, report.coverage, report.storageWarning);
+  renderTechnologies(
+    report.technologies,
+    report.coverage,
+    report.storageWarning,
+    report.interstitial
+  );
 
   // 2. セキュリティ診断一覧
   renderSecurityChecks(report.securityChecks);
@@ -182,9 +188,17 @@ function renderReport(report: InspectionReport): void {
 function renderTechnologies(
   techs: DetectedTechnology[],
   coverage?: any,
-  storageWarning?: string
+  storageWarning?: string,
+  interstitial?: any
 ): void {
   techsListEl.innerHTML = '';
+
+  const interstitialHtml = renderInterstitialNoticeHtml(interstitial);
+  if (interstitialHtml) {
+    const banner = document.createElement('div');
+    banner.innerHTML = interstitialHtml;
+    techsListEl.appendChild(banner.firstElementChild || banner);
+  }
 
   if (storageWarning) {
     const storageBanner = document.createElement('div');

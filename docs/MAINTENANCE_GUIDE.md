@@ -549,4 +549,42 @@ npm run reports:collect -- --sites scripts/report-sites.example.txt --snapshot -
 3. **公開サイトのスナップショット保存時の注意**:
    - `tests/fixtures/snapshots/` に回帰テスト用のスナップショットを配置する場合は、上記の公開テストサイト・公式サイトのみを対象とし、Cookie の値（Value）や認証ヘッダーが含まれていないことを必ず確認してください（`--snapshot` は既定で値をマスク・除外します）。
 
+---
+
+## 5. テストコードの規約とCI品質検証 (v1.8.0)
+
+### 5.1 テストコードの作成規約（Test Hygiene）
+
+テストの保守性と安全性を担保するため、以下のルールを遵守します（[`tests/test-hygiene.test.ts`](../tests/test-hygiene.test.ts) により機械的に検査されます）。
+
+1. **バージョン番号・件数・日付・dataVersion を直接書かない**:
+   - バージョン番号の期待値は、テストコード内に直接ハードコードせず、`tests/helpers/release-version.ts` の `readPackageVersion()` を用いて `package.json` から動的に取得します（`public/manifest.json` との比較には `isSameRelease` を使用）。
+   - 総テスト件数や日付、脆弱性 DB のバージョン等の変動する値をテストの期待値に固定してはなりません。
+2. **脆弱性照合テストにおける固定 DB の使用**:
+   - 脆弱性照合（Advisory）機能のテストには、固定の検証用 DB である [`tests/fixtures/advisory-db.fixture.json`](../tests/fixtures/advisory-db.fixture.json) を使用します。
+   - 同梱の本番 DB（`src/detection/advisory-db.json`）をテスト内で直接読み込んではなりません（同梱 DB の参照が許可されているのは、スキーマ検証などの許可リストに限定されたテストのみです）。
+
+### 5.2 脆弱性 DB 自動リリースの予行 (`scripts/ci/rehearse-db-release.mjs`)
+
+脆弱性 DB の自動更新パイプラインおよび週次自動リリース（例: `v1.8.0.1` などの 4 桁パッチリリース）が正常に機能するかを事前に検証するため、予行スクリプトが用意されています。
+
+```bash
+node scripts/ci/rehearse-db-release.mjs
+```
+
+- **スクリプトの動作**: 元の作業ツリーは変更せず、一時コピーを作成して `public/manifest.json` の 4 つ目の数字（DB の版）を採番し、`dataVersion` を進めて integrity を計算し直したうえで、テストを実行します。
+- **CI での実行**: GitHub Actions の `ci.yml` ワークフロー内の `db-release-rehearsal` ジョブで自動実行され、プッシュおよび Pull Request ごとに DB 単独リリースの検証フローが破壊されていないかを検査します。
+
+### 5.3 パッケージおよびデータベースのサイズ上限検査 (`scripts/ci/check-size.mjs`) (G7)
+
+拡張機能の配布パッケージサイズおよび同梱されるオフライン脆弱性データベースの肥大化を防ぐため、サイズ上限検査スクリプトが CI で自動実行されます。
+
+```bash
+node scripts/ci/check-size.mjs
+```
+
+- **内蔵脆弱性データベース (`src/detection/advisory-db.json`)**: 上限 **2 MB**（2 MiB）
+- **ビルド成果物合計 (`dist/` ディレクトリ全体)**: 上限 **3 MB**（3 MiB）
+- **早期警告**: 各上限の 80% を超過した場合、警告（WARN）が出力されます。
+
 

@@ -14,9 +14,11 @@ import { generateFindingIdFromCheck } from '../shared/identity';
 import {
   CSPPolicy,
   CSPSource,
+  CspExtrasContext,
   SecurityCheckResult,
   SecuritySeverity,
 } from '../shared/types';
+import { evaluateCspExtraIssues } from './csp-extras';
 
 /**
  * CSPディレクティブのマップ定義
@@ -730,7 +732,8 @@ function ensureParsedPolicy(policy: CSPPolicy): CSPPolicy {
 export function evaluatePolicyIssuesWithIntersection(
   policy: CSPPolicy,
   allPolicies: CSPPolicy[],
-  hasXFrameOptions: boolean = false
+  hasXFrameOptions: boolean = false,
+  extrasContext?: CspExtrasContext
 ): CSPIssue[] {
   const normalizedTarget = ensureParsedPolicy(policy);
   const rawIssues = evaluateSinglePolicy(normalizedTarget, hasXFrameOptions);
@@ -744,15 +747,17 @@ export function evaluatePolicyIssuesWithIntersection(
     return true;
   });
 
+  const extraIssues = extrasContext ? evaluateCspExtraIssues(normalizedTarget, allPolicies, extrasContext) : [];
+
   if (normalizedTarget.mode !== 'enforce') {
-    return problemCandidates;
+    return [...problemCandidates, ...extraIssues];
   }
 
   const enforcePolicies = (allPolicies || [])
     .filter((p) => p.mode === 'enforce')
     .map(ensureParsedPolicy);
 
-  return filterEnforceIssuesByIntersection(enforcePolicies, problemCandidates, false);
+  return [...filterEnforceIssuesByIntersection(enforcePolicies, problemCandidates, false), ...extraIssues];
 }
 
 /**

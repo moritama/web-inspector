@@ -5,6 +5,7 @@
  */
 
 import { getAdvisoryDbMetadata } from '../detection/advisory';
+import { detectInterstitial, INTERSTITIAL_HEADER_NAMES } from '../detection/interstitial';
 import { ALL_TECHNOLOGY_RULES, RULES_VERSION, SSR_INFERENCE_HEADER_NAMES } from '../detection/rules';
 import { isValidXFrameOptions, SECURITY_HEADER_NAMES } from '../security/headers';
 import { DetectionEngine } from '../detection/engine';
@@ -28,6 +29,7 @@ import {
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
+import { checkCspExtras, CspExtrasContext } from '../security/csp-extras';
 import {
   analyzeExternalConnections,
   collectLoadedResourceUrls,
@@ -52,7 +54,7 @@ import {
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.7.1';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.8.0';
 
 /**
  * キャッシュに保持するヘッダーエントリ構造
@@ -71,6 +73,7 @@ export interface HeaderCacheEntry {
 export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
   ...SECURITY_HEADER_NAMES.map((h) => h.toLowerCase()),
   ...SSR_INFERENCE_HEADER_NAMES.map((h) => h.toLowerCase()),
+  ...INTERSTITIAL_HEADER_NAMES.map((h) => h.toLowerCase()),
   ...ALL_TECHNOLOGY_RULES.flatMap((rule) =>
     rule.signals
       .filter((s) => s.type === 'header' && s.target)
@@ -84,12 +87,18 @@ export const ALLOWED_RESPONSE_HEADERS: ReadonlySet<string> = new Set<string>([
 export const HEADER_DEPENDENT_CHECK_PREFIXES = [
   'SEC-HSTS-',
   'SEC-CSP-',
+  'SEC-CSPX-',
   'SEC-XFO-',
   'SEC-XCTO-',
   'SEC-REF-',
   'SEC-PERM-',
   'SEC-CORS-',
   'SEC-DISC-',
+  'SEC-COOP-',
+  'SEC-COEP-',
+  'SEC-CORP-',
+  'SEC-XXSS-',
+  'SEC-CACHE-',
 ] as const;
 
 /**
@@ -821,6 +830,13 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     baseSecurityChecks.push(...nonCspChecks, ...advancedCspChecks);
   }
 
+  // CSP 追加項目診断 (v1.8.0 T07 / NEW-03b)
+  const cspExtrasContext: CspExtrasContext = {
+    mixedContentDetected: (domSignals.mixedContent || []).length > 0,
+    reportingEndpoints: responseHeaders['reporting-endpoints'] || [],
+  };
+  baseSecurityChecks.push(...checkCspExtras(cspPolicies, url, cspExtrasContext));
+
   // SPEC-01: ヘッダー未観測時はヘッダー依存の診断を「未観測」とする
   if (!headersObserved) {
     const hasMetaCsp = Boolean(domSignals.metaCsp && domSignals.metaCsp.length > 0);
@@ -1073,6 +1089,22 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     externalConnectionCount: externalConnections.totalConnections,
   });
 
+  // 8.2 WAF・ボット対策の確認画面検出 (v1.8.0 T04 / G6)
+  const interstitial = detectInterstitial(domSignals, responseHeaders);
+  if (interstitial) {
+    coverage.overallStatus = 'partial';
+    if (!coverage.details) {
+      coverage.details = {};
+    }
+    if (!coverage.details.partialReasons) {
+      coverage.details.partialReasons = [];
+    }
+    const reason = `WAF・ボット対策の確認画面（${interstitial.vendor}）を診断している可能性があります`;
+    if (!coverage.details.partialReasons.includes(reason)) {
+      coverage.details.partialReasons.push(reason);
+    }
+  }
+
   const advMeta = getAdvisoryDbMetadata();
   let advDbVersion = advMeta.dataVersion || '2026.10';
   if (/^\d{8}$/.test(advDbVersion)) {
@@ -1090,6 +1122,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     rulesVersion: RULES_VERSION,
     advisoryDatabaseVersion: advDbVersion,
     coverage,
+    ...(interstitial ? { interstitial } : {}),
     summary: {
       totalTechnologies: technologies.length,
       requiresAttentionCount,
@@ -1108,6 +1141,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
     cspPolicies,
     mixedContent: domSignals.mixedContent,
     externalConnections,
+    ...(headersObserved ? { cspExtrasContext } : {}),
   };
 
   // URLマスク（クエリ・フラグメント除去）および単一レポートサイズ・evidence上限の適用 (IMPL-06, IMPL-07)

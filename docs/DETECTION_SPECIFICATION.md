@@ -1,7 +1,7 @@
 # Web Technology & Security Inspector 技術検出仕様および判定基準書
 
-**対象バージョン：** v1.7.1  
-**最終更新日：** 2026年11月8日  
+**対象バージョン：** v1.8.0  
+**最終更新日：** 2026年11月12日  
 **対象コンポーネント：** `src/detection/` (ルール定義・判定エンジン・推論エンジン・オフライン脆弱性照合), `src/security/` (セキュリティ診断・CSP解析・Cookie診断・PSLドメイン分析・バージョン比較), `src/shared/` (ステータス・要確認件数集計・完全性評価)
 
 ---
@@ -376,7 +376,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 ## 7. オフライン脆弱性・EOL照合およびバージョン比較仕様 (v1.7.1)
 
 ### 7.1 SemVer・4要素以上・プレリリース・複数ブランチ範囲の比較 (`src/security/version-matcher.ts`)
-- **多要素バージョンの正規化 (SPEC-05)**: `major.minor.patch` の3要素に加え、第4要素以降（例: `1.2.3.4`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（`-alpha.1`, `-beta.2`, `-rc.1`）を解析し、辞書順ではなく数値・識別子優先順位に従って比較します。
+- **多要素バージョンの正規化 (SPEC-05, v1.8.0 T03)**: `major.minor.patch` の3要素に加え、第4要素以降（例: `1.2.3.4`）や OpenSSL 型文字サフィックス（例: `1.1.1k`）、プレリリース識別子（SemVer 2.0 書式全般および `-rc1` などの既存表記）を解析し、ビルドメタデータ（`+sha-...` 等）は比較で無視します。辞書順ではなく数値・識別子優先順位に従って比較します。なお脆弱性 DB の range 比較節の版では固定の語（alpha, beta, rc, next 等）のみを受け付けます。
 - **プレリリース版の同一ブランチ境界ガード (SPEC-05)**:
   `>= 18.0.0, < 18.2.15 || >= 19.0.0, < 19.2.15` のように `||`（OR）で複数ブランチが連結された範囲式や単一上限（`< 4.0.0` 等）において、プレリリース版（例: `4.0.0-beta.1` や `5.0.0-alpha.1`）は、同じ `major.minor` ブランチを対象とする条件節に対してのみ一致させます。これにより、別メジャー・マイナーのプレリリース版が過去ブランチの `< X` に誤って一致する偽陽性を防止します。
 - **複合範囲表現の解釈**: カンマ区切り（`>= 4.0.0, < 4.3.1`）や空白区切り（`>=1.0.0 <1.2.0`）の AND 条件、チルダ範囲（`~1.2.3`）、キャレット範囲（`^1.2.3`）、ワイルドカード（`1.2.x`, `1.2.*`）をすべて解釈します。
@@ -423,17 +423,33 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   複数の強制 `Content-Security-Policy` レスポンスヘッダーおよび `<meta http-equiv="Content-Security-Policy">` が存在する場合、すべての強制ポリシーの能力（Capability）の積集合（AND）で評価します。たとえばレスポンスヘッダーが `frame-ancestors 'self'` のみであっても、`meta` に厳格な `script-src` が設定されていれば「スクリプトの制限なし（`CSP-SCRIPT-MISSING`）」とは判定しません。また `'nonce-...'` や `'sha256-...'` と `'strict-dynamic'` を併用した堅牢なポリシーは `PASS` となります。
 - **問題点の要約とポリシー別テーブル出力**:
   `SEC-CSP-03` の観測値（`observed`）には主な問題点の要約（例: `script-src 未指定 / 'unsafe-inline' あり`）を表示し、Markdown レポートのセクション 8 には各ポリシーのコードブロック直下に問題点の表（ディレクティブ・重大度・内容・推奨）を出力します。また `X-Frame-Options` とレスポンスヘッダーの `frame-ancestors` の意味が異なる場合（例: XFO `DENY` と `frame-ancestors 'self'`）は、「実際に効くのは frame-ancestors」という `INFO` 注記（`SEC-CSP-XFO-CONFLICT`）を出力します。
+- **CSP の追加項目（v1.8.0 T07 / NEW-03b / `src/security/csp-extras.ts`）**:
+  - `SEC-CSPX-TT-01` (`info` / `info`): 強制の CSP が存在し、どの強制ポリシーにも `require-trusted-types-for 'script'` が指定されていない場合に出力します。
+  - `SEC-CSPX-UIR-01` (`info` / `info`): 混在コンテンツが検出されていて、強制ポリシーに `upgrade-insecure-requests` が指定されていない場合に出力します（CSP が全くない場合も含みます）。
+  - `SEC-CSPX-FORM-01` (`warning` / `low`): 強制の CSP が存在し、どの強制ポリシーにも `form-action` が指定されていない場合に出力します（`default-src` にフォールバックしないため）。
+  - `SEC-CSPX-REPORT-01` (`info` / `info`): HTTP レスポンスヘッダーの CSP ポリシーで `report-to` に指定されたエンドポイントグループ名が、`Reporting-Endpoints` ヘッダーに定義されていない場合に出力します（meta タグの CSP は対象外）。
 
 ### 8.3 HTTPセキュリティヘッダー・HTTPS・混在コンテンツ・廃止済みタグ診断 (`src/security/headers.ts`, `https.ts`, `domain-analyzer.ts`)
-- **HSTS (`Strict-Transport-Security` / T11)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 180 日未満は `warning`（`low`）とします。また `preload` があるのに `max-age < 31536000`（1 年未満）または `includeSubDomains` 未指定の場合は、「preload の登録条件を満たしていない」旨の `info`（`SEC-HSTS-03`）を出力します。
+- **HSTS (`Strict-Transport-Security` / T11, v1.8.0 T03)**: `max-age` の数値を検証し、未設定・`max-age=0`・不正値・および **1 日（86400 秒）未満**の短期間設定は `warning`（`medium`）、1 日以上 1 年（31536000 秒）未満は `warning`（`low`）とします。`max-age` が 1 年未満で `preload` が指定されている場合は SEC-HSTS-02 の 1 行にまとめ、説明に「preload の登録条件も満たしていない」旨を追記します。`SEC-HSTS-03`（`info`）は、`max-age` が 1 年以上かつ `preload` があり `includeSubDomains` だけが未指定の場合にのみ出力します。
 - **`X-Content-Type-Options` / `X-Frame-Options`**: `nosniff` の厳密一致および `DENY` / `SAMEORIGIN` の妥当性を検証します。CSP `frame-ancestors` により保護されている場合は `X-Frame-Options` の観測値に `CSP frame-ancestors により保護` と明記して `info` とします。
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
-- **技術情報露出 (`SEC-DISC-01`〜`03` / T08)**: `Server`（詳細版露出時）、`X-Powered-By` に加え、`X-AspNet-Version` の露出（`SEC-DISC-03`）を `warning`（`low`）として報告します。
+- **技術情報露出 (`SEC-DISC-01`〜`05` / T08, v1.8.0 T06)**: `Server`（詳細版露出時）、`X-Powered-By`、`X-AspNet-Version`（`SEC-DISC-03`）に加え、`X-AspNetMvc-Version`（`SEC-DISC-04` / `warning`・`low`）および `Server-Timing`（`SEC-DISC-05` / `info`・`info`）の露出を報告します。
+- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a）**:
+  - `SEC-COOP-01` (`info` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。
+  - `SEC-COEP-01` (`info` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。
+  - `SEC-CORP-01` (`info` / `info`): `Cross-Origin-Resource-Policy` に仕様で定義されていない値（`same-origin`, `same-site`, `cross-origin` 以外）が指定されている場合に出力します。
+  - `SEC-XXSS-01` (`info` / `info`): `X-XSS-Protection` に旧式の値 `1` または `1; mode=block` が指定されている場合に出力します（モダンブラウザでは非推奨であり、`0` またはヘッダー削除を推奨）。
+  - `SEC-PERM-02` (`warning` / `low`): `Permissions-Policy` で強い権限（`camera`, `microphone`, `geolocation`, `payment`, `usb`）のいずれかが `*`（ワイルドカード）で許可されている場合に出力します（複数該当時も 1 件に集約）。
+  - `SEC-PERM-03` (`info` / `info`): `Permissions-Policy` の構文が RFC 9651 Dictionary として解析できない場合に出力します（旧 Feature-Policy 記法や構文エラー等）。
 - **HTTPS と証明書の対象外明示・混在コンテンツ URL 表示 (T06, T11)**:
   - HTTPS 接続時（`SEC-HTTPS-00`）の観測値を `HTTPS で接続（証明書の有効性は対象外）` とし、TLS/SSL 証明書の有効期限や信頼性は受動的拡張機能の診断対象外であることをレポートの制限事項に明記します。
   - アクティブ／パッシブ混在コンテンツ（`SEC-MIXED-ACTIVE` / `SEC-MIXED-PASSIVE`）では、観測値に対象要素とクエリ・フラグメントをマスクした URL（例: `script: http://...`, `form[action]: http://...`）を最大 3 件＋「他 ○ 件」で出力します。
 - **廃止済み計測タグの通知 (`SEC-LEGACY-TAG-01` / E5, T09)**:
   廃止済みの旧 Google Analytics タグ（`ga.js`、`analytics.js`）が読み込まれているページでは、`status: 'info'`, `severity: 'info'`（「計測されていない可能性、削除を検討」）を 1 件出力します（要確認件数は増えません）。
+- **サブリソース完全性 (SRI) および認証ページのキャッシュ制御（v1.8.0 T08 / NEW-03c）**:
+  - `SEC-SRI-01` (`warning` / `low`): サードパーティ（PSL で別サイト）の script および stylesheet（`rel` に `stylesheet` を含む `link`）に integrity 属性が設定されていない場合に出力します。クエリ・フラグメントを除去した URL を最大 10 件まで観測値に表示します（ヘッダー非依存）。
+  - `SEC-SRI-02` (`info` / `info`): タグマネージャー（`www.googletagmanager.com`）、Stripe.js（`js.stripe.com`）、PayPal SDK（`www.paypal.com/sdk/js`）、Google Identity Services（`accounts.google.com/gsi/`）など、内容が自動更新され SRI の適用が推奨されない配信元の資源について、CSP 等での読み込み元制限を促す情報として出力します（SEC-SRI-01 とは排他）。
+  - `SEC-CACHE-01` (`warning` / `low`): 認証系 Cookie が存在するページにおいて、HTTP レスポンスヘッダーの `Cache-Control` に `no-store` ディレクティブが指定されていない（ヘッダー未設定、または `no-cache` / `private` 等のみで `no-store` が欠落している）場合に出力します（ヘッダー依存）。
 
 ### 8.4 Cookie の用途分類（6 区分）と一般 Cookie の独立チェック (`src/security/cookies.ts` / T07)
 - **6 つの用途分類 (`CookieCategory`) と優先順位**:
@@ -447,6 +463,9 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **一般 Cookie の独立チェック (`SEC-COOKIE-SECURE-GENERAL`) と HTTP 書き分け**:
   - HTTPS ページにおける一般・解析・広告・同意・設定 Cookie の `Secure` 属性欠落チェック（`SEC-COOKIE-SECURE-GENERAL`, `low`）は、認証系 Cookie の指摘（`FAIL` 等）の有無に依存せず独立して出力し、対象 Cookie 名を最大 3 件＋「他 ○ 件」で観測値に表示します。
   - HTTP ページでは `Secure` 属性を付与できないため、Cookie の `PASS` 時の観測値を `HTTP のため Secure は評価対象外` と書き分けます。また親ドメインスコープの Cookie がある場合に備え、Markdown レポートの Cookie 節に「このページが設定したとは限らない」旨の注記を付します。
+- **認証系 Cookie の有効期限・SameSite チェック（v1.8.0 T08 / NEW-03c）**:
+  - `SEC-COOKIE-EXPIRY` (`warning` / `low`): 認証系 Cookie（`classifyCookieAdvanced` で `authentication` に分類される Cookie）のうち、セッション Cookie ではなく有効期限（`expirationDate`）が調査時刻から 1 年（365 日）を超えるものがある場合に出力します。観測値に対象 Cookie 名を最大 3 件＋「他 ○ 件」で表示します。
+  - `SEC-COOKIE-SAMESITE-NONE` (`warning` / `low`): 認証系 Cookie に `SameSite=None`（Chrome API の `no_restriction`）かつ `Secure` 属性が設定されている場合に出力します（Secure なしの SameSite=None はブラウザで保存されないため対象外）。クロスサイトリクエスト時の送信制限（Lax / Strict）を促します。
 
 ### 8.5 外部通信先の定義と調査完全性 (`src/content/content-script.ts`, `src/security/domain-analyzer.ts`, `src/shared/coverage.ts` / T05, T06)
 - **外部通信先（読み込まれたリソースの取得元）の定義 (E2)**:

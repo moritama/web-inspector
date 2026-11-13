@@ -18,11 +18,17 @@ export interface ParsedVersion {
 const WILDCARD_TOKEN_RE = /^\d+(\.\d+)*\.(x|\*)$/i;
 
 /**
- * 比較器で解釈可能なプレリリースタグの正規表現
- * `-next.0`, `-next.0.0.0`, `-rc.1`, `-rc1`, `-beta.2`, `-alpha.1` 等を受理し、
- * `-nxt` のような壊れた字句は拒否する
+ * 比較器で解釈可能なプレリリースタグの正規表現（固定の語）
+ * `-next.0`, `-next.0.0.0`, `-rc.1`, `-rc1`, `-beta.2`, `-alpha.1` 等を受理する。
+ * DB の range 比較節（scripts/validate-advisories.mjs の isValidRange と同等）で用いる。
  */
 const PRERELEASE_RE = /^(alpha|beta|rc|next|pre|preview|dev|canary|nightly|experimental)(\d+)?(?:\.([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/i;
+
+/**
+ * SemVer 2.0 §9 のプレリリース書式全般の正規表現
+ * ハイフンの後にドット区切りの識別子。各識別子は [0-9A-Za-z-] の1文字以上
+ */
+const SEMVER_PRERELEASE_RE = /^[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$/;
 
 /**
  * Linuxディストリビューション固有のパッケージバージョン表記（例: "2.4.52-1ubuntu4", "1.18.0-0ubuntu1.4", "2.4.6-97.el7"）かを検出する (Rev.2.1 IMP-06 / 5.6)
@@ -40,50 +46,85 @@ export function isLinuxPackageVersion(version: string | null | undefined): boole
 
 /**
  * プレリリース文字列を SemVer 2.0 比較用の識別子配列に分解する。
- * 解釈できない壊れたプレリリース字句（例: `nxt`）の場合は null を返す。
+ * 解釈できない壊れたプレリリース字句の場合は null を返す。
  *
  * @param rawPre ハイフン以降のプレリリース文字列
+ * @param strictPrerelease true の場合は固定の語（PRERELEASE_RE）のみを受け付ける（DB range 節用）
  * @returns 識別子配列または null
  */
-function parsePrereleaseIdentifiers(rawPre: string): (string | number)[] | null {
+function parsePrereleaseIdentifiers(rawPre: string, strictPrerelease: boolean = false): (string | number)[] | null {
+  // 1. 既存の固定の語の書式（PRERELEASE_RE）を優先評価（rc1 → ['rc', 1] などの数値分割を保持し rc2 < rc10 を担保）
   const match = rawPre.match(PRERELEASE_RE);
-  if (!match) return null;
+  if (match) {
+    const tag = match[1].toLowerCase();
+    const attachedDigits = match[2];
+    const rest = match[3];
 
-  const tag = match[1].toLowerCase();
-  const attachedDigits = match[2];
-  const rest = match[3];
-
-  const identifiers: (string | number)[] = [tag];
-  if (attachedDigits !== undefined) {
-    identifiers.push(parseInt(attachedDigits, 10));
-  }
-  if (rest !== undefined) {
-    const tokens = rest.split('.');
-    for (const token of tokens) {
-      if (!token) return null;
-      if (/^\d+$/.test(token)) {
-        identifiers.push(parseInt(token, 10));
-      } else {
-        identifiers.push(token.toLowerCase());
+    const identifiers: (string | number)[] = [tag];
+    if (attachedDigits !== undefined) {
+      identifiers.push(parseInt(attachedDigits, 10));
+    }
+    if (rest !== undefined) {
+      const tokens = rest.split('.');
+      for (const token of tokens) {
+        if (!token) return null;
+        if (/^\d+$/.test(token)) {
+          identifiers.push(parseInt(token, 10));
+        } else {
+          identifiers.push(token.toLowerCase());
+        }
       }
+    }
+    return identifiers;
+  }
+
+  // 固定の語のみ受け付けるモード（DB range 比較節用）であれば、ここで除外
+  if (strictPrerelease) {
+    return null;
+  }
+
+  // 2. SemVer 2.0 §9 書式全般の検証
+  if (!SEMVER_PRERELEASE_RE.test(rawPre)) {
+    return null;
+  }
+
+  const tokens = rawPre.split('.');
+  const identifiers: (string | number)[] = [];
+  for (const token of tokens) {
+    if (!token) return null;
+    if (/^\d+$/.test(token)) {
+      identifiers.push(parseInt(token, 10));
+    } else {
+      identifiers.push(token.toLowerCase());
     }
   }
 
   return identifiers;
 }
 
+/** parseVersion の解析オプション */
+export interface ParseVersionOptions {
+  /** true の場合は固定の語（PRERELEASE_RE）のみを受け付ける（DB range 節の比較対象用） */
+  strictPrerelease?: boolean;
+}
+
 /**
  * バージョン文字列を数値パート（4要素）とプレリリース識別子へ分解する。
  * - 先頭の `v` / `v.` は無視する
- * - ビルドメタデータ (`+...`) は無視する
+ * - ビルドメタデータ (`+...`) は無視する（SemVer 2.0 §10）
  * - Linux ディストリビューションのパッケージ印 (`-4ubuntu2.19`, `-1ubuntu1` 等) は
  *   プレリリースとして扱わず、正式版 (`pre: null`) として数値部のみ抽出する
- * - 解釈できない文字列や壊れたプレリリース字句 (`1.0.0-nxt` 等) は null を返す
+ * - 観測した版（既定）は SemVer 2.0 §9 の書式全般を受け付ける
+ * - 解釈できない文字列や書式に合わないプレリリース字句は null を返す
  *
  * @param version バージョン文字列
+ * @param options 解析オプション（strictPrerelease: true で固定語のみ受理）
  * @returns 解析済みバージョンまたは null
  */
-export function parseVersion(version: string | null | undefined): ParsedVersion | null {
+export function parseVersion(
+  version: string | null | undefined,
+  options?: ParseVersionOptions
+): ParsedVersion | null {
   if (!version || typeof version !== 'string') return null;
 
   const clean = version.trim().replace(/^v\.?/i, '');
@@ -119,7 +160,7 @@ export function parseVersion(version: string | null | undefined): ParsedVersion 
 
   let pre: (string | number)[] | null = null;
   if (baseMatch[5] !== undefined) {
-    pre = parsePrereleaseIdentifiers(baseMatch[5]);
+    pre = parsePrereleaseIdentifiers(baseMatch[5], options?.strictPrerelease ?? false);
     if (!pre) return null;
   }
 
@@ -239,7 +280,7 @@ export function satisfiesSingleClause(version: string, clause: string): boolean 
     return false;
   }
 
-  const tParsed = parseVersion(targetVer);
+  const tParsed = parseVersion(targetVer, { strictPrerelease: true });
   if (!tParsed) return false;
 
   const cmp = compareParsedVersions(vParsed, tParsed);

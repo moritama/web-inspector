@@ -20,6 +20,7 @@ import {
   InspectedCookieInfo,
   SecurityCheckResult,
   SecurityAdvisory,
+  InterstitialInfo,
 } from '../shared/types';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
@@ -504,4 +505,30 @@ export function renderCookieModalHtml(cookie: InspectedCookieInfo): string {
         : '<div style="color:var(--success-color);">重大な属性設定の不備は検出されませんでした。</div>'
     }
   `;
+}
+
+/**
+ * WAF・ボット対策確認画面が検出されたときの警告通知HTMLを生成する (v1.8.0 T04 / G6)
+ *
+ * @param info 検出された確認画面情報（未検出またはnull/undefinedの場合は空文字を返す）
+ * @returns レンダリング用HTML文字列
+ */
+export function renderInterstitialNoticeHtml(info: InterstitialInfo | null | undefined): string {
+  if (!info) {
+    return '';
+  }
+  const vendor = escapeHtml(info.vendor);
+  const evidenceItems = (info.evidence || [])
+    .map((e) => `<li><code>${escapeHtml(e)}</code></li>`)
+    .join('');
+
+  return `<div class="notice-banner interstitial-warning-banner" role="alert" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color, #f59e0b); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--warning-color, #f59e0b); line-height: 1.4;">
+  <div style="font-weight: 600; margin-bottom: 2px;">
+    ⚠️ <strong>確認画面を診断している可能性があります</strong>
+  </div>
+  <div>
+    このページは <strong>${vendor}</strong> の WAF・ボット対策確認画面の可能性があります。技術検出やセキュリティ診断の結果は<strong>不完全</strong>である可能性があります。
+  </div>
+  ${evidenceItems ? `<ul style="margin: 4px 0 0 16px; padding: 0;">${evidenceItems}</ul>` : ''}
+</div>`;
 }

@@ -732,6 +732,17 @@ export interface ReferenceOnlyUrlItem {
 }
 
 /**
+ * SRI の診断に使う script・stylesheet の情報（integrity の値は持たない）(v1.8.0 T08)
+ */
+export interface SriResourceItem {
+  kind: 'script' | 'stylesheet';
+  /** 絶対 URL */
+  url: string;
+  /** integrity 属性があるか（値は集めない） */
+  hasIntegrity: boolean;
+}
+
+/**
  * Content ScriptおよびMAIN WorldがDOMから収集するシグナル
  */
 export interface DomSignals {
@@ -767,6 +778,10 @@ export interface DomSignals {
   collectionPartial?: boolean;
   /** Content Script の収集が部分的になった理由一覧 (v1.7.1 T06) */
   collectionErrors?: string[];
+  /** WAF・ボット確認画面のDOMマーカー (v1.8.0 T04 / G6) */
+  interstitialMarkers?: string[];
+  /** SRI の診断に使う script・stylesheet の情報（integrity の値は持たない）(v1.8.0 T08) */
+  sriResources?: SriResourceItem[];
 }
 
 /**
@@ -822,6 +837,31 @@ export interface ExternalConnectionsAnalysis {
 }
 
 /**
+ * WAF・ボット確認画面のベンダー種別 (v1.8.0 T04 / G6)
+ */
+export type InterstitialVendor = 'Cloudflare' | 'AWS WAF' | 'Fastly';
+
+/**
+ * WAF・ボット対策の確認画面検出情報 (v1.8.0 T04 / G6)
+ */
+export interface InterstitialInfo {
+  /** 検出されたベンダー名 */
+  vendor: InterstitialVendor;
+  /** 判定に使った印（例: 'title: Client Challenge', 'id="fastlyLogo"', 'cf-mitigated: challenge'） */
+  evidence: string[];
+}
+
+/**
+ * CSP の追加項目（v1.8.0 T07）の評価に使う、CSP 以外の観測結果
+ */
+export interface CspExtrasContext {
+  /** DOM で混在コンテンツが 1 件以上検出されたか */
+  mixedContentDetected: boolean;
+  /** Reporting-Endpoints ヘッダーの値（受け取った行のまま）。ヘッダーが無ければ空配列か undefined */
+  reportingEndpoints?: string[];
+}
+
+/**
  * 総合調査レポート (Version 1.2 / Rev.2.1)
  */
 export interface InspectionReport {
@@ -833,6 +873,8 @@ export interface InspectionReport {
   rulesVersion: string;
   advisoryDatabaseVersion?: string;
   coverage?: InspectionCoverage;
+  /** WAF・ボット対策の確認画面の検出結果 (v1.8.0 T04 / G6) */
+  interstitial?: InterstitialInfo;
   summary: {
     totalTechnologies: number;
     requiresAttentionCount: number;
@@ -859,6 +901,8 @@ export interface InspectionReport {
   mixedContent: MixedContentItem[];
   /** 外部通信先・サードパーティ分析結果 (Rev.2.1 IMP-11) */
   externalConnections?: ExternalConnectionsAnalysis;
+  /** CSP追加項目診断用のコンテキスト (v1.8.0 T07) */
+  cspExtrasContext?: CspExtrasContext;
   /** 履歴保存に失敗したかどうかのフラグ (v1.7.0 T10 / IMPL-06) */
   historySaveFailed?: boolean;
   /** 履歴保存失敗などのストレージ関連警告メッセージ (v1.7.0 T10 / IMPL-06) */

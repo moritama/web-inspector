@@ -248,7 +248,7 @@ export function generateMarkdownReport(
   const sanitizedUrl = sanitizeUrlForReport(report.url);
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const extVer = report.extensionVersion || '1.7.1';
+  const extVer = report.extensionVersion || '1.8.0';
   const advDbVer = formatAdvisoryDbVersion(report.advisoryDatabaseVersion);
 
   // 差分分析の計算
@@ -258,6 +258,23 @@ export function generateMarkdownReport(
 
   // タイトル
   sections.push(`# Web Technology & Security Inspection Report\n\n**対象ホスト:** ${formatMarkdownCodeSpan(hostname)}  \n**調査実施日時:** ${inspectedDate} (JST)  \n**Inspector バージョン:** v${extVer} (Manifest V3)  \n**解析方式:** 受動的解析 (Passive Inspection) / 完全ローカル突合  \n\n---`);
+
+  // WAF・ボット確認画面の警告 (v1.8.0 T04 / G6)
+  if (report.interstitial) {
+    const vendor = escapeMarkdownTableCell(report.interstitial.vendor);
+    const evidenceList = (report.interstitial.evidence || [])
+      .map((e) => `- ${formatMarkdownCodeSpan(e)}`)
+      .join('\n');
+    sections.push(`> [!WARNING]
+> **確認画面の可能性:** このページは **${vendor}** の WAF・ボット対策確認画面を診断している可能性があります。そのため、技術検出やセキュリティ診断の結果は**不完全**である可能性があります。${
+      evidenceList
+        ? `\n>\n> **検出された印:**\n${evidenceList
+            .split('\n')
+            .map((line) => `> ${line}`)
+            .join('\n')}`
+        : ''
+    }\n\n---`);
+  }
 
   // 1. 調査概要
   sections.push(`## 1. 調査概要
@@ -442,7 +459,12 @@ ${report.cookies.length > 0 ? report.cookies.map((c) => {
 
 - **CSPポリシー保持件数:** ${allCspPolicies.length} 件
 ${allCspPolicies.length > 0 ? allCspPolicies.map((p, idx) => {
-  const policyIssues = evaluatePolicyIssuesWithIntersection(p, allCspPolicies, hasValidXfo);
+  const policyIssues = evaluatePolicyIssuesWithIntersection(
+    p,
+    allCspPolicies,
+    hasValidXfo,
+    report.cspExtrasContext
+  );
   const issueBlock = policyIssues.length > 0
     ? `| ディレクティブ | 重大度 | 内容 | 推奨 |\n|---|:---:|---|---|\n${policyIssues.map((issue) => `| ${formatMarkdownCodeSpan(issue.directive, { inTable: true })} | ${issue.severity.toUpperCase()} | ${escapeMarkdownTableCell(issue.description)} | ${escapeMarkdownTableCell(issue.recommendation)} |`).join('\n')}`
     : '> このポリシーに検出された問題点はありません。';

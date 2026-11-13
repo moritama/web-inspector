@@ -5,6 +5,7 @@
 
 import { SecurityCheckResult } from '../shared/types';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from './csp-parser';
+import { classifyCookieAdvanced } from './cookies';
 
 /**
  * セキュリティ診断 (checkHttpHeaders) で評価・参照されるHTTPヘッダー名一覧（小文字）
@@ -23,9 +24,15 @@ export const SECURITY_HEADER_NAMES: readonly string[] = [
   'cross-origin-opener-policy',
   'cross-origin-embedder-policy',
   'cross-origin-resource-policy',
+  'cache-control',
   'server',
   'x-powered-by',
   'x-aspnet-version',
+  'x-aspnetmvc-version',
+  'x-xss-protection',
+  'server-timing',
+  'reporting-endpoints',
+  'report-to',
 ];
 
 /**
@@ -44,6 +51,259 @@ export function isValidXFrameOptions(xfo: string | null | undefined): boolean {
     return false;
   }
   return tokens.every((t) => t === first);
+}
+
+/**
+ * RFC 9651 (Structured Fields) に基づく Permissions-Policy Dictionary 解析結果 (v1.8.0 T06)
+ */
+export interface PermissionsPolicyAllowlist {
+  /** トークン * か、* を含む Inner List */
+  all: boolean;
+  /** 値に含まれていた項目（self や "https://…" など。表示用） */
+  items: string[];
+}
+
+/**
+ * Permissions-Policy の値を RFC 9651 の Dictionary として解析する (v1.8.0 T06)。
+ * 構文エラーがある場合は null を返す。
+ */
+export function parsePermissionsPolicy(value: string): Map<string, PermissionsPolicyAllowlist> | null {
+  const input = value;
+  const len = input.length;
+  let pos = 0;
+
+  const skipSP = (): void => {
+    while (pos < len && (input[pos] === ' ' || input[pos] === '\t')) {
+      pos++;
+    }
+  };
+
+  skipSP();
+  if (pos >= len) {
+    return new Map();
+  }
+
+  const result = new Map<string, PermissionsPolicyAllowlist>();
+
+  // トークン文字判定 (RFC 9651 §4.2.6)
+  const isTokenChar = (c: string): boolean => {
+    return /[a-zA-Z0-9!#$%&'*+\-.^_`|~:/]/.test(c);
+  };
+
+  const parseKey = (): string | null => {
+    if (pos >= len) return null;
+    const first = input[pos];
+    // key は lcalpha または * で始まる
+    if (!(/[a-z*]/.test(first))) return null;
+    let key = '';
+    while (pos < len) {
+      const c = input[pos];
+      if (/[a-z0-9_\-.*]/.test(c)) {
+        key += c;
+        pos++;
+      } else {
+        break;
+      }
+    }
+    return key;
+  };
+
+  const parseBareItem = (): { type: 'token' | 'string' | 'other'; value: string } | null => {
+    if (pos >= len) return null;
+    const c = input[pos];
+
+    if (c === '"') {
+      // 文字列
+      pos++;
+      let str = '';
+      let closed = false;
+      while (pos < len) {
+        const ch = input[pos];
+        if (ch === '\\') {
+          pos++;
+          if (pos >= len) return null;
+          const next = input[pos];
+          if (next !== '"' && next !== '\\') return null;
+          str += next;
+          pos++;
+        } else if (ch === '"') {
+          pos++;
+          closed = true;
+          break;
+        } else if (ch < ' ' || ch > '~') {
+          return null;
+        } else {
+          str += ch;
+          pos++;
+        }
+      }
+      if (!closed) return null;
+      return { type: 'string', value: str };
+    }
+
+    if (c === '?') {
+      // boolean
+      pos++;
+      if (pos < len && (input[pos] === '0' || input[pos] === '1')) {
+        const v = input[pos];
+        pos++;
+        return { type: 'other', value: `?${v}` };
+      }
+      return null;
+    }
+
+    if (c === ':') {
+      // byte sequence
+      pos++;
+      let b64 = '';
+      let closed = false;
+      while (pos < len) {
+        const ch = input[pos];
+        if (ch === ':') {
+          pos++;
+          closed = true;
+          break;
+        }
+        b64 += ch;
+        pos++;
+      }
+      if (!closed) return null;
+      return { type: 'other', value: `:${b64}:` };
+    }
+
+    if (c === '-' || /[0-9]/.test(c)) {
+      // integer / decimal
+      let num = '';
+      while (pos < len && /[0-9.\-]/.test(input[pos])) {
+        num += input[pos];
+        pos++;
+      }
+      return { type: 'other', value: num };
+    }
+
+    if (/[a-zA-Z*]/.test(c)) {
+      // token
+      let tok = '';
+      while (pos < len && isTokenChar(input[pos])) {
+        tok += input[pos];
+        pos++;
+      }
+      return { type: 'token', value: tok };
+    }
+
+    return null;
+  };
+
+  const parseParameters = (): boolean => {
+    while (pos < len && input[pos] === ';') {
+      pos++;
+      skipSP();
+      const pKey = parseKey();
+      if (!pKey) return false;
+      skipSP();
+      if (pos < len && input[pos] === '=') {
+        pos++;
+        skipSP();
+        const pVal = parseBareItem();
+        if (!pVal) return false;
+      }
+      skipSP();
+    }
+    return true;
+  };
+
+  while (pos < len) {
+    const key = parseKey();
+    if (!key) return null;
+    skipSP();
+
+    let allowlist: PermissionsPolicyAllowlist = { all: false, items: [] };
+
+    if (pos < len && input[pos] === '=') {
+      pos++;
+      skipSP();
+      if (pos >= len) return null;
+
+      if (input[pos] === '(') {
+        // Inner List
+        pos++;
+        let closed = false;
+        const innerItems: string[] = [];
+        let hasAll = false;
+
+        while (pos < len) {
+          skipSP();
+          if (pos < len && input[pos] === ')') {
+            pos++;
+            closed = true;
+            break;
+          }
+          const item = parseBareItem();
+          if (!item) return null;
+
+          if (item.type === 'token' && item.value === '*') {
+            hasAll = true;
+          }
+          innerItems.push(item.type === 'string' ? `"${item.value}"` : item.value);
+
+          if (!parseParameters()) return null;
+
+          if (pos >= len) return null;
+
+          const nextChar = input[pos];
+          if (nextChar === ')') {
+            pos++;
+            closed = true;
+            break;
+          } else if (nextChar === ' ' || nextChar === '\t') {
+            skipSP();
+          } else {
+            // Inner List のアイテム区切りは SP のみ（',' などは不正）
+            return null;
+          }
+        }
+
+        if (!closed) return null;
+        if (!parseParameters()) return null;
+
+        allowlist = { all: hasAll, items: innerItems };
+      } else {
+        // Item
+        const item = parseBareItem();
+        if (!item) return null;
+        if (!parseParameters()) return null;
+
+        const isAll = item.type === 'token' && item.value === '*';
+        allowlist = {
+          all: isAll,
+          items: [item.type === 'string' ? `"${item.value}"` : item.value],
+        };
+      }
+    } else {
+      // '=' がない場合は Boolean true (?1)
+      if (!parseParameters()) return null;
+      allowlist = { all: false, items: ['?1'] };
+    }
+
+    result.set(key, allowlist);
+
+    skipSP();
+    if (pos >= len) break;
+
+    if (input[pos] === ',') {
+      pos++;
+      skipSP();
+      if (pos >= len) {
+        // 末尾のカンマ (trailing comma) はエラー
+        return null;
+      }
+    } else {
+      // カンマでもなく終端でもない場合はエラー
+      return null;
+    }
+  }
+
+  return result;
 }
 
 const SAFE_REFERRER_POLICIES = new Set([
@@ -117,6 +377,11 @@ export function checkHttpHeaders(
       const hasSubDomains = /\bincludeSubDomains\b/i.test(hsts);
       const hasPreload = /\bpreload\b/i.test(hsts);
 
+      // preload が指定されているが max-age が 1 年未満の場合の注記 (v1.8.0 T03)
+      const preloadNote = hasPreload
+        ? ' また、preload が指定されていますが、preload の登録条件も満たしていない状態です（max-age が 1 年（31536000秒）未満）。'
+        : '';
+
       if (maxAge === null || maxAge === 0) {
         // max-age=0（HSTSの明示的な無効化）または max-age 未指定
         results.push({
@@ -127,9 +392,9 @@ export function checkHttpHeaders(
           severity: 'medium',
           observed: hsts,
           description:
-            maxAge === 0
+            (maxAge === 0
               ? 'HSTSのmax-ageが 0 に設定されており、HSTSが明示的に無効化されています。中間者攻撃やダウングレード攻撃（SSL Stripping）のリスクがあります。'
-              : 'HSTSヘッダーに有効なmax-ageディレクティブが含まれていません。',
+              : 'HSTSヘッダーに有効なmax-ageディレクティブが含まれていません。') + preloadNote,
           recommendation:
             'HSTSを有効にするため、max-age=31536000（1年）以上の値を設定してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
@@ -144,7 +409,9 @@ export function checkHttpHeaders(
           status: 'warning',
           severity: 'medium',
           observed: hsts,
-          description: `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。`,
+          description:
+            `HSTSのmax-ageが ${maxAge} 秒と1日（86400秒）未満に設定されており、有効期間が極端に短いため十分な保護効果が得られません。` +
+            preloadNote,
           recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
@@ -158,7 +425,9 @@ export function checkHttpHeaders(
           status: 'warning',
           severity: 'low',
           observed: hsts,
-          description: `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と1年（31536000秒）未満に設定されています。`,
+          description:
+            `HSTSのmax-ageが ${maxAge} 秒（約 ${Math.round(maxAge / 86400)} 日）と1年（31536000秒）未満に設定されています。` +
+            preloadNote,
           recommendation: 'HSTSの有効期間は1年以上（推奨: 31536000秒 = 1年）を設定することを検討してください。',
           referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security'],
           scope: url,
@@ -178,25 +447,19 @@ export function checkHttpHeaders(
         });
       }
 
-      // preload があるのに max-age < 1年 または includeSubDomains がない場合は INFO を出す (v1.7.1 T11 / N11)
-      if (hasPreload && (maxAge === null || maxAge < 31536000 || !hasSubDomains)) {
-        const missingPreloadReqs: string[] = [];
-        if (maxAge === null || maxAge < 31536000) {
-          missingPreloadReqs.push('max-age が 1 年（31536000秒）未満');
-        }
-        if (!hasSubDomains) {
-          missingPreloadReqs.push('includeSubDomains が未指定');
-        }
+      // preload があり max-age が 1 年以上で includeSubDomains だけが無いときに限る (v1.8.0 T03)
+      if (hasPreload && maxAge !== null && maxAge >= 31536000 && !hasSubDomains) {
         results.push({
           checkId: 'SEC-HSTS-03',
           category: 'http-headers',
           name: 'HSTS (Strict-Transport-Security)',
           status: 'info',
           severity: 'info',
-          observed: `${hsts} (preload の登録条件を満たしていない: ${missingPreloadReqs.join(' / ')})`,
-          description: `HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（${missingPreloadReqs.join('、')}）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。`,
+          observed: `${hsts} (preload の登録条件を満たしていない: includeSubDomains が未指定)`,
+          description:
+            'HSTSヘッダーに preload が指定されていますが、preload の登録条件を満たしていない状態（includeSubDomains が未指定）です。HSTS Preload リストへの登録には max-age=31536000（1年）以上かつ includeSubDomains の指定が必要です。',
           recommendation:
-            'HSTS Preload を利用する場合は max-age=31536000 以上と includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
+            'HSTS Preload を利用する場合は includeSubDomains を設定してください。Preload リストへの登録を意図しない場合は preload ディレクティブを削除してください。',
           referenceUrls: [
             'https://hstspreload.org/',
             'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Strict-Transport-Security',
@@ -425,7 +688,7 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 6. Permissions-Policy (Feature-Policy) ---
+  // --- 6. Permissions-Policy (Feature-Policy) (v1.8.0 T06 / NEW-03a) ---
   const permissionsPolicy = getHeader('permissions-policy');
   if (!permissionsPolicy) {
     results.push({
@@ -441,6 +704,42 @@ export function checkHttpHeaders(
       referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Permissions-Policy'],
       scope: url,
     });
+  } else {
+    const parsedPolicy = parsePermissionsPolicy(permissionsPolicy);
+    if (parsedPolicy === null) {
+      results.push({
+        checkId: 'SEC-PERM-03',
+        category: 'http-headers',
+        name: 'Permissions-Policy',
+        status: 'info',
+        severity: 'info',
+        observed: permissionsPolicy,
+        description:
+          'Permissions-Policy ヘッダーの構文が RFC 9651 (Structured Fields) に準拠していないか、解釈できません。ブラウザによってヘッダー全体が無効化される可能性があります。',
+        recommendation:
+          'Permissions-Policy は Structured Fields の Dictionary 構文（例: geolocation=(), camera=()）で正しく指定してください。古い Feature-Policy 構文（セミコロン区切り等）を使用している場合は見直してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Permissions-Policy'],
+        scope: url,
+      });
+    } else {
+      const POWERFUL_FEATURES = ['camera', 'microphone', 'geolocation', 'payment', 'usb'];
+      const wildcards = POWERFUL_FEATURES.filter((f) => parsedPolicy.get(f)?.all === true);
+      if (wildcards.length > 0) {
+        results.push({
+          checkId: 'SEC-PERM-02',
+          category: 'http-headers',
+          name: 'Permissions-Policy',
+          status: 'warning',
+          severity: 'low',
+          observed: permissionsPolicy,
+          description: `Permissions-Policy において、強い権限（${wildcards.join(', ')}）がすべてのオリジン（*）に対して許可されています。不要な権限の濫用やクロスオリジン iframe からの不正アクセスのリスクがあります。`,
+          recommendation:
+            'カメラ・マイク・位置情報等の強い権限は * で無制限に許可せず、自オリジンのみ (self) に制限するか、() を指定して無効化することを推奨します。',
+          referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Permissions-Policy'],
+          scope: url,
+        });
+      }
+    }
   }
 
   // --- 7. CORS (Access-Control-Allow-Origin) (v1.7.0 T07 / SPEC-12 / v1.7.1 T11 R05 項目名統一) ---
@@ -478,10 +777,117 @@ export function checkHttpHeaders(
     }
   }
 
-  // --- 8. 情報露出 (Server, X-Powered-By, X-AspNet-Version) ---
+  // --- 7.5 Cross-Origin 系ヘッダー (COOP / COEP / CORP) & X-XSS-Protection (v1.8.0 T06 / NEW-03a) ---
+  // COOP (Cross-Origin-Opener-Policy)
+  const coop = getHeader('cross-origin-opener-policy');
+  const validCoopValues = new Set(['same-origin', 'same-origin-allow-popups', 'noopener-allow-popups']);
+  if (!coop) {
+    results.push({
+      checkId: 'SEC-COOP-01',
+      category: 'http-headers',
+      name: 'Cross-Origin-Opener-Policy (COOP)',
+      status: 'info',
+      severity: 'info',
+      observed: 'ヘッダー未設定',
+      description:
+        'Cross-Origin-Opener-Policy (COOP) が設定されていません。閲覧コンテキストを他から分離することで、Spectre などのサイドチャネル攻撃やクロスオリジンの情報漏洩リスクを低減できます。',
+      recommendation:
+        '同一オリジン間の分離を行う場合は same-origin、ポップアップ連携が必要な場合は same-origin-allow-popups の設定を検討してください。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy'],
+      scope: url,
+    });
+  } else {
+    const coopMain = coop.split(';')[0].trim();
+    if (!validCoopValues.has(coopMain)) {
+      results.push({
+        checkId: 'SEC-COOP-01',
+        category: 'http-headers',
+        name: 'Cross-Origin-Opener-Policy (COOP)',
+        status: 'info',
+        severity: 'info',
+        observed: coop,
+        description:
+          coopMain === 'unsafe-none'
+            ? 'Cross-Origin-Opener-Policy (COOP) に unsafe-none が指定されています。クロスオリジンからの同一コンテキストでのポップアップ操作やプロセス共有が許可されます。'
+            : `Cross-Origin-Opener-Policy (COOP) に仕様外または無効な値（${coopMain}）が指定されています。ブラウザはこれを無視し、既定の unsafe-none として扱います。`,
+        recommendation:
+          '同一オリジン間の分離を行う場合は same-origin、ポップアップ連携が必要な場合は same-origin-allow-popups の設定を検討してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy'],
+        scope: url,
+      });
+    }
+  }
+
+  // COEP (Cross-Origin-Embedder-Policy) - 既定では推奨せず、値の誤りだけ指摘
+  const coep = getHeader('cross-origin-embedder-policy');
+  if (coep) {
+    const coepMain = coep.split(';')[0].trim();
+    const validCoepValues = new Set(['require-corp', 'credentialless', 'unsafe-none']);
+    if (!validCoepValues.has(coepMain)) {
+      results.push({
+        checkId: 'SEC-COEP-01',
+        category: 'http-headers',
+        name: 'Cross-Origin-Embedder-Policy (COEP)',
+        status: 'info',
+        severity: 'info',
+        observed: coep,
+        description: `Cross-Origin-Embedder-Policy (COEP) に仕様で定義されていない値（${coepMain}）が指定されています。`,
+        recommendation:
+          '値を require-corp または credentialless に修正するか、COEP を使用しない場合はヘッダーを削除してください（COEP の安易な設定は外部リソースの読み込みを阻害する可能性があります）。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy'],
+        scope: url,
+      });
+    }
+  }
+
+  // CORP (Cross-Origin-Resource-Policy) - 引数を持たず case-sensitive
+  const corp = getHeader('cross-origin-resource-policy');
+  if (corp) {
+    const corpTrimmed = corp.trim();
+    const validCorpValues = new Set(['same-origin', 'same-site', 'cross-origin']);
+    if (!validCorpValues.has(corpTrimmed)) {
+      results.push({
+        checkId: 'SEC-CORP-01',
+        category: 'http-headers',
+        name: 'Cross-Origin-Resource-Policy (CORP)',
+        status: 'info',
+        severity: 'info',
+        observed: corp,
+        description: `Cross-Origin-Resource-Policy (CORP) に仕様で定義されていない値（${corpTrimmed}）が指定されています。`,
+        recommendation:
+          'リソースの公開範囲に応じて same-origin、same-site、または cross-origin を正確に指定するか、不要な場合はヘッダーを削除してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy'],
+        scope: url,
+      });
+    }
+  }
+
+  // X-XSS-Protection - 1 または 1; mode=block（旧式）
+  const xxss = getHeader('x-xss-protection');
+  if (xxss) {
+    const xxssMain = xxss.split(';')[0].trim();
+    if (xxssMain === '1') {
+      results.push({
+        checkId: 'SEC-XXSS-01',
+        category: 'http-headers',
+        name: 'X-XSS-Protection',
+        status: 'info',
+        severity: 'info',
+        observed: xxss,
+        description: `X-XSS-Protection ヘッダーが有効（${xxss}）に設定されています。このヘッダーは古いブラウザ向けのものであり、モダンブラウザでは非推奨・無効化されているほか、誤検知による脆弱性の誘発リスクも報告されています。`,
+        recommendation: 'このヘッダーを削除するか 0 に設定し、XSS 対策には Content-Security-Policy (CSP) を利用してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/X-XSS-Protection'],
+        scope: url,
+      });
+    }
+  }
+
+  // --- 8. 情報露出 (Server, X-Powered-By, X-AspNet-Version, X-AspNetMvc-Version, Server-Timing) ---
   const server = getHeader('server');
   const xPoweredBy = getHeader('x-powered-by');
   const xAspNetVersion = getHeader('x-aspnet-version');
+  const xAspNetMvcVersion = getHeader('x-aspnetmvc-version');
+  const serverTiming = getHeader('server-timing');
 
   if (server && /[0-9]+\.[0-9]+/.test(server)) {
     results.push({
@@ -534,5 +940,113 @@ export function checkHttpHeaders(
     });
   }
 
+  if (xAspNetMvcVersion) {
+    results.push({
+      checkId: 'SEC-DISC-04',
+      category: 'information-disclosure',
+      name: 'バックエンド技術情報露出 (X-AspNetMvc-Version)',
+      status: 'warning',
+      severity: 'low',
+      observed: `X-AspNetMvc-Version: ${xAspNetMvcVersion}`,
+      description:
+        `ASP.NET MVC のバージョン情報（${xAspNetMvcVersion}）が公開されています。攻撃者に内部構成やフレームワーク世代のヒントを与えてしまいます。`,
+      recommendation:
+        'MvcHandler.DisableMvcResponseHeader = true などの設定により X-AspNetMvc-Version ヘッダーを非表示にすることを推奨します。',
+      referenceUrls: ['https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html'],
+      scope: url,
+    });
+  }
+
+  if (serverTiming) {
+    results.push({
+      checkId: 'SEC-DISC-05',
+      category: 'information-disclosure',
+      name: '内部処理情報の露出 (Server-Timing)',
+      status: 'info',
+      severity: 'info',
+      observed: `Server-Timing: ${serverTiming}`,
+      description:
+        'Server-Timing ヘッダーにより、サーバー内部の処理時間やコンポーネント名が外部に公開されています。パフォーマンス計測に有用ですが、内部構成やボトルネックのヒントとなる可能性があります。',
+      recommendation:
+        '本番環境では内部処理名や詳細メトリクスを出力しないか、認証されたデバッグ用アクセスに限定することを推奨します。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Server-Timing'],
+      scope: url,
+    });
+  }
+
   return results;
 }
+
+/**
+ * 認証系Cookieが存在するページで Cache-Control に no-store が設定されているか検証する (v1.8.0 T08 / NEW-03c)
+ *
+ * @param headers HTTP レスポンスヘッダー一覧
+ * @param cookies ページ内で観測された Cookie 一覧
+ * @param url 調査対象ページの URL
+ * @returns セキュリティ診断結果配列（該当なしの場合は空配列）
+ */
+export function checkAuthPageCacheControl(
+  headers: Record<string, string[]>,
+  cookies: Array<{ name: string }>,
+  url: string
+): SecurityCheckResult[] {
+  // 認証系Cookieの存在確認
+  const hasAuthCookie = (cookies || []).some(
+    (c) => c && typeof c.name === 'string' && classifyCookieAdvanced(c.name).category === 'authentication'
+  );
+  if (!hasAuthCookie) {
+    return [];
+  }
+
+  // Cache-Control ヘッダーの取得（大文字小文字対応）
+  const headerKeys = Object.keys(headers || {});
+  const ccKey = headerKeys.find((k) => k.toLowerCase() === 'cache-control');
+  const cacheControlValues = ccKey ? headers[ccKey] || [] : [];
+
+  if (cacheControlValues.length === 0) {
+    return [
+      {
+        checkId: 'SEC-CACHE-01',
+        category: 'http-headers',
+        name: '認証ページの Cache-Control (no-store なし)',
+        status: 'warning',
+        severity: 'low',
+        observed: 'Cache-Control ヘッダー未設定（認証系Cookieが存在）',
+        description:
+          '認証系Cookieが存在するページで Cache-Control ヘッダーが設定されていません。ブラウザや共有キャッシュに機密情報が保存されるリスクがあります。',
+        recommendation: 'ログイン後や認証が必要なページには Cache-Control: no-store を設定してください。',
+        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cache-Control'],
+        scope: url,
+      },
+    ];
+  }
+
+  const rawJoined = cacheControlValues.join(', ');
+  // カンマで分割し、各ディレクティブの '=' より前をトリムして小文字化
+  const directives = rawJoined
+    .split(',')
+    .map((d) => d.split('=')[0].trim().toLowerCase())
+    .filter(Boolean);
+
+  const hasNoStore = directives.includes('no-store');
+  if (hasNoStore) {
+    return [];
+  }
+
+  return [
+    {
+      checkId: 'SEC-CACHE-01',
+      category: 'http-headers',
+      name: '認証ページの Cache-Control (no-store なし)',
+      status: 'warning',
+      severity: 'low',
+      observed: `Cache-Control: ${rawJoined}（no-store ディレクティブなし）`,
+      description:
+        '認証系Cookieが存在するページで Cache-Control ヘッダーに no-store が指定されていません。ブラウザや共有キャッシュに機密情報が保存されるリスクがあります。',
+      recommendation: 'ログイン後や認証が必要なページには Cache-Control: no-store を設定してください。',
+      referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cache-Control'],
+      scope: url,
+    },
+  ];
+}
+

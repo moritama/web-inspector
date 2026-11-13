@@ -56,6 +56,7 @@ function createLayout(title, content) {
       <a href="/app-insights-cookies">/app-insights-cookies (AI Cookie)</a>
       <a href="/relative-urls-only">/relative-urls-only (相対URLのみ)</a>
       <a href="/wordpress-legacy-ga">/wordpress-legacy-ga (WP &amp; ga.js)</a>
+      <a href="/spa-settle">/spa-settle (SPA待ち)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -834,6 +835,49 @@ const server = http.createServer((req, res) => {
     return res.end(html);
   }
 
+  // --- 19. /spa-settle (SPA の遅延遷移・描画検証: T05) ---
+  if (pathname === '/spa-settle') {
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.writeHead(200);
+
+    const spaHtml = `
+      <h1>SPA Settle 検証 (/spa-settle)</h1>
+      <p>遅延してハッシュ遷移（#/）および技術印の描画を行う SPA 検証ページです。</p>
+      <div class="card">
+        <p id="status">初期状態: ハッシュなし、技術印なし</p>
+        <div id="app"></div>
+      </div>
+      <script>
+        setTimeout(() => {
+          location.hash = '#/';
+          const status = document.getElementById('status');
+          if (status) status.textContent = '300ms 経過: #/ に遷移しました';
+        }, 300);
+
+        setTimeout(() => {
+          window.jQuery = function() {};
+          window.jQuery.fn = {
+            jquery: "3.6.0",
+            modal: { Constructor: { VERSION: "4.3.1" } }
+          };
+          window.$ = window.jQuery;
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = '/lib/bootstrap-4.3.1/css/bootstrap.min.css';
+          document.head.appendChild(link);
+
+          const app = document.getElementById('app');
+          if (app) {
+            app.innerHTML = '<div style="margin-top: 1rem; color: #166534; font-weight: bold;">900ms 経過: jQuery 3.6.0 と Bootstrap 4.3.1 を描画しました</div>';
+          }
+          const status = document.getElementById('status');
+          if (status) status.textContent = '900ms 経過: 技術印描画完了';
+        }, 900);
+      </script>
+    `;
+    return res.end(createLayout('SPA Settle 検証', spaHtml));
+  }
+
   // --- 8. デフォルト (v1.1 テストページ) ---
   res.setHeader('Server', 'Apache/2.4.58 (Unix)');
   res.setHeader('X-Powered-By', 'PHP/8.2.14');
@@ -883,4 +927,5 @@ server.listen(PORT, () => {
   console.log(`  - Vue 3 実機検証: http://localhost:${PORT}/vue3-app`);
   console.log(`  - Bootstrap 5 のみ (Tailwind誤検知防止): http://localhost:${PORT}/bootstrap-only`);
   console.log(`  - ディストリ版 Apache (バックポート考慮): http://localhost:${PORT}/distro-apache`);
+  console.log(`  - SPA 待ち時間検証 (T05): http://localhost:${PORT}/spa-settle`);
 });

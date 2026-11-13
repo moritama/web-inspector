@@ -23,6 +23,7 @@
  *   --headless           ヘッドレスで実行（channel: 'chromium'。環境によっては拡張が読み込まれない）
  *   --executable <path>  Chromium / Chrome の実行ファイルを指定
  *   --wait <ms>          読み込み完了後、診断までに待つ時間。既定: 2000
+ *   --settle-ms <ms>     SPA の URL・DOM 変化の落ち着きを待つ時間。既定: 1500
  *   --timeout <ms>       1 サイトの読み込みを待つ上限。既定: 30000
  *   --strict-tls         証明書エラーのサイトを取得しない（既定では警告を記録したうえで取得する）
  *
@@ -57,6 +58,8 @@ export function parseArgs(argv) {
     headless: false,
     executable: null,
     waitMs: 2000,
+    settleMs: 1500,
+    settleMaxMs: 15000,
     timeoutMs: 30000,
     inspectTimeoutMs: 60000,
     strictTls: false,
@@ -70,6 +73,7 @@ export function parseArgs(argv) {
     else if (a === '--headless') opts.headless = true;
     else if (a === '--executable') opts.executable = argv[++i];
     else if (a === '--wait') opts.waitMs = Number(argv[++i]);
+    else if (a === '--settle-ms') opts.settleMs = Number(argv[++i]);
     else if (a === '--timeout') opts.timeoutMs = Number(argv[++i]);
     else if (a === '--strict-tls') opts.strictTls = true;
     else if (a === '--snapshot') opts.snapshot = true;
@@ -77,6 +81,7 @@ export function parseArgs(argv) {
     else opts.urls.push(a);
   }
   if (!Number.isFinite(opts.waitMs) || opts.waitMs < 0) throw new Error('--wait には 0 以上の数値を指定してください');
+  if (!Number.isFinite(opts.settleMs) || opts.settleMs < 0) throw new Error('--settle-ms には 0 以上の数値を指定してください');
   if (!Number.isFinite(opts.timeoutMs) || opts.timeoutMs < 1000) throw new Error('--timeout には 1000 以上の数値を指定してください');
   return opts;
 }
@@ -222,6 +227,97 @@ async function getServiceWorker(context) {
   return await context.waitForEvent('serviceworker', { timeout: 15000 });
 }
 
+/**
+ * 観測履歴から SPA の落ち着き状態を判定する純粋関数
+ * @param {Array<{ at: number, url: string, domMutations: number }>} samples 時刻順の観測リスト
+ * @param {{ settleMs: number, maxWaitMs: number }} opts
+ * @returns {{ status: 'waiting' | 'settled' | 'timeout', elapsedMs: number, stableMs: number }}
+ */
+export function judgeSettle(samples, opts) {
+  if (!samples || samples.length === 0) {
+    return { status: 'waiting', elapsedMs: 0, stableMs: 0 };
+  }
+
+  const first = samples[0];
+  const last = samples[samples.length - 1];
+
+  let lastChangeAt = first.at;
+  for (let i = 1; i < samples.length; i++) {
+    if (samples[i].url !== samples[i - 1].url || samples[i].domMutations !== samples[i - 1].domMutations) {
+      lastChangeAt = samples[i].at;
+    }
+  }
+
+  const stableMs = last.at - lastChangeAt;
+  const elapsedMs = last.at - first.at;
+
+  // 上限時刻と settleMs の両方を満たす場合は settled を優先
+  if (stableMs >= opts.settleMs) {
+    return { status: 'settled', elapsedMs, stableMs };
+  }
+
+  if (elapsedMs >= opts.maxWaitMs) {
+    return { status: 'timeout', elapsedMs, stableMs };
+  }
+
+  return { status: 'waiting', elapsedMs, stableMs };
+}
+
+/**
+ * ページが落ち着くまで（URL と DOM の変化が止まるまで）待機するループ
+ * @param {() => Promise<{ url: string, domMutations: number }>} probe 観測関数
+ * @param {{
+ *   settleMs: number,
+ *   maxWaitMs: number,
+ *   intervalMs?: number,
+ *   now?: () => number,
+ *   sleep?: (ms: number) => Promise<void>
+ * }} opts
+ * @returns {Promise<{ status: 'settled' | 'timeout', waitedMs: number }>}
+ */
+export async function waitForSettle(probe, opts) {
+  const settleMs = opts.settleMs;
+  const maxWaitMs = opts.maxWaitMs;
+  const intervalMs = opts.intervalMs ?? 100;
+  const now = opts.now ?? Date.now;
+  const sleep = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+
+  const startAt = now();
+  const samples = [];
+  let errorSeq = 0;
+
+  while (true) {
+    const at = now();
+    let currentSample;
+    try {
+      const res = await probe();
+      currentSample = {
+        at,
+        url: String(res?.url ?? ''),
+        domMutations: Number(res?.domMutations ?? 0),
+      };
+    } catch {
+      // 遷移中などで例外が発生した場合は、前回と異なる番兵観測として記録し変化扱いとする
+      currentSample = {
+        at,
+        url: `__error_${++errorSeq}`,
+        domMutations: -1,
+      };
+    }
+    samples.push(currentSample);
+
+    const judgment = judgeSettle(samples, { settleMs, maxWaitMs });
+    if (judgment.status !== 'waiting') {
+      return {
+        status: judgment.status,
+        waitedMs: now() - startAt,
+      };
+    }
+
+    await sleep(intervalMs);
+  }
+}
+
 function mdCell(s) {
   return String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
@@ -257,8 +353,12 @@ export function buildSummary(results, meta = {}) {
         : r.lint.ok
           ? '合格'
           : `不合格 (${r.lint.violations.map((v) => v.id).join(', ')})`;
+    const rowNotes = [...(r.notes || [])];
+    if (r.settle?.status === 'timeout' && !rowNotes.includes('待ち打ち切り')) {
+      rowNotes.push('待ち打ち切り');
+    }
     lines.push(
-      `| ${mdCell(r.url)} | ${r.ok ? '成功' : `失敗: ${mdCell(r.error)}`} | ${mdCell(r.finalUrl ?? '-')} | ${r.ok ? r.attention : '-'} | ${r.ok ? r.techCount : '-'} | ${mdCell(lintCell)} | ${r.ok ? mdCell(r.file) : '-'} | ${mdCell((r.notes || []).join(' / ') || '-')} |`
+      `| ${mdCell(r.url)} | ${r.ok ? '成功' : `失敗: ${mdCell(r.error)}`} | ${mdCell(r.finalUrl ?? '-')} | ${r.ok ? r.attention : '-'} | ${r.ok ? r.techCount : '-'} | ${mdCell(lintCell)} | ${r.ok ? mdCell(r.file) : '-'} | ${mdCell(rowNotes.join(' / ') || '-')} |`
     );
   }
 
@@ -324,6 +424,26 @@ async function inspectOne(context, url, opts) {
   let mainStatusCode = null;
   let mainResponseHeaders = {};
 
+  // DOM 変化監視用のスクリプトをあらかじめ注入（SPA の判定用）
+  await page.addInitScript(() => {
+    window.__wiSettleMutations = 0;
+    try {
+      const observer = new MutationObserver((mutations) => {
+        window.__wiSettleMutations = (window.__wiSettleMutations || 0) + mutations.length;
+      });
+      observer.observe(document, { childList: true, subtree: true, characterData: true });
+    } catch {
+      document.addEventListener('DOMContentLoaded', () => {
+        try {
+          const observer = new MutationObserver((mutations) => {
+            window.__wiSettleMutations = (window.__wiSettleMutations || 0) + mutations.length;
+          });
+          observer.observe(document.documentElement || document.body, { childList: true, subtree: true, characterData: true });
+        } catch {}
+      }, { once: true });
+    }
+  });
+
   page.on('response', async (res) => {
     try {
       if (res.frame() === page.mainFrame() && res.request().isNavigationRequest()) {
@@ -370,6 +490,21 @@ async function inspectOne(context, url, opts) {
       notes.push('読み込みが終わらないため途中で停止して取得');
     }
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+
+    // SPA 等の URL・DOM 変化の落ち着きを待つ
+    const probe = async () => {
+      const currentUrl = await page.evaluate(() => location.href).catch(() => page.url());
+      const domMutations = await page.evaluate(() => window.__wiSettleMutations ?? 0).catch(() => 0);
+      return { url: currentUrl, domMutations };
+    };
+    const settle = await waitForSettle(probe, {
+      settleMs: opts.settleMs,
+      maxWaitMs: opts.settleMaxMs,
+    });
+    if (settle.status === 'timeout') {
+      notes.push('待ち打ち切り');
+    }
+
     await page.waitForTimeout(opts.waitMs);
 
     const target = page.url();
@@ -428,7 +563,7 @@ async function inspectOne(context, url, opts) {
       };
     }
 
-    return { finalUrl: target, report, notes, snapshot };
+    return { finalUrl: target, report, notes, snapshot, settle };
   } finally {
     await page.close().catch(() => {});
   }
@@ -485,7 +620,7 @@ export async function main(argv = process.argv.slice(2)) {
     for (const [i, url] of sites.entries()) {
       const label = `[${i + 1}/${sites.length}] ${url}`;
       try {
-        const { finalUrl, report, notes, snapshot } = await inspectOne(context, url, opts);
+        const { finalUrl, report, notes, snapshot, settle } = await inspectOne(context, url, opts);
         const base = reportBaseName(report);
         // 同じホスト・同じ日付が複数ある場合（パス違いなど）は連番を付ける
         let name = base;
@@ -525,6 +660,7 @@ export async function main(argv = process.argv.slice(2)) {
           notes,
           lint,
           snapshotFile,
+          settle,
         });
         const lintBadge = lint.ok ? '整合性:OK' : `整合性:NG(${lint.violations.map((v) => v.id).join(',')})`;
         const noteText = notes.length ? `　※${notes.join(' / ')}` : '';

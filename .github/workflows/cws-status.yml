@@ -21,6 +21,8 @@ jobs:
   check-status:
     if: vars.CWS_ENABLED == 'true'
     runs-on: ubuntu-latest
+    # WIF の権限は environment 単位で付与している（承認者なし・main のみ）
+    environment: chrome-web-store-status
     timeout-minutes: 10
     permissions:
       contents: read

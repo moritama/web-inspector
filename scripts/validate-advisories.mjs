@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { validateDistroSection } from './advisories/lib/distro.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +22,7 @@ const DB_FILE = path.join(ROOT_DIR, 'src', 'detection', 'advisory-db.json');
 export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB上限
 const MIN_PRODUCT_COUNT = 5; // 最低5製品
 const MIN_ADVISORY_COUNT = 10; // 最低10件のアドバイザリ
-const SUPPORTED_SCHEMA_VERSIONS = new Set(['2.1', '2.2']);
+const SUPPORTED_SCHEMA_VERSIONS = new Set(['2.1', '2.2', '2.3']);
 
 const ID_PATTERN = /^(?:CVE-\d{4}-\d{4,7}|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|[A-Z]+-\d{4}-[0-9A-Za-z-]+)$/;
 const URL_PREFIXES = ['https://nvd.nist.gov/vuln/detail/', 'https://github.com/advisories/', 'https://osv.dev/vulnerability/'];
@@ -118,6 +119,16 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
     if (db.integrity.digest !== digest) {
       throw new Error('integrity.digest が libraries の内容と一致しません (手編集または破損の可能性)。');
     }
+    if (db.distro !== undefined) {
+      const distroDigest = crypto.createHash('sha256').update(JSON.stringify(db.distro)).digest('hex');
+      if (!db.integrity.distroDigest || db.integrity.distroDigest !== distroDigest) {
+        throw new Error('integrity.distroDigest が distro の内容と一致しません (手編集または破損の可能性)。');
+      }
+    }
+  }
+
+  if (db.distro !== undefined) {
+    validateDistroSection(db.distro);
   }
 
   let advisoryCount = 0;
@@ -180,7 +191,7 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
       if (v.title && v.title.length > 200) throw new Error(`[${key} / ${id}] title が長すぎます (${v.title.length} > 200)`);
       if (v.summary && v.summary.length > 500) throw new Error(`[${key} / ${id}] summary が長すぎます (${v.summary.length} > 500)`);
 
-      if (db.schemaVersion === '2.2') {
+      if (db.schemaVersion === '2.2' || db.schemaVersion === '2.3') {
         if (!ORIGINS.has(v.origin)) throw new Error(`[${key} / ${id}] origin が不正です: "${v.origin}"`);
         if (v.fixStatus !== undefined && !FIX_STATUSES.has(v.fixStatus)) throw new Error(`[${key} / ${id}] fixStatus が不正です: "${v.fixStatus}"`);
       }
@@ -189,7 +200,7 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
     for (const e of lib.eol) {
       if (!e || typeof e.cycle !== 'string' || !e.cycle) throw new Error(`[${key}] eol.cycle が不正です: ${JSON.stringify(e)}`);
       if (!EOL_STATUSES.has(e.status)) throw new Error(`[${key}] eol.status が不正です: ${JSON.stringify(e)}`);
-      if (db.schemaVersion === '2.2' && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
+      if ((db.schemaVersion === '2.2' || db.schemaVersion === '2.3') && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
         throw new Error(`[${key}] eol.eolDate は YYYY-MM-DD または null である必要があります: ${JSON.stringify(e)}`);
       }
       if (e.label !== undefined) {

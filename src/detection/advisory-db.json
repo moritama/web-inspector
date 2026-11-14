@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2.2",
+  "schemaVersion": "2.3",
   "version": "2026.11",
   "dataVersion": "20261108",
   "generatedAt": "2026-11-08T23:46:54.136Z",
@@ -131,7 +131,8 @@
   "integrity": {
     "algorithm": "sha256",
     "target": "libraries",
-    "digest": "62c0ea067c3f0e439895f3d977118d3689b9161d48a8f2647fbdb8ce08b251ef"
+    "digest": "62c0ea067c3f0e439895f3d977118d3689b9161d48a8f2647fbdb8ce08b251ef",
+    "distroDigest": "1fd97b8497eba0797580c2c5756437a3d4c6851c21763ef25fd2bf39be467616"
   },
   "libraries": {
     "jquery": {
@@ -9166,5 +9167,1057 @@
         }
       ]
     }
+  },
+  "distro": {
+    "releases": [],
+    "map": [
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.29"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/bionic"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.14.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/bionic"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "php",
+        "upstreamVersions": [
+          "7.2.3",
+          "7.2.5",
+          "7.2.7",
+          "7.2.10",
+          "7.2.15",
+          "7.2.17",
+          "7.2.19",
+          "7.2.24"
+        ],
+        "sourcePackage": "php7.2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php7.2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/bionic"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.0g",
+          "1.1.1"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/bionic"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.41"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.18.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "php",
+        "upstreamVersions": [
+          "7.4.3"
+        ],
+        "sourcePackage": "php7.4",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php7.4&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1f"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.52"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.18.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "php",
+        "upstreamVersions": [
+          "8.1.2"
+        ],
+        "sourcePackage": "php8.1",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.1&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.0.2"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.58"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.24.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "php",
+        "upstreamVersions": [
+          "8.3.6"
+        ],
+        "sourcePackage": "php8.3",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.3&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.0.13"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.66"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/resolute"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.28.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/resolute"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "php",
+        "upstreamVersions": [
+          "8.5.4"
+        ],
+        "sourcePackage": "php8.5",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.5&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/resolute"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.5.5"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/resolute"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.68"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/stonking"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.30.4"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/stonking"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "php",
+        "upstreamVersions": [
+          "8.5.9"
+        ],
+        "sourcePackage": "php8.5",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.5&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/stonking"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "openssl",
+        "upstreamVersions": [
+          "4.0.3"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/stonking"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.38"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://sources.debian.org/api/src/apache2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.14.2"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://sources.debian.org/api/src/nginx/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "php",
+        "upstreamVersions": [
+          "7.3.4",
+          "7.3.9",
+          "7.3.11",
+          "7.3.14",
+          "7.3.19",
+          "7.3.27",
+          "7.3.29",
+          "7.3.31"
+        ],
+        "sourcePackage": "php7.3",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/pkg/php7.3"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1n"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://sources.debian.org/api/src/openssl/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.48",
+          "2.4.49",
+          "2.4.50",
+          "2.4.51",
+          "2.4.52",
+          "2.4.53",
+          "2.4.54",
+          "2.4.55",
+          "2.4.56",
+          "2.4.59",
+          "2.4.61",
+          "2.4.62",
+          "2.4.65",
+          "2.4.66",
+          "2.4.67"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/a/apache2/changelog-2.4.67-1deb11u3"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.18.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/n/nginx/changelog-1.18.0-6.1deb11u8"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "php",
+        "upstreamVersions": [
+          "7.4.21",
+          "7.4.25",
+          "7.4.28",
+          "7.4.30",
+          "7.4.33"
+        ],
+        "sourcePackage": "php7.4",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/p/php7.4/changelog-7.4.33-1deb11u12"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1k",
+          "1.1.1n",
+          "1.1.1v",
+          "1.1.1w"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/o/openssl/changelog-1.1.1w-0deb11u8"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.57",
+          "2.4.59",
+          "2.4.61",
+          "2.4.62",
+          "2.4.65",
+          "2.4.66",
+          "2.4.67",
+          "2.4.68",
+          "2.4.71"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/a/apache2/changelog-2.4.71-1deb12u1"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.22.1"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/n/nginx/changelog-1.22.1-9deb12u10"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "php",
+        "upstreamVersions": [
+          "8.2.7",
+          "8.2.18",
+          "8.2.20",
+          "8.2.23",
+          "8.2.24",
+          "8.2.25",
+          "8.2.26",
+          "8.2.28",
+          "8.2.29",
+          "8.2.30",
+          "8.2.31",
+          "8.2.32",
+          "8.2.33",
+          "8.2.34",
+          "8.2.35"
+        ],
+        "sourcePackage": "php8.2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/p/php8.2/changelog-8.2.35-1deb12u1"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.0.9",
+          "3.0.10",
+          "3.0.11",
+          "3.0.13",
+          "3.0.14",
+          "3.0.15",
+          "3.0.16",
+          "3.0.17",
+          "3.0.18",
+          "3.0.19",
+          "3.0.20",
+          "3.0.22"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/o/openssl/changelog-3.0.22-1deb12u2"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.65",
+          "2.4.66",
+          "2.4.67",
+          "2.4.68",
+          "2.4.69",
+          "2.4.71"
+        ],
+        "sourcePackage": "apache2",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/a/apache2/changelog-2.4.71-1deb13u1"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/n/nginx/changelog-1.26.3-3deb13u10"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "php",
+        "upstreamVersions": [
+          "8.4.11",
+          "8.4.16",
+          "8.4.21",
+          "8.4.23",
+          "8.4.24",
+          "8.4.26",
+          "8.4.27"
+        ],
+        "sourcePackage": "php8.4",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/p/php8.4/changelog-8.4.27-1deb13u1"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.5.1",
+          "3.5.4",
+          "3.5.5",
+          "3.5.6",
+          "3.5.7"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://tracker.debian.org/media/packages/o/openssl/changelog-3.5.7-1deb13u3"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:7",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.6"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://vault.centos.org/7.9.2009/os/x86_64/Packages/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:8",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.37"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/h/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:8",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.14.1",
+          "1.16.1",
+          "1.18.0",
+          "1.20.1",
+          "1.22.1",
+          "1.24.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/n/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:8",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1k"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/BaseOS/x86_64/os/Packages/o/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:9",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.51",
+          "2.4.53",
+          "2.4.57",
+          "2.4.62"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:9",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.20.1",
+          "1.22.1",
+          "1.24.0",
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:9",
+        "codename": null,
+        "product": "php",
+        "upstreamVersions": [
+          "8.0.30",
+          "8.1.32",
+          "8.2.30",
+          "8.2.31",
+          "8.2.32",
+          "8.2.33",
+          "8.2.35",
+          "8.3.29",
+          "8.3.31",
+          "8.3.32",
+          "8.3.33",
+          "8.3.36"
+        ],
+        "sourcePackage": "php",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/Packages/p/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:9",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.0.1",
+          "3.0.7",
+          "3.2.2",
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:10",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.63"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/h/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:10",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/n/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:10",
+        "codename": null,
+        "product": "php",
+        "upstreamVersions": [
+          "8.3.29",
+          "8.3.31",
+          "8.3.32",
+          "8.3.33",
+          "8.3.36"
+        ],
+        "sourcePackage": "php",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/p/"
+      },
+      {
+        "family": "rhel",
+        "release": "rhel:10",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.2.2",
+          "3.5.1",
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:8",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.37"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/h/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:8",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.14.1",
+          "1.16.1",
+          "1.18.0",
+          "1.20.1",
+          "1.22.1",
+          "1.24.0"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/n/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:8",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1k"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/BaseOS/x86_64/os/Packages/o/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:9",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.51",
+          "2.4.53",
+          "2.4.57",
+          "2.4.62"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:9",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.20.1",
+          "1.22.1",
+          "1.24.0",
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:9",
+        "codename": null,
+        "product": "php",
+        "upstreamVersions": [
+          "8.0.30",
+          "8.1.32",
+          "8.2.30",
+          "8.2.31",
+          "8.2.32",
+          "8.2.33",
+          "8.2.35",
+          "8.3.29",
+          "8.3.31",
+          "8.3.32",
+          "8.3.33",
+          "8.3.36"
+        ],
+        "sourcePackage": "php",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/Packages/p/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:9",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.0.1",
+          "3.0.7",
+          "3.2.2",
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:10",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.63"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/h/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:10",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/n/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:10",
+        "codename": null,
+        "product": "php",
+        "upstreamVersions": [
+          "8.3.29",
+          "8.3.31",
+          "8.3.32",
+          "8.3.33",
+          "8.3.36"
+        ],
+        "sourcePackage": "php",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/10/AppStream/x86_64/os/Packages/p/"
+      },
+      {
+        "family": "rocky",
+        "release": "rocky:10",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.2.2",
+          "3.5.1",
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/"
+      },
+      {
+        "family": "centos",
+        "release": "centos:7",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.6"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://vault.centos.org/7.9.2009/os/x86_64/Packages/"
+      },
+      {
+        "family": "centos",
+        "release": "centos:8",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.37"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://vault.centos.org/8.5.2111/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "centos",
+        "release": "centos:8",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "1.1.1k"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://vault.centos.org/8.5.2111/BaseOS/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:8",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.37"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/8/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:9",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.62"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:9",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.20.1",
+          "1.22.1",
+          "1.24.0",
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:9",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:10",
+        "codename": null,
+        "product": "apache",
+        "upstreamVersions": [
+          "2.4.63"
+        ],
+        "sourcePackage": "httpd",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:10",
+        "codename": null,
+        "product": "nginx",
+        "upstreamVersions": [
+          "1.26.3"
+        ],
+        "sourcePackage": "nginx",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:10",
+        "codename": null,
+        "product": "php",
+        "upstreamVersions": [
+          "8.3.29",
+          "8.3.31",
+          "8.3.32",
+          "8.3.33",
+          "8.3.36"
+        ],
+        "sourcePackage": "php",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/10/AppStream/x86_64/os/Packages/"
+      },
+      {
+        "family": "almalinux",
+        "release": "almalinux:10",
+        "codename": null,
+        "product": "openssl",
+        "upstreamVersions": [
+          "3.5.5",
+          "3.5.8"
+        ],
+        "sourcePackage": "openssl",
+        "verifiedAt": "2026-11-14",
+        "evidenceUrl": "https://repo.almalinux.org/almalinux/10/BaseOS/x86_64/os/Packages/"
+      }
+    ]
   }
 }

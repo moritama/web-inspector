@@ -65,3 +65,19 @@
   - RHEL 系の対応表は、確かめられた製品だけ（RHEL 7・CentOS 7 の openssl・php、RHEL 8 系の php、AlmaLinux 8・9 の一部は未収録）。人が一次資料で確かめて足すかを判断する。
   - Debian の changelog から拾った版（bullseye の apache2 2.4.49・2.4.50 など）は、tracker.debian.org の changelog に依った。T04 の週次の突き合わせで、ずれがあれば報告される。
 
+## T02 実装  (2026-11-14 12:03)
+- 変更ファイル: src/shared/types.ts, data/advisories/catalog.json, data/advisories/distro-map.json（新規）, scripts/advisories/lib/util.mjs, scripts/advisories/lib/eol.mjs, scripts/advisories/lib/distro.mjs（新規）, scripts/advisories/build-db.mjs, scripts/advisories/fetch-upstream.mjs, scripts/validate-advisories.mjs, scripts/ci/rehearse-db-release.mjs
+- 判断したこと:
+  - 設計メモ（T02.md）および INSTRUCTIONS.md の指示に厳密に従い、OS ライフサイクル表および上流版→OS リリース対応表（distro-map.json）の DB パイプラインへの組み込みを実装した。
+  - `src/shared/types.ts`: `DistroFamily`, `DistroProduct`, `DistroMapEntry`, `DistroMapFile`, `DistroReleaseLifecycle`, `AdvisoryDistroSection` を定義。
+  - `data/advisories/catalog.json`: トップレベルに `distros`（ubuntu, debian, rhel, centos, almalinux, rocky）を追加。
+  - `data/advisories/distro-map.json`: 設計メモの「外部の事実」に記載された curated データをそのまま転記して新規作成。
+  - `scripts/advisories/lib/util.mjs`: `PATHS.distroMap` を追加。
+  - `scripts/advisories/lib/eol.mjs`: OS ライフサイクル取得用の圧縮関数 `compactDistroEolCycles` を追加。
+  - `scripts/advisories/lib/distro.mjs`: 新規作成し、`DISTRO_FAMILIES`, `DISTRO_PRODUCTS`, `DISTRO_EVIDENCE_HOSTS`, `isDistroEvidenceUrl`, `validateDistroMapEntry`, `buildDistroSection`, `validateDistroSection` を実装。
+  - `scripts/advisories/build-db.mjs`: `OUTPUT_SCHEMA_VERSION = '2.3'` に更新。`buildDatabase` に `distroMap` 引数を追加し、`catalog.distros` または `distroMap` が存在するときに `distro` 節と `integrity.distroDigest` を出力するよう更新。`loadUpstream` で `distro-eol` ディレクトリを読み込む際に `upstream.distroEol` に正しく格納されるよう `read` 関数のプロパティ名指定を修正。また macOS 等のシンボリックリンク環境下で CLI 実行判定が正しく機能するよう `fs.realpathSync` を用いた判定に更新。
+  - `scripts/advisories/fetch-upstream.mjs`: `parseArgs` を export し `--distro-only` オプションを実装。`distroOnly: true` の時は OS ライフサイクルのみを取得し、製品・KEV・PSL を取得せず、manifest の `fetchedAt` を維持するようにした。また、通常の週次取得（`!args.distroOnly` かつ `!args.only`）時にも OS ライフサイクルを取得するようにした。同様に CLI 実行判定を `fs.realpathSync` を用いた判定に更新。
+  - `scripts/validate-advisories.mjs`: `SUPPORTED_SCHEMA_VERSIONS` に `'2.3'` を追加。2.2/2.3 共通の検査（origin, fixStatus, eolDate）を適用。`db.distro` が存在する場合は `validateDistroSection` で検証し、`db.integrity` がある場合は `distroDigest` の一致を検証。
+  - `scripts/ci/rehearse-db-release.mjs`: `bumpAdvisoryDb` で `db.distro` が存在する場合に `integrity.distroDigest` を再計算するよう更新。
+- 未解決: なし
+

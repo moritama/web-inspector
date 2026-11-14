@@ -951,3 +951,58 @@ export type ExtensionMessage =
   | { type: 'QUERY_ONLINE_ADVISORY'; technology: string; version: string }
   | { type: 'GET_SETTINGS' }
   | { type: 'SAVE_SETTINGS'; payload: Partial<ExtensionSettings> };
+
+/**
+ * ディストリビューション系統 (v1.8.1 T02)
+ */
+export type DistroFamily = 'ubuntu' | 'debian' | 'rhel' | 'centos' | 'almalinux' | 'rocky';
+
+/**
+ * ディストリビューション対象製品 (v1.8.1 T02)
+ */
+export type DistroProduct = 'apache' | 'nginx' | 'php' | 'openssl';
+
+/**
+ * 上流版→OS リリース対応表のエントリ (v1.8.1 T02)
+ */
+export interface DistroMapEntry {
+  family: DistroFamily;
+  release: string;            // `${family}:${cycle}` 例 'ubuntu:20.04'
+  codename: string | null;    // Debian / Ubuntu は小文字の名前、RHEL 系は null
+  product: DistroProduct;
+  upstreamVersions: string[];
+  sourcePackage: string;
+  verifiedAt: string;         // YYYY-MM-DD
+  evidenceUrl: string;        // https
+}
+
+/**
+ * distro-map.json ファイル全体の構造 (v1.8.1 T02)
+ */
+export interface DistroMapFile {
+  _comment?: string;
+  schemaVersion: number;
+  entries: DistroMapEntry[];
+}
+
+/**
+ * OS リリースのライフサイクル情報 (v1.8.1 T02)
+ */
+export interface DistroReleaseLifecycle {
+  release: string;
+  family: DistroFamily;
+  cycle: string;
+  codename: string | null;
+  lts: boolean;
+  releaseDate: string | null;
+  standardSupportEnd: string | null;
+  extendedSupportEnd: string | null;
+}
+
+/**
+ * advisory-db.json 内の distro 節 (v1.8.1 T02)
+ */
+export interface AdvisoryDistroSection {
+  releases: DistroReleaseLifecycle[];
+  map: DistroMapEntry[];
+}

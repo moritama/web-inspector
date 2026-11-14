@@ -126,3 +126,22 @@ export function normalizeEol(cycles, options) {
     return entry;
   });
 }
+
+function toBoolOrDate(v) {
+  if (typeof v === 'boolean') return v;
+  return toIsoDate(v);
+}
+
+/** OS のライフサイクル用の圧縮（codename・lts・extendedSupport を残す） */
+export function compactDistroEolCycles(cycles) {
+  return (Array.isArray(cycles) ? cycles : []).map((c) => ({
+    cycle: String(c.cycle),
+    codename: typeof c.codename === 'string' ? c.codename : null,
+    releaseDate: toIsoDate(c.releaseDate),
+    eol: toBoolOrDate(c.eol),
+    support: toBoolOrDate(c.support),
+    extendedSupport: toBoolOrDate(c.extendedSupport),
+    lts: toBoolOrDate(c.lts),
+    latest: c.latest !== undefined && c.latest !== null ? String(c.latest) : null,
+  }));
+}

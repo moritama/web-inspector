@@ -125,4 +125,25 @@
   - 設計メモ（T03.md）の「外部の事実」に記載された一次資料に基づく値（Debian の `+debXuY`/`~debXuY`・`~bpo`、deb.sury.org の書式、RHEL の `.el9`、endoflife.date のライフサイクル・slug など）のみを使用した。
 - 未解決: なし
 
+## T04 設計  (2026-11-15 07:15)
+- 変更ファイル: docs/dev/v1.8.1/design/T04.md（新規）, tests/distro-map-drift.test.mjs（新規）, tests/advisory-db-update-workflow.test.ts（新規）
+- 判断したこと:
+  - 新しい `scripts/advisories/check-distro-map.mjs` の公開 API を `checkDistroMap({ distroMap, fetchJson, now })`（突き合わせだけ）と `runDistroMapCheck({ mapPath, reportPath, fetchJson, now })`（対応表を読み、build-report.json の `distroMapDrift` だけを書く。例外を投げない）にした。結果の区分は `drift`（ずれ）・`none`（なし）・`unchecked`（未確認）。
+  - 「現在の版」は、Ubuntu が Launchpad の `Published` で `Release`・`Updates`・`Security` のポケット（Proposed・Backports は数えない）、Debian が sources.debian.org でそのリリースのコード名の suite（`-updates`・`-security` も可。`-proposed-updates`・`-backports` は数えない）。T02 で対応表を作ったときの基準に合わせた。
+  - 上流版は epoch と revision を外した先頭の数字の部分で比べる。不正な文字を含む版は捨てる（PR の本文に外部の文字列をそのまま入れない）。
+  - 全体の結果は、ずれが 1 件でもあれば「ずれ」、ずれが無く未確認があれば「未確認」（一部しか確かめていないのに「なし」と断定しない）、すべて一致したときだけ「なし」。
+  - RHEL 系は §5.4 の API の対象外なので、問い合わせず結果にも入れない（毎週「未確認」が出て警告が増えすぎるのを避ける）。
+  - pr-plan は `distroMapDrift` があれば状態にかかわらず「対応表のずれ」の節を作り、PR の作成・ラベル・自動マージ・ジョブの成否は変えない（ずれがあっても PR を止めない）。CLI は `--build-report <path>` で読む。
+  - ワークフローは「Validate advisory DB」の後にステップを足す（build-db が build-report.json を作り直した後、pr-plan の前）。`continue-on-error` と `|| true` は使わず、スクリプトが必ず 0 で終わる。
+  - CLI のテストは、一時ディレクトリにスクリプトと対応表をコピーし、実パスに解決してから `node --import <preload>` で `globalThis.fetch` を「HTTP 404 を返す偽物」に差し替えて実行する（ネットワークに出ない）。
+  - 実装の前に、check-distro-map のテストはモジュールが無いため読み込みで失敗し、ワークフローのテストは 10 件中 4 件が「ステップが無い・`--build-report` が無い」ために失敗することを確かめた。作業用の参照実装（コミットしない）で 2 ファイル 55 件がすべて通ること（CLI と actionlint の実行を含む）、test-hygiene と型検査が通ることを確かめた。
+  - 既存テストの期待値は変えていない。
+- 外部の事実:
+  - Launchpad の `getPublishedSources` の応答（`start`・`total_size`・`entries[]`・`next_collection_link`、各要素の `source_package_name`・`source_package_version`・`status`・`pocket`） — https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy&status=Published （2026-11-15）
+  - `getPublishedSources` の引数と `pocket` の値 — https://api.launchpad.net/devel.html#archive （2026-11-15。文書が大きく該当箇所は要約で確認。実際の応答の値で裏付けた）
+  - sources.debian.org の `/api/src/<pkg>/` の応答（`versions[]` の `suites`・`version`）と、無いパッケージが HTTP 200 の `{"error":404}` になること — https://sources.debian.org/api/src/apache2/ 、https://sources.debian.org/doc/api/ （2026-11-15）
+- 未解決:
+  - sources.debian.org の応答には `-security` の suite が出なかった（確かめた 3 パッケージ）。Debian のセキュリティ更新だけで出た上流版は、次のポイントリリースまでこの突き合わせでは見えないことがある。指示書（§5.4）が sources.debian.org を指定しているので従った。より細かく見るなら、人が別の一次資料（security-tracker.debian.org など）を使うかを判断する。
+  - PR を作らない週（DB の差分が none）は、突き合わせの結果が PR の本文に載らない（ワークフローの成果物の build-report.json には残る）。毎週通知が要るかは人が判断する。
+
 

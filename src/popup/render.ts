@@ -133,6 +133,54 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     `;
   }
 
+  // OS リリースの推定ブロック (v1.8.1 T03)
+  let distroInferenceHtml = '';
+  if (tech.distroInference) {
+    const inf = tech.distroInference;
+    const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
+    const releaseDisplay = tech.eolInfo?.label
+      ? tech.eolInfo.label
+      : inf.release
+        ? inf.release
+            .replace(/^ubuntu:/i, 'Ubuntu ')
+            .replace(/^debian:/i, 'Debian ')
+            .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+            .replace(/^centos:/i, 'CentOS ')
+            .replace(/^almalinux:/i, 'AlmaLinux ')
+            .replace(/^rocky:/i, 'Rocky Linux ')
+        : (inf.candidates && inf.candidates.length > 0
+            ? inf.candidates
+                .map((c) =>
+                  c
+                    .replace(/^ubuntu:/i, 'Ubuntu ')
+                    .replace(/^debian:/i, 'Debian ')
+                    .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+                    .replace(/^centos:/i, 'CentOS ')
+                    .replace(/^almalinux:/i, 'AlmaLinux ')
+                    .replace(/^rocky:/i, 'Rocky Linux ')
+                )
+                .join(' / ')
+            : '推定なし');
+    const noteHtml = inf.note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(inf.note)}</div>` : '';
+    const upstreamHtml = tech.upstreamEolInfo
+      ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">参考（上流のサポート期間）: ${escapeHtml(tech.upstreamEolInfo.label || tech.upstreamEolInfo.status)} ${tech.upstreamEolInfo.eolDate ? `(EOL: ${escapeHtml(tech.upstreamEolInfo.eolDate)})` : ''}</div>`
+      : '';
+
+    const evidenceItems = (inf.evidence || []).map((e) => {
+      return `<li><code>${escapeHtml(e.header)}</code>: ${escapeHtml(e.value)} <span style="color:var(--text-muted);">（判断トークン: <code>${escapeHtml(e.token)}</code> — ${escapeHtml(e.detail)}）</span></li>`;
+    }).join('');
+
+    distroInferenceHtml = `
+      <div>
+        <div class="detail-section-title">OS リリースの推定</div>
+        <div>推定リリース: <strong>${escapeHtml(releaseDisplay)}</strong>（確信度: <strong>${escapeHtml(confJp)}</strong>）</div>
+        ${noteHtml}
+        ${upstreamHtml}
+        ${evidenceItems ? `<div style="margin-top:4px;font-size:11px;"><strong>推定根拠:</strong><ul style="margin:2px 0 0 16px;padding:0;">${evidenceItems}</ul></div>` : ''}
+      </div>
+    `;
+  }
+
   // EOLサポート状況ブロック
   let eolHtml = '';
   if (tech.eolInfo) {
@@ -362,6 +410,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
 
     ${tech.isCandidateGroup ? '' : wpExtensionsHtml}
     ${tech.isCandidateGroup ? '' : instancesDetailHtml}
+    ${tech.isCandidateGroup ? '' : distroInferenceHtml}
     ${tech.isCandidateGroup ? '' : integrityHtml}
     ${tech.isCandidateGroup ? '' : eolHtml}
     ${tech.isCandidateGroup ? '' : cveHtml}

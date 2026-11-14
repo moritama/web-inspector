@@ -920,14 +920,22 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
           `${tech.technology}:${instVersion || 'unknown'}:eol`
         )}${instVersion ? `_${instVersion}` : ''}`;
 
+        const isDistroEol = Boolean(tech.distroInference && instEolInfo?.source === 'endoflife.date（OS のライフサイクル）');
+        const eolObserved = isDistroEol
+          ? `検出バージョン: ${instVersion || '不明'}（推定した OS: ${instEolInfo?.label || 'OS'}、EOL日: ${instEolDate || '過去'}）`
+          : `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`;
+        const eolDescription = isDistroEol
+          ? `${tech.technology}${instVersion ? ` (${instVersion})` : ''} が稼働する推定 OS（${instEolInfo?.label || 'OS'}）の標準サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されない可能性があります。`
+          : `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`;
+
         librarySecurityChecks.push({
           checkId: eolCheckId,
           category: 'library-security',
           name: eolName,
           status: 'warning',
           severity: 'medium',
-          observed: `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`,
-          description: `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`,
+          observed: eolObserved,
+          description: eolDescription,
           recommendation: instEolInfo?.recommendation || '現行のサポート対象バージョンへの移行を検討してください。',
           referenceUrls: instEolInfo?.sourceUrl ? [instEolInfo.sourceUrl] : [],
           scope: url,

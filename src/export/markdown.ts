@@ -333,6 +333,53 @@ ${
 
   const expandedTechnologies = expandTechnologyInstances(report.technologies || []);
 
+  const inferredTechs = (report.technologies || []).filter((t) => t.distroInference);
+  let distroSection = '';
+  if (inferredTechs.length > 0) {
+    const distroRows = inferredTechs.map((t) => {
+      const inf = t.distroInference!;
+      const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
+      const releaseDisplay = t.eolInfo?.label
+        ? t.eolInfo.label
+        : inf.release
+          ? inf.release
+              .replace(/^ubuntu:/i, 'Ubuntu ')
+              .replace(/^debian:/i, 'Debian ')
+              .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+              .replace(/^centos:/i, 'CentOS ')
+              .replace(/^almalinux:/i, 'AlmaLinux ')
+              .replace(/^rocky:/i, 'Rocky Linux ')
+          : (inf.candidates && inf.candidates.length > 0
+              ? inf.candidates
+                  .map((c) =>
+                    c
+                      .replace(/^ubuntu:/i, 'Ubuntu ')
+                      .replace(/^debian:/i, 'Debian ')
+                      .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+                      .replace(/^centos:/i, 'CentOS ')
+                      .replace(/^almalinux:/i, 'AlmaLinux ')
+                      .replace(/^rocky:/i, 'Rocky Linux ')
+                  )
+                  .join(' / ')
+              : '推定なし');
+
+      const evidenceDetails = (inf.evidence || []).map((e) => {
+        return `${formatMarkdownCodeSpan(e.header, { inTable: true })}: ${formatMarkdownCodeSpan(e.value, { inTable: true })}`;
+      }).join('<br>');
+
+      const notes: string[] = [];
+      if (inf.note) notes.push(inf.note);
+      if (t.upstreamEolInfo) {
+        notes.push(t.upstreamEolInfo.label || t.upstreamEolInfo.note || '参考（上流のサポート期間）');
+      }
+      const noteDisplay = notes.length > 0 ? escapeMarkdownTableCell(notes.join(' / ')) : '-';
+
+      return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(releaseDisplay)} | ${confJp} | ${evidenceDetails || '-'} | ${noteDisplay} |`;
+    }).join('\n');
+
+    distroSection = `\n\n### OS リリースの推定 (distroInference)\n\n| 技術名 | 推定リリース / 候補 | 確信度 | 推定根拠 (ヘッダー: 値) | 備考・注記 |\n|---|---|:---:|---|---|\n${distroRows}`;
+  }
+
   // 4. 検出技術スタック
   sections.push(`## 4. 検出技術スタック
 
@@ -349,7 +396,7 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
   return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(t.category)} | ${formatMarkdownCodeSpan(ver, { inTable: true })} | ${distro} | ${method} | ${escapeMarkdownTableCell(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
-}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}
+}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}
 `);
 
   // 5. セキュリティ診断結果

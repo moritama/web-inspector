@@ -103,3 +103,26 @@
   - 同じ OS の上の複数の製品（Apache と PHP など）が OS の EOL になったとき、指摘は製品ごとに 1 件ずつ出る（既存の SPEC-04 と同じ数え方）。OS 単位に 1 件にまとめるかは人が判断する。
   - Ubuntu の `~NN.NN`（SRU の版）をリリースの印にするかは、一次資料で規則を確かめてから判断する（現在は対応表で引く）。
 
+## T03 実装  (2026-11-15 07:05)
+- 変更ファイル: src/shared/types.ts, src/detection/distro-inference.ts（新規）, src/detection/advisory.ts, src/detection/engine.ts, src/background/service-worker.ts, src/popup/render.ts, src/dashboard/render.ts, src/export/markdown.ts, src/export/csv.ts, docs/DETECTION_SPECIFICATION.md
+- 判断したこと:
+  - 設計メモ（T03.md）および INSTRUCTIONS.md の仕様に従い、Server・X-Powered-By ヘッダーからの OS リリース推定とライフサイクルによる EOL 判定を実装した。
+  - `src/shared/types.ts`: `DistroInferenceConfidence`, `DistroInferenceEvidence`, `DistroThirdPartyInfo`, `DistroInference` を追加。`DetectedTechnology` に `distroInference` と `upstreamEolInfo` を追加。
+  - `src/detection/distro-inference.ts`: 新規作成し、`inferDistroFromHeaders` および `judgeDistroEol` を実装。
+    - 括弧内の OS 名（6種）とパッケージ版の印（`ubuntuN`, `+debNuM`, `~debNuM`, `.elN`, `.elN_M`）の解析。
+    - 第三者リポジトリ（`deb.sury.org`, `+ubuntuNN.NN`）およびバックポート（`~bpoN`）の検出時は `thirdParty` を付与し推定を行わない。
+    - パッケージ版の印によるリリース特定（確信度 high）、対応表突合（1件: medium, 2件以上: low, 0件: none）と、複数製品の積集合（1件なら high、空なら各候補保持）。OpenSSL トークンも積集合の手がかりとして活用。
+    - `judgeDistroEol` では、標準サポート終了日の翌日に EOL と判定し、当日・前日は EOL にせず Supported とも断定しない（Unknown）。2件以上の場合は最も早く終わる候補で判定し候補を併記。
+    - C18 対策として、ファイル内および生成文言から「該当なし」「安全」「Not Affected」を徹底して排除した。
+  - `src/detection/advisory.ts`: `AdvisoryDatabase` に `distro` 節を追加。差し替え DB 存在時は同梱 DB で補わない `getActiveDistroSection()` と、上流 EOL 照合用の `matchUpstreamEol()` を追加。
+  - `src/detection/engine.ts`: `detect()` の末尾で `getActiveDistroSection()` が存在する場合に `inferDistroFromHeaders` を実行し、製品に `distroInference` を付与。ライフサイクルで判定可能な場合は EOL 情報およびインスタンス EOL を更新し、上流 EOL を `upstreamEolInfo` に参考として記録。
+  - `src/background/service-worker.ts`: EOL 指摘（`SEC-EOL-*`）の生成時に OS リリース推定に基づく判定である場合は観測値・説明に推定である旨を明記。上流 EOL は数えず二重カウントを防止。
+  - `src/popup/render.ts` & `src/dashboard/render.ts`: ポップアップモーダルおよびダッシュボード詳細に「OS リリースの推定」セクションを追加し、リリース・確信度・エスケープ済み根拠ヘッダー値・注記・参考上流 EOL を表示。ライブラリセキュリティ表の EOL 列にも反映。レビュー指摘に基づき、リリース表示名変換において CentOS / AlmaLinux / Rocky Linux の置換も対応。
+  - `src/export/markdown.ts`: 第4節に「OS リリースの推定」小節を出力。推定対象がある場合のみサブセクションを追加し `reports:lint` と回帰テストの双方に適合。リリース表示名変換に CentOS / AlmaLinux / Rocky Linux の置換を追加。
+  - `src/export/csv.ts`: 技術一覧に「OSの推定」列を追加し、リリース・確信度・第三者注記を出力。レビュー指摘に基づき候補およびリリース表示で CentOS / AlmaLinux / Rocky Linux の置換を追加。
+  - `docs/DETECTION_SPECIFICATION.md`: レビュー指摘に基づき、§6.4 に印の一覧表（括弧内 OS 名 6 種、対象外 OS 名 4 種、パッケージ版印 3 種、対象外印 `.fcNN`、第三者・バックポート印）、推定およびライフサイクル EOL 判定の手順の要点（手順 2.1・2.2）、Markdown 表形式の区切り線（`| --- | --- |`）を持つ確信度の表を追記。
+- 外部の事実:
+  - 設計メモ（T03.md）の「外部の事実」に記載された一次資料に基づく値（Debian の `+debXuY`/`~debXuY`・`~bpo`、deb.sury.org の書式、RHEL の `.el9`、endoflife.date のライフサイクル・slug など）のみを使用した。
+- 未解決: なし
+
+

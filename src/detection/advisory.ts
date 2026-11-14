@@ -8,6 +8,7 @@
 
 import {
   AdvisoryDbMetadata,
+  AdvisoryDistroSection,
   AdvisoryFixStatus,
   AdvisoryMatchStatus,
   AdvisoryProductCoverage,
@@ -74,6 +75,7 @@ export interface AdvisoryDatabase {
   advisoryCount?: number;
   productCount?: number;
   syncStatus?: 'success' | 'partial' | 'failed';
+  distro?: AdvisoryDistroSection;
   libraries: Record<string, LibraryEntry>;
 }
 
@@ -180,6 +182,40 @@ let testAdvisoryDbOverride: Partial<AdvisoryDatabase> | null = null;
  */
 export function setTestAdvisoryDatabase(db: Partial<AdvisoryDatabase> | null): void {
   testAdvisoryDbOverride = db;
+}
+
+/**
+ * 現在有効な distro 節を取得する (v1.8.1 T03)
+ * テスト差し替え DB が指定されている場合はその distro（無ければ null）、
+ * 差し替えが無ければ同梱 DB の distro（無ければ null）。
+ */
+export function getActiveDistroSection(): AdvisoryDistroSection | null {
+  if (testAdvisoryDbOverride !== null) {
+    return testAdvisoryDbOverride.distro ?? null;
+  }
+  return advisoryDb.distro ?? null;
+}
+
+/**
+ * 上流版による EOL を照合する（参考表示用、v1.8.1 T03）
+ */
+export function matchUpstreamEol(technology: string, upstreamVersion: string): EolInfo {
+  const effectiveOverride = testAdvisoryDbOverride ?? undefined;
+  const activeDb: AdvisoryDatabase = {
+    ...advisoryDb,
+    ...effectiveOverride,
+    libraries: effectiveOverride?.libraries ?? advisoryDb.libraries,
+  };
+  const { targetKey, targetEntry } = findLibraryEntry(technology, activeDb);
+  if (!targetEntry || !upstreamVersion) {
+    return {
+      status: 'Unknown',
+      eolDate: null,
+      source: 'offline-db',
+      recommendation: 'この技術のEOL判定データがありません。',
+    };
+  }
+  return matchEolPolicy(targetKey || technology, upstreamVersion, targetEntry.eol);
 }
 
 /**

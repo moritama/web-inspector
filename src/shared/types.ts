@@ -318,6 +318,10 @@ export interface DetectedTechnology {
   wpPlugins?: WpExtensionInfo[];
   /** WordPress テーマ一覧（WordPress 検出時のみ。脆弱性DBとは照合しない） (v1.7.1 T09 / K) */
   wpThemes?: WpExtensionInfo[];
+  /** OS リリースの推定 (v1.8.1 T03) */
+  distroInference?: DistroInference;
+  /** 参考: 上流の版による EOL（数えない） (v1.8.1 T03) */
+  upstreamEolInfo?: EolInfo;
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */
@@ -1005,4 +1009,40 @@ export interface DistroReleaseLifecycle {
 export interface AdvisoryDistroSection {
   releases: DistroReleaseLifecycle[];
   map: DistroMapEntry[];
+}
+
+/**
+ * OS リリースの推定の確信度 (v1.8.1 T03)
+ */
+export type DistroInferenceConfidence = 'high' | 'medium' | 'low' | 'none';
+
+/**
+ * 推定の根拠 (v1.8.1 T03)
+ */
+export interface DistroInferenceEvidence {
+  header: string;   // 小文字のヘッダー名: 'server' | 'x-powered-by'
+  value: string;    // ヘッダーの値（受け取ったまま。200 文字で切る）
+  token: string;    // 判断に使った文字列（例 '(Ubuntu)'、'+deb11u5'、'deb.sury.org'、'OpenSSL/1.1.1f'）
+  detail: string;   // 日本語の説明（例「括弧内の OS 名から系統を判断しました」）
+}
+
+/**
+ * 第三者リポジトリ・バックポートの印 (v1.8.1 T03 / H5・H9)
+ */
+export interface DistroThirdPartyInfo {
+  kind: 'third-party' | 'backport';
+  marker: string;   // 見つけた印（例 'deb.sury.org'、'+ubuntu20.04'、'~bpo10'）
+}
+
+/**
+ * 製品ごとの OS リリースの推定 (v1.8.1 T03 / §3.1)
+ */
+export interface DistroInference {
+  family: DistroFamily | null;
+  release: string | null;          // 1 件に絞れたときだけ（例 'ubuntu:20.04'）。2 件以上・無しは null
+  candidates: string[];            // 候補のリリース（例 ['ubuntu:20.04', 'ubuntu:22.04']）。第三者・none は []
+  confidence: DistroInferenceConfidence;
+  evidence: DistroInferenceEvidence[];
+  thirdParty?: DistroThirdPartyInfo;
+  note?: string;                   // none・第三者のときの注記
 }

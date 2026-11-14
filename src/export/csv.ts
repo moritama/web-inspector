@@ -94,6 +94,7 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
       '代表バージョン',
       'バージョン検出元',
       'ディストリ版ヒント',
+      'OSの推定',
       '確信度スコア',
       '検出方式',
       '連動種別',
@@ -115,7 +116,7 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     const expandedTechnologies = expandTechnologyInstances(report.technologies);
     for (const tech of expandedTechnologies) {
@@ -183,6 +184,41 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
         ? '該当なし'
         : '-';
 
+      let distroInferenceCol = '-';
+      if (tech.distroInference) {
+        const inf = tech.distroInference;
+        const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
+        if (inf.thirdParty) {
+          distroInferenceCol = inf.note || `第三者リポジトリ（${inf.thirdParty.marker}）`;
+        } else if (tech.eolInfo?.label) {
+          distroInferenceCol = tech.eolInfo.label;
+        } else if (inf.release) {
+          const relDisplay = inf.release
+            .replace(/^ubuntu:/i, 'Ubuntu ')
+            .replace(/^debian:/i, 'Debian ')
+            .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+            .replace(/^centos:/i, 'CentOS ')
+            .replace(/^almalinux:/i, 'AlmaLinux ')
+            .replace(/^rocky:/i, 'Rocky Linux ');
+          distroInferenceCol = `${relDisplay}（推定・確信度 ${confJp}）`;
+        } else if (inf.candidates && inf.candidates.length > 0) {
+          const candDisplay = inf.candidates
+            .map((c) =>
+              c
+                .replace(/^ubuntu:/i, 'Ubuntu ')
+                .replace(/^debian:/i, 'Debian ')
+                .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+                .replace(/^centos:/i, 'CentOS ')
+                .replace(/^almalinux:/i, 'AlmaLinux ')
+                .replace(/^rocky:/i, 'Rocky Linux ')
+            )
+            .join(' / ');
+          distroInferenceCol = `${candDisplay}（推定・確信度 ${confJp}）`;
+        } else if (inf.note) {
+          distroInferenceCol = inf.note;
+        }
+      }
+
       rows.push(
         [
           tech.technology,
@@ -190,6 +226,7 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
           tech.version || 'バージョン不明',
           tech.versionSource || 'pattern',
           tech.distroHint || '-',
+          distroInferenceCol,
           tech.confidence,
           detectionMethodText,
           implicationTypeText,

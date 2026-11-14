@@ -346,6 +346,11 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           : escapeHtml(t.version)
         : '<span style="color:var(--text-muted);">不明</span>';
 
+      let distroNoteHtml = '';
+      if (t.distroInference?.note) {
+        distroNoteHtml = `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escapeHtml(t.distroInference.note)}</div>`;
+      }
+
       return `
         <tr>
           <td>
@@ -355,7 +360,7 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           <td>${verDisplay}</td>
           <td>${escapeHtml(t.isCandidateGroup ? '推定候補' : (t.versionSource || '-'))}</td>
           <td>${integrityBadge}</td>
-          <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(t.eolDate)})</span>` : ''}</td>
+          <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(t.eolDate)})</span>` : ''}${distroNoteHtml}</td>
           <td>${cveBadge}</td>
           <td style="font-size:12px;color:var(--accent-color);">${escapeHtml(recommendation)}</td>
         </tr>
@@ -624,6 +629,53 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             }
           </div>
         `
+            : ''
+        }
+
+        ${
+          t.distroInference
+            ? (() => {
+                const inf = t.distroInference;
+                const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
+                const releaseDisplay = t.eolInfo?.label
+                  ? t.eolInfo.label
+                  : inf.release
+                    ? inf.release
+                        .replace(/^ubuntu:/i, 'Ubuntu ')
+                        .replace(/^debian:/i, 'Debian ')
+                        .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+                        .replace(/^centos:/i, 'CentOS ')
+                        .replace(/^almalinux:/i, 'AlmaLinux ')
+                        .replace(/^rocky:/i, 'Rocky Linux ')
+                    : (inf.candidates && inf.candidates.length > 0
+                        ? inf.candidates
+                            .map((c) =>
+                              c
+                                .replace(/^ubuntu:/i, 'Ubuntu ')
+                                .replace(/^debian:/i, 'Debian ')
+                                .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
+                                .replace(/^centos:/i, 'CentOS ')
+                                .replace(/^almalinux:/i, 'AlmaLinux ')
+                                .replace(/^rocky:/i, 'Rocky Linux ')
+                            )
+                            .join(' / ')
+                        : '推定なし');
+                const noteHtml = inf.note ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${escapeHtml(inf.note)}</div>` : '';
+                const upstreamHtml = t.upstreamEolInfo
+                  ? `<div style="font-size:12px;color:var(--text-sub);margin-top:4px;">参考（上流のサポート期間）: ${escapeHtml(t.upstreamEolInfo.label || t.upstreamEolInfo.status)} ${t.upstreamEolInfo.eolDate ? `(EOL: ${escapeHtml(t.upstreamEolInfo.eolDate)})` : ''}</div>`
+                  : '';
+                const evidenceItems = (inf.evidence || []).map((e) => {
+                  return `<li><code>${escapeHtml(e.header)}</code>: ${escapeHtml(e.value)} <span style="color:var(--text-muted);">（判断トークン: <code>${escapeHtml(e.token)}</code> — ${escapeHtml(e.detail)}）</span></li>`;
+                }).join('');
+                return `
+                  <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+                    <strong>OS リリースの推定:</strong> ${escapeHtml(releaseDisplay)}（確信度: <strong>${escapeHtml(confJp)}</strong>）
+                    ${noteHtml}
+                    ${upstreamHtml}
+                    ${evidenceItems ? `<div style="margin-top:4px;font-size:11px;"><strong>推定根拠:</strong><ul style="margin:2px 0 0 16px;padding:0;">${evidenceItems}</ul></div>` : ''}
+                  </div>
+                `;
+              })()
             : ''
         }
 

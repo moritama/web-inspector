@@ -42,3 +42,26 @@
   - `src/security/version-matcher.ts` など既存モジュールは一切変更せず、既存の挙動を維持した。
 - 未解決: なし
 
+## T02 設計  (2026-11-14 11:45)
+- 変更ファイル: docs/dev/v1.8.1/design/T02.md（新規）, tests/distro-map.test.ts（新規）, tests/advisory-distro-pipeline.test.mjs（新規）, tests/advisory-distro-compat.test.ts（新規）, tests/advisory-db-invariants.test.ts, tests/advisory-pipeline.test.mjs, tests/fixtures/advisory-db.fixture.json
+- 判断したこと:
+  - `distro.releases` の「標準サポート終了」は endoflife.date の `eol`、「延長サポート終了」は `extendedSupport`（`false`・無しは null）。`lts` は真偽値または日付の文字列を真とする。
+  - 収録リリースは H8 に加え、サポート中の Ubuntu 26.04 LTS と、2026-11-14 時点でサポート中の唯一の中間リリース 26.10。RHEL 系は 7〜10 のうち endoflife.date にあるもの（CentOS 7・8、AlmaLinux と Rocky の 8〜10）。
+  - RHEL 本体の一覧はログインが要るため、ソースが同じ再ビルド（Rocky・AlmaLinux・CentOS の公開リポジトリ）で確かめた。確かめられなかった製品（RHEL 7 系の openssl・php、RHEL 8 系の php など）は載せない（T03 で確信度 none になり、誤った推定より安全）。
+  - evidenceUrl はディストリ自身の公開サイトのホストだけを許す（一覧は設計メモ）。対応表の不正（curated の誤り）は build-db を失敗させ、OS のライフサイクルの取得結果が無いことは警告だけにする。
+  - integrity は既存の `digest`（libraries）を変えず、`distroDigest` を足す。distro 節があるのに distroDigest が無い・一致しない DB は validateDb が拒否する。
+  - `--distro-only` は manifest の `fetchedAt`（build-db の基準日）を進めない。通常の週次の取得でも OS を取る。
+  - 固定 DB を schema 2.3 にし、distro 節（抜粋）と distroDigest を足した。あわせて、以前から libraries と一致していなかった `integrity.digest` を実際の値に直した（libraries は変えていない。固定 DB を使う既存テスト 9 ファイル・258 件が通ることを確認）。
+  - 既存テストの期待値の変更: advisory-pipeline の schema（2.2→2.3）と、schema 変更の合成値（2.3→9.9）、advisory-db-invariants の許す schema に 2.3 を追加（理由は設計メモ）。
+  - 実装の前に新しいテストが「機能が無い」ために失敗すること、参照の実装（コミットしない）では本物のファイルに依存しないケースがすべて通ること、対応表の候補で tests/distro-map.test.ts が全件通ること、提案した型で型検査が通ること、test-hygiene が通ることを確かめた。
+- 外部の事実:
+  - endoflife.date の応答の項目（cycle・codename・releaseDate・eol・support・extendedSupport・lts・latest）と OS の slug、各サイクルの有無 — https://endoflife.date/api/ubuntu.json ほか（debian・rhel・centos・almalinux・rocky-linux）（2026-11-14）
+  - Ubuntu のシリーズ（26.10 stonking がサポート中の唯一の中間リリース、26.04 resolute） — https://api.launchpad.net/1.0/ubuntu/series （2026-11-14）
+  - nginx 1.18.0 が Ubuntu 20.04（1.18.0-0ubuntu1.x）と 22.04（1.18.0-6ubuntu14.x）の両方にある — Launchpad の getPublishedSources（focal・jammy）（2026-11-14）
+  - Debian 10 の apache2・nginx・openssl の版 — https://sources.debian.org/api/src/apache2/ ほか（2026-11-14）
+  - Rocky Linux 9 の php の版（8.0.30、モジュールの 8.1・8.2・8.3） — https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/Packages/p/ （2026-11-14）
+  - 対応表の各行の根拠は設計メモの「外部の事実」の表と、各項目の evidenceUrl。
+- 未解決:
+  - RHEL 系の対応表は、確かめられた製品だけ（RHEL 7・CentOS 7 の openssl・php、RHEL 8 系の php、AlmaLinux 8・9 の一部は未収録）。人が一次資料で確かめて足すかを判断する。
+  - Debian の changelog から拾った版（bullseye の apache2 2.4.49・2.4.50 など）は、tracker.debian.org の changelog に依った。T04 の週次の突き合わせで、ずれがあれば報告される。
+

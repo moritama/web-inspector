@@ -147,3 +147,23 @@
   - PR を作らない週（DB の差分が none）は、突き合わせの結果が PR の本文に載らない（ワークフローの成果物の build-report.json には残る）。毎週通知が要るかは人が判断する。
 
 
+
+## T04 実装  (2026-11-15 07:25)
+- 変更ファイル: scripts/advisories/check-distro-map.mjs（新規）, scripts/advisories/pr-plan.mjs, .github/workflows/advisory-db-update.yml
+- 判断したこと:
+  - 設計メモ（T04.md）および INSTRUCTIONS.md の仕様に厳密に従い、対応表（distro-map.json）の週次突き合わせ処理を実装した。
+  - `scripts/advisories/check-distro-map.mjs`: 新規作成。
+    - `extractUpstreamVersion`: dpkg 形式の版から epoch と revision を除去し、先頭の上流版パターン（`/^\d+(?:\.\d+)+[a-z]?/`）を取り出す。不正文字や 100 文字超の版は除外。
+    - `checkDistroMap`: Ubuntu は Launchpad の `getPublishedSources` を用い、`Published` かつ `Release`・`Updates`・`Security` ポケットの公開版を取得（`next_collection_link` による最大 20 ページのページ送りに対応）。Debian は `sources.debian.org/api/src/<pkg>/` を用い、該当リリースの suite（`<codename>`, `<codename>-updates`, `<codename>-security`）の版を取得（同一パッケージの取得結果をキャッシュ）。双方で対応表に無い上流版を検出し、`drift` / `none` / `unchecked` を判定。RHEL 系は対象外としてスキップ。
+    - `runDistroMapCheck`: 対応表ファイルを読み込み、`build-report.json` の `distroMapDrift` を更新。対応表ファイル自体の内容は一切変更せず、例外発生時も `unchecked` を記録して終了。
+    - CLI 実行時は `createFetchJson`（retries: 2）を使用し、例外発生時を含め必ず `process.exit(0)` で終了。
+  - `scripts/advisories/pr-plan.mjs`:
+    - `renderDistroMapDriftSection`: `distroMapDrift` から Markdown 節を生成。全体が `none` のときのみ「なし」を用い、件数は「一致 N 件」と表記して未確認時に「なし」が含まれないよう配慮。Markdown 挿入前に値をサニタイズ。
+    - `planPullRequest`: 任意の `distroMapDrift` 引数を受け取り、`classification !== 'none'` の場合に本文末尾へセクションを追加。PR 作成・ラベル・自動マージ等の判定には影響を与えない。
+    - CLI: `--build-report` 引数を追加し、`distroMapDrift` が存在する場合に `planPullRequest` へ渡す。
+  - `.github/workflows/advisory-db-update.yml`:
+    - `Validate advisory DB` の直後に `Check distro map drift` ステップ（`node scripts/advisories/check-distro-map.mjs`）を追加。`continue-on-error` や `|| true` は不使用。
+    - `Plan pull request` のステップ引数に `--build-report data/advisories/build-report.json` を追加。
+- 外部の事実:
+  - 設計メモ（T04.md）の「外部の事実」に記載された一次資料に基づく値（Launchpad API の `getPublishedSources`、sources.debian.org API の形式等）のみを使用した。
+- 未解決: なし

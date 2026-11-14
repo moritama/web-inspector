@@ -81,3 +81,25 @@
   - `scripts/ci/rehearse-db-release.mjs`: `bumpAdvisoryDb` で `db.distro` が存在する場合に `integrity.distroDigest` を再計算するよう更新。
 - 未解決: なし
 
+## T03 設計  (2026-11-15 06:40)
+- 変更ファイル: docs/dev/v1.8.1/design/T03.md（新規）, tests/distro-inference.test.ts（新規）, tests/distro-inference-report.test.ts（新規）
+- 判断したこと:
+  - 新しいモジュール `src/detection/distro-inference.ts` の公開 API を `inferDistroFromHeaders(headers, distro)`（製品ごとの `distroInference`）と `judgeDistroEol(inference, distro, now)`（`{ basisRelease, eolInfo }` か null）にした。型 `DistroInference` などは `src/shared/types.ts`、`DetectedTechnology` に任意の `distroInference`・`upstreamEolInfo` を足す。
+  - 印の一覧をテストで固定した: 括弧内の OS 名 6 種、`ubuntuN`・`[+~]debNuM`・`.elN`（`.elN_M` を含む）、第三者 `deb.sury.org`・`+ubuntuNN.NN`、バックポート `~bpoN`。PPA 一般と Ubuntu の `~NN.NN` は一次資料で規則を確かめていないので印にしない（安全側）。
+  - H4 により、推定で標準サポート中のときは `Supported` にせず `Unknown`（終了予定日と「推定」を文言に書く）。終了日の翌日から EOL。重大度・status は既存の `SEC-EOL`（SPEC-04）と同じ。
+  - 二重に数えないこと: 製品ごとに EOL の指摘は最大 1 件。上流の EOL は `upstreamEolInfo`（参考）にして、件数・指摘に使わない。
+  - 候補のどれかにライフサイクルが無い（`distro.releases` が空など）ときは EOL を判定せず第1段階のまま。照合 DB を差し替えたとき、差し替えた DB に `distro` が無ければ同梱 DB で補わない（`distro` 節が無い DB では第1段階と同じ出力）。
+  - OpenSSL は技術一覧に足さないが、Server ヘッダーの `OpenSSL/<版>` を積集合の手がかりにする（§3.1 手順 3.3 の例）。
+  - `~bpo` の版は第1段階で `distroHint` が付かず上流の版で照合される。§3.2「第三者は第1段階の表示のまま」に従い照合の区分は変えず、Needs Review の検査の対象から外した（`thirdParty` と注記は検査する）。
+  - 実装の前に、単体テストはモジュールが無いため読み込みで失敗し、統合テストは 43 件中 38 件が「推定が付かない・EOL を OS で判定しない・表示が無い」ために失敗することを確かめた（通る 5 件は陰性・前提・旧 DB の互換）。作業用の参照実装（コミットしない）で単体テスト 57 件がすべて通ること、設計メモの型で新しいテストの型検査が通ること、test-hygiene が通ることを確かめた。
+  - 既存テストの期待値は変えていない。固定 DB の `distro` 節により実装の後は既存テストの Ubuntu などの製品にも推定が付くが、既存テストが見る項目（`distroHint`・照合の区分・`Apache/2.4.58 (Ubuntu)` の `Unknown`）は変わらないことを読んで確かめた。
+- 外部の事実:
+  - Debian の安定版の更新の版は `+debXuY`／`~debXuY` — https://www.debian.org/doc/manuals/developers-reference/pkgs.en.html （5.5.1、2026-11-15）
+  - Debian のバックポートの版は `~bpo${release}+${build}` — https://backports.debian.org/Contribute/ （2026-11-15）
+  - deb.sury.org の版は `+ubuntuNN.NN.N+deb.sury.org+N` — https://launchpad.net/~ondrej/+archive/ubuntu/php （2026-11-15）
+  - RPM の Release の dist タグ（例 `34.el7`） — https://rpm-packaging-guide.github.io/ （2026-11-15）。RHEL 9 系の `.el9`・`.el9_N` — https://dl.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/Packages/h/ （2026-11-15）
+  - Fedora の DistTag の文書はボット対策の画面で読めなかった（採用しない）。
+- 未解決:
+  - 同じ OS の上の複数の製品（Apache と PHP など）が OS の EOL になったとき、指摘は製品ごとに 1 件ずつ出る（既存の SPEC-04 と同じ数え方）。OS 単位に 1 件にまとめるかは人が判断する。
+  - Ubuntu の `~NN.NN`（SRU の版）をリリースの印にするかは、一次資料で規則を確かめてから判断する（現在は対応表で引く）。
+

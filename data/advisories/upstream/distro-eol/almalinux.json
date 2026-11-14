@@ -1,0 +1,36 @@
+{
+  "slug": "almalinux",
+  "fetchedAt": "2026-11-14T03:03:20.056Z",
+  "cycles": [
+    {
+      "cycle": "10",
+      "codename": null,
+      "releaseDate": "2025-05-27",
+      "eol": "2035-05-31",
+      "support": "2030-05-31",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "10.2"
+    },
+    {
+      "cycle": "9",
+      "codename": null,
+      "releaseDate": "2022-05-26",
+      "eol": "2032-05-31",
+      "support": "2027-05-31",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "9.8"
+    },
+    {
+      "cycle": "8",
+      "codename": null,
+      "releaseDate": "2021-03-30",
+      "eol": "2029-05-31",
+      "support": "2024-05-31",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "8.10"
+    }
+  ]
+}

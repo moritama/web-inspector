@@ -1,0 +1,46 @@
+{
+  "slug": "centos",
+  "fetchedAt": "2026-11-14T03:03:20.056Z",
+  "cycles": [
+    {
+      "cycle": "8",
+      "codename": null,
+      "releaseDate": "2019-09-24",
+      "eol": "2021-12-31",
+      "support": "2021-12-31",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "8 (2111)"
+    },
+    {
+      "cycle": "7",
+      "codename": null,
+      "releaseDate": "2014-07-07",
+      "eol": "2024-06-30",
+      "support": "2020-08-06",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "7 (2009)"
+    },
+    {
+      "cycle": "6",
+      "codename": null,
+      "releaseDate": "2011-07-10",
+      "eol": "2020-11-30",
+      "support": "2017-05-10",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "6.10"
+    },
+    {
+      "cycle": "5",
+      "codename": null,
+      "releaseDate": "2007-04-12",
+      "eol": "2017-03-31",
+      "support": "2014-01-31",
+      "extendedSupport": null,
+      "lts": false,
+      "latest": "5.11"
+    }
+  ]
+}

@@ -2,6 +2,36 @@
   "schemaVersion": 1,
   "fetchedAt": "2026-11-08T23:46:54.136Z",
   "sources": {
+    "distro-eol:almalinux": {
+      "status": "ok",
+      "count": 3,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
+    "distro-eol:centos": {
+      "status": "ok",
+      "count": 4,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
+    "distro-eol:debian": {
+      "status": "ok",
+      "count": 18,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
+    "distro-eol:rhel": {
+      "status": "ok",
+      "count": 7,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
+    "distro-eol:rocky-linux": {
+      "status": "ok",
+      "count": 3,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
+    "distro-eol:ubuntu": {
+      "status": "ok",
+      "count": 45,
+      "fetchedAt": "2026-11-14T03:03:20.056Z"
+    },
     "eol:angular": {
       "status": "ok",
       "count": 14,

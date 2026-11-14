@@ -294,15 +294,8 @@
   },
   "staleSources": [],
   "distro": {
-    "releases": 0,
+    "releases": 22,
     "mapEntries": 74,
-    "warnings": [
-      "OS のライフサイクルの取得結果がありません: ubuntu (ubuntu)",
-      "OS のライフサイクルの取得結果がありません: debian (debian)",
-      "OS のライフサイクルの取得結果がありません: rhel (rhel)",
-      "OS のライフサイクルの取得結果がありません: centos (centos)",
-      "OS のライフサイクルの取得結果がありません: almalinux (almalinux)",
-      "OS のライフサイクルの取得結果がありません: rocky (rocky-linux)"
-    ]
+    "warnings": []
   }
 }

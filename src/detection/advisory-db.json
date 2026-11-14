@@ -132,7 +132,7 @@
     "algorithm": "sha256",
     "target": "libraries",
     "digest": "62c0ea067c3f0e439895f3d977118d3689b9161d48a8f2647fbdb8ce08b251ef",
-    "distroDigest": "1fd97b8497eba0797580c2c5756437a3d4c6851c21763ef25fd2bf39be467616"
+    "distroDigest": "eccd2dc87a5283d8829f02698a625b0c4238a22412f94a4f1750646cb0c6debe"
   },
   "libraries": {
     "jquery": {
@@ -9169,7 +9169,228 @@
     }
   },
   "distro": {
-    "releases": [],
+    "releases": [
+      {
+        "release": "ubuntu:18.04",
+        "family": "ubuntu",
+        "cycle": "18.04",
+        "codename": "Bionic Beaver",
+        "lts": true,
+        "releaseDate": "2018-04-26",
+        "standardSupportEnd": "2023-05-31",
+        "extendedSupportEnd": "2028-04-26"
+      },
+      {
+        "release": "ubuntu:20.04",
+        "family": "ubuntu",
+        "cycle": "20.04",
+        "codename": "Focal Fossa",
+        "lts": true,
+        "releaseDate": "2020-04-23",
+        "standardSupportEnd": "2025-05-31",
+        "extendedSupportEnd": "2030-04-23"
+      },
+      {
+        "release": "ubuntu:22.04",
+        "family": "ubuntu",
+        "cycle": "22.04",
+        "codename": "Jammy Jellyfish",
+        "lts": true,
+        "releaseDate": "2022-04-21",
+        "standardSupportEnd": "2027-06-01",
+        "extendedSupportEnd": "2032-04-21"
+      },
+      {
+        "release": "ubuntu:24.04",
+        "family": "ubuntu",
+        "cycle": "24.04",
+        "codename": "Noble Numbat",
+        "lts": true,
+        "releaseDate": "2024-04-25",
+        "standardSupportEnd": "2029-05-31",
+        "extendedSupportEnd": "2034-04-25"
+      },
+      {
+        "release": "ubuntu:26.04",
+        "family": "ubuntu",
+        "cycle": "26.04",
+        "codename": "Resolute Raccoon",
+        "lts": true,
+        "releaseDate": "2026-04-23",
+        "standardSupportEnd": "2031-05-29",
+        "extendedSupportEnd": "2036-04-23"
+      },
+      {
+        "release": "ubuntu:26.10",
+        "family": "ubuntu",
+        "cycle": "26.10",
+        "codename": "Stonking Stingray",
+        "lts": false,
+        "releaseDate": "2026-10-15",
+        "standardSupportEnd": "2027-07-01",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "debian:10",
+        "family": "debian",
+        "cycle": "10",
+        "codename": "Buster",
+        "lts": false,
+        "releaseDate": "2019-07-06",
+        "standardSupportEnd": "2024-06-30",
+        "extendedSupportEnd": "2029-06-30"
+      },
+      {
+        "release": "debian:11",
+        "family": "debian",
+        "cycle": "11",
+        "codename": "Bullseye",
+        "lts": false,
+        "releaseDate": "2021-08-14",
+        "standardSupportEnd": "2026-08-31",
+        "extendedSupportEnd": "2031-06-30"
+      },
+      {
+        "release": "debian:12",
+        "family": "debian",
+        "cycle": "12",
+        "codename": "Bookworm",
+        "lts": false,
+        "releaseDate": "2023-06-10",
+        "standardSupportEnd": "2028-06-30",
+        "extendedSupportEnd": "2033-06-30"
+      },
+      {
+        "release": "debian:13",
+        "family": "debian",
+        "cycle": "13",
+        "codename": "Trixie",
+        "lts": false,
+        "releaseDate": "2025-08-09",
+        "standardSupportEnd": "2030-06-30",
+        "extendedSupportEnd": "2035-06-30"
+      },
+      {
+        "release": "rhel:7",
+        "family": "rhel",
+        "cycle": "7",
+        "codename": null,
+        "lts": true,
+        "releaseDate": "2014-06-10",
+        "standardSupportEnd": "2024-06-30",
+        "extendedSupportEnd": "2029-05-31"
+      },
+      {
+        "release": "rhel:8",
+        "family": "rhel",
+        "cycle": "8",
+        "codename": null,
+        "lts": true,
+        "releaseDate": "2019-05-07",
+        "standardSupportEnd": "2029-05-31",
+        "extendedSupportEnd": "2033-05-31"
+      },
+      {
+        "release": "rhel:9",
+        "family": "rhel",
+        "cycle": "9",
+        "codename": null,
+        "lts": true,
+        "releaseDate": "2022-05-18",
+        "standardSupportEnd": "2032-05-31",
+        "extendedSupportEnd": "2036-05-31"
+      },
+      {
+        "release": "rhel:10",
+        "family": "rhel",
+        "cycle": "10",
+        "codename": null,
+        "lts": true,
+        "releaseDate": "2025-05-20",
+        "standardSupportEnd": "2035-05-31",
+        "extendedSupportEnd": "2039-05-31"
+      },
+      {
+        "release": "centos:7",
+        "family": "centos",
+        "cycle": "7",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2014-07-07",
+        "standardSupportEnd": "2024-06-30",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "centos:8",
+        "family": "centos",
+        "cycle": "8",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2019-09-24",
+        "standardSupportEnd": "2021-12-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "almalinux:8",
+        "family": "almalinux",
+        "cycle": "8",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2021-03-30",
+        "standardSupportEnd": "2029-05-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "almalinux:9",
+        "family": "almalinux",
+        "cycle": "9",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2022-05-26",
+        "standardSupportEnd": "2032-05-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "almalinux:10",
+        "family": "almalinux",
+        "cycle": "10",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2025-05-27",
+        "standardSupportEnd": "2035-05-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "rocky:8",
+        "family": "rocky",
+        "cycle": "8",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2021-05-01",
+        "standardSupportEnd": "2029-05-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "rocky:9",
+        "family": "rocky",
+        "cycle": "9",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2022-07-14",
+        "standardSupportEnd": "2032-05-31",
+        "extendedSupportEnd": null
+      },
+      {
+        "release": "rocky:10",
+        "family": "rocky",
+        "cycle": "10",
+        "codename": null,
+        "lts": false,
+        "releaseDate": "2025-06-11",
+        "standardSupportEnd": "2035-05-31",
+        "extendedSupportEnd": null
+      }
+    ],
     "map": [
       {
         "family": "ubuntu",

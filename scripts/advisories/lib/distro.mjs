@@ -10,6 +10,7 @@ import { cleanText } from './sanitize.mjs';
 
 export const DISTRO_FAMILIES = ['ubuntu', 'debian', 'rhel', 'centos', 'almalinux', 'rocky'];
 export const DISTRO_PRODUCTS = ['apache', 'nginx', 'php', 'openssl'];
+export const DISTRO_SECTION_MAX_BYTES = 800 * 1024;
 
 /** evidenceUrl に許可するホスト（完全一致） */
 export const DISTRO_EVIDENCE_HOSTS = new Set([
@@ -214,5 +215,127 @@ export function validateDistroSection(distro) {
   }
   for (const m of distro.map) {
     validateDistroMapEntry(m, null);
+  }
+
+  // v1.8.1 T05: advisories と _source の検査
+  // どちらか一方でもあれば両方が必須 (両方無ければ T02 までの形として通す)
+  if (distro.advisories !== undefined || distro._source !== undefined) {
+    if (distro._source === undefined) {
+      throw new Error('distro._source がありません');
+    }
+    if (distro.advisories === undefined) {
+      throw new Error('distro.advisories がありません');
+    }
+
+    // _source の検証
+    if (!Array.isArray(distro._source) || distro._source.length === 0) {
+      throw new Error('distro._source が空または配列ではありません');
+    }
+    const hasDebian = distro._source.some((s) => s.ecosystem === 'Debian');
+    if (!hasDebian) {
+      throw new Error('distro._source に Debian の情報がありません');
+    }
+    const hasUbuntu = distro._source.some((s) => s.ecosystem === 'Ubuntu');
+    if (!hasUbuntu) {
+      throw new Error('distro._source に Ubuntu の情報がありません');
+    }
+    const hasEol = distro._source.some((s) => s.ecosystem === null && typeof s.url === 'string' && s.url.startsWith('https://endoflife.date/'));
+    if (!hasEol) {
+      throw new Error('distro._source に endoflife.date の情報がありません');
+    }
+
+    for (const s of distro._source) {
+      if (!s || typeof s !== 'object') {
+        throw new Error('distro._source の要素がオブジェクトではありません');
+      }
+      if (typeof s.name !== 'string' || s.name.length === 0) {
+        throw new Error(`distro._source の name が不正です: ${s.name}`);
+      }
+      if (typeof s.url !== 'string' || !s.url.startsWith('https://')) {
+        throw new Error(`distro._source の url が不正です: ${s.url}`);
+      }
+      const hasLicense = typeof s.license === 'string' && s.license.length > 0;
+      const hasLicenseNote = typeof s.licenseNote === 'string' && s.licenseNote.length > 0;
+      if (!hasLicense && !hasLicenseNote) {
+        throw new Error(`distro._source の license または licenseNote が必要です: ${s.name}`);
+      }
+      if (s.retrievedAt !== null && (typeof s.retrievedAt !== 'string' || Number.isNaN(new Date(s.retrievedAt).getTime()))) {
+        throw new Error(`distro._source の retrievedAt が不正です: ${s.retrievedAt}`);
+      }
+      if (typeof s.recordCount !== 'number' || s.recordCount < 0 || !Number.isInteger(s.recordCount)) {
+        throw new Error(`distro._source の recordCount が不正です: ${s.recordCount}`);
+      }
+    }
+
+    // advisories の検証
+    if (!distro.advisories || typeof distro.advisories !== 'object' || Array.isArray(distro.advisories)) {
+      throw new Error('distro.advisories がオブジェクトではありません');
+    }
+    const ALLOWED_ENTRY_KEYS = new Set(['cve', 'status', 'fixedVersions', 'esm', 'osvIds']);
+    for (const [release, byPkg] of Object.entries(distro.advisories)) {
+      if (!/^(debian|ubuntu):[0-9][0-9.]*$/.test(release)) {
+        throw new Error(`distro.advisories の release キーが不正です: ${release}`);
+      }
+      if (!byPkg || typeof byPkg !== 'object' || Array.isArray(byPkg)) {
+        throw new Error(`distro.advisories[${release}] がオブジェクトではありません`);
+      }
+      for (const [pkg, entries] of Object.entries(byPkg)) {
+        if (!/^[a-z0-9][a-z0-9.+-]+$/.test(pkg)) {
+          throw new Error(`distro.advisories[${release}] の package キーが不正です: ${pkg}`);
+        }
+        if (!Array.isArray(entries)) {
+          throw new Error(`distro.advisories[${release}][${pkg}] が配列ではありません`);
+        }
+        for (const e of entries) {
+          if (!e || typeof e !== 'object' || Array.isArray(e)) {
+            throw new Error(`distro.advisories のエントリがオブジェクトではありません`);
+          }
+          for (const k of Object.keys(e)) {
+            if (!ALLOWED_ENTRY_KEYS.has(k)) {
+              throw new Error(`distro.advisories エントリのキーが不正です: ${k}`);
+            }
+          }
+          if (typeof e.cve !== 'string' || !/^CVE-\d{4}-\d{4,7}$/.test(e.cve)) {
+            throw new Error(`distro.advisories の cve が不正です: ${e.cve}`);
+          }
+          if (e.status !== 'fixed' && e.status !== 'open' && e.status !== 'not-affected') {
+            throw new Error(`distro.advisories の status が不正です: ${e.status}`);
+          }
+          if (!Array.isArray(e.fixedVersions)) {
+            throw new Error(`distro.advisories の fixedVersions が配列ではありません`);
+          }
+          for (const v of e.fixedVersions) {
+            if (typeof v !== 'string' || !/^[0-9][0-9A-Za-z.+~:-]{0,99}$/.test(v)) {
+              throw new Error(`distro.advisories の fixedVersions の要素が不正です: ${v}`);
+            }
+          }
+          if (e.status === 'fixed' && e.fixedVersions.length === 0) {
+            throw new Error(`distro.advisories で fixed なのに fixedVersions が空です: ${e.cve}`);
+          }
+          if (e.status !== 'fixed' && e.fixedVersions.length > 0) {
+            throw new Error(`distro.advisories で fixed でないのに fixedVersions があります: ${e.cve}`);
+          }
+          if (e.esm !== undefined) {
+            if (e.esm !== true || e.status !== 'fixed') {
+              throw new Error(`distro.advisories の esm は fixed のとき true のみ許容されます: ${e.cve}`);
+            }
+          }
+          if (!Array.isArray(e.osvIds) || e.osvIds.length === 0) {
+            throw new Error(`distro.advisories の osvIds が空または配列ではありません: ${e.cve}`);
+          }
+          for (const osvId of e.osvIds) {
+            if (typeof osvId !== 'string' || !/^(?:USN|LSN|UBUNTU|DEBIAN|DSA|DLA|DTSA)-[0-9A-Za-z.-]{1,60}$/.test(osvId)) {
+              throw new Error(`distro.advisories の osvIds の要素が不正です: ${osvId}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // サイズ検査 (800 KB)
+  const bytes = Buffer.byteLength(JSON.stringify(distro));
+  if (bytes > DISTRO_SECTION_MAX_BYTES) {
+    throw new Error(`distro 節のサイズが上限(800 KB)を超過しています: ${bytes} bytes > ${DISTRO_SECTION_MAX_BYTES} bytes`);
   }
 }

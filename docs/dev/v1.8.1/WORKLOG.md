@@ -190,3 +190,35 @@
   - 実データの distro 節が 800 KB に収まるかは、[T05][data] の取得まで分からない（Debian の CVE 単位のレコードは、そのリリースより前に直った古い CVE も含む）。超えたら build-db と check-size が失敗するので、人が対象（リリース・パッケージ）か圧縮の方法を決める。
   - Debian の OSV データのライセンスは一次資料で確認できなかった（`licenseNote` で v1.8.2 に持ち越し）。endoflife.date はデータ単独のライセンス表示が無く、リポジトリの MIT と指示書の指定に従った。
   - 指示書の §4.2 の `not-affected` は、OSV のデータからは作れない（上の判断）。T06 は固定 DB で区分を試せるが、実データでは出ない。人が「載っていない＝影響なし」とみなすかを判断する場合は、T06 以降で扱う。
+
+## T05 実装  (2026-11-16 00:55)
+- 変更ファイル: data/advisories/catalog.json, scripts/advisories/lib/osv-distro.mjs（新規）, scripts/advisories/lib/distro.mjs, scripts/advisories/build-db.mjs, scripts/advisories/fetch-upstream.mjs, scripts/ci/check-size.mjs, src/shared/types.ts
+- 判断したこと:
+  - 設計メモ（T05.md）およびタスク指示書（.agy-out/task-T05.md）の仕様に厳密に従い、OSV の Debian / Ubuntu データの取得・圧縮・DB 構築・検証を実装した。
+  - `data/advisories/catalog.json`: `distroSources` に OSV.dev (Debian), OSV.dev (Ubuntu), endoflife.date の定義（URL・ライセンス情報を含む）を追加。
+  - `scripts/advisories/lib/osv-distro.mjs`: 新規作成。
+    - `isUbuntuLts`: 偶数年の .04 を LTS と判定。
+    - `osvEcosystemsFor`: Debian は `Debian:<version>`、Ubuntu は LTS に `:LTS` および `Ubuntu:Pro:<version>:LTS`、非 LTS は `Ubuntu:<version>` を返す。
+    - `osvDistroTargets`: 対応表から Debian / Ubuntu かつ apache, nginx, php の対象（重複なし）を抽出。
+    - `compactOsvDistroVuln`: 1 レコードから当該パッケージ・エコシステムの行のみ抽出。CVE 単位レコードと通知単位レコードの CVE 抽出、ECOSYSTEM ranges からの introduced / fixed 抽出（説明文や versions 等は除去してサイズ最小化）。
+    - `buildDistroAdvisories`: 対象エコシステムのスナップショットから `withdrawn` を除き、同一 ID を統合。CVE 単位レコード（cveLevel: true）を優先して区分（fixed / open）と修正版（重複除外・昇順）を決定。ESM（Pro エコシステムまたは `+esm`/`~esm`）のみの修正には `esm: true` を付与。影響なし（該当行なし）は `not-affected` を推定せず記録しない（H4）。キーの順序は `cve, status, fixedVersions, esm?, osvIds`。スナップショット不足時は警告を発して除外。
+    - `buildDistroSources`: catalog の `distroSources` から `_source` を構築。Debian / Ubuntu の `recordCount` は採用された全 CVE の一意な OSV ID 数、`retrievedAt` は各系統の最新 `fetchedAt`。endoflife.date の `recordCount` はリリース数。定義の欠落や license 不正時は例外を送出。
+  - `scripts/advisories/lib/distro.mjs`:
+    - `DISTRO_SECTION_MAX_BYTES = 800 * 1024` を定義・export。
+    - `validateDistroSection`: `advisories` と `_source` の相互必須チェック、`_source` の要素・URL・ライセンスチェック、`advisories` のリリースキー・パッケージキー・各 CVE エントリ（項目制限、形式、fixed/open と fixedVersions の整合性、esm の妥当性、OSV ID 形式）を厳格に検証。また distro 節のサイズが 800 KB を超えた場合に例外を送出。
+  - `scripts/advisories/build-db.mjs`:
+    - `loadUpstream`: `osv-distro` ディレクトリからスナップショットを `upstream.osvDistro` に読み込み。
+    - `buildDatabase`: `distro` 節生成時に `buildDistroAdvisories` と `buildDistroSources` を呼び出し、`releases, map, advisories, _source` の順で格納して `validateDistroSection` で検証。`sources` 配列に distro 節存在時のみ OSV (Debian / Ubuntu) を追加。
+    - CLI `--check`: コミット済み DB が distro 節を持つ場合、差分比較前に `validateDistroSection` を実行して原因を出力するよう実装。
+  - `scripts/advisories/fetch-upstream.mjs`:
+    - 引数に `distroMap` を追加。`args.distroOnly` 時および通常の週次取得（`!args.only`）時に `fetchOsvDistro` を実行し、`osvDistroTargets` の各エコシステム・パッケージを取得・圧縮して `upstream/osv-distro/` に保存。manifest に `osv-distro:<eco>:<name>` を記録。
+  - `scripts/ci/check-size.mjs`:
+    - `SIZE_LIMITS.distro = 800 * 1024` を追加。
+    - `checkSizes`: DB が JSON としてパース可能かつ `distro` 節を持つ場合に `target: 'distro'` のサイズ検査（80% で warn、上限超で fail）を追加。
+  - `src/shared/types.ts`:
+    - `DistroAdvisoryStatus`, `DistroAdvisoryEntry`, `DistroSourceRecord` を追加し、`AdvisoryDistroSection` に任意の `advisories`, `_source` を追加。
+  - `tests/` は一切変更せず、型検査（`npx tsc --noEmit`）および構文検査が通ることを確認。
+- 外部の事実:
+  - 設計メモ（T05.md）の「外部の事実」に記載された一次資料に基づく値（OSV エコシステム名、レコード形式、ライセンス値等）のみを使用。
+- 未解決: なし
+

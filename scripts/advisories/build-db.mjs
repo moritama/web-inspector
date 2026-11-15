@@ -21,7 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { deriveSeverity } from './lib/cvss.mjs';
-import { buildDistroSection } from './lib/distro.mjs';
+import { buildDistroSection, validateDistroSection } from './lib/distro.mjs';
+import { buildDistroAdvisories, buildDistroSources, osvDistroTargets } from './lib/osv-distro.mjs';
 import { normalizeEol } from './lib/eol.mjs';
 import { kevMap } from './lib/kev.mjs';
 import { nvdToAdvisories } from './lib/nvd.mjs';
@@ -243,11 +244,41 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
       distroEol: upstream?.distroEol,
       distroMap,
     });
-    distroSection = distro;
+    const targets = distroMap ? osvDistroTargets(distroMap) : [];
+    const { advisories, warnings: osvWarnings, skipped } = buildDistroAdvisories({
+      targets,
+      osvDistro: upstream?.osvDistro || {},
+    });
+    const _source = buildDistroSources({
+      definitions: catalog?.distroSources,
+      osvDistro: upstream?.osvDistro || {},
+      distroEol: upstream?.distroEol || {},
+      advisories,
+      releases: distro.releases,
+    });
+
+    distroSection = {
+      releases: distro.releases,
+      map: distro.map,
+      advisories,
+      _source,
+    };
+    validateDistroSection(distroSection);
+
+    let advisoryEntries = 0;
+    for (const byPkg of Object.values(advisories)) {
+      for (const list of Object.values(byPkg)) {
+        advisoryEntries += list.length;
+      }
+    }
+
     report.distro = {
       releases: distro.releases.length,
       mapEntries: distro.map.length,
-      warnings,
+      advisories: targets.length,
+      advisoryEntries,
+      skipped,
+      warnings: [...warnings, ...osvWarnings],
     };
   }
 
@@ -267,6 +298,7 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
     sources: [
       'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
       'OSV.dev (GitHub Advisory Database / npm / Packagist)',
+      ...(distroSection ? ['OSV.dev (Debian Security Tracker / Ubuntu Security Notices)'] : []),
       'endoflife.date API',
       'CISA KEV Catalog',
       'Curated (data/advisories/curated.json)',
@@ -285,6 +317,7 @@ export function loadUpstream(dir) {
   const upstream = {
     manifest: loadOptional(path.join(dir, 'manifest.json')),
     osv: {},
+    osvDistro: {},
     nvd: {},
     eol: {},
     distroEol: {},
@@ -300,6 +333,7 @@ export function loadUpstream(dir) {
     }
   };
   read('osv', (j) => `${j.package.ecosystem}:${j.package.name}`);
+  read('osv-distro', (j) => `${j.package.ecosystem}:${j.package.name}`, 'osvDistro');
   read('nvd', (j) => j.target);
   read('eol', (j) => j.slug);
   read('distro-eol', (j) => j.slug, 'distroEol');
@@ -338,6 +372,17 @@ async function main() {
 
   if (args.check) {
     const current = fs.existsSync(PATHS.outputDb) ? fs.readFileSync(PATHS.outputDb, 'utf-8') : '';
+    if (current) {
+      try {
+        const committed = JSON.parse(current);
+        if (committed && committed.distro) {
+          validateDistroSection(committed.distro);
+        }
+      } catch (err) {
+        console.error(`[build-db] --check 失敗: ${err.message}`);
+        process.exit(1);
+      }
+    }
     if (current !== output) {
       console.error('[build-db] --check 失敗: コミット済みの advisory-db.json が upstream スナップショットからの生成結果と一致しません。');
       console.error('  手編集された可能性があります。`npm run advisories:build` を実行して再生成してください。');

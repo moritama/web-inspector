@@ -7,6 +7,7 @@
   "sources": [
     "NIST NVD 2.0 API (Primary: nvd@nist.gov)",
     "OSV.dev (GitHub Advisory Database / npm / Packagist)",
+    "OSV.dev (Debian Security Tracker / Ubuntu Security Notices)",
     "endoflife.date API",
     "CISA KEV Catalog",
     "Curated (data/advisories/curated.json)"
@@ -132,7 +133,7 @@
     "algorithm": "sha256",
     "target": "libraries",
     "digest": "62c0ea067c3f0e439895f3d977118d3689b9161d48a8f2647fbdb8ce08b251ef",
-    "distroDigest": "1c75c9adb1250b6e5926a62bb56e68a92fcab4329cccb16e1a62eecaf2c6695e"
+    "distroDigest": "2e15ac30faad348bcde1814aeaebb9091bc56d446bcb5de6e9dbf1bdc51c4696"
   },
   "libraries": {
     "jquery": {
@@ -10439,6 +10440,34 @@
         "sourcePackage": "openssl",
         "verifiedAt": "2026-11-14",
         "evidenceUrl": "https://repo.almalinux.org/almalinux/10/BaseOS/x86_64/os/Packages/"
+      }
+    ],
+    "advisories": {},
+    "_source": [
+      {
+        "name": "OSV.dev (Debian Security Tracker)",
+        "url": "https://osv.dev/list?ecosystem=Debian",
+        "ecosystem": "Debian",
+        "license": null,
+        "licenseNote": "v1.8.2 で確認",
+        "retrievedAt": null,
+        "recordCount": 0
+      },
+      {
+        "name": "OSV.dev (Ubuntu Security Notices)",
+        "url": "https://github.com/canonical/ubuntu-security-notices",
+        "ecosystem": "Ubuntu",
+        "license": "CC-BY-SA-4.0",
+        "retrievedAt": null,
+        "recordCount": 0
+      },
+      {
+        "name": "endoflife.date",
+        "url": "https://endoflife.date/",
+        "ecosystem": null,
+        "license": "MIT",
+        "retrievedAt": "2026-11-14T03:03:20.056Z",
+        "recordCount": 22
       }
     ]
   }

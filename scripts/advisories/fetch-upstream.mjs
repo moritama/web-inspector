@@ -25,6 +25,7 @@ import { createFetchJson } from './lib/http.mjs';
 import { compactDistroEolCycles, compactEolCycles, eolApiUrl } from './lib/eol.mjs';
 import { compactKev, KEV_URL } from './lib/kev.mjs';
 import { compactNvdCve, fetchNvdByCpe, fetchNvdCve, pickNvdCvss } from './lib/nvd.mjs';
+import { compactOsvDistroVuln, fetchOsvDistroPackage, osvDistroTargets } from './lib/osv-distro.mjs';
 import { compactOsvVuln, fetchOsvPackage, pickIds } from './lib/osv.mjs';
 import { PSL_SNAPSHOT_PATH, PSL_UPSTREAM_URL, fetchPslSnapshot } from './lib/psl.mjs';
 import { PATHS, readJson, safeFileKey, writeJson } from './lib/util.mjs';
@@ -44,6 +45,7 @@ export function parseArgs(argv) {
 export async function fetchUpstream({
   catalog,
   curated,
+  distroMap,
   upstreamDir,
   fetchJson,
   now = new Date(),
@@ -99,8 +101,33 @@ export async function fetchUpstream({
     }
   };
 
+  const fetchOsvDistro = async () => {
+    if (!distroMap) return;
+    const targets = osvDistroTargets(distroMap);
+    const seenEcosystemPackages = new Set();
+    const osvDistroDir = path.join(upstreamDir, 'osv-distro');
+    fs.mkdirSync(osvDistroDir, { recursive: true });
+
+    for (const target of targets) {
+      for (const ecosystem of target.ecosystems) {
+        const key = `${ecosystem}:${target.sourcePackage}`;
+        if (seenEcosystemPackages.has(key)) continue;
+        seenEcosystemPackages.add(key);
+
+        const file = path.join(osvDistroDir, `${safeFileKey(ecosystem)}__${safeFileKey(target.sourcePackage)}.json`);
+        await record(`osv-distro:${ecosystem}:${target.sourcePackage}`, file, async () => {
+          const rawVulns = await fetchOsvDistroPackage({ ecosystem, name: target.sourcePackage }, fetchJson);
+          const vulns = (rawVulns || []).map((v) => compactOsvDistroVuln(v, { ecosystem, name: target.sourcePackage }));
+          vulns.sort((a, b) => a.id.localeCompare(b.id));
+          return { payload: { package: { ecosystem, name: target.sourcePackage }, fetchedAt, vulns }, count: vulns.length };
+        });
+      }
+    }
+  };
+
   if (args.distroOnly) {
     await fetchDistros();
+    await fetchOsvDistro();
     for (const [k, v] of Object.entries(prevManifest.sources || {})) {
       if (!manifest.sources[k]) manifest.sources[k] = v;
     }
@@ -211,9 +238,10 @@ export async function fetchUpstream({
     }
   }
 
-  // 通常の週次取得（--distro-only でなく --only も無い）では OS のライフサイクルも取得する
+  // 通常の週次取得（--distro-only でなく --only も無い）では OS のライフサイクルと OSV のディストリデータも取得する
   if (!args.only) {
     await fetchDistros();
+    await fetchOsvDistro();
   }
 
   // 今回取得対象外 (--only 指定時) のソースは前回の状態を引き継ぐ
@@ -230,6 +258,7 @@ async function main() {
   const args = parseArgs(process.argv);
   const catalog = readJson(PATHS.catalog);
   const curated = readJson(PATHS.curated);
+  const distroMap = fs.existsSync(PATHS.distroMap) ? readJson(PATHS.distroMap) : null;
   const fetchJson = createFetchJson({
     minIntervalMs: {
       'services.nvd.nist.gov': process.env.NVD_API_KEY ? 700 : 6500,
@@ -242,6 +271,7 @@ async function main() {
   const { okCount, failCount } = await fetchUpstream({
     catalog,
     curated,
+    distroMap,
     upstreamDir: PATHS.upstreamDir,
     fetchJson,
     args,

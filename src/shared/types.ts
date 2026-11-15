@@ -1004,11 +1004,42 @@ export interface DistroReleaseLifecycle {
 }
 
 /**
- * advisory-db.json 内の distro 節 (v1.8.1 T02)
+ * OSV 由来のディストリビューション脆弱性修正ステータス (v1.8.1 T05)
+ */
+export type DistroAdvisoryStatus = 'fixed' | 'open' | 'not-affected';
+
+/**
+ * OSV 由来のディストリビューション脆弱性エントリ (v1.8.1 T05)
+ */
+export interface DistroAdvisoryEntry {
+  cve: string;
+  status: DistroAdvisoryStatus;
+  fixedVersions: string[];   // dpkg の版。fixed のとき 1 つ以上。並びは文字列の昇順（版の順ではない）
+  esm?: true;                // Ubuntu Pro（ESM）だけの修正
+  osvIds: string[];          // 元の OSV ID（UBUNTU-CVE-…、USN-…、DEBIAN-CVE-…、DSA-… など）
+}
+
+/**
+ * ディストリビューション脆弱性DBの出典情報 (v1.8.1 T05)
+ */
+export interface DistroSourceRecord {
+  name: string;
+  url: string;
+  ecosystem: string | null;  // 'Debian' | 'Ubuntu' | null（endoflife.date）
+  license: string | null;
+  licenseNote?: string;
+  retrievedAt: string | null;
+  recordCount: number;
+}
+
+/**
+ * advisory-db.json 内の distro 節 (v1.8.1 T02, v1.8.1 T05 で拡張)
  */
 export interface AdvisoryDistroSection {
   releases: DistroReleaseLifecycle[];
   map: DistroMapEntry[];
+  advisories?: Record<string, Record<string, DistroAdvisoryEntry[]>>; // release → sourcePackage → CVE
+  _source?: DistroSourceRecord[];
 }
 
 /**

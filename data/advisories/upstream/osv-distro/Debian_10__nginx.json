@@ -1,0 +1,85 @@
+{
+  "package": {
+    "ecosystem": "Debian:10",
+    "name": "nginx"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": [
+    {
+      "id": "DLA-3203-1",
+      "withdrawn": null,
+      "modified": "2026-03-09T01:18:01.940396Z",
+      "cves": [
+        "CVE-2021-3618",
+        "CVE-2022-41741",
+        "CVE-2022-41742"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:10",
+          "introduced": true,
+          "fixed": [
+            "1.14.2-2+deb10u5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DSA-4505-1",
+      "withdrawn": null,
+      "modified": "2026-03-09T02:09:52.377003Z",
+      "cves": [
+        "CVE-2019-9511",
+        "CVE-2019-9513",
+        "CVE-2019-9516"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:10",
+          "introduced": true,
+          "fixed": [
+            "1.14.2-2+deb10u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DSA-4750-1",
+      "withdrawn": null,
+      "modified": "2026-03-09T02:11:33.583267Z",
+      "cves": [
+        "CVE-2020-11724"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:10",
+          "introduced": true,
+          "fixed": [
+            "1.14.2-2+deb10u3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DSA-4921-1",
+      "withdrawn": null,
+      "modified": "2026-03-09T02:10:41.374758Z",
+      "cves": [
+        "CVE-2021-23017"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:10",
+          "introduced": true,
+          "fixed": [
+            "1.14.2-2+deb10u4"
+          ]
+        }
+      ]
+    }
+  ]
+}

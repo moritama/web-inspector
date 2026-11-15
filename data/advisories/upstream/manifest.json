@@ -5,32 +5,32 @@
     "distro-eol:almalinux": {
       "status": "ok",
       "count": 3,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "distro-eol:centos": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "distro-eol:debian": {
       "status": "ok",
       "count": 18,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "distro-eol:rhel": {
       "status": "ok",
       "count": 7,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "distro-eol:rocky-linux": {
       "status": "ok",
       "count": 3,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "distro-eol:ubuntu": {
       "status": "ok",
       "count": 45,
-      "fetchedAt": "2026-11-14T03:03:20.056Z"
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "eol:angular": {
       "status": "ok",
@@ -127,6 +127,231 @@
       "status": "ok",
       "count": 585,
       "fetchedAt": "2026-11-08T23:46:54.136Z"
+    },
+    "osv-distro:Debian:10:apache2": {
+      "status": "ok",
+      "count": 9,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:10:nginx": {
+      "status": "ok",
+      "count": 4,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:10:php7.3": {
+      "status": "ok",
+      "count": 13,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:11:apache2": {
+      "status": "ok",
+      "count": 9,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:11:nginx": {
+      "status": "ok",
+      "count": 3,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:11:php7.4": {
+      "status": "ok",
+      "count": 37,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:12:apache2": {
+      "status": "ok",
+      "count": 270,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:12:nginx": {
+      "status": "ok",
+      "count": 64,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:12:php8.2": {
+      "status": "ok",
+      "count": 63,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:13:apache2": {
+      "status": "ok",
+      "count": 268,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:13:nginx": {
+      "status": "ok",
+      "count": 71,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Debian:13:php8.4": {
+      "status": "ok",
+      "count": 41,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:18.04:LTS:apache2": {
+      "status": "ok",
+      "count": 66,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:18.04:LTS:nginx": {
+      "status": "ok",
+      "count": 19,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:18.04:LTS:php7.2": {
+      "status": "ok",
+      "count": 88,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:20.04:LTS:apache2": {
+      "status": "ok",
+      "count": 63,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:20.04:LTS:nginx": {
+      "status": "ok",
+      "count": 13,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:20.04:LTS:php7.4": {
+      "status": "ok",
+      "count": 66,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:22.04:LTS:apache2": {
+      "status": "ok",
+      "count": 107,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:22.04:LTS:nginx": {
+      "status": "ok",
+      "count": 45,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:22.04:LTS:php8.1": {
+      "status": "ok",
+      "count": 83,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:24.04:LTS:apache2": {
+      "status": "ok",
+      "count": 84,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:24.04:LTS:nginx": {
+      "status": "ok",
+      "count": 42,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:24.04:LTS:php8.3": {
+      "status": "ok",
+      "count": 59,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.04:LTS:apache2": {
+      "status": "ok",
+      "count": 57,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.04:LTS:nginx": {
+      "status": "ok",
+      "count": 30,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.04:LTS:php8.5": {
+      "status": "ok",
+      "count": 33,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.10:apache2": {
+      "status": "ok",
+      "count": 21,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.10:nginx": {
+      "status": "ok",
+      "count": 6,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:26.10:php8.5": {
+      "status": "ok",
+      "count": 14,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:18.04:LTS:apache2": {
+      "status": "ok",
+      "count": 76,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:18.04:LTS:nginx": {
+      "status": "ok",
+      "count": 28,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:18.04:LTS:php7.2": {
+      "status": "ok",
+      "count": 60,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:20.04:LTS:apache2": {
+      "status": "ok",
+      "count": 65,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:20.04:LTS:nginx": {
+      "status": "ok",
+      "count": 24,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:20.04:LTS:php7.4": {
+      "status": "ok",
+      "count": 34,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:22.04:LTS:apache2": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:22.04:LTS:nginx": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:22.04:LTS:php8.1": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:24.04:LTS:apache2": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:24.04:LTS:nginx": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:24.04:LTS:php8.3": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:26.04:LTS:apache2": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:26.04:LTS:nginx": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
+    },
+    "osv-distro:Ubuntu:Pro:26.04:LTS:php8.5": {
+      "status": "ok",
+      "count": 0,
+      "fetchedAt": "2026-11-15T15:53:23.777Z"
     },
     "osv:npm:@angular/core": {
       "status": "ok",

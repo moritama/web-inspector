@@ -1,0 +1,749 @@
+{
+  "package": {
+    "ecosystem": "Debian:13",
+    "name": "php8.4"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": [
+    {
+      "id": "DEBIAN-CVE-2024-11235",
+      "withdrawn": null,
+      "modified": "2026-11-02T12:00:54.851335456Z",
+      "cves": [
+        "CVE-2024-11235"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1217",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.144594688Z",
+      "cves": [
+        "CVE-2025-1217"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1218",
+      "withdrawn": null,
+      "modified": "2026-10-24T10:00:27.493608721Z",
+      "cves": [
+        "CVE-2025-1218"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1219",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:40.552713955Z",
+      "cves": [
+        "CVE-2025-1219"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1220",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:40.557637216Z",
+      "cves": [
+        "CVE-2025-1220"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.10-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-14177",
+      "withdrawn": null,
+      "modified": "2026-10-14T09:47:36.792229255Z",
+      "cves": [
+        "CVE-2025-14177"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.16-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-14178",
+      "withdrawn": null,
+      "modified": "2026-10-14T09:47:33.344153968Z",
+      "cves": [
+        "CVE-2025-14178"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.16-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-14179",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.300362347Z",
+      "cves": [
+        "CVE-2025-14179"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-14180",
+      "withdrawn": null,
+      "modified": "2026-10-14T09:47:31.281301519Z",
+      "cves": [
+        "CVE-2025-14180"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.16-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-14181",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:36.840550726Z",
+      "cves": [
+        "CVE-2025-14181"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1734",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.501055730Z",
+      "cves": [
+        "CVE-2025-1734"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1735",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.481744756Z",
+      "cves": [
+        "CVE-2025-1735"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.10-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1736",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.577174607Z",
+      "cves": [
+        "CVE-2025-1736"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-1861",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:41.610742594Z",
+      "cves": [
+        "CVE-2025-1861"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2025-6491",
+      "withdrawn": null,
+      "modified": "2026-09-01T20:05:55.768143196Z",
+      "cves": [
+        "CVE-2025-6491"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.10-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-109618",
+      "withdrawn": null,
+      "modified": "2026-11-15T09:47:34.468634410Z",
+      "cves": [
+        "CVE-2026-109618"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.27-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-109619",
+      "withdrawn": null,
+      "modified": "2026-11-06T09:47:30.575180025Z",
+      "cves": [
+        "CVE-2026-109619"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.27-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-12184",
+      "withdrawn": null,
+      "modified": "2026-07-03T11:00:08.409939958Z",
+      "cves": [
+        "CVE-2026-12184"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-14355",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:02:23.410503497Z",
+      "cves": [
+        "CVE-2026-14355"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.23-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-17543",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:30.505341618Z",
+      "cves": [
+        "CVE-2026-17543"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.24-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-17544",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:30.037649832Z",
+      "cves": [
+        "CVE-2026-17544"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.24-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-6103",
+      "withdrawn": null,
+      "modified": "2026-10-24T10:01:16.895186321Z",
+      "cves": [
+        "CVE-2026-6103"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-6104",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:28.752915915Z",
+      "cves": [
+        "CVE-2026-6104"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-6722",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:31.958401566Z",
+      "cves": [
+        "CVE-2026-6722"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-6735",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:38.870920702Z",
+      "cves": [
+        "CVE-2026-6735"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7258",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:41.983112568Z",
+      "cves": [
+        "CVE-2026-7258"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7259",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:40.986074039Z",
+      "cves": [
+        "CVE-2026-7259"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7260",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:36.695448730Z",
+      "cves": [
+        "CVE-2026-7260"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.24-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7261",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:41.030146715Z",
+      "cves": [
+        "CVE-2026-7261"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7262",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:33.464909562Z",
+      "cves": [
+        "CVE-2026-7262"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7263",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:40.882302080Z",
+      "cves": [
+        "CVE-2026-7263"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-7568",
+      "withdrawn": null,
+      "modified": "2026-10-01T03:03:49.817388571Z",
+      "cves": [
+        "CVE-2026-7568"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.21-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-91765",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:29.284127124Z",
+      "cves": [
+        "CVE-2026-91765"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-91766",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:25.671711495Z",
+      "cves": [
+        "CVE-2026-91766"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-91767",
+      "withdrawn": null,
+      "modified": "2026-10-28T10:00:31.526361288Z",
+      "cves": [
+        "CVE-2026-91767"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-91768",
+      "withdrawn": null,
+      "modified": "2026-10-28T09:47:37.207683272Z",
+      "cves": [
+        "CVE-2026-91768"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-91769",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:36.623860282Z",
+      "cves": [
+        "CVE-2026-91769"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-92842",
+      "withdrawn": null,
+      "modified": "2026-10-28T09:47:34.038642843Z",
+      "cves": [
+        "CVE-2026-92842"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-93682",
+      "withdrawn": null,
+      "modified": "2026-10-24T09:47:34.166833922Z",
+      "cves": [
+        "CVE-2026-93682"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.26-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DEBIAN-CVE-2026-9672",
+      "withdrawn": null,
+      "modified": "2026-09-01T15:06:26.767847452Z",
+      "cves": [
+        "CVE-2026-9672"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.24-1~deb13u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DSA-6088-1",
+      "withdrawn": null,
+      "modified": "2025-12-21T12:14:50.497938Z",
+      "cves": [
+        "CVE-2025-14177",
+        "CVE-2025-14178",
+        "CVE-2025-14180"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:13",
+          "introduced": true,
+          "fixed": [
+            "8.4.16-1~deb13u1"
+          ]
+        }
+      ]
+    }
+  ]
+}

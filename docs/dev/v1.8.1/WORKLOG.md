@@ -222,3 +222,20 @@
   - 設計メモ（T05.md）の「外部の事実」に記載された一次資料に基づく値（OSV エコシステム名、レコード形式、ライセンス値等）のみを使用。
 - 未解決: なし
 
+## T06 設計  (2026-11-16 01:10)
+- 変更ファイル: docs/dev/v1.8.1/design/T06.md（新規）, tests/distro-advisory.test.ts（新規）, tests/distro-advisory-report.test.ts（新規）, tests/distro-release-display.test.ts（新規）, tests/distro-release-display-callers.test.ts（新規）。固定 DB と既存テストは変えていない
+- 判断したこと:
+  - CVE ごとの判定は新しい純粋関数 `assessDistroAdvisories`（src/detection/distro-advisory.ts）にし、engine が技術に `distroAdvisories` を付ける。照合の区分（`advisoryMatchStatus: 'Needs Review'`・`advisories: []`）と `SEC-CVE` は第1段階のまま変えない（H4）。
+  - 「要確認件数」は `summary.requiresAttentionCount`、「バッジ」は拡張のアイコンの数字（`updateBadge`）と解釈した。第1段階のディストリ版は指摘を作らないので、H4a の「それ以外は件数に入れる」を満たすため、数える区分（not-fixed・open・unknown-revision・no-data）の CVE がある技術ごとに新しい指摘 `SEC-DISTRO-CVE-<技術>`（warning・LOW）を 1 件出す。CVE ごとに指摘を作らない（警告を増やしすぎない）。CVE の内訳は `reviewCount` で画面とエクスポートに出す。
+  - ディストリにだけある CVE は、§4.1 のとおり not-fixed だけ並べて数え、fixed は「ほかにディストリで修正済み N 件」の件数だけにした。open・not-affected・パッケージ版が無いときのものは並べない。
+  - fixed は「パッケージ版がすべての修正版以上」のときだけ（T05 の解釈 3 を受けた安全側）。比べられない版は unknown-revision。悪いほうの順は not-fixed > open > unknown-revision > no-data > fixed > not-affected。
+  - `distro.advisories` が無い DB（固定 DB・T02 までの DB）では判定しない（§5.3 を当てはめた）。これで既存テストの期待値は変わらない。パッケージ版は `DistroInference.packageVersion` として推定の結果に持たせる（PHP の `-4ubuntu2.19` などの接尾辞があるときだけ）。
+  - 表示名の共通化は `src/shared/distro-display.ts` の `formatDistroReleaseDisplay`。`inf.release` を優先し、`eolInfo.label` は OS のライフサイクル由来（`source` で見分ける）のときだけ使う。T03 の `judgeDistroEol` の名前の組み立ても同じ関数に寄せる（1 か所だけ）。4 つの出力経路が呼んでいることは、`vi.mock` で目印に差し替える振る舞いのテストと、ソースの静的な確認の両方で確かめる。
+  - expectRed: 実装の前に、tests/distro-advisory-report.test.ts は 46 件中 30 件が機能が無いため（`distroAdvisories` が無い、`SEC-DISTRO-CVE` が無い、接頭辞が無い、表示が無い）失敗した。通る 16 件は前提・陰性（固定 DB で出さない、第三者で使わない）の確認。ほかの 3 ファイルは新しいモジュール（distro-advisory・distro-display）が無いため読み込みで失敗した。test-hygiene は通る。型検査の失敗は、新しいモジュールと型の項目が無いことによるものだけ（テスト側の型の誤り 1 件は直した）。
+  - 一時ディレクトリに参照実装を置いて型検査と実行を確かめることは、夜間の権限でできなかった。設計メモの規則とテストの期待値を 1 件ずつ突き合わせた。
+- 外部の事実:
+  - 新しく Web から取った値は無い。OSV の `fixed` イベントの意味（版 ≧ fixed なら影響の範囲外）を https://ossf.github.io/osv-schema/ で確かめた（2026-11-16）。版の比較は T01（Debian Policy 5.6.12）、データの形は T05 の設計メモのとおり。
+- 未解決:
+  - H4a により、同梱 DB に `distro.advisories` がある状態では、Ubuntu / Debian の Apache・nginx（パッケージ版が取れず unknown-revision になる）でも、上流の CVE が 1 件以上あれば LOW の指摘が 1 件増え、第1段階より要確認件数が 1 増える。§4.2 の「数える（第1段階と同じ）」を「区分の扱いは第1段階と同じ Needs Review で、件数には入れる」と読んだ結果。人が「第1段階と同じく指摘を増やさない」と判断する場合は、unknown-revision・no-data だけの技術では指摘を出さないよう設計とテストを直す。
+  - ディストリにだけある open の CVE（Ubuntu の needs-triage・deferred など）は、§4.1 のとおり照合の対象外にした（並べず数えない）。修正版の無い CVE を件数として示すかは人の判断。
+

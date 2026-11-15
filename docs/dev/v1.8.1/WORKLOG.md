@@ -239,3 +239,18 @@
   - H4a により、同梱 DB に `distro.advisories` がある状態では、Ubuntu / Debian の Apache・nginx（パッケージ版が取れず unknown-revision になる）でも、上流の CVE が 1 件以上あれば LOW の指摘が 1 件増え、第1段階より要確認件数が 1 増える。§4.2 の「数える（第1段階と同じ）」を「区分の扱いは第1段階と同じ Needs Review で、件数には入れる」と読んだ結果。人が「第1段階と同じく指摘を増やさない」と判断する場合は、unknown-revision・no-data だけの技術では指摘を出さないよう設計とテストを直す。
   - ディストリにだけある open の CVE（Ubuntu の needs-triage・deferred など）は、§4.1 のとおり照合の対象外にした（並べず数えない）。修正版の無い CVE を件数として示すかは人の判断。
 
+## T06 実装  (2026-11-16 01:25)
+- 変更ファイル: src/shared/types.ts, src/shared/distro-display.ts（新規）, src/detection/distro-advisory.ts（新規）, src/detection/distro-inference.ts, src/detection/advisory.ts, src/detection/engine.ts, src/background/service-worker.ts, src/popup/render.ts, src/dashboard/render.ts, src/export/markdown.ts, src/export/csv.ts, docs/DETECTION_SPECIFICATION.md
+- 判断したこと:
+  - リリース表示名の共通化: `src/shared/distro-display.ts` を新規作成し、`formatDistroReleaseName`（6系統対応、LTSサフィックス対応）、`formatDistroConfidenceJp`、`formatDistroReleaseDisplay`（`inf.release` 優先、OSライフサイクル由来 label 優先、候補連結、第三者・none は「推定なし」）、`formatDistroCveStatusLabel`（6区分の日本語＋英名ラベル）を実装した。popup, dashboard, markdown, csv の 4 経路および `distro-inference.ts` から表示名組み立てロジックを移行し、`BUILDERS` の文字列が `shared/distro-display.ts` 以外に残らないようにした。
+  - パッケージ版の抽出: `src/detection/distro-inference.ts` において、ヘッダーの製品トークン接尾辞が `/^-[0-9A-Za-z.+~]+/` に合致する場合に `parseDpkgVersion` を通して revision が空でない場合に `packageVersion` として保持するようにした。Server ヘッダーの括弧内 OS 名のみの場合には付与しない。
+  - CVE ごとのディストリ判定: `src/detection/distro-advisory.ts` を新規作成し、`assessDistroAdvisories` を実装。上流の SemVer 比較（`version-matcher`）は一切 import せず、`compareDpkgVersions` のみを用いて Debian / Ubuntu の 6 区分判定を実施した。固定 DB や第三者・バックポート、確信度 none、RHEL 系では判定せず null を返すようにした。候補が複数の場合は悪いほうの順（not-fixed > open > unknown-revision > no-data > fixed > not-affected）で採用し、分かれた場合は `split: true` と `splitNote` を生成。ディストリ限定 CVE は not-fixed のみ並べて数え、fixed は `otherFixedCount` として集計した。
+  - 上流 CVE 取得と engine 結合: `src/detection/advisory.ts` に `listUpstreamAdvisoryCves` を追加し、`src/detection/engine.ts` で `assessDistroAdvisories` を呼び出して `tech.distroAdvisories` を付与した。
+  - 診断項目と要確認件数: `src/background/service-worker.ts` の `HEADER_DEPENDENT_CHECK_PREFIXES` に `'SEC-DISTRO-CVE-'` を追加し、`tech.distroAdvisories && tech.distroAdvisories.reviewCount > 0` の場合に技術単位で `SEC-DISTRO-CVE-<技術名の大文字>`（warning / LOW）を 1 件生成するようにした。
+  - 表示・エクスポート: ポップアップ、ダッシュボード、Markdown、CSV、JSON に区分・修正版・ESM・分かれ注記・他修正済み件数を出力。CSV には列「ディストリの判定」を追加した。
+  - 判定・文言には「該当なし」「安全」「Not Affected」「影響はありません」の禁止語を一切含めず、静的検査 C18 も PASS を確認した。
+  - 仕様書 `docs/DETECTION_SPECIFICATION.md` に §6.5 として `distroStatus` の仕様を追記した。
+  - `tests/` は一切変更せず、型検査（`npx tsc --noEmit`）が通ることを確認した。
+- 未解決:
+  - 設計メモの未解決事項（H4a による要確認件数・指摘の増加、ディストリ限定 open の扱い）は設計と確定テストに従って実装。人間による確認待ち。
+

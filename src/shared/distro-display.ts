@@ -1,0 +1,121 @@
+/**
+ * ディストリビューションおよび OS リリースの表示用フォーマッタ (v1.8.1 T06)
+ */
+import type { DetectedTechnology, DistroCveStatus, DistroInferenceConfidence } from './types';
+
+/**
+ * 'ubuntu:20.04' → 'Ubuntu 20.04'（lts が真なら末尾に ' LTS'）
+ * 未知の系統は '<family> <cycle>'、':' が無ければそのまま返す
+ */
+export function formatDistroReleaseName(release: string, options?: { lts?: boolean }): string {
+  if (!release || typeof release !== 'string') return '';
+  const colonIndex = release.indexOf(':');
+  if (colonIndex === -1) {
+    return release;
+  }
+
+  const rawFamily = release.slice(0, colonIndex).toLowerCase();
+  const cycle = release.slice(colonIndex + 1);
+
+  let familyDisplay: string;
+  switch (rawFamily) {
+    case 'ubuntu':
+      familyDisplay = 'Ubuntu';
+      break;
+    case 'debian':
+      familyDisplay = 'Debian';
+      break;
+    case 'rhel':
+      familyDisplay = 'Red Hat Enterprise Linux';
+      break;
+    case 'centos':
+      familyDisplay = 'CentOS';
+      break;
+    case 'almalinux':
+      familyDisplay = 'AlmaLinux';
+      break;
+    case 'rocky':
+      familyDisplay = 'Rocky Linux';
+      break;
+    default:
+      familyDisplay = release.slice(0, colonIndex);
+      break;
+  }
+
+  const ltsSuffix = options?.lts ? ' LTS' : '';
+  return `${familyDisplay} ${cycle}${ltsSuffix}`;
+}
+
+/**
+ * 確信度の日本語表記を取得する
+ * high → '高', medium → '中', low → '低', none → 'なし'
+ */
+export function formatDistroConfidenceJp(confidence: DistroInferenceConfidence): string {
+  switch (confidence) {
+    case 'high':
+      return '高';
+    case 'medium':
+      return '中';
+    case 'low':
+      return '低';
+    case 'none':
+      return 'なし';
+    default:
+      return String(confidence);
+  }
+}
+
+/** OS のライフサイクルで判定した EOL の印 (T03 judgeDistroEol) */
+const OS_LIFECYCLE_SOURCE = 'endoflife.date（OS のライフサイクル）';
+
+/**
+ * リリース欄の表示（解釈 7 の順序）。distroInference が無ければ ''
+ * (1) inf.release があればその表示名
+ * (2) 候補が 1 件以上で eolInfo.source が OS のライフサイクルで eolInfo.label があれば label
+ * (3) 候補が 1 件以上なら候補の表示名を ' / ' で連結
+ * (4) それ以外（第三者・バックポート・none）は '推定なし'
+ */
+export function formatDistroReleaseDisplay(tech: Pick<DetectedTechnology, 'distroInference' | 'eolInfo'>): string {
+  const inf = tech.distroInference;
+  if (!inf) return '';
+
+  // (1) inf.release があればその表示名
+  if (inf.release) {
+    return formatDistroReleaseName(inf.release);
+  }
+
+  // (2) 候補が 1 件以上で eolInfo.source が OS のライフサイクル判定由来で label があれば採用
+  if (inf.candidates && inf.candidates.length > 0) {
+    if (tech.eolInfo?.source === OS_LIFECYCLE_SOURCE && tech.eolInfo.label) {
+      return tech.eolInfo.label;
+    }
+    // (3) 候補が 1 件以上なら候補の表示名を ' / ' で連結
+    return inf.candidates.map((c) => formatDistroReleaseName(c)).join(' / ');
+  }
+
+  // (4) それ以外（第三者・バックポート・none）は '推定なし'
+  return '推定なし';
+}
+
+/**
+ * 区分の表示: '<日本語>（<区分>）'
+ * 例: '修正版より古い（not-fixed）'
+ */
+export function formatDistroCveStatusLabel(status: DistroCveStatus): string {
+  switch (status) {
+    case 'not-fixed':
+      return '修正版より古い（not-fixed）';
+    case 'open':
+      return 'ディストリで未修正（open）';
+    case 'unknown-revision':
+      return 'パッケージ版が不明（unknown-revision）';
+    case 'no-data':
+      return 'ディストリのデータに無い（no-data）';
+    case 'fixed':
+      return 'ディストリで修正済みの可能性が高い（fixed）';
+    case 'not-affected':
+      return 'ディストリは影響なしと判断（not-affected）';
+    default:
+      return status;
+  }
+}

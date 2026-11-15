@@ -7,6 +7,8 @@
  * 推定結果はすべて Needs Review として扱い、断定的な表現を避けます。
  */
 
+import { formatDistroReleaseName, formatDistroConfidenceJp } from '../shared/distro-display';
+import { parseDpkgVersion } from '../security/dpkg-version';
 import type {
   AdvisoryDistroSection,
   DistroFamily,
@@ -304,6 +306,20 @@ export function inferDistroFromHeaders(
     }
   }
 
+  // パッケージ版（packageVersion）の抽出と設定 (v1.8.1 T06)
+  for (const item of parsedProducts) {
+    if (results[item.product]) {
+      const suffixMatch = item.suffix.match(/^-[0-9A-Za-z.+~]+/);
+      if (suffixMatch) {
+        const candidatePkgVer = `${item.upstreamVersion}${suffixMatch[0]}`;
+        const parsed = parseDpkgVersion(candidatePkgVer);
+        if (parsed && parsed.revision) {
+          results[item.product]!.packageVersion = candidatePkgVer;
+        }
+      }
+    }
+  }
+
   // 手順 3.3: 積集合
   const candidateProducts = (Object.keys(results) as DistroProduct[]).filter((p) => {
     const inf = results[p];
@@ -354,38 +370,17 @@ export function inferDistroFromHeaders(
 }
 
 /**
- * リリース表示名をフォーマットする
+ * リリース表示名をフォーマットする (v1.8.1 T06: shared/distro-display に委譲)
  */
 function formatReleaseName(r: DistroReleaseLifecycle): string {
-  if (r.family === 'ubuntu') {
-    return `Ubuntu ${r.cycle}${r.lts ? ' LTS' : ''}`;
-  }
-  if (r.family === 'debian') {
-    return `Debian ${r.cycle}`;
-  }
-  if (r.family === 'rhel') {
-    return `Red Hat Enterprise Linux ${r.cycle}`;
-  }
-  if (r.family === 'centos') {
-    return `CentOS ${r.cycle}`;
-  }
-  if (r.family === 'almalinux') {
-    return `AlmaLinux ${r.cycle}`;
-  }
-  if (r.family === 'rocky') {
-    return `Rocky Linux ${r.cycle}`;
-  }
-  return `${r.family} ${r.cycle}`;
+  return formatDistroReleaseName(r.release, { lts: r.lts });
 }
 
 /**
- * 確信度の日本語表記を取得する
+ * 確信度の日本語表記を取得する (v1.8.1 T06: shared/distro-display に委譲)
  */
 function formatConfidenceJp(conf: DistroInferenceConfidence): string {
-  if (conf === 'high') return '高';
-  if (conf === 'medium') return '中';
-  if (conf === 'low') return '低';
-  return 'なし';
+  return formatDistroConfidenceJp(conf);
 }
 
 /**

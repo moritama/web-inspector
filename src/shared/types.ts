@@ -258,6 +258,8 @@ export interface TechnologyInstance {
   distroHint?: string;
   /** このインスタンスの検出根拠リスト */
   evidence: Evidence[];
+  /** 技術ごとのディストリでの CVE の判定 (v1.8.1 T06) */
+  distroAdvisories?: DistroAdvisoryAssessment;
   /** 該当する既知脆弱性一覧 */
   advisories: SecurityAdvisory[];
   /** EOL詳細情報 */
@@ -320,6 +322,8 @@ export interface DetectedTechnology {
   wpThemes?: WpExtensionInfo[];
   /** OS リリースの推定 (v1.8.1 T03) */
   distroInference?: DistroInference;
+  /** 技術ごとのディストリでの CVE の判定 (v1.8.1 T06) */
+  distroAdvisories?: DistroAdvisoryAssessment;
   /** 参考: 上流の版による EOL（数えない） (v1.8.1 T03) */
   upstreamEolInfo?: EolInfo;
 
@@ -1075,5 +1079,53 @@ export interface DistroInference {
   confidence: DistroInferenceConfidence;
   evidence: DistroInferenceEvidence[];
   thirdParty?: DistroThirdPartyInfo;
+  packageVersion?: string;         // ヘッダーから取れたパッケージ版 (v1.8.1 T06)
   note?: string;                   // none・第三者のときの注記
+}
+
+/** ディストリでの CVE ごとの判定の区分 (v1.8.1 T06 / §4.2) */
+export type DistroCveStatus = 'not-fixed' | 'open' | 'unknown-revision' | 'no-data' | 'fixed' | 'not-affected';
+
+/** 候補のリリースごとの判定 (v1.8.1 T06 / §4.1) */
+export interface DistroCveReleaseResult {
+  release: string;               // 'ubuntu:20.04'
+  sourcePackage: string | null;  // 対応表から決めたソースパッケージ。決められなければ null
+  distroStatus: DistroCveStatus;
+  fixedVersions: string[];       // そのリリースの修正版（データのまま）
+  esm?: true;
+  osvIds: string[];
+}
+
+/** CVE ごとの判定 (v1.8.1 T06 / §4.2) */
+export interface DistroCveAssessment {
+  cve: string;
+  origin: 'upstream' | 'distro';  // 上流の照合で出た CVE か、ディストリのデータにだけある CVE か
+  distroStatus: DistroCveStatus;   // 採った区分（候補が 2 件以上なら悪いほう）
+  counted: boolean;                // 要確認件数に数えるか（H4a）
+  release: string | null;          // 採った区分のリリース
+  sourcePackage: string | null;
+  fixedVersions: string[];         // 採ったリリースの修正版（dpkg の版）
+  esm?: true;                      // Ubuntu Pro（ESM）だけの修正
+  osvIds: string[];                // 元の OSV ID（採ったリリースのもの。無ければ []）
+  message: string;                 // 文言（§4.2 の要旨）
+  split?: boolean;                 // 候補ごとの結果が分かれたら true
+  perRelease?: DistroCveReleaseResult[]; // 候補が 2 件以上のとき、候補ごとの結果（候補の順）
+  // engine が上流の advisory から補ってよい表示用の項目（任意）
+  title?: string;
+  severity?: string;
+  cvssScore?: number | null;
+  kev?: boolean;
+  upstreamFixedVersion?: string | null;
+}
+
+/** 技術ごとのディストリでの CVE の判定 (v1.8.1 T06) */
+export interface DistroAdvisoryAssessment {
+  family: DistroFamily;            // 'ubuntu' | 'debian'
+  releases: string[];              // 照合したリリース（inference.candidates のまま）
+  packageVersion: string | null;   // ヘッダーから取れたパッケージ版。取れなければ null
+  cves: DistroCveAssessment[];     // 個別に並べる CVE（上流の CVE 全件と、ディストリにだけある not-fixed）
+  otherFixedCount: number;         // ディストリにだけある CVE のうち fixed の件数（並べない）
+  reviewCount: number;             // cves のうち counted の件数
+  splitNote?: string;              // 候補で結果が分かれた CVE があるときの注記
+  sources: DistroSourceRecord[];   // distro._source のうち、その系統の要素（ecosystem が 'Ubuntu' / 'Debian'）
 }

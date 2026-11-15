@@ -13,6 +13,12 @@ import {
   resolveTechAdvisoryDisplayInfo,
 } from '../detection/advisory';
 import {
+  formatDistroReleaseDisplay,
+  formatDistroConfidenceJp,
+  formatDistroReleaseName,
+  formatDistroCveStatusLabel,
+} from '../shared/distro-display';
+import {
   DetailedDiffItem,
   DetectedTechnology,
   Evidence,
@@ -338,30 +344,8 @@ ${
   if (inferredTechs.length > 0) {
     const distroRows = inferredTechs.map((t) => {
       const inf = t.distroInference!;
-      const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
-      const releaseDisplay = t.eolInfo?.label
-        ? t.eolInfo.label
-        : inf.release
-          ? inf.release
-              .replace(/^ubuntu:/i, 'Ubuntu ')
-              .replace(/^debian:/i, 'Debian ')
-              .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
-              .replace(/^centos:/i, 'CentOS ')
-              .replace(/^almalinux:/i, 'AlmaLinux ')
-              .replace(/^rocky:/i, 'Rocky Linux ')
-          : (inf.candidates && inf.candidates.length > 0
-              ? inf.candidates
-                  .map((c) =>
-                    c
-                      .replace(/^ubuntu:/i, 'Ubuntu ')
-                      .replace(/^debian:/i, 'Debian ')
-                      .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
-                      .replace(/^centos:/i, 'CentOS ')
-                      .replace(/^almalinux:/i, 'AlmaLinux ')
-                      .replace(/^rocky:/i, 'Rocky Linux ')
-                  )
-                  .join(' / ')
-              : '推定なし');
+      const confJp = formatDistroConfidenceJp(inf.confidence);
+      const releaseDisplay = formatDistroReleaseDisplay(t);
 
       const evidenceDetails = (inf.evidence || []).map((e) => {
         return `${formatMarkdownCodeSpan(e.header, { inTable: true })}: ${formatMarkdownCodeSpan(e.value, { inTable: true })}`;
@@ -380,6 +364,43 @@ ${
     distroSection = `\n\n### OS リリースの推定 (distroInference)\n\n| 技術名 | 推定リリース / 候補 | 確信度 | 推定根拠 (ヘッダー: 値) | 備考・注記 |\n|---|---|:---:|---|---|\n${distroRows}`;
   }
 
+  // ディストリでの修正状況 (v1.8.1 T06)
+  const distroAdvTechs = (report.technologies || []).filter((t) => t.distroAdvisories);
+  let distroAdvSection = '';
+  if (distroAdvTechs.length > 0) {
+    const advBlocks: string[] = [];
+    for (const tech of distroAdvTechs) {
+      const da = tech.distroAdvisories!;
+      const rows = da.cves.map((c) => {
+        const cveDisplay = escapeMarkdownTableCell(c.cve);
+        const statusLabel = formatDistroCveStatusLabel(c.distroStatus);
+        const fixDisplay = c.fixedVersions.length > 0
+          ? c.fixedVersions.map((fv) => formatMarkdownCodeSpan(fv, { inTable: true })).join(', ')
+          : '-';
+        const relDisplay = c.release ? escapeMarkdownTableCell(formatDistroReleaseName(c.release)) : '-';
+        const osvDisplay = c.osvIds.length > 0 ? escapeMarkdownTableCell(c.osvIds.join(', ')) : '-';
+        const noteItems: string[] = [];
+        if (c.esm) noteItems.push('ESM で修正');
+        if (c.split) noteItems.push('悪いほうの結果');
+        const noteDisplay = noteItems.length > 0 ? escapeMarkdownTableCell(noteItems.join(' / ')) : '-';
+
+        return `| **${escapeMarkdownTableCell(tech.technology)}** | ${cveDisplay} | ${statusLabel} | ${fixDisplay} | ${relDisplay} | ${osvDisplay} | ${noteDisplay} |`;
+      }).join('\n');
+
+      const notes: string[] = [];
+      if (da.splitNote) {
+        notes.push(`> [!NOTE]\n> **候補リリースの相違:** ${escapeMarkdownTableCell(da.splitNote)}`);
+      }
+      if (da.otherFixedCount > 0) {
+        notes.push(`ほかにディストリで修正済み ${da.otherFixedCount} 件`);
+      }
+      const extraNotes = notes.length > 0 ? `\n\n${notes.join('\n\n')}` : '';
+
+      advBlocks.push(`| 技術名 | CVE | 区分 | 修正版 | リリース | OSV ID | 備考 |\n|---|---|:---:|---|:---:|---|---|\n${rows}${extraNotes}`);
+    }
+    distroAdvSection = `\n\n### ディストリでの修正状況 (distroStatus)\n\n${advBlocks.join('\n\n')}`;
+  }
+
   // 4. 検出技術スタック
   sections.push(`## 4. 検出技術スタック
 
@@ -396,7 +417,7 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
   return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(t.category)} | ${formatMarkdownCodeSpan(ver, { inTable: true })} | ${distro} | ${method} | ${escapeMarkdownTableCell(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
-}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}
+}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}${distroAdvSection}
 `);
 
   // 5. セキュリティ診断結果

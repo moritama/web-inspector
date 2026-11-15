@@ -4,8 +4,9 @@
  * JavaScript実行時バージョン、CSS解析、整合性確認、EOL・CVE照合を統合
  */
 
-import { getActiveDistroSection, matchOfflineAdvisories, matchUpstreamEol } from './advisory';
+import { getActiveDistroSection, listUpstreamAdvisoryCves, matchOfflineAdvisories, matchUpstreamEol } from './advisory';
 import { inferDistroFromHeaders, judgeDistroEol } from './distro-inference';
+import { assessDistroAdvisories } from './distro-advisory';
 import {
   DetectedTechnology,
   DistroProduct,
@@ -1066,6 +1067,25 @@ export class DetectionEngine {
         if (productKey && distroInferences[productKey]) {
           const inference = distroInferences[productKey]!;
           tech.distroInference = inference;
+
+          // v1.8.1 T06: CVE ごとのディストリの判定 (distroStatus)
+          const upstreamCves = listUpstreamAdvisoryCves(tech.technology, tech.version);
+          const assessment = assessDistroAdvisories({
+            product: productKey,
+            upstreamVersion: tech.version ?? '',
+            packageVersion: inference.packageVersion ?? null,
+            inference,
+            upstreamCves,
+            distro,
+          });
+          if (assessment) {
+            tech.distroAdvisories = assessment;
+            if (tech.instances) {
+              for (const inst of tech.instances) {
+                inst.distroAdvisories = assessment;
+              }
+            }
+          }
 
           const judgement = judgeDistroEol(inference, distro, new Date());
           if (judgement) {

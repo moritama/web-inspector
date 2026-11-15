@@ -26,6 +26,7 @@ import {
   deleteFindingException,
   matchFindingException,
 } from '../storage/exceptions';
+import { formatDistroReleaseDisplay } from '../shared/distro-display';
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
@@ -99,6 +100,7 @@ export const HEADER_DEPENDENT_CHECK_PREFIXES = [
   'SEC-CORP-',
   'SEC-XXSS-',
   'SEC-CACHE-',
+  'SEC-DISTRO-CVE-',
 ] as const;
 
 /**
@@ -1041,6 +1043,38 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         recommendation: tech.versionIntegrity.recommendation,
         referenceUrls: [],
         scope: url,
+      });
+    }
+
+    // ディストリの修正状況（要確認）セキュリティチェック追加 (v1.8.1 T06 / H4a)
+    if (tech.distroAdvisories && tech.distroAdvisories.reviewCount > 0) {
+      const da = tech.distroAdvisories;
+      const notFixedCount = da.cves.filter((c) => c.distroStatus === 'not-fixed').length;
+      const openCount = da.cves.filter((c) => c.distroStatus === 'open').length;
+      const unknownRevCount = da.cves.filter((c) => c.distroStatus === 'unknown-revision').length;
+      const noDataCount = da.cves.filter((c) => c.distroStatus === 'no-data').length;
+      const releaseName = formatDistroReleaseDisplay(tech);
+
+      const parts: string[] = [];
+      if (notFixedCount > 0) parts.push(`修正版より古い ${notFixedCount} 件`);
+      if (openCount > 0) parts.push(`ディストリで未修正 ${openCount} 件`);
+      if (unknownRevCount > 0) parts.push(`パッケージ版が不明 ${unknownRevCount} 件`);
+      if (noDataCount > 0) parts.push(`ディストリのデータに無い ${noDataCount} 件`);
+      const breakdownText = parts.length > 0 ? `（${parts.join('・')}）` : '';
+
+      const checkId = `SEC-DISTRO-CVE-${tech.technology.toUpperCase()}`;
+      librarySecurityChecks.push({
+        checkId,
+        category: 'library-security',
+        name: `${tech.technology} ディストリの修正状況（要確認）`,
+        status: 'warning',
+        severity: 'low',
+        observed: `推定したリリース ${releaseName} のディストリのデータと照合: 要確認 ${da.reviewCount} 件${breakdownText}`,
+        description: '推定にもとづく判定であり Needs Review です。セキュリティ修正がバックポートされている可能性があるため、バージョン番号だけでは脆弱性の有無を断定できません。パッケージ版が取れないときは、サーバー側でパッケージの版を確かめる必要があります。',
+        recommendation: 'サーバー側でパッケージの版を確かめ、ディストリの修正版以上に更新してください。',
+        referenceUrls: [],
+        scope: url,
+        findingId: generateFindingIdFromCheck(checkId, url, `${tech.technology}:${tech.version || 'unknown'}:distro-cve`),
       });
     }
   }

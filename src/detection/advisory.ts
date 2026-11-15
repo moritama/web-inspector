@@ -392,6 +392,57 @@ export function countUpstreamAdvisories(
 }
 
 /**
+ * 上流版で該当する CVE ID の一覧を取得する (v1.8.1 T06)
+ */
+export function listUpstreamAdvisoryCves(
+  technology: string,
+  version: string | null | undefined,
+  dbOverride?: Partial<AdvisoryDatabase>
+): string[] {
+  if (!version || version.trim() === '') return [];
+
+  const effectiveOverride = dbOverride ?? testAdvisoryDbOverride ?? undefined;
+  const activeDb: AdvisoryDatabase = {
+    ...advisoryDb,
+    ...effectiveOverride,
+    libraries: effectiveOverride?.libraries ?? advisoryDb.libraries,
+  };
+
+  const { targetEntry } = findLibraryEntry(technology, activeDb);
+  if (!targetEntry || !Array.isArray(targetEntry.versions)) return [];
+
+  const stripped = version
+    .trim()
+    .replace(/^[a-zA-Z0-9._-]+\//, '')
+    .trim()
+    .replace(/^v\.?/i, '');
+  const upstreamVer = stripped.split(/[-+~\s(]/)[0];
+  if (!upstreamVer || parseVersionParts(upstreamVer) === null) return [];
+
+  const cves: string[] = [];
+  const cveRegex = /^CVE-\d{4}-\d{4,}$/;
+
+  for (const adv of targetEntry.versions) {
+    if (satisfiesVersionRange(upstreamVer, adv.range)) {
+      let cveId: string | undefined;
+      if (adv.cve && cveRegex.test(adv.cve)) {
+        cveId = adv.cve;
+      } else if (Array.isArray(adv.aliases)) {
+        cveId = adv.aliases.find((a) => cveRegex.test(a));
+      }
+      if (!cveId && adv.cve) {
+        cveId = adv.cve;
+      }
+      if (cveId && !cves.includes(cveId)) {
+        cves.push(cveId);
+      }
+    }
+  }
+
+  return cves;
+}
+
+/**
  * UI・エクスポート共通の脆弱性収録状況・表示ラベル解決ヘルパー (v1.7.0 T04 / SPEC-03)
  * 手動構築された DetectedTechnology オブジェクトに対しても、収録件数・取得元・dataVersion・上流版該当件数を補完する。
  */

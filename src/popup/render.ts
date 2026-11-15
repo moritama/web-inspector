@@ -16,6 +16,11 @@ import {
   isFindingExcludedByException,
 } from '../shared/security-status';
 import {
+  formatDistroReleaseDisplay,
+  formatDistroConfidenceJp,
+  formatDistroCveStatusLabel,
+} from '../shared/distro-display';
+import {
   DetectedTechnology,
   InspectedCookieInfo,
   SecurityCheckResult,
@@ -133,34 +138,12 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     `;
   }
 
-  // OS リリースの推定ブロック (v1.8.1 T03)
+  // OS リリースの推定ブロック (v1.8.1 T03, v1.8.1 T06)
   let distroInferenceHtml = '';
   if (tech.distroInference) {
     const inf = tech.distroInference;
-    const confJp = inf.confidence === 'high' ? '高' : inf.confidence === 'medium' ? '中' : inf.confidence === 'low' ? '低' : 'なし';
-    const releaseDisplay = tech.eolInfo?.label
-      ? tech.eolInfo.label
-      : inf.release
-        ? inf.release
-            .replace(/^ubuntu:/i, 'Ubuntu ')
-            .replace(/^debian:/i, 'Debian ')
-            .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
-            .replace(/^centos:/i, 'CentOS ')
-            .replace(/^almalinux:/i, 'AlmaLinux ')
-            .replace(/^rocky:/i, 'Rocky Linux ')
-        : (inf.candidates && inf.candidates.length > 0
-            ? inf.candidates
-                .map((c) =>
-                  c
-                    .replace(/^ubuntu:/i, 'Ubuntu ')
-                    .replace(/^debian:/i, 'Debian ')
-                    .replace(/^rhel:/i, 'Red Hat Enterprise Linux ')
-                    .replace(/^centos:/i, 'CentOS ')
-                    .replace(/^almalinux:/i, 'AlmaLinux ')
-                    .replace(/^rocky:/i, 'Rocky Linux ')
-                )
-                .join(' / ')
-            : '推定なし');
+    const confJp = formatDistroConfidenceJp(inf.confidence);
+    const releaseDisplay = formatDistroReleaseDisplay(tech);
     const noteHtml = inf.note ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(inf.note)}</div>` : '';
     const upstreamHtml = tech.upstreamEolInfo
       ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">参考（上流のサポート期間）: ${escapeHtml(tech.upstreamEolInfo.label || tech.upstreamEolInfo.status)} ${tech.upstreamEolInfo.eolDate ? `(EOL: ${escapeHtml(tech.upstreamEolInfo.eolDate)})` : ''}</div>`
@@ -177,6 +160,52 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
         ${noteHtml}
         ${upstreamHtml}
         ${evidenceItems ? `<div style="margin-top:4px;font-size:11px;"><strong>推定根拠:</strong><ul style="margin:2px 0 0 16px;padding:0;">${evidenceItems}</ul></div>` : ''}
+      </div>
+    `;
+  }
+
+  // ディストリでの修正状況ブロック (v1.8.1 T06)
+  let distroAdvisoriesHtml = '';
+  if (tech.distroAdvisories) {
+    const da = tech.distroAdvisories;
+    const splitNoteHtml = da.splitNote
+      ? `<div style="font-size:11px;color:var(--warning-color);margin-top:4px;padding:4px 8px;background:var(--bg-surface);border-left:3px solid var(--warning-color);border-radius:2px;">${escapeHtml(da.splitNote)}</div>`
+      : '';
+    const otherFixedHtml = da.otherFixedCount > 0
+      ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">ほかにディストリで修正済み ${da.otherFixedCount} 件</div>`
+      : '';
+
+    const cveItems = da.cves.map((c) => {
+      const statusLabel = formatDistroCveStatusLabel(c.distroStatus);
+      const fixPart = c.fixedVersions.length > 0
+        ? `<span style="margin-left:8px;">修正版: <code>${escapeHtml(c.fixedVersions.join(', '))}</code></span>`
+        : '';
+      const esmBadge = c.esm
+        ? '<span class="badge" style="background:#e0f2fe;color:#0369a1;margin-left:6px;">ESM で修正</span>'
+        : '';
+      return `
+        <div style="margin-top:6px;padding:6px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+            <strong>${escapeHtml(c.cve)}</strong>
+            <div>
+              <span class="badge">${escapeHtml(statusLabel)}</span>
+              ${esmBadge}
+            </div>
+          </div>
+          <div style="font-size:11px;margin-top:4px;">
+            ${fixPart}
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(c.message)}</div>
+        </div>
+      `;
+    }).join('');
+
+    distroAdvisoriesHtml = `
+      <div>
+        <div class="detail-section-title">ディストリでの修正状況（要確認 ${da.reviewCount} 件）</div>
+        ${splitNoteHtml}
+        ${cveItems}
+        ${otherFixedHtml}
       </div>
     `;
   }
@@ -411,6 +440,7 @@ export function renderTechModalHtml(tech: DetectedTechnology): string {
     ${tech.isCandidateGroup ? '' : wpExtensionsHtml}
     ${tech.isCandidateGroup ? '' : instancesDetailHtml}
     ${tech.isCandidateGroup ? '' : distroInferenceHtml}
+    ${tech.isCandidateGroup ? '' : distroAdvisoriesHtml}
     ${tech.isCandidateGroup ? '' : integrityHtml}
     ${tech.isCandidateGroup ? '' : eolHtml}
     ${tech.isCandidateGroup ? '' : cveHtml}

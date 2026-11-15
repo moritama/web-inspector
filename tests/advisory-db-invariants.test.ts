@@ -203,3 +203,41 @@ describe('v1.8.1 T02: 同梱 advisory-db.json の distro 節', () => {
     }
   });
 });
+
+/**
+ * v1.8.1 T05: 同梱 DB の distro.advisories と distro._source（H2・§5.2・C17）。
+ * OSV の取得（[T05][data]）の前は advisories が空のオブジェクトでよい。件数・日付・特定の CVE の有無は比べない。
+ */
+describe('v1.8.1 T05: 同梱 advisory-db.json の distro.advisories と _source', () => {
+  type SourceRecord = { name?: unknown; url?: unknown; ecosystem?: unknown; license?: unknown; licenseNote?: unknown; retrievedAt?: unknown; recordCount?: unknown };
+  const distro = (advisoryDbJson as unknown as { distro?: { advisories?: Record<string, Record<string, Array<Record<string, unknown>>>>; _source?: SourceRecord[] } }).distro;
+
+  it('_source に OSV（Debian・Ubuntu）と endoflife.date があり、全要素に license か licenseNote があること', () => {
+    const src = distro?._source;
+    expect(Array.isArray(src) && src.length > 0).toBe(true);
+    for (const s of src ?? []) expect(Boolean(s.license) || Boolean(s.licenseNote), String(s.name)).toBe(true);
+    expect(src?.some((s) => s.ecosystem === 'Debian')).toBe(true);
+    expect(src?.some((s) => s.ecosystem === 'Ubuntu')).toBe(true);
+    expect(src?.some((s) => typeof s.url === 'string' && s.url.startsWith('https://endoflife.date/'))).toBe(true);
+    for (const s of src ?? []) expect(typeof s.recordCount === 'number' && s.recordCount >= 0).toBe(true);
+  });
+
+  it('advisories はオブジェクトで、キーは Debian / Ubuntu のリリースだけ（H1）、各 CVE は決めた項目だけを持つこと', () => {
+    const adv = distro?.advisories;
+    expect(adv !== null && typeof adv === 'object' && !Array.isArray(adv)).toBe(true);
+    for (const [release, byPkg] of Object.entries(adv ?? {})) {
+      expect(release).toMatch(/^(debian|ubuntu):[0-9][0-9.]*$/);
+      for (const list of Object.values(byPkg)) {
+        expect(Array.isArray(list)).toBe(true);
+        for (const e of list) {
+          for (const k of Object.keys(e)) expect(['cve', 'status', 'fixedVersions', 'esm', 'osvIds']).toContain(k);
+          expect(['fixed', 'open', 'not-affected']).toContain(e.status);
+        }
+      }
+    }
+  });
+
+  it('distro 節は 800 KB 以下であること（H8）', () => {
+    expect(Buffer.byteLength(JSON.stringify(distro ?? {}))).toBeLessThanOrEqual(800 * 1024);
+  });
+});

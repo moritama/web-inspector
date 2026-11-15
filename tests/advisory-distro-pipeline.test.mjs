@@ -49,6 +49,12 @@ const distroCatalog = {
     debian: { name: 'Debian', eol: { slug: 'debian' }, releases: ['12'] },
     rhel: { name: 'Red Hat Enterprise Linux', eol: { slug: 'rhel' }, releases: ['9'] },
   },
+  // T05: distro 節を作るときは出典の定義（distro._source の元）が必要になった。値は合成
+  distroSources: [
+    { name: 'OSV.dev (Debian Security Tracker)', url: 'https://osv.dev/list?ecosystem=Debian', ecosystem: 'Debian', license: null, licenseNote: '合成: 次の版で確認' },
+    { name: 'OSV.dev (Ubuntu Security Notices)', url: 'https://github.com/canonical/ubuntu-security-notices', ecosystem: 'Ubuntu', license: 'CC-BY-SA-4.0' },
+    { name: 'endoflife.date', url: 'https://endoflife.date/', ecosystem: null, license: 'MIT' },
+  ],
 };
 
 /** endoflife.date の /api/<slug>.json の 1 サイクル分（実際の応答と同じ項目名。値は合成） */

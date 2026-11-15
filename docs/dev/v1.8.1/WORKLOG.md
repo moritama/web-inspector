@@ -167,3 +167,26 @@
 - 外部の事実:
   - 設計メモ（T04.md）の「外部の事実」に記載された一次資料に基づく値（Launchpad API の `getPublishedSources`、sources.debian.org API の形式等）のみを使用した。
 - 未解決: なし
+
+## T05 設計  (2026-11-16 00:41)
+- 変更ファイル: docs/dev/v1.8.1/design/T05.md（新規）, tests/osv-distro-pipeline.test.mjs（新規）, tests/ci-check-size-distro.test.ts（新規）, tests/advisory-db-invariants.test.ts（T05 の describe を追記）, tests/advisory-distro-pipeline.test.mjs（合成の catalog に `distroSources` を追加。期待値は変えていない）
+- 判断したこと:
+  - `distro.advisories` の形を「リリース → ソースパッケージ → CVE の配列」、各 CVE を `{ cve, status, fixedVersions, esm?, osvIds }` にした（§5.3 の「CVE ID・修正版・区分・ESM の印・OSV ID」）。区分は `fixed`・`open`（・形だけ受け付ける `not-affected`）。
+  - OSV の Debian / Ubuntu データには「影響なし」を表す項目が無い（Ubuntu は not-affected と DNE を載せない、Debian の変換器は影響なしのリリースを飛ばす）。載っていないことから not-affected を作ると H4a で要確認件数から消えるので、作らない。その CVE はそのリリースに記録せず、T06 では no-data（数える）になる。
+  - 同じ CVE に CVE 単位のレコード（UBUNTU-CVE / DEBIAN-CVE）があれば、区分と修正版はそれだけで決める（USN / DSA は複数の CVE をまとめて持ち、リリースごとの対応があいまいなため）。OSV ID は両方残す。
+  - パイプラインからは T01 の dpkg 比較（TypeScript）を使えないので、修正版が複数あるときは比べずに全部 `fixedVersions` に残す。T06 で「すべての修正版以上なら fixed」とするのが安全側（T06 の設計で決める）。
+  - ESM の印は、標準のエコシステムに修正が無く、Ubuntu Pro のエコシステムか `+esm` / `~esm` の版にだけ修正があるときだけ付ける。Ubuntu の LTS は標準と Pro の 2 つを問い合わせ、どちらかの取得結果が無い対象は出さない（片方だけで判定しない）。
+  - `_source` の出典の値（名前・URL・ライセンス）は人が管理する値なので catalog.json の `distroSources` に置き、distro 節を作るときに無い・欠けている・license も licenseNote も無いなら build-db を失敗させる。`--check` は比べる前にコミット済みの DB の distro 節を検査し、原因（`_source` など）を出す。
+  - サイズは `JSON.stringify(db.distro)` のバイト数（C17 と同じ）。check-size は DB が JSON として読めて distro 節があるときだけ `distro` の結果を足す（既存のテストの合成ファイルを壊さない）。build-db と validateDb も 800 KB を超えたら失敗する（§5.3）。
+  - expectRed: 実装の前に tests/osv-distro-pipeline.test.mjs と tests/ci-check-size-distro.test.ts の 64 件中 58 件が、機能が無いため（`distro.advisories` が無い、`SIZE_LIMITS.distro` が無い、問い合わせが無いなど）失敗することを確かめた。通る 6 件は互換と陰性の確認。invariants の T05 の追記 2 件も、同梱 DB に `_source` が無いため失敗する（実装の後の build-db で通る）。test-hygiene・既存の T02 のテスト・型検査は通る。
+  - 一時ディレクトリに参照実装を置いて通るかを確かめることは、夜間の権限でできなかった。設計メモの規則とテストの期待値を 1 件ずつ突き合わせて確認した。
+- 外部の事実:
+  - OSV のエコシステム名（`Debian:<番号>`、`Ubuntu:<YY.MM>:LTS`、`Ubuntu:Pro:<YY.MM>:LTS`、中間は `Ubuntu:<YY.MM>`）と範囲の書き方 — https://ossf.github.io/osv-schema/ 、https://documentation.ubuntu.com/security/docs/security-updates/osv/ （2026-11-16）
+  - 実際のレコードの形（修正済み・未修正・ESM・upstream の CVE） — https://api.osv.dev/v1/vulns/UBUNTU-CVE-2024-38474 、https://api.osv.dev/v1/vulns/USN-6885-1 、https://api.osv.dev/v1/vulns/DEBIAN-CVE-2024-38474 、https://api.osv.dev/v1/vulns/DSA-5729-1 、https://api.osv.dev/v1/vulns/DEBIAN-CVE-2023-44487 、https://api.osv.dev/v1/vulns/UBUNTU-CVE-2023-44487 （2026-11-16）
+  - 「影響なし」の扱い — Ubuntu の OSV の説明（上の URL の状態の対応表）、Debian の変換器 https://github.com/google/osv.dev/tree/master/vulnfeeds/cmd/converters/debian （2026-11-16）
+  - 問い合わせの API — https://google.github.io/osv.dev/post-v1-query/ （2026-11-16）
+  - ライセンス: Ubuntu は CC-BY-SA 4.0（https://github.com/canonical/ubuntu-security-notices 、https://google.github.io/osv.dev/data/ ）。Debian は表示を見つけられなかった（→ null と licenseNote）。endoflife.date はリポジトリの LICENSE が MIT（https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE ）（2026-11-16）
+- 未解決:
+  - 実データの distro 節が 800 KB に収まるかは、[T05][data] の取得まで分からない（Debian の CVE 単位のレコードは、そのリリースより前に直った古い CVE も含む）。超えたら build-db と check-size が失敗するので、人が対象（リリース・パッケージ）か圧縮の方法を決める。
+  - Debian の OSV データのライセンスは一次資料で確認できなかった（`licenseNote` で v1.8.2 に持ち越し）。endoflife.date はデータ単独のライセンス表示が無く、リポジトリの MIT と指示書の指定に従った。
+  - 指示書の §4.2 の `not-affected` は、OSV のデータからは作れない（上の判断）。T06 は固定 DB で区分を試せるが、実データでは出ない。人が「載っていない＝影響なし」とみなすかを判断する場合は、T06 以降で扱う。

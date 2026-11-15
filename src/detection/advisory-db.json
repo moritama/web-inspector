@@ -132,7 +132,7 @@
     "algorithm": "sha256",
     "target": "libraries",
     "digest": "62c0ea067c3f0e439895f3d977118d3689b9161d48a8f2647fbdb8ce08b251ef",
-    "distroDigest": "eccd2dc87a5283d8829f02698a625b0c4238a22412f94a4f1750646cb0c6debe"
+    "distroDigest": "1c75c9adb1250b6e5926a62bb56e68a92fcab4329cccb16e1a62eecaf2c6695e"
   },
   "libraries": {
     "jquery": {
@@ -9466,10 +9466,11 @@
         "codename": "focal",
         "product": "nginx",
         "upstreamVersions": [
+          "1.17.10",
           "1.18.0"
         ],
         "sourcePackage": "nginx",
-        "verifiedAt": "2026-11-14",
+        "verifiedAt": "2026-11-15",
         "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal"
       },
       {

@@ -300,3 +300,17 @@
 - 外部の事実:
   - 設計メモ（T07.md）の「外部の事実」に記載された一次資料に基づく値（WHATWG HTML の COOP/COEP secure context 要件、Bootstrap 5.3.9 jsDelivr URL および SRI ハッシュ値、WAF ヘッダー仕様等）のみを使用。
 - 未解決: なし
+
+## T08 設計  (2026-11-16 12:56)
+- 変更ファイル: docs/dev/v1.8.1/design/T08.md（新規）、tests/release-docs-distro.test.ts（新規）
+- 判断したこと:
+  - 版の一致（C12 相当）は、既存の spec-integrity.test.ts・release-docs.test.ts・release-version.test.ts が package.json の版を期待値にして確かめているので、新しいテストは足さなかった。目標の版になったかは版を直書きしないと見られない（K3）ため、C12 とスクリプトの検査に任せる。
+  - 版の直書きの検査: package.json を変えずに、目標の版で test-hygiene と同じ形（引用符付き・`v` 付き・4 つ目付き・エスケープした形）を tests/ 全体で検索し、0 件であることを確かめた。`VERSION_LITERAL_ALLOWLIST` は空のまま。新しいテストにも版の文字列は書いていない。
+  - DB だけのリリースの予行は、既存の ci-db-release-rehearsal.test.ts（現在のツリー）と advisory-distro-compat.test.ts（distro 節を含む bumpAdvisoryDb）で確かめられるので、新しいテストは足さなかった。
+  - 新しいテストは文書の要点だけを見る: PRIVACY_POLICY の英語・日本語の v1.8.1 の項（Debian / Ubuntu の修正情報の同梱、送信しない、収集する情報が増えない）、manifest の権限がすべて PRIVACY_POLICY の権限の表にあること、保守ガイドの対応表の更新手順（distro-map.json・check-distro-map.mjs・対応表のずれ・人が一次資料で確かめる・evidenceUrl・verifiedAt・自動では書き換えない）、README の機能一覧の NEW-04 の行（H4 の断定をしない）。PRIVACY_POLICY の版の見出しはテストしない（次の版で壊れないように）。
+  - PRIVACY_POLICY の文面は人が承認する。設計メモに文案を書いた。ライセンスの帰属表示は H2 により v1.8.2 で行うので入れない。
+  - `MIN_EXTENSION_VERSION`（1.7.0）と `src/detection/advisory.ts` の一般公開の版（G1）は変えない、と設計メモに書いた。
+  - 実装の前に新しいテストを走らせ、16 件中 11 件が「文書に要点がまだ無い」ことで失敗し、5 件（権限の表・検査自身の確認・外部送信ゼロの原則・H4 の陰性）が通ることを確かめた（expectRed は false）。`npx tsc --noEmit` は通る。
+- 外部の事実: なし（文案の外部の名前は T02・T04・T05 の設計メモで確かめたもの）
+- 未解決:
+  - schema 2.3 の DB の `minExtensionVersion` は 1.7.0 のまま。DB は拡張に同梱されるだけで、distro 節の無い DB でも第1段階で動く（§5.3）ため変えないと判断したが、上げるかどうかは人の判断。

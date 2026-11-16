@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.8.1-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
@@ -16,7 +16,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - [Web Technology \& Security Inspector](#web-technology--security-inspector)
   - [目次](#目次)
   - [主な特徴・原則](#主な特徴原則)
-  - [機能一覧 (v1.8.0)](#機能一覧-v180)
+  - [機能一覧 (v1.8.1)](#機能一覧-v181)
   - [対応技術スタック \& 診断カバレッジ (Coverage)](#対応技術スタック--診断カバレッジ-coverage)
   - [システムアーキテクチャ](#システムアーキテクチャ)
     - [診断・通信シーケンス](#診断通信シーケンス)
@@ -40,7 +40,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ---
 
-## 機能一覧 (v1.8.0)
+## 機能一覧 (v1.8.1)
 
 | 機能ID | 項目 | 概要 |
 |---|---|---|
@@ -71,6 +71,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 | **SEC-HSTS** | **HSTS診断の整理** | 診断結果の1行集約、max-age 期間・preload 条件・プレリリース表記への対応 |
 | **NEW-03** | **セキュリティ診断項目の追加** | SRI（integrity 属性の有無確認）、Cache-Control（キャッシュ制御診断）、認証系 Cookie の属性診断（SameSite=None・過大な有効期限の指摘）、CSP 追加項目（Trusted Types、upgrade-insecure-requests、form-action、Reporting-Endpoints）の診断 |
 | **OPS-01** | **運用・CI 改善** | 脆弱性 DB リリース予行（`rehearse-db-release.mjs`）、拡張機能および DB のサイズ上限検証（`check-size.mjs`）、一括取得スクリプトの待機安定化 |
+| **NEW-04** | **OS ディストリのバックポート対応** | `Server` / `X-Powered-By` から Debian / Ubuntu / RHEL 系の OS リリースを推定し、OS のサポート期間で EOL を判定。Debian / Ubuntu はパッケージ版と同梱の修正情報（OSV）で CVE ごとに照合し、結果は要確認（Needs Review）として「ディストリで修正済みの可能性が高い」などと表示 |
 
 ---
 

@@ -314,3 +314,27 @@
 - 外部の事実: なし（文案の外部の名前は T02・T04・T05 の設計メモで確かめたもの）
 - 未解決:
   - schema 2.3 の DB の `minExtensionVersion` は 1.7.0 のまま。DB は拡張に同梱されるだけで、distro 節の無い DB でも第1段階で動く（§5.3）ため変えないと判断したが、上げるかどうかは人の判断。
+
+## T08 実装  (2026-11-16 13:05)
+- 変更ファイル: package.json, package-lock.json, public/manifest.json, src/detection/rules/index.ts, src/background/service-worker.ts, src/popup/popup.ts, src/dashboard/dashboard.ts, src/export/markdown.ts, src/export/csv.ts, popup.html, dashboard.html, docs/DETECTION_SPECIFICATION.md, README.md, PRIVACY_POLICY.md, docs/MAINTENANCE_GUIDE.md
+- 判断したこと:
+  - 設計メモ（T08.md）および INSTRUCTIONS.md の方針に厳密に従い、拡張機能の版を 1.8.1 に更新し、関係する文書の改訂を実施した。
+  - 版上げ対象のファイル:
+    - `package.json`, `package-lock.json`（先頭および packages[""] の 2 か所のみ手動更新し、依存関係のバージョンは一切変更しない）, `public/manifest.json`（4つ目の番号は付けず 1.8.1 に統一）
+    - `src/detection/rules/index.ts`: `RULES_VERSION = '1.8.1'`
+    - `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `src/export/markdown.ts`, `src/export/csv.ts`: フォールバック文字列をすべて `'1.8.1'` に更新
+    - `popup.html`, `dashboard.html`: バッジ表示を `v1.8.1` に更新
+    - `docs/DETECTION_SPECIFICATION.md`: 対象バージョンを `v1.8.1` に更新
+    - `README.md`: バッジを `version-1.8.1-blue.svg` に更新、目次アンカーおよび見出しを `## 機能一覧 (v1.8.1)` に更新
+  - `src/detection/advisory.ts` の `'1.8.3'`（一般公開版）および `MIN_EXTENSION_VERSION`（1.7.0）は変更しない方針を維持。
+  - `PRIVACY_POLICY.md`:
+    - 第 1 章に英語・日本語それぞれ 1 行の箇条書きで v1.8.1 の項を追記（OSV Debian/Ubuntu の修正情報および endoflife.date のサポート期間を同梱すること、照合はローカルで完結し外部送信ゼロを維持すること、取得ヘッダーや権限などの収集情報が増えないこと）。
+    - 外部送信ゼロの原則、および第 4 章の権限の表（manifest と完全一致）は維持。
+  - `docs/MAINTENANCE_GUIDE.md`:
+    - 第 2 章末尾に `### 2.9 OS ディストリの対応表（distro-map.json）の更新手順 (v1.8.1 / NEW-04)` を追加。
+    - `data/advisories/distro-map.json` は curated データであり `evidenceUrl` と `verifiedAt` が必須であること、`scripts/advisories/check-distro-map.mjs` による週次突き合わせとボット PR での「対応表のずれ」検知、スクリプトは自動では書き換えず人間が一次資料で確認して更新すること、更新後の DB 再生成・検証手順を明記。
+  - `README.md`:
+    - 機能一覧の表に `NEW-04` の行を追加（Debian / Ubuntu / RHEL 系の OS 推定・EOL 判定、OSV 修正情報の照合、要確認（Needs Review）表示）。推定結果を「安全」「該当なし」と断定しない記述（H4）を徹底。カバレッジ表は自動生成対象のため手動編集せず。
+  - `tests/` は一切変更せず、`npx tsc --noEmit` および各種静的整合性検査（C12 相当、テスト要件、check-links）がすべて合格することを確認。
+- 外部の事実: なし（このタスクで新しく頼る外部の事実は無く、T02・T04・T05 で確認済みの一次資料に基づく情報のみを使用）
+- 未解決: なし

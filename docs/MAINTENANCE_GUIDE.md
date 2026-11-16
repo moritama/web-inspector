@@ -325,6 +325,22 @@ NVD の CPE criteria はベンダー提供の版数記法（`versionEndIncluding
 
 ---
 
+### 2.9 OS ディストリの対応表（distro-map.json）の更新手順 (v1.8.1 / NEW-04)
+
+OS ディストリビューション（Debian / Ubuntu）のパッケージ版と上流バージョンを対応付けるファイル `data/advisories/distro-map.json` は、誤照合を防ぐため人間が管理・編集する curated データです。各エントリには、判定根拠として `evidenceUrl`（確かめた一次資料の URL）と `verifiedAt`（確かめた日: YYYY-MM-DD）を必ず記録します。
+
+#### ① 週次での突き合わせとずれの検知
+週次の脆弱性 DB 自動更新ジョブ（`.github/workflows/advisory-db-update.yml`）内で実行される突き合わせスクリプト `scripts/advisories/check-distro-map.mjs` は、Launchpad API（Ubuntu）および sources.debian.org API（Debian）から現在公開中のパッケージバージョンを取得し、対応表に登録されていない上流バージョンが存在しないかを検査します。
+未登録の上流バージョンが検出された場合、「ずれ」として `data/advisories/build-report.json` の `distroMapDrift` に記録され、週次の自動更新ボット PR の本文に「対応表のずれ」として報告されます（外部 API の一時的障害等で取得に失敗した場合は「未確認」として安全に扱われます）。
+
+#### ② 人による対応表の更新手順
+突き合わせスクリプトは対応表を自動では書き換えません。ボット PR の本文やレポートで「対応表のずれ」の報告を受けたら、以下の手順で人間が更新します：
+1. **一次資料の確認**: Launchpad のソースパッケージ公開履歴や Debian Package Tracker / changelog などの一次資料を参照し、上流バージョンとディストリパッケージ版の正確な対応関係を確認します。
+2. **対応表の編集**: `data/advisories/distro-map.json` に対応エントリを追加または修正します。その際、確認した一次資料の URL を `evidenceUrl` に、作業日を `verifiedAt` に必ず記録します（人が一次資料で確かめた事実のみを反映します）。
+3. **DB 再生成と検証**: 更新後は `npm run advisories:build` を実行して `advisory-db.json` を再生成し、`npm run advisories:validate` および `npm test` を実行して整合性とテストの合格を確認します。
+
+---
+
 
 ## 3. Chrome Web Store 申請・リリースフロー
 

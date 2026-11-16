@@ -1,6 +1,6 @@
 # Privacy Policy for Web Technology & Security Inspector
 
-Last updated: November 12, 2026
+Last updated: November 16, 2026
 
 **Web Technology & Security Inspector** (hereinafter referred to as "the Extension") is committed to protecting your privacy. This Privacy Policy explains our practices regarding user information and data collection.
 
@@ -11,8 +11,10 @@ Last updated: November 12, 2026
 The Extension performs all technology detection and security evaluations **locally on your device**. 
 - We do **not** transmit, share, or sell any personal data, browsing history, IP addresses, or analytical data, either to us or to any third party. Data the Extension handles to perform its inspections (e.g., the URLs of pages you inspect, kept in your inspection history) stays on your device. See Sections 2 and 3.
 - The Extension makes **no external network connections** to third-party tracking, analytics, or remote servers. All operations happen strictly within the browser environment.
+- **v1.8.1 and later**: The bundled offline database now also includes OS distribution security fix data (Debian / Ubuntu package versions in which each CVE was fixed, from OSV) and OS release support periods (from endoflife.date). This data is bundled with the Extension and used only for local matching; the Extension does not send the Server header, detected versions, or any other data to OSV, Debian, Ubuntu, or any other service. The information the Extension collects does not increase: no new response headers, permissions, or page data are collected.
 
 本拡張機能は、すべての技術検出およびセキュリティ診断を**ご利用の端末（ブラウザ内）ローカル**で実行します。個人情報、閲覧履歴、通信内容を、開発者や第三者へ送信・共有・販売することは一切ありません。調査したページのURL（調査履歴）など、診断のために扱うデータは端末内にのみ保存します（第2章・第3章）。外部の解析サーバー等への通信も一切行いません。
+- **v1.8.1以降**: 同梱のオフラインデータベースに、OS ディストリビューションの修正情報（OSV の Debian / Ubuntu データにもとづく、CVE ごとの修正済みパッケージ版）と OS リリースのサポート期間（endoflife.date）を加えました。これらは拡張機能に同梱され、端末内での照合にだけ使います。Server ヘッダーや検出したバージョンなどを OSV・Debian・Ubuntu その他の外部サービスへ送信することはありません。収集する情報は増えていません（取得するレスポンスヘッダー・権限・ページの情報の追加はありません）。
 
 ---
 

@@ -403,7 +403,7 @@ export type SecurityCategory =
 /**
  * セキュリティ診断ステータス
  */
-export type SecurityStatus = 'pass' | 'warning' | 'fail' | 'info' | 'unknown';
+export type SecurityStatus = 'pass' | 'warning' | 'fail' | 'info' | 'unknown' | 'not-applicable';
 
 /**
  * セキュリティ診断重大度
@@ -893,6 +893,7 @@ export interface InspectionReport {
       low: number;
       info: number;
       unknown: number;
+      notApplicable?: number;
     };
     librarySecurity: {
       eolCount: number;

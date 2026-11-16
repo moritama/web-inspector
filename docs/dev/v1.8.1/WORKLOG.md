@@ -272,3 +272,31 @@
 - 未解決:
   - Reporting-Endpoints も secure context が条件だが、独立したチェックが無く、関係する `SEC-CSPX-REPORT-01` は CSP の `report-to` の名前の不一致を見るものなので、今回は対象外にしなかった。HTTP のページで対象外にするかは人の判断。
   - HTTP のページでは、COOP の項目が INFO から対象外に移るため、HTTP のサイトの `securityFindings.info` が以前の版の履歴より 1 少なくなる（差分では status の変化として出る）。H6 の決定どおり。
+
+## T07 実装  (2026-11-16 12:50)
+- 変更ファイル: src/shared/types.ts, src/shared/security-status.ts, src/security/headers.ts, src/popup/popup.css, src/dashboard/dashboard.css, scripts/report-lint.mjs, docs/DETECTION_SPECIFICATION.md, test-server/server.mjs
+- 判断したこと:
+  - 設計メモ（T07.md）の「実装の方針」に従い、`SecurityStatus` に `'not-applicable'` を追加し、`InspectionReport['summary']['securityFindings']` に任意プロパティ `notApplicable?: number;` を追加した。
+  - `src/shared/security-status.ts`:
+    - `summarizeSecurityChecks` で `check.status === 'not-applicable'` の件数を数え、`securityFindings.notApplicable` として常に数値で返すようにした。INFO や UNKNOWN、要確認件数・重大度内訳には含めない。
+    - `formatPlainStatusCode` および `formatMarkdownStatusBadge` に `'not-applicable'` の分岐を追加し、`N/A` を返却（太字なし）。
+    - `getSecurityCheckDisplayBadge` で `check.status === 'not-applicable'` のとき `{ badgeClass: 'sev-not-applicable', dashLabel: '対象外', popupLabel: '対象外', statusCode, markdownBadge }` を早期リターン。
+  - `src/popup/popup.css`, `src/dashboard/dashboard.css`: `.sev-not-applicable` を `.sev-unknown`, `.sev-info` と同じスタイル規則に追加。
+  - `src/security/headers.ts`:
+    - `!isHttps` の場合、COOP は設定値にかかわらず `SEC-COOP-01`（status: `not-applicable`, severity: `info`, observed: `coop ?? 'ヘッダー未設定'`) を 1 件生成。文言に「HTTPS」を含め、ブラウザが無視するため評価対象外であることを明記。
+    - COEP はヘッダーが存在し、かつ `!isHttps` の場合に `SEC-COEP-01`（status: `not-applicable`, severity: `info`, observed: `coep`) を 1 件生成。未設定時は項目を生成しない。
+    - CORP、X-Frame-Options、HSTS など他のチェックは変更せず、`isHttps === true` の判定ロジックも既存のまま維持。
+  - `scripts/report-lint.mjs`: `expectedMarkdownStatusBadge` に `case 'not-applicable': return 'N/A';` を追加。
+  - `docs/DETECTION_SPECIFICATION.md`: ステータス表記および COOP・COEP の診断仕様に `not-applicable`（対象外）の扱いを追記。
+  - `test-server/server.mjs`:
+    - 単体テスト向けに `createRequestHandler`、`TEST_PAGES`、`getStartupLines` を named export し、`process.argv[1]` と `import.meta.url` の実パス比較（`fs.realpathSync`）により直接実行時のみ listen するように分離。
+    - `TEST_PAGES` に既存 11 ページと新しい 10 ページ（WAF 2、SRI 1、ディストリ 6、HTTPS 専用 1）の計 21 ページを定義。
+    - `createRequestHandler` で `options.distroMap`（省略時は `data/advisories/distro-map.json`）を読み込み、設計メモの規則に従って Ubuntu / Debian / RHEL / 対応表外のバージョンとリリース番号を抽出してヘッダーおよび HTML 本文（各パス名を含む）を動的に生成するハンドラーを実装。
+    - `/waf-cloudflare-challenge` は 403 および `cf-mitigated: challenge`、`/cdn-cgi/challenge-platform/` へのスタブ応答を返し、`/waf-aws-captcha` は 405 および `x-amzn-waf-action: captcha` を返却。
+    - `/sri-cdn` は設計メモの事実表に従い Bootstrap 5.3.9 の jsDelivr URL（integrity あり・なし各 2 件）を含む HTML を返却。
+    - `/https-only-headers` は COOP と COEP を返却。
+  - 文言に「安全」「該当なし」を含めず、secure context は「HTTPS のページ」「secure context（HTTPS）」として記述。
+  - `tests/` は一切変更せず、型検査（`npx tsc --noEmit`）がエラーなく通ることを確認。
+- 外部の事実:
+  - 設計メモ（T07.md）の「外部の事実」に記載された一次資料に基づく値（WHATWG HTML の COOP/COEP secure context 要件、Bootstrap 5.3.9 jsDelivr URL および SRI ハッシュ値、WAF ヘッダー仕様等）のみを使用。
+- 未解決: なし

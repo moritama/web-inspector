@@ -475,7 +475,8 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   - サマリーの重大度内訳（`securityFindings.critical` / `high` / `medium` / `low`）も**要確認の項目のみ**を集計するため、`CRITICAL + HIGH + MEDIUM + LOW === requiresAttentionCount` が常に成り立ちます。
   - `securityFindings.info` は `status` が `'pass'` または `'info'` の項目数（「参考情報・問題のない項目」）を集計します。
 - **ステータス表示の厳密一致**:
-  UI（ポップアップ・ダッシュボード）およびエクスポート（Markdown・CSV）のすべてにおいて、`pass` → `PASS`、`info` → `INFO`、`warning` → `WARN`、`fail` → `FAIL` として表示します（`info` の項目を `WARN` と表示しません）。
+  UI（ポップアップ・ダッシュボード）およびエクスポート（Markdown・CSV）のすべてにおいて、`pass` → `PASS`、`info` → `INFO`、`warning` → `WARN`、`fail` → `FAIL`、`unknown` → `UNKNOWN`、`not-applicable` → `N/A`（ラベル「対象外」）として表示します（`info` の項目を `WARN` と表示しません）。
+  また「対象外 (`not-applicable`)」は、HTTP のページの COOP・COEP など、ブラウザの仕様によりヘッダーが無視される対象に適用され、要確認件数や重大度内訳（INFO・UNKNOWN 含む）には数えません（`securityFindings.notApplicable` に集計）。なお、ヘッダー未観測の場合は未観測（`unknown`）が優先されます。
 - **推奨対応ロードマップの動的生成 (`src/export/markdown.ts` / E3)**:
   Markdown レポートのセクション 13「推奨対応ロードマップ」は固定文を持たず、要確認の指摘のみから重大度別に「至急対応 (CRITICAL / HIGH)」「計画的対応 (MEDIUM)」「継続的改善 (LOW)」を動的に組み立てます（該当のない段は省略し、要確認 0 件の場合は「対応が必要な項目はありません。」と出力します）。
 - **診断項目名のステータス間統一 (`R05`)**:
@@ -502,9 +503,9 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **`X-Content-Type-Options` / `X-Frame-Options`**: `nosniff` の厳密一致および `DENY` / `SAMEORIGIN` の妥当性を検証します。CSP `frame-ancestors` により保護されている場合は `X-Frame-Options` の観測値に `CSP frame-ancestors により保護` と明記して `info` とします。
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
 - **技術情報露出 (`SEC-DISC-01`〜`05` / T08, v1.8.0 T06)**: `Server`（詳細版露出時）、`X-Powered-By`、`X-AspNet-Version`（`SEC-DISC-03`）に加え、`X-AspNetMvc-Version`（`SEC-DISC-04` / `warning`・`low`）および `Server-Timing`（`SEC-DISC-05` / `info`・`info`）の露出を報告します。
-- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a）**:
-  - `SEC-COOP-01` (`info` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。
-  - `SEC-COEP-01` (`info` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。
+- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a, v1.8.1 T07）**:
+  - `SEC-COOP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。なお、HTTP 接続のページではブラウザが COOP を無視するため、設定値によらず `not-applicable`（対象外）として出力します（ヘッダー未観測時は `unknown` が優先）。
+  - `SEC-COEP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。なお、HTTP 接続のページで COEP が設定されている場合、ブラウザがこれを無視するため `not-applicable`（対象外）として出力します（未設定時は出力しません。ヘッダー未観測時は `unknown` が優先）。
   - `SEC-CORP-01` (`info` / `info`): `Cross-Origin-Resource-Policy` に仕様で定義されていない値（`same-origin`, `same-site`, `cross-origin` 以外）が指定されている場合に出力します。
   - `SEC-XXSS-01` (`info` / `info`): `X-XSS-Protection` に旧式の値 `1` または `1; mode=block` が指定されている場合に出力します（モダンブラウザでは非推奨であり、`0` またはヘッダー削除を推奨）。
   - `SEC-PERM-02` (`warning` / `low`): `Permissions-Policy` で強い権限（`camera`, `microphone`, `geolocation`, `payment`, `usb`）のいずれかが `*`（ワイルドカード）で許可されている場合に出力します（複数該当時も 1 件に集約）。

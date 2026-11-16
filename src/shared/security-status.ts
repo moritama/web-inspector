@@ -49,6 +49,7 @@ export function summarizeSecurityChecks(checks: readonly SecurityCheckResult[]):
   let low = 0;
   let info = 0;
   let unknown = 0;
+  let notApplicable = 0;
 
   for (const check of checks) {
     if (isRequiresAttention(check)) {
@@ -68,6 +69,8 @@ export function summarizeSecurityChecks(checks: readonly SecurityCheckResult[]):
       info += 1;
     } else if (check.status === 'unknown') {
       unknown += 1;
+    } else if (check.status === 'not-applicable') {
+      notApplicable += 1;
     }
   }
 
@@ -80,12 +83,13 @@ export function summarizeSecurityChecks(checks: readonly SecurityCheckResult[]):
       low,
       info,
       unknown,
+      notApplicable,
     },
   };
 }
 
 /**
- * SecurityStatus をプレーンなステータス表記（PASS / INFO / WARN / FAIL / UNKNOWN）に変換する
+ * SecurityStatus をプレーンなステータス表記（PASS / INFO / WARN / FAIL / UNKNOWN / N/A）に変換する
  */
 export function formatPlainStatusCode(status: SecurityStatus): string {
   switch (status) {
@@ -99,6 +103,8 @@ export function formatPlainStatusCode(status: SecurityStatus): string {
       return 'FAIL';
     case 'unknown':
       return 'UNKNOWN';
+    case 'not-applicable':
+      return 'N/A';
   }
 }
 
@@ -109,6 +115,7 @@ export function formatPlainStatusCode(status: SecurityStatus): string {
  * - warning -> **WARN**
  * - fail -> **FAIL**
  * - unknown -> UNKNOWN
+ * - not-applicable -> N/A
  */
 export function formatMarkdownStatusBadge(status: SecurityStatus): string {
   switch (status) {
@@ -122,12 +129,14 @@ export function formatMarkdownStatusBadge(status: SecurityStatus): string {
       return '**FAIL**';
     case 'unknown':
       return 'UNKNOWN';
+    case 'not-applicable':
+      return 'N/A';
   }
 }
 
 /**
  * UI（ポップアップ・ダッシュボード）およびレポート出力向けのステータス・バッジ表示情報を取得する
- * - status が 'info' / 'pass' / 'unknown' の場合は severity に引きずられず status に対応する表示を返す
+ * - status が 'info' / 'pass' / 'unknown' / 'not-applicable' の場合は severity に引きずられず status に対応する表示を返す
  */
 export function getSecurityCheckDisplayBadge(
   check: Pick<SecurityCheckResult, 'status' | 'severity'>
@@ -140,6 +149,16 @@ export function getSecurityCheckDisplayBadge(
 } {
   const statusCode = formatPlainStatusCode(check.status);
   const markdownBadge = formatMarkdownStatusBadge(check.status);
+
+  if (check.status === 'not-applicable') {
+    return {
+      badgeClass: 'sev-not-applicable',
+      dashLabel: '対象外',
+      popupLabel: '対象外',
+      statusCode,
+      markdownBadge,
+    };
+  }
 
   if (check.status === 'unknown') {
     return {

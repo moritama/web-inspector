@@ -497,7 +497,7 @@ body {
   color: var(--warning-color);
 }
 
-.badge-unknown, .sev-unknown, .sev-info {
+.badge-unknown, .sev-unknown, .sev-info, .sev-not-applicable {
   background: rgba(148, 163, 184, 0.15);
   color: var(--text-muted);
   border: 1px solid rgba(148, 163, 184, 0.3);

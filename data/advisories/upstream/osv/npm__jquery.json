@@ -3,7 +3,7 @@
     "ecosystem": "npm",
     "name": "jquery"
   },
-  "fetchedAt": "2026-11-08T23:46:54.136Z",
+  "fetchedAt": "2026-11-15T23:59:48.920Z",
   "vulns": [
     {
       "id": "GHSA-2pqj-h3vj-pqgw",

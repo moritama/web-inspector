@@ -1,13 +1,13 @@
 {
   "slug": "bootstrap",
-  "fetchedAt": "2026-11-08T23:46:54.136Z",
+  "fetchedAt": "2026-11-15T23:59:48.920Z",
   "cycles": [
     {
       "cycle": "5",
       "releaseDate": "2021-05-05",
       "eol": false,
       "support": true,
-      "latest": "5.3.8"
+      "latest": "5.3.9"
     },
     {
       "cycle": "4",

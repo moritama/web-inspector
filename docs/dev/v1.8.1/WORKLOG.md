@@ -254,3 +254,21 @@
 - 未解決:
   - 設計メモの未解決事項（H4a による要確認件数・指摘の増加、ディストリ限定 open の扱い）は設計と確定テストに従って実装。人間による確認待ち。
 
+
+## T07 設計  (2026-11-16 12:36)
+- 変更ファイル: docs/dev/v1.8.1/design/T07.md（新規）, tests/https-only-headers.test.ts（新規）, tests/test-server-pages.test.ts（新規）
+- 判断したこと:
+  - 「対象外」に当たる status は `SecurityStatus` に無い（pass・warning・fail・info・unknown だけ）ので、`'not-applicable'` を新設する（runtimeStatus・coverage と同じ綴り）。ポップアップ・ダッシュボードのラベルは「対象外」、プレーン・Markdown の表記は `N/A`（テストは字面ではなく、ほかの status と区別でき太字でないことを見る）。要確認件数・CRITICAL〜LOW・INFO・UNKNOWN・バッジに数えず、`securityFindings.notApplicable`（任意の項目）に数える。
+  - 対象は HTML の仕様で non-secure context なら既定のポリシーを使う COOP と COEP。CORP と Permissions-Policy は secure context の条件が無いので対象外にしない。HSTS は既存のまま。HTTP のページでは COOP は値にかかわらず `SEC-COOP-01` を対象外で 1 件、COEP はヘッダーがあるときだけ対象外で 1 件（COEP は既定で推奨しないため、無ければ項目なし）。
+  - 未観測のときは、既存の SPEC-01 の上書き（`HEADER_DEPENDENT_CHECK_PREFIXES`）が対象外より後に動くので unknown が優先される。この順番を変えないよう設計メモに書いた。
+  - test-server は、サーバーを起動しない単体テストのために `createRequestHandler`・`TEST_PAGES`・`getStartupLines` を export し、直接実行したときだけ listen する形にする。新しいページは 10 件（WAF 2、SRI 1、ディストリのバナー 6、HTTPS 専用ヘッダー 1）。
+  - ディストリのバナーの版は、ハンドラーが対応表から規則（`entries` の順で最初に apache と php の両方があるリリースの `upstreamVersions[0]` など）で選ぶ。合成の対応表を渡すテストで、版が対応表から来ていることを確かめる。対応表に無い版は、Ubuntu の Apache の版の最後の数字を、対応表に無くなるまで増やして作る。
+  - `scripts/report-lint.mjs` の `expectedMarkdownStatusBadge` に `not-applicable` を足す必要がある（足さないと http.badssl.com のスナップショットのテストが R02 で落ちる）。実装の方針に書いた。
+  - expectRed: tests/https-only-headers.test.ts は 41 件中 21 件が機能が無いため失敗（通る 20 件は HTTPS の v1.8.0 と同じ結果・陰性・未観測の unknown）。tests/test-server-pages.test.ts は 59 件すべてが export が無いこと・import で listen することで失敗（listen はテストで空の関数に差し替え、ポートは開かない）。テストの側の誤りが無いことは、`.agy-out/` に一時的に置いた test-server の試作に向けて実行し、`src/` の対象外が要る 1 件を除く 58 件が通ることで確かめた（試作は消した）。型検査の失敗は `'not-applicable'` と `notApplicable` が型に無いことによる 4 件だけ。test-hygiene は通る。
+- 外部の事実:
+  - COOP・COEP の non-secure context の扱い: https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers 、#the-coep-headers（2026-11-16）。CORP: https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header （2026-11-16）。Permissions-Policy: https://w3c.github.io/webappsec-permissions-policy/ （2026-11-16）。Reporting-Endpoints: https://w3c.github.io/reporting/#process-header （2026-11-16）。
+  - Bootstrap 5.3.9 の jsDelivr の URL と integrity: https://getbootstrap.com/docs/5.3/getting-started/introduction/ 、配布物の一覧: https://getbootstrap.com/docs/5.3/getting-started/contents/ （2026-11-16）。
+  - WAF のヘッダー（cf-mitigated、x-amzn-waf-action）と Debian・sury の版の書式は v1.8.0 T04・v1.8.1 T03 の設計メモの根拠をそのまま使った（新しく取った値は無い）。
+- 未解決:
+  - Reporting-Endpoints も secure context が条件だが、独立したチェックが無く、関係する `SEC-CSPX-REPORT-01` は CSP の `report-to` の名前の不一致を見るものなので、今回は対象外にしなかった。HTTP のページで対象外にするかは人の判断。
+  - HTTP のページでは、COOP の項目が INFO から対象外に移るため、HTTP のサイトの `securityFindings.info` が以前の版の履歴より 1 少なくなる（差分では status の変化として出る）。H6 の決定どおり。

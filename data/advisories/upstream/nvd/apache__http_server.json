@@ -1,6 +1,6 @@
 {
   "target": "apache:http_server",
-  "fetchedAt": "2026-11-08T23:46:54.136Z",
+  "fetchedAt": "2026-11-15T23:59:48.920Z",
   "cves": [
     {
       "id": "CVE-1999-0045",
@@ -13752,6 +13752,38 @@
       "references": [
         "https://httpd.apache.org/security/vulnerabilities_24.html",
         "http://www.openwall.com/lists/oss-security/2025/12/04/8"
+      ]
+    },
+    {
+      "id": "CVE-2026-119618",
+      "published": "2026-11-11",
+      "lastModified": "2026-11-15",
+      "vulnStatus": "Modified",
+      "description": "Concurrent Execution using Shared Resource with Improper Synchronization vulnerability in Apache HTTP Server's mod_http2 in assign_headers() can lead to RCE.\n\nThis issue affects Apache HTTP Server: from 2.4.55 through 2.4.70.\nAffected releases of mod_h2 from GitHub: from 2.0.8 through 2.0.42.",
+      "cvss": {
+        "score": 8.1,
+        "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "source": "134c704f-9b21-4f2e-91b3-4a467353bcc0 (Secondary)",
+        "secondaryScore": null,
+        "secondarySource": null
+      },
+      "matches": [
+        {
+          "criteria": "cpe:2.3:a:apache:http_server:*:*:*:*:*:*:*:*",
+          "vsi": "2.4.55",
+          "vee": "2.4.71"
+        }
+      ],
+      "conditions": [],
+      "references": [
+        "https://httpd.apache.org/security/vulnerabilities_24.html",
+        "http://www.openwall.com/lists/oss-security/2026/11/11/13",
+        "https://access.redhat.com/security/cve/cve-2026-119618",
+        "https://bugs.gentoo.org/986161",
+        "https://bugzilla.redhat.com/show_bug.cgi?id=2567318",
+        "https://github.com/AlmaLinux/updates/issues/4252",
+        "https://github.com/microsoft/azurelinux/pull/20165",
+        "https://ubuntu.com/security/CVE-2026-119618"
       ]
     },
     {

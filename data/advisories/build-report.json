@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-08",
+  "asOf": "2026-11-15",
   "products": {
     "jquery": {
       "curated": 4,
@@ -108,8 +108,8 @@
     },
     "apache": {
       "curated": 3,
-      "auto": 100,
-      "nvdCandidates": 103,
+      "auto": 101,
+      "nvdCandidates": 104,
       "nvdAutoIngest": true,
       "eolSource": "endoflife.date",
       "skipped": {
@@ -125,7 +125,7 @@
       "nvdAutoIngest": false,
       "eolSource": "endoflife.date",
       "skipped": {
-        "unscored": 9
+        "unscored": 10
       }
     },
     "nodejs": {
@@ -288,7 +288,7 @@
   ],
   "excluded": [],
   "skippedSummary": {
-    "unscored": 1068,
+    "unscored": 1069,
     "filtered": 544,
     "no-cpe-range": 7
   },

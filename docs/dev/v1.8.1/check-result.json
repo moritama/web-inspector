@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-11-16T04:11:05.853Z",
+  "checkedAt": "2026-11-16T12:34:35.755Z",
   "targetVersion": "1.8.1",
   "baseRef": "0e891fa",
-  "mode": "full",
-  "passed": 25,
+  "mode": "full+e2e",
+  "passed": 27,
   "failed": 0,
-  "warned": 1,
+  "warned": 0,
   "results": [
     {
       "id": "C01",
@@ -40,8 +40,8 @@
     {
       "id": "C05",
       "title": "作業ツリーに未コミットの変更が無い",
-      "status": "WARN",
-      "detail": "2 件（ほかの項目は途中の変更を見ている可能性があります）: docs/dev/v1.8.1/WORKLOG.md, docs/dev/v1.8.1/COMPLETION_REPORT.md"
+      "status": "PASS",
+      "detail": ""
     },
     {
       "id": "C06",
@@ -108,6 +108,12 @@
       "title": "キットのログに、全タスクのモデル・retry 回数・所要時間がある",
       "status": "PASS",
       "detail": "9 タスク分"
+    },
+    {
+      "id": "C16",
+      "title": "npm run test:e2e（test-server を別に起動しておく）",
+      "status": "PASS",
+      "detail": "(40s)"
     },
     {
       "id": "C17",

@@ -388,7 +388,7 @@ describe('T04: checkDistroMap — 全体の結果', () => {
   it('すべて一致すれば全体は「なし」で、件数（counts）が項目の数と合うこと', async () => {
     const result = await checkDistroMap({ distroMap: mapOf(UBUNTU_NGINX, DEBIAN_APACHE), fetchJson: ok.fetchJson, now: NOW });
     expect(result.status).toBe('none');
-    expect(result.counts).toEqual({ drift: 0, none: 2, unchecked: 0 });
+    expect(result.counts).toEqual({ drift: 0, none: 2, unchecked: 0, outOfScope: 0 });
     expect(result.items).toHaveLength(2);
   });
 
@@ -399,7 +399,7 @@ describe('T04: checkDistroMap — 全体の結果', () => {
     });
     const r1 = await checkDistroMap({ distroMap: mapOf(UBUNTU_NGINX, DEBIAN_APACHE), fetchJson: mixed1.fetchJson, now: NOW });
     expect(r1.status).toBe('drift');
-    expect(r1.counts).toEqual({ drift: 1, none: 0, unchecked: 1 });
+    expect(r1.counts).toEqual({ drift: 1, none: 0, unchecked: 1, outOfScope: 0 });
 
     const mixed2 = fakeApis({
       launchpad: { 'jammy/nginx': [lpEntry('nginx', 'jammy', '1.18.0-6ubuntu14', { pocket: 'Release' })] },
@@ -407,17 +407,44 @@ describe('T04: checkDistroMap — 全体の結果', () => {
     });
     const r2 = await checkDistroMap({ distroMap: mapOf(UBUNTU_NGINX, DEBIAN_APACHE), fetchJson: mixed2.fetchJson, now: NOW });
     expect(r2.status).toBe('unchecked');
-    expect(r2.counts).toEqual({ drift: 0, none: 1, unchecked: 1 });
+    expect(r2.counts).toEqual({ drift: 0, none: 1, unchecked: 1, outOfScope: 0 });
   });
 
-  it('RHEL 系の項目は突き合わせの対象外で、問い合わせをせず、結果の項目にも件数にも入れないこと', async () => {
+  it('RHEL 系の項目は突き合わせの対象外で、問い合わせをせず、結果の項目にも照合の件数（ずれ・一致・未確認）にも入れないこと', async () => {
     const { fetchJson, calls } = fakeApis({
       launchpad: { 'jammy/nginx': [lpEntry('nginx', 'jammy', '1.18.0-6ubuntu14', { pocket: 'Release' })] },
     });
     const result = await checkDistroMap({ distroMap: mapOf(UBUNTU_NGINX, RHEL_APACHE), fetchJson, now: NOW });
     expect(result.items.map((i) => i.release)).toEqual(['ubuntu:22.04']);
     expect(result.status).toBe('none');
+    expect(result.counts.drift + result.counts.none + result.counts.unchecked).toBe(1);
     expect(calls.every((c) => API_HOSTS.has(new URL(c).hostname))).toBe(true);
+  });
+
+  it('照合の手段が無い項目は「対象外」として件数と family 別の内訳に残し、「全件確認した」ように見せないこと', async () => {
+    const ROCKY_NGINX = entry({
+      family: 'rocky', release: 'rocky:9', codename: null, product: 'nginx',
+      upstreamVersions: ['1.20.1'], sourcePackage: 'nginx', evidenceUrl: 'https://dl.rockylinux.org/vault/rocky/',
+    });
+    const { fetchJson } = fakeApis({
+      launchpad: { 'jammy/nginx': [lpEntry('nginx', 'jammy', '1.18.0-6ubuntu14', { pocket: 'Release' })] },
+    });
+    const result = await checkDistroMap({
+      distroMap: mapOf(UBUNTU_NGINX, RHEL_APACHE, ROCKY_NGINX),
+      fetchJson,
+      now: NOW,
+    });
+    expect(result.counts.outOfScope).toBe(2);
+    expect(result.outOfScopeByFamily).toEqual({ rhel: 1, rocky: 1 });
+    // 対象外は全体の結果を変えない（照合できた分だけで判定する）
+    expect(result.status).toBe('none');
+    expect(result.items.every((i) => i.family === 'ubuntu' || i.family === 'debian')).toBe(true);
+  });
+
+  it('対象外が 1 件も無ければ outOfScope は 0 で、内訳は空であること', async () => {
+    const result = await checkDistroMap({ distroMap: mapOf(UBUNTU_NGINX), fetchJson: ok.fetchJson, now: NOW });
+    expect(result.counts.outOfScope).toBe(0);
+    expect(result.outOfScopeByFamily).toEqual({});
   });
 
   it('問い合わせ先は Launchpad と sources.debian.org の API だけであること', async () => {
@@ -655,6 +682,26 @@ describe('T04: pr-plan — ボット PR の本文の「対応表のずれ」の�
     const plan = planPullRequest({ ...basePlan, distroMapDrift: DRIFT_RESULT });
     expect(plan.body).toContain('未確認');
     expect(plan.body).toContain('debian:13');
+  });
+
+  it('対象外があれば、件数と family 別の内訳を節に出し、人が確かめる旨を書くこと', () => {
+    const withOutOfScope = {
+      ...DRIFT_RESULT,
+      counts: { ...DRIFT_RESULT.counts, outOfScope: 34 },
+      outOfScopeByFamily: { rhel: 12, rocky: 11, almalinux: 8, centos: 3 },
+    };
+    const plan = planPullRequest({ ...basePlan, distroMapDrift: withOutOfScope });
+    const section = plan.body.slice(plan.body.indexOf('対応表のずれ'));
+    expect(section).toContain('対象外 34 件');
+    expect(section).toContain('rhel 12 件');
+    expect(section).toContain('centos 3 件');
+    expect(section).toContain('verifiedAt');
+  });
+
+  it('対象外が 0 件なら、対象外の行は出さないこと', () => {
+    const plan = planPullRequest({ ...basePlan, distroMapDrift: NONE_RESULT });
+    const section = plan.body.slice(plan.body.indexOf('対応表のずれ'));
+    expect(section).not.toContain('対象外');
   });
 
   it('ずれが無ければ、節に「なし」と書き、上流版の一覧は載せないこと（陰性）', () => {

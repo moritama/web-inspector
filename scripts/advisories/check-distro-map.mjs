@@ -237,11 +237,19 @@ function processDebianData(entry, res, sourceUrl) {
  * @param {{ entries: object[] }} params.distroMap - 対応表オブジェクト
  * @param {Function} params.fetchJson - HTTP 取得関数
  * @param {Date} [params.now=new Date()] - 実行日時
- * @returns {Promise<object>} DistroMapDrift 結果オブジェクト
+ * @returns {Promise<object>} DistroMapDrift 結果オブジェクト（counts.outOfScope と outOfScopeByFamily は、照合手段が無い family の件数）
  */
 export async function checkDistroMap({ distroMap, fetchJson, now = new Date() }) {
   const entries = distroMap && Array.isArray(distroMap.entries) ? distroMap.entries : [];
   const targetEntries = entries.filter((e) => e && (e.family === 'ubuntu' || e.family === 'debian'));
+  // Launchpad と sources.debian.org では引けない family（RHEL 系）は照合できない。
+  // 黙って落とすと「全件確認済み」に見えるので、対象外として件数と内訳を残す
+  const outOfScopeEntries = entries.filter((e) => e && e.family !== 'ubuntu' && e.family !== 'debian');
+  const outOfScopeByFamily = {};
+  for (const e of outOfScopeEntries) {
+    const family = String(e.family || 'その他');
+    outOfScopeByFamily[family] = (outOfScopeByFamily[family] || 0) + 1;
+  }
 
   const items = [];
   const debianCache = new Map();
@@ -316,7 +324,7 @@ export async function checkDistroMap({ distroMap, fetchJson, now = new Date() })
     }
   }
 
-  const counts = { drift: 0, none: 0, unchecked: 0 };
+  const counts = { drift: 0, none: 0, unchecked: 0, outOfScope: outOfScopeEntries.length };
   for (const item of items) {
     if (item.status === 'drift') counts.drift++;
     else if (item.status === 'none') counts.none++;
@@ -338,6 +346,7 @@ export async function checkDistroMap({ distroMap, fetchJson, now = new Date() })
     checkedAt: (now instanceof Date ? now : new Date()).toISOString(),
     status: overallStatus,
     counts,
+    outOfScopeByFamily,
     items,
   };
 }
@@ -443,7 +452,7 @@ async function main() {
       log: console.log,
     });
     console.log(
-      `[check-distro-map] status=${result.status} drift=${result.counts.drift} none=${result.counts.none} unchecked=${result.counts.unchecked}`
+      `[check-distro-map] status=${result.status} drift=${result.counts.drift} none=${result.counts.none} unchecked=${result.counts.unchecked} outOfScope=${result.counts.outOfScope}`
     );
     if (result.status === 'drift') {
       console.log('::warning::対応表 (distro-map.json) にずれがあります');

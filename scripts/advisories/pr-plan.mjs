@@ -177,6 +177,7 @@ export function renderDistroMapDriftSection(drift) {
   if (counts.drift > 0) countParts.push(`ずれ ${counts.drift} 件`);
   if (counts.none > 0) countParts.push(`一致 ${counts.none} 件`);
   if (counts.unchecked > 0) countParts.push(`未確認 ${counts.unchecked} 件`);
+  if (counts.outOfScope > 0) countParts.push(`対象外 ${counts.outOfScope} 件`);
   const countSummary = countParts.length > 0 ? `（${countParts.join('・')}）` : '';
 
   const lines = [];
@@ -202,6 +203,17 @@ export function renderDistroMapDriftSection(drift) {
         lines.push(`- 未確認: \`${rel}\` ${prod}（${pkg}）`);
       }
     }
+    lines.push('');
+  }
+
+  if (counts.outOfScope > 0) {
+    const by = drift.outOfScopeByFamily && typeof drift.outOfScopeByFamily === 'object' ? drift.outOfScopeByFamily : {};
+    const detail = Object.entries(by)
+      .map(([family, n]) => `${sanitize(family) || 'その他'} ${Number(n) || 0} 件`)
+      .join('・');
+    lines.push(
+      `自動照合の対象外: ${counts.outOfScope} 件${detail ? `（${detail}）` : ''}。Launchpad と sources.debian.org では引けないため、\`verifiedAt\` と \`evidenceUrl\` をもとに人が確かめてください。`
+    );
     lines.push('');
   }
 

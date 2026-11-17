@@ -99,7 +99,17 @@
 ## 8. 人間の確認が必要な事項
 
 - [ ] E2E（`node scripts/dev/check-v1.8.1.mjs --e2e`）の実行
-- [ ] test-server の新しいページ（WAF 確認画面、SRI、ディストリのバナー各種）を拡張で開いた目視確認
+- [ ] test-server の新しいページを拡張で開いた目視確認（`npm run test-server` の後、一覧は http://localhost:3000/ ）
+  - [ ] http://localhost:3000/waf-cloudflare-challenge — 確認画面と判定され、技術スタックを誤検出しないこと
+  - [ ] http://localhost:3000/waf-aws-captcha — 同上
+  - [ ] http://localhost:3000/sri-cdn — `integrity` 付きの外部資源は「SRI 未設定」に挙がらず、未設定のものだけ挙がること
+  - [ ] http://localhost:3000/distro-ubuntu-apache-php — Ubuntu の版が推定され、Apache と PHP に「ディストリ版」が出ること
+  - [ ] http://localhost:3000/distro-debian-deb — `~debNuM` / `+debNuM` の表記が解釈され、Debian の版が推定されること
+  - [ ] http://localhost:3000/distro-rhel — 第2段階（EOL 判定）までは出て、CVE ごとの修正状況は対象外であること（H1）
+  - [ ] http://localhost:3000/distro-sury — 第三者リポジトリとして除外され、ディストリ版を推定しないこと（H5）
+  - [ ] http://localhost:3000/distro-debian-bpo — `~bpo` も H5 と同様に扱われること（H9）
+  - [ ] http://localhost:3000/distro-unmapped — 対応表に無い版で断定せず「要確認」「推定なし」になること（H4）
+  - [ ] http://localhost:3000/https-only-headers — COOP・COEP の表示。※ localhost は HTTP でも secure context のため、仕様上はヘッダーが有効。現実装は `isHttps` だけで判定しており「対象外」と出る見込み（v1.8.2 の課題として記録済み）。H6 の本来の確認は次の juice-shop の項目で行う
 - [ ] HTTP のページ（juice-shop の HTTP など）で COOP・COEP が「対象外」になり、HTTPS では v1.8.0 と同じであること
 - [ ] ディストリの印が無いサイトで、v1.8.0 と結果が変わらないこと（退行なし）
 - [ ] 対応表（distro-map.json）の値を、設計メモの根拠 URL で抜き取り確認

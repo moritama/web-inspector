@@ -781,7 +781,26 @@ export function checkHttpHeaders(
   // COOP (Cross-Origin-Opener-Policy)
   const coop = getHeader('cross-origin-opener-policy');
   const validCoopValues = new Set(['same-origin', 'same-origin-allow-popups', 'noopener-allow-popups']);
-  if (!coop) {
+  if (!isHttps) {
+    // HTTP のページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6)
+    results.push({
+      checkId: 'SEC-COOP-01',
+      category: 'http-headers',
+      name: 'Cross-Origin-Opener-Policy (COOP)',
+      status: 'not-applicable',
+      severity: 'info',
+      observed: coop ?? 'ヘッダー未設定',
+      description:
+        'Cross-Origin-Opener-Policy (COOP) は HTTPS のページでだけ有効で、HTTP のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
+      recommendation:
+        'サイトを HTTPS で配信したうえで、COOP の設定を確認してください。',
+      referenceUrls: [
+        'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy',
+        'https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers',
+      ],
+      scope: url,
+    });
+  } else if (!coop) {
     results.push({
       checkId: 'SEC-COOP-01',
       category: 'http-headers',
@@ -821,22 +840,43 @@ export function checkHttpHeaders(
   // COEP (Cross-Origin-Embedder-Policy) - 既定では推奨せず、値の誤りだけ指摘
   const coep = getHeader('cross-origin-embedder-policy');
   if (coep) {
-    const coepMain = coep.split(';')[0].trim();
-    const validCoepValues = new Set(['require-corp', 'credentialless', 'unsafe-none']);
-    if (!validCoepValues.has(coepMain)) {
+    if (!isHttps) {
+      // HTTP のページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6)
       results.push({
         checkId: 'SEC-COEP-01',
         category: 'http-headers',
         name: 'Cross-Origin-Embedder-Policy (COEP)',
-        status: 'info',
+        status: 'not-applicable',
         severity: 'info',
         observed: coep,
-        description: `Cross-Origin-Embedder-Policy (COEP) に仕様で定義されていない値（${coepMain}）が指定されています。`,
+        description:
+          'Cross-Origin-Embedder-Policy (COEP) は HTTPS のページでだけ有効で、HTTP のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
         recommendation:
-          '値を require-corp または credentialless に修正するか、COEP を使用しない場合はヘッダーを削除してください（COEP の安易な設定は外部リソースの読み込みを阻害する可能性があります）。',
-        referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy'],
+          'サイトを HTTPS で配信したうえで、COEP の設定を確認してください。',
+        referenceUrls: [
+          'https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy',
+          'https://html.spec.whatwg.org/multipage/browsers.html#the-coep-headers',
+        ],
         scope: url,
       });
+    } else {
+      const coepMain = coep.split(';')[0].trim();
+      const validCoepValues = new Set(['require-corp', 'credentialless', 'unsafe-none']);
+      if (!validCoepValues.has(coepMain)) {
+        results.push({
+          checkId: 'SEC-COEP-01',
+          category: 'http-headers',
+          name: 'Cross-Origin-Embedder-Policy (COEP)',
+          status: 'info',
+          severity: 'info',
+          observed: coep,
+          description: `Cross-Origin-Embedder-Policy (COEP) に仕様で定義されていない値（${coepMain}）が指定されています。`,
+          recommendation:
+            '値を require-corp または credentialless に修正するか、COEP を使用しない場合はヘッダーを削除してください（COEP の安易な設定は外部リソースの読み込みを阻害する可能性があります）。',
+          referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy'],
+          scope: url,
+        });
+      }
     }
   }
 

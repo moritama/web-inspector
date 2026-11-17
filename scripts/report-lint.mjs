@@ -161,6 +161,8 @@ function expectedMarkdownStatusBadge(status) {
       return '**FAIL**';
     case 'unknown':
       return 'UNKNOWN';
+    case 'not-applicable':
+      return 'N/A';
     default:
       return String(status ?? '').toUpperCase();
   }

@@ -22,20 +22,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createFetchJson } from './lib/http.mjs';
-import { compactEolCycles, eolApiUrl } from './lib/eol.mjs';
+import { compactDistroEolCycles, compactEolCycles, eolApiUrl } from './lib/eol.mjs';
 import { compactKev, KEV_URL } from './lib/kev.mjs';
 import { compactNvdCve, fetchNvdByCpe, fetchNvdCve, pickNvdCvss } from './lib/nvd.mjs';
+import { compactOsvDistroVuln, fetchOsvDistroPackage, osvDistroTargets } from './lib/osv-distro.mjs';
 import { compactOsvVuln, fetchOsvPackage, pickIds } from './lib/osv.mjs';
 import { PSL_SNAPSHOT_PATH, PSL_UPSTREAM_URL, fetchPslSnapshot } from './lib/psl.mjs';
 import { PATHS, readJson, safeFileKey, writeJson } from './lib/util.mjs';
 
-function parseArgs(argv) {
-  const args = { only: null, skipNvd: false, nvdRefreshDays: 14 };
+export function parseArgs(argv) {
+  const args = { only: null, skipNvd: false, nvdRefreshDays: 14, distroOnly: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--only') args.only = new Set(argv[++i].split(',').map((s) => s.trim()));
     else if (a === '--skip-nvd') args.skipNvd = true;
     else if (a === '--nvd-refresh-days') args.nvdRefreshDays = Number(argv[++i]);
+    else if (a === '--distro-only') args.distroOnly = true;
   }
   return args;
 }
@@ -43,6 +45,7 @@ function parseArgs(argv) {
 export async function fetchUpstream({
   catalog,
   curated,
+  distroMap,
   upstreamDir,
   fetchJson,
   now = new Date(),
@@ -55,7 +58,11 @@ export async function fetchUpstream({
   const fetchedAt = now.toISOString();
   const manifestPath = path.join(upstreamDir, 'manifest.json');
   const prevManifest = readJson(manifestPath, { sources: {} });
-  const manifest = { schemaVersion: 1, fetchedAt, sources: {} };
+  const manifest = {
+    schemaVersion: 1,
+    fetchedAt: args.distroOnly ? prevManifest.fetchedAt || fetchedAt : fetchedAt,
+    sources: {},
+  };
   const nvdHeaders = process.env.NVD_API_KEY ? { apiKey: process.env.NVD_API_KEY } : {};
 
   let okCount = 0;
@@ -80,6 +87,54 @@ export async function fetchUpstream({
       log(`  [NG] ${key}: ${err.message}`);
     }
   };
+
+  const fetchDistros = async () => {
+    if (!catalog.distros) return;
+    for (const [family, conf] of Object.entries(catalog.distros)) {
+      const slug = conf?.eol?.slug || family;
+      const file = path.join(upstreamDir, 'distro-eol', `${safeFileKey(slug)}.json`);
+      await record(`distro-eol:${slug}`, file, async () => {
+        const raw = await fetchJson(eolApiUrl(slug));
+        const cycles = compactDistroEolCycles(raw);
+        return { payload: { slug, fetchedAt, cycles }, count: cycles.length };
+      });
+    }
+  };
+
+  const fetchOsvDistro = async () => {
+    if (!distroMap) return;
+    const targets = osvDistroTargets(distroMap);
+    const seenEcosystemPackages = new Set();
+    const osvDistroDir = path.join(upstreamDir, 'osv-distro');
+    fs.mkdirSync(osvDistroDir, { recursive: true });
+
+    for (const target of targets) {
+      for (const ecosystem of target.ecosystems) {
+        const key = `${ecosystem}:${target.sourcePackage}`;
+        if (seenEcosystemPackages.has(key)) continue;
+        seenEcosystemPackages.add(key);
+
+        const file = path.join(osvDistroDir, `${safeFileKey(ecosystem)}__${safeFileKey(target.sourcePackage)}.json`);
+        await record(`osv-distro:${ecosystem}:${target.sourcePackage}`, file, async () => {
+          const rawVulns = await fetchOsvDistroPackage({ ecosystem, name: target.sourcePackage }, fetchJson);
+          const vulns = (rawVulns || []).map((v) => compactOsvDistroVuln(v, { ecosystem, name: target.sourcePackage }));
+          vulns.sort((a, b) => a.id.localeCompare(b.id));
+          return { payload: { package: { ecosystem, name: target.sourcePackage }, fetchedAt, vulns }, count: vulns.length };
+        });
+      }
+    }
+  };
+
+  if (args.distroOnly) {
+    await fetchDistros();
+    await fetchOsvDistro();
+    for (const [k, v] of Object.entries(prevManifest.sources || {})) {
+      if (!manifest.sources[k]) manifest.sources[k] = v;
+    }
+    manifest.sources = Object.fromEntries(Object.entries(manifest.sources).sort(([a], [b]) => a.localeCompare(b)));
+    writeJson(manifestPath, manifest);
+    return { okCount, failCount, manifest };
+  }
 
   const cveIdsNeedingScore = new Set();
   for (const p of Object.values(curated.products || {})) {
@@ -183,6 +238,12 @@ export async function fetchUpstream({
     }
   }
 
+  // 通常の週次取得（--distro-only でなく --only も無い）では OS のライフサイクルと OSV のディストリデータも取得する
+  if (!args.only) {
+    await fetchDistros();
+    await fetchOsvDistro();
+  }
+
   // 今回取得対象外 (--only 指定時) のソースは前回の状態を引き継ぐ
   for (const [k, v] of Object.entries(prevManifest.sources || {})) {
     if (!manifest.sources[k]) manifest.sources[k] = v;
@@ -197,6 +258,7 @@ async function main() {
   const args = parseArgs(process.argv);
   const catalog = readJson(PATHS.catalog);
   const curated = readJson(PATHS.curated);
+  const distroMap = fs.existsSync(PATHS.distroMap) ? readJson(PATHS.distroMap) : null;
   const fetchJson = createFetchJson({
     minIntervalMs: {
       'services.nvd.nist.gov': process.env.NVD_API_KEY ? 700 : 6500,
@@ -205,10 +267,11 @@ async function main() {
     },
     log: console.log,
   });
-  const includePsl = !args.only || args.only.has('psl');
+  const includePsl = !args.distroOnly && (!args.only || args.only.has('psl'));
   const { okCount, failCount } = await fetchUpstream({
     catalog,
     curated,
+    distroMap,
     upstreamDir: PATHS.upstreamDir,
     fetchJson,
     args,
@@ -219,7 +282,17 @@ async function main() {
   if (failCount > 0) process.exitCode = 2; // 部分失敗 (ワークフロー側で警告扱い)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = fs.realpathSync(process.argv[1]);
+    return import.meta.url === pathToFileURL(scriptPath).href;
+  } catch {
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
+  }
+}
+
+if (isMainModule()) {
   main().catch((err) => {
     console.error('[fetch] 致命的エラー:', err);
     process.exit(1);

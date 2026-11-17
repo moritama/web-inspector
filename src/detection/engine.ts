@@ -4,9 +4,12 @@
  * JavaScript実行時バージョン、CSS解析、整合性確認、EOL・CVE照合を統合
  */
 
-import { matchOfflineAdvisories } from './advisory';
+import { getActiveDistroSection, listUpstreamAdvisoryCves, matchOfflineAdvisories, matchUpstreamEol } from './advisory';
+import { inferDistroFromHeaders, judgeDistroEol } from './distro-inference';
+import { assessDistroAdvisories } from './distro-advisory';
 import {
   DetectedTechnology,
+  DistroProduct,
   DomSignals,
   Evidence,
   EvidenceType,
@@ -1049,6 +1052,73 @@ export class DetectionEngine {
     const filteredResults = results.filter(
       (r) => r.confidence >= 50 || r.technology.includes('(候補)')
     );
+
+    // --- T03: OS リリースの推定とライフサイクルによる EOL 判定 ---
+    const distro = getActiveDistroSection();
+    if (distro) {
+      const distroInferences = inferDistroFromHeaders(input.network?.responseHeaders ?? {}, distro);
+      for (const tech of filteredResults) {
+        const normTech = tech.technology.toLowerCase();
+        let productKey: DistroProduct | undefined;
+        if (normTech === 'apache') productKey = 'apache';
+        else if (normTech === 'nginx') productKey = 'nginx';
+        else if (normTech === 'php') productKey = 'php';
+
+        if (productKey && distroInferences[productKey]) {
+          const inference = distroInferences[productKey]!;
+          tech.distroInference = inference;
+
+          // v1.8.1 T06: CVE ごとのディストリの判定 (distroStatus)
+          const upstreamCves = listUpstreamAdvisoryCves(tech.technology, tech.version);
+          const assessment = assessDistroAdvisories({
+            product: productKey,
+            upstreamVersion: tech.version ?? '',
+            packageVersion: inference.packageVersion ?? null,
+            inference,
+            upstreamCves,
+            distro,
+          });
+          if (assessment) {
+            tech.distroAdvisories = assessment;
+            if (tech.instances) {
+              for (const inst of tech.instances) {
+                inst.distroAdvisories = assessment;
+              }
+            }
+          }
+
+          const judgement = judgeDistroEol(inference, distro, new Date());
+          if (judgement) {
+            // 上流版の EOL を参考として保持（数えない）
+            const upstreamVer = tech.version || '';
+            const rawUpstreamEol = matchUpstreamEol(tech.technology, upstreamVer);
+            const upstreamNote = rawUpstreamEol.note || rawUpstreamEol.recommendation || '';
+            tech.upstreamEolInfo = {
+              ...rawUpstreamEol,
+              label: rawUpstreamEol.label
+                ? `参考（上流のサポート期間）: ${rawUpstreamEol.label}`
+                : `参考（上流のサポート期間）: ${rawUpstreamEol.status}`,
+              note: upstreamNote
+                ? `参考（上流のサポート期間）: ${upstreamNote}`
+                : '参考（上流のサポート期間）',
+            };
+
+            tech.eolInfo = judgement.eolInfo;
+            tech.supportStatus = judgement.eolInfo.status;
+            tech.eolDate = judgement.eolInfo.eolDate;
+
+            if (tech.instances) {
+              for (const inst of tech.instances) {
+                inst.eol = judgement.eolInfo;
+                inst.eolInfo = judgement.eolInfo;
+                inst.supportStatus = judgement.eolInfo.status;
+                inst.eolDate = judgement.eolInfo.eolDate;
+              }
+            }
+          }
+        }
+      }
+    }
 
     return filteredResults.sort((a, b) => b.confidence - a.confidence);
   }

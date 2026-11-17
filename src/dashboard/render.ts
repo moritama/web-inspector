@@ -17,6 +17,11 @@ import {
   isRequiresAttention,
 } from '../shared/security-status';
 import {
+  formatDistroReleaseDisplay,
+  formatDistroConfidenceJp,
+  formatDistroCveStatusLabel,
+} from '../shared/distro-display';
+import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
@@ -346,6 +351,11 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           : escapeHtml(t.version)
         : '<span style="color:var(--text-muted);">不明</span>';
 
+      let distroNoteHtml = '';
+      if (t.distroInference?.note) {
+        distroNoteHtml = `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escapeHtml(t.distroInference.note)}</div>`;
+      }
+
       return `
         <tr>
           <td>
@@ -355,7 +365,7 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
           <td>${verDisplay}</td>
           <td>${escapeHtml(t.isCandidateGroup ? '推定候補' : (t.versionSource || '-'))}</td>
           <td>${integrityBadge}</td>
-          <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(t.eolDate)})</span>` : ''}</td>
+          <td>${eolBadge} ${t.eolDate ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(t.eolDate)})</span>` : ''}${distroNoteHtml}</td>
           <td>${cveBadge}</td>
           <td style="font-size:12px;color:var(--accent-color);">${escapeHtml(recommendation)}</td>
         </tr>
@@ -624,6 +634,77 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             }
           </div>
         `
+            : ''
+        }
+
+        ${
+          t.distroInference
+            ? (() => {
+                const inf = t.distroInference;
+                const confJp = formatDistroConfidenceJp(inf.confidence);
+                const releaseDisplay = formatDistroReleaseDisplay(t);
+                const noteHtml = inf.note ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${escapeHtml(inf.note)}</div>` : '';
+                const upstreamHtml = t.upstreamEolInfo
+                  ? `<div style="font-size:12px;color:var(--text-sub);margin-top:4px;">参考（上流のサポート期間）: ${escapeHtml(t.upstreamEolInfo.label || t.upstreamEolInfo.status)} ${t.upstreamEolInfo.eolDate ? `(EOL: ${escapeHtml(t.upstreamEolInfo.eolDate)})` : ''}</div>`
+                  : '';
+                const evidenceItems = (inf.evidence || []).map((e) => {
+                  return `<li><code>${escapeHtml(e.header)}</code>: ${escapeHtml(e.value)} <span style="color:var(--text-muted);">（判断トークン: <code>${escapeHtml(e.token)}</code> — ${escapeHtml(e.detail)}）</span></li>`;
+                }).join('');
+                return `
+                  <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+                    <strong>OS リリースの推定:</strong> ${escapeHtml(releaseDisplay)}（確信度: <strong>${escapeHtml(confJp)}</strong>）
+                    ${noteHtml}
+                    ${upstreamHtml}
+                    ${evidenceItems ? `<div style="margin-top:4px;font-size:11px;"><strong>推定根拠:</strong><ul style="margin:2px 0 0 16px;padding:0;">${evidenceItems}</ul></div>` : ''}
+                  </div>
+                `;
+              })()
+            : ''
+        }
+
+        ${
+          t.distroAdvisories
+            ? (() => {
+                const da = t.distroAdvisories;
+                const splitNoteHtml = da.splitNote
+                  ? `<div style="font-size:12px;color:var(--warning-color);margin-top:4px;padding:4px 8px;background:var(--bg-surface);border-left:3px solid var(--warning-color);border-radius:2px;">${escapeHtml(da.splitNote)}</div>`
+                  : '';
+                const otherFixedHtml = da.otherFixedCount > 0
+                  ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;">ほかにディストリで修正済み ${da.otherFixedCount} 件</div>`
+                  : '';
+                const cveItems = da.cves.map((c) => {
+                  const statusLabel = formatDistroCveStatusLabel(c.distroStatus);
+                  const fixPart = c.fixedVersions.length > 0
+                    ? `<span style="margin-left:8px;">修正版: <code>${escapeHtml(c.fixedVersions.join(', '))}</code></span>`
+                    : '';
+                  const esmBadge = c.esm
+                    ? '<span class="badge" style="background:#e0f2fe;color:#0369a1;margin-left:6px;">ESM で修正</span>'
+                    : '';
+                  return `
+                    <div style="margin-top:6px;padding:6px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card, #fff);">
+                      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                        <strong>${escapeHtml(c.cve)}</strong>
+                        <div>
+                          <span class="badge">${escapeHtml(statusLabel)}</span>
+                          ${esmBadge}
+                        </div>
+                      </div>
+                      <div style="font-size:11px;margin-top:4px;">
+                        ${fixPart}
+                      </div>
+                      <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(c.message)}</div>
+                    </div>
+                  `;
+                }).join('');
+                return `
+                  <div style="margin-top:8px;padding:8px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-surface);">
+                    <strong>ディストリでの修正状況（要確認 ${da.reviewCount} 件）:</strong>
+                    ${splitNoteHtml}
+                    ${cveItems}
+                    ${otherFixedHtml}
+                  </div>
+                `;
+              })()
             : ''
         }
 

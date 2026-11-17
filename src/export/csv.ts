@@ -5,6 +5,11 @@
  */
 
 import {
+  formatDistroReleaseDisplay,
+  formatDistroConfidenceJp,
+  formatDistroCveStatusLabel,
+} from '../shared/distro-display';
+import {
   formatAdvisoryRecommendation,
   getEffectiveFixStatus,
   resolveTechAdvisoryDisplayInfo,
@@ -72,11 +77,11 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
   const BOM = '\uFEFF';
 
   // 1. レポートヘッダーサマリー
-  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.8.0'})`].map(escapeCsv).join(','));
+  rows.push([`Web Technology & Security Inspector 調査レポート (v${report.extensionVersion || '1.8.1'})`].map(escapeCsv).join(','));
   rows.push(['調査日時', report.inspectedAt].map(escapeCsv).join(','));
   rows.push(['調査対象URL', report.url].map(escapeCsv).join(','));
   rows.push(['ホスト名', report.hostname].map(escapeCsv).join(','));
-  rows.push(['ツールバージョン', report.extensionVersion || '1.8.0'].map(escapeCsv).join(','));
+  rows.push(['ツールバージョン', report.extensionVersion || '1.8.1'].map(escapeCsv).join(','));
   rows.push(['ルールバージョン', report.rulesVersion].map(escapeCsv).join(','));
   rows.push(['脆弱性DBバージョン', report.advisoryDatabaseVersion || '2026.10'].map(escapeCsv).join(','));
   rows.push(['HTTPS利用', report.summary.isHttps ? 'はい' : 'いいえ (HTTP)'].map(escapeCsv).join(','));
@@ -94,6 +99,8 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
       '代表バージョン',
       'バージョン検出元',
       'ディストリ版ヒント',
+      'OSの推定',
+      'ディストリの判定',
       '確信度スコア',
       '検出方式',
       '連動種別',
@@ -115,7 +122,7 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
   );
 
   if (report.technologies.length === 0) {
-    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
+    rows.push(['明確な固有シグナルは検出されませんでした', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''].map(escapeCsv).join(','));
   } else {
     const expandedTechnologies = expandTechnologyInstances(report.technologies);
     for (const tech of expandedTechnologies) {
@@ -183,6 +190,34 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
         ? '該当なし'
         : '-';
 
+      let distroInferenceCol = '-';
+      if (tech.distroInference) {
+        const inf = tech.distroInference;
+        const confJp = formatDistroConfidenceJp(inf.confidence);
+        const relDisplay = formatDistroReleaseDisplay(tech);
+        if (inf.thirdParty) {
+          distroInferenceCol = inf.note || `第三者リポジトリ（${inf.thirdParty.marker}）`;
+        } else if (relDisplay && relDisplay !== '推定なし') {
+          distroInferenceCol = `${relDisplay}（推定・確信度 ${confJp}）`;
+        } else if (inf.note) {
+          distroInferenceCol = inf.note;
+        } else {
+          distroInferenceCol = relDisplay;
+        }
+      }
+
+      let distroAssessmentCol = '-';
+      if (tech.distroAdvisories && tech.distroAdvisories.cves.length > 0) {
+        distroAssessmentCol = tech.distroAdvisories.cves
+          .map((c) => {
+            const label = formatDistroCveStatusLabel(c.distroStatus);
+            const fixPart = c.fixedVersions.length > 0 ? ` 修正版 ${c.fixedVersions.join(' / ')}` : '';
+            const esmPart = c.esm ? '（ESM で修正）' : '';
+            return `${c.cve}: ${label}${fixPart}${esmPart}`;
+          })
+          .join(' / ');
+      }
+
       rows.push(
         [
           tech.technology,
@@ -190,6 +225,8 @@ export function exportReportToCsv(rawReport: InspectionReport): string {
           tech.version || 'バージョン不明',
           tech.versionSource || 'pattern',
           tech.distroHint || '-',
+          distroInferenceCol,
+          distroAssessmentCol,
           tech.confidence,
           detectionMethodText,
           implicationTypeText,

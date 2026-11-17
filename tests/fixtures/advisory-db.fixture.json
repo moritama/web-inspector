@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2.2",
+  "schemaVersion": "2.3",
   "version": "2026.10",
   "dataVersion": "20261031",
   "generatedAt": "2026-10-31T16:02:25.248Z",
@@ -50,7 +50,8 @@
   "integrity": {
     "algorithm": "sha256",
     "target": "libraries",
-    "digest": "7f158dc4ac0a03cfbe896dbef5e5c8fd8a1ed14ca1735777ec836fa88f136c11"
+    "digest": "6fe15d741c1b0de0986d2fe3967ca80df5d9204fa05ee81d20c8d97f37081a51",
+    "distroDigest": "6c389fe0c9a460d39d0e4039b8f4521c7fe56cbf0c8a2feedf2707c7210600a0"
   },
   "libraries": {
     "jquery": {
@@ -2700,5 +2701,37 @@
         }
       ]
     }
+  },
+  "distro": {
+    "releases": [
+      { "release": "ubuntu:20.04", "family": "ubuntu", "cycle": "20.04", "codename": "Focal Fossa", "lts": true, "releaseDate": "2020-04-23", "standardSupportEnd": "2025-05-31", "extendedSupportEnd": "2030-04-23" },
+      { "release": "ubuntu:22.04", "family": "ubuntu", "cycle": "22.04", "codename": "Jammy Jellyfish", "lts": true, "releaseDate": "2022-04-21", "standardSupportEnd": "2027-06-01", "extendedSupportEnd": "2032-04-21" },
+      { "release": "ubuntu:24.04", "family": "ubuntu", "cycle": "24.04", "codename": "Noble Numbat", "lts": true, "releaseDate": "2024-04-25", "standardSupportEnd": "2029-05-31", "extendedSupportEnd": "2034-04-25" },
+      { "release": "debian:11", "family": "debian", "cycle": "11", "codename": "Bullseye", "lts": false, "releaseDate": "2021-08-14", "standardSupportEnd": "2026-08-31", "extendedSupportEnd": "2031-06-30" },
+      { "release": "debian:12", "family": "debian", "cycle": "12", "codename": "Bookworm", "lts": false, "releaseDate": "2023-06-10", "standardSupportEnd": "2028-06-30", "extendedSupportEnd": "2033-06-30" },
+      { "release": "rhel:8", "family": "rhel", "cycle": "8", "codename": null, "lts": true, "releaseDate": "2019-05-07", "standardSupportEnd": "2029-05-31", "extendedSupportEnd": "2033-05-31" },
+      { "release": "rhel:9", "family": "rhel", "cycle": "9", "codename": null, "lts": true, "releaseDate": "2022-05-18", "standardSupportEnd": "2032-05-31", "extendedSupportEnd": "2036-05-31" }
+    ],
+    "map": [
+      { "family": "ubuntu", "release": "ubuntu:20.04", "codename": "focal", "product": "apache", "upstreamVersions": ["2.4.41"], "sourcePackage": "apache2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal" },
+      { "family": "ubuntu", "release": "ubuntu:20.04", "codename": "focal", "product": "nginx", "upstreamVersions": ["1.18.0"], "sourcePackage": "nginx", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal" },
+      { "family": "ubuntu", "release": "ubuntu:20.04", "codename": "focal", "product": "php", "upstreamVersions": ["7.4.3"], "sourcePackage": "php7.4", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php7.4&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal" },
+      { "family": "ubuntu", "release": "ubuntu:20.04", "codename": "focal", "product": "openssl", "upstreamVersions": ["1.1.1f"], "sourcePackage": "openssl", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/focal" },
+      { "family": "ubuntu", "release": "ubuntu:22.04", "codename": "jammy", "product": "apache", "upstreamVersions": ["2.4.52"], "sourcePackage": "apache2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy" },
+      { "family": "ubuntu", "release": "ubuntu:22.04", "codename": "jammy", "product": "nginx", "upstreamVersions": ["1.18.0"], "sourcePackage": "nginx", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy" },
+      { "family": "ubuntu", "release": "ubuntu:22.04", "codename": "jammy", "product": "php", "upstreamVersions": ["8.1.2"], "sourcePackage": "php8.1", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.1&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy" },
+      { "family": "ubuntu", "release": "ubuntu:22.04", "codename": "jammy", "product": "openssl", "upstreamVersions": ["3.0.2"], "sourcePackage": "openssl", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/jammy" },
+      { "family": "ubuntu", "release": "ubuntu:24.04", "codename": "noble", "product": "apache", "upstreamVersions": ["2.4.58"], "sourcePackage": "apache2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble" },
+      { "family": "ubuntu", "release": "ubuntu:24.04", "codename": "noble", "product": "nginx", "upstreamVersions": ["1.24.0"], "sourcePackage": "nginx", "verifiedAt": "2026-11-14", "evidenceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https://api.launchpad.net/1.0/ubuntu/noble" },
+      { "family": "debian", "release": "debian:11", "codename": "bullseye", "product": "apache", "upstreamVersions": ["2.4.48", "2.4.49", "2.4.50", "2.4.51", "2.4.52", "2.4.53", "2.4.54", "2.4.55", "2.4.56", "2.4.59", "2.4.61", "2.4.62", "2.4.65", "2.4.66", "2.4.67"], "sourcePackage": "apache2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://tracker.debian.org/media/packages/a/apache2/changelog-2.4.67-1deb11u3" },
+      { "family": "debian", "release": "debian:11", "codename": "bullseye", "product": "nginx", "upstreamVersions": ["1.18.0"], "sourcePackage": "nginx", "verifiedAt": "2026-11-14", "evidenceUrl": "https://tracker.debian.org/media/packages/n/nginx/changelog-1.18.0-6.1deb11u8" },
+      { "family": "debian", "release": "debian:11", "codename": "bullseye", "product": "php", "upstreamVersions": ["7.4.21", "7.4.25", "7.4.28", "7.4.30", "7.4.33"], "sourcePackage": "php7.4", "verifiedAt": "2026-11-14", "evidenceUrl": "https://tracker.debian.org/media/packages/p/php7.4/changelog-7.4.33-1deb11u12" },
+      { "family": "debian", "release": "debian:12", "codename": "bookworm", "product": "apache", "upstreamVersions": ["2.4.57", "2.4.59", "2.4.61", "2.4.62", "2.4.65", "2.4.66", "2.4.67", "2.4.68", "2.4.71"], "sourcePackage": "apache2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://tracker.debian.org/media/packages/a/apache2/changelog-2.4.71-1deb12u1" },
+      { "family": "debian", "release": "debian:12", "codename": "bookworm", "product": "php", "upstreamVersions": ["8.2.7", "8.2.18", "8.2.20", "8.2.23", "8.2.24", "8.2.25", "8.2.26", "8.2.28", "8.2.29", "8.2.30", "8.2.31", "8.2.32", "8.2.33", "8.2.34", "8.2.35"], "sourcePackage": "php8.2", "verifiedAt": "2026-11-14", "evidenceUrl": "https://tracker.debian.org/media/packages/p/php8.2/changelog-8.2.35-1deb12u1" },
+      { "family": "rhel", "release": "rhel:8", "codename": null, "product": "apache", "upstreamVersions": ["2.4.37"], "sourcePackage": "httpd", "verifiedAt": "2026-11-14", "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/h/" },
+      { "family": "rhel", "release": "rhel:8", "codename": null, "product": "nginx", "upstreamVersions": ["1.14.1", "1.16.1", "1.18.0", "1.20.1", "1.22.1", "1.24.0"], "sourcePackage": "nginx", "verifiedAt": "2026-11-14", "evidenceUrl": "https://dl.rockylinux.org/pub/rocky/8/AppStream/x86_64/os/Packages/n/" },
+      { "family": "rhel", "release": "rhel:9", "codename": null, "product": "apache", "upstreamVersions": ["2.4.51", "2.4.53", "2.4.57", "2.4.62"], "sourcePackage": "httpd", "verifiedAt": "2026-11-14", "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/" },
+      { "family": "rhel", "release": "rhel:9", "codename": null, "product": "openssl", "upstreamVersions": ["3.0.1", "3.0.7", "3.2.2", "3.5.5", "3.5.8"], "sourcePackage": "openssl", "verifiedAt": "2026-11-14", "evidenceUrl": "https://dl.rockylinux.org/vault/rocky/" }
+    ]
   }
 }

@@ -157,6 +157,73 @@ export function renderPrBody(diffMarkdown, { testsPassed = true, failedTests = [
 }
 
 /**
+ * 対応表のずれセクションを生成する (T04)
+ *
+ * @param {object} drift - DistroMapDrift オブジェクト
+ * @returns {string} Markdown 文字列
+ */
+export function renderDistroMapDriftSection(drift) {
+  if (!drift || typeof drift !== 'object' || !drift.status) {
+    return '';
+  }
+
+  const sanitize = (s) => String(s || '').replace(/[^0-9A-Za-z.+~:_\-]/g, '');
+
+  const statusLabel =
+    drift.status === 'drift' ? 'ずれ' : drift.status === 'none' ? 'なし' : '未確認';
+
+  const counts = drift.counts || {};
+  const countParts = [];
+  if (counts.drift > 0) countParts.push(`ずれ ${counts.drift} 件`);
+  if (counts.none > 0) countParts.push(`一致 ${counts.none} 件`);
+  if (counts.unchecked > 0) countParts.push(`未確認 ${counts.unchecked} 件`);
+  if (counts.outOfScope > 0) countParts.push(`対象外 ${counts.outOfScope} 件`);
+  const countSummary = countParts.length > 0 ? `（${countParts.join('・')}）` : '';
+
+  const lines = [];
+  lines.push('### 対応表のずれ (distro-map.json)');
+  lines.push('');
+  lines.push(`結果: **${statusLabel}**${countSummary}`);
+  lines.push('');
+
+  const items = Array.isArray(drift.items) ? drift.items : [];
+  const reportedItems = items.filter((i) => i.status === 'drift' || i.status === 'unchecked');
+
+  if (reportedItems.length > 0) {
+    for (const item of reportedItems) {
+      const rel = sanitize(item.release);
+      const prod = sanitize(item.product);
+      const pkg = sanitize(item.sourcePackage);
+      if (item.status === 'drift') {
+        const unlisted = (item.unlistedUpstreamVersions || [])
+          .map((v) => `\`${sanitize(v)}\``)
+          .join(', ');
+        lines.push(`- ずれ: \`${rel}\` ${prod}（${pkg}）: 対応表に無い上流版 ${unlisted}`);
+      } else if (item.status === 'unchecked') {
+        lines.push(`- 未確認: \`${rel}\` ${prod}（${pkg}）`);
+      }
+    }
+    lines.push('');
+  }
+
+  if (counts.outOfScope > 0) {
+    const by = drift.outOfScopeByFamily && typeof drift.outOfScopeByFamily === 'object' ? drift.outOfScopeByFamily : {};
+    const detail = Object.entries(by)
+      .map(([family, n]) => `${sanitize(family) || 'その他'} ${Number(n) || 0} 件`)
+      .join('・');
+    lines.push(
+      `自動照合の対象外: ${counts.outOfScope} 件${detail ? `（${detail}）` : ''}。Launchpad と sources.debian.org では引けないため、\`verifiedAt\` と \`evidenceUrl\` をもとに人が確かめてください。`
+    );
+    lines.push('');
+  }
+
+  lines.push('対応表は自動では書き換えません。一次資料で確かめてから人が更新してください。');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
  * 真偽値または文字列フラグを正規化する
  *
  * @param {unknown} value - 入力値
@@ -190,6 +257,7 @@ function parseBooleanFlag(value, defaultValue) {
  * @param {boolean | string} [params.hasAppToken=true] - GitHub App トークン有無
  * @param {string} [params.appToken] - GitHub App トークン文字列 (指定時は非空で true)
  * @param {string} [params.diffMarkdown=''] - diff-db が生成した Markdown
+ * @param {object | null} [params.distroMapDrift=null] - distro-map 突き合わせ結果オブジェクト
  * @returns {object} PR 計画オブジェクト
  */
 export function planPullRequest(params = {}) {
@@ -207,6 +275,7 @@ export function planPullRequest(params = {}) {
     hasAppToken,
     appToken,
     diffMarkdown = '',
+    distroMapDrift = null,
   } = params;
 
   // 失敗したテスト名の解決
@@ -280,10 +349,17 @@ export function planPullRequest(params = {}) {
     isAppTokenAvailable;
 
   const shouldFailJob = isTestFailing;
-  const body = renderPrBody(diffMarkdown, {
+  let body = renderPrBody(diffMarkdown, {
     testsPassed: effectiveTestsPassed,
     failedTests: resolvedFailedTests,
   });
+
+  if (distroMapDrift && typeof distroMapDrift === 'object') {
+    const driftSection = renderDistroMapDriftSection(distroMapDrift);
+    if (driftSection) {
+      body = `${body.trimEnd()}\n\n${driftSection}`;
+    }
+  }
 
   return {
     classification,
@@ -334,6 +410,7 @@ function main() {
   const diffMdPath = args['diff-md'];
   const testLogPath = args['test-log'];
   const vitestJsonPath = args['vitest-json'];
+  const buildReportPath = args['build-report'];
 
   const diffMarkdown = diffMdPath && fs.existsSync(diffMdPath) ? fs.readFileSync(diffMdPath, 'utf-8') : '';
   const testOutput = testLogPath && fs.existsSync(testLogPath) ? fs.readFileSync(testLogPath, 'utf-8') : '';
@@ -341,6 +418,18 @@ function main() {
     vitestJsonPath && fs.existsSync(vitestJsonPath)
       ? JSON.parse(fs.readFileSync(vitestJsonPath, 'utf-8'))
       : null;
+
+  let distroMapDrift = null;
+  if (buildReportPath && fs.existsSync(buildReportPath)) {
+    try {
+      const rep = JSON.parse(fs.readFileSync(buildReportPath, 'utf-8'));
+      if (rep && typeof rep === 'object' && rep.distroMapDrift && typeof rep.distroMapDrift === 'object') {
+        distroMapDrift = rep.distroMapDrift;
+      }
+    } catch {
+      // 読み込みまたはパース失敗時は null のまま
+    }
+  }
 
   const plan = planPullRequest({
     classification,
@@ -351,6 +440,7 @@ function main() {
     diffMarkdown,
     testOutput,
     vitestReport,
+    distroMapDrift,
   });
 
   for (const w of plan.warnings) {

@@ -65,9 +65,316 @@ function createLayout(title, content) {
 </html>`;
 }
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost:3000'}`);
-  const pathname = url.pathname;
+/** 起動時の一覧に載せるページ（既存の表示していたページ ＋ 新しいページ） (v1.8.1 T07) */
+export const TEST_PAGES = [
+  { path: '/', label: 'デフォルト' },
+  { path: '/insecure-cookie', label: 'Cookie用途別判定 (IMP-01)' },
+  { path: '/loose-csp', label: 'CSP構文解析 (IMP-02)' },
+  { path: '/legacy-lib', label: 'レガシーライブラリ・EOL照合 (IMP-03)' },
+  { path: '/edge-cases', label: 'エッジケース・誤判定防止検証' },
+  { path: '/rails-session', label: 'Rails Cookie誤検知防止検証' },
+  { path: '/react18-app', label: 'React 18 実機検証' },
+  { path: '/vue3-app', label: 'Vue 3 実機検証' },
+  { path: '/bootstrap-only', label: 'Bootstrap 5 のみ (Tailwind誤検知防止)' },
+  { path: '/distro-apache', label: 'ディストリ版 Apache (バックポート考慮)' },
+  { path: '/spa-settle', label: 'SPA 待ち時間検証 (T05)' },
+  { path: '/waf-cloudflare-challenge', label: 'WAF Cloudflare Challenge 確認画面' },
+  { path: '/waf-aws-captcha', label: 'WAF AWS Captcha 確認画面' },
+  { path: '/sri-cdn', label: '外部 CDN の SRI 検証' },
+  { path: '/distro-ubuntu-apache-php', label: 'ディストリ版 Ubuntu (Apache + PHP)' },
+  { path: '/distro-debian-deb', label: 'ディストリ版 Debian (~debNuM)' },
+  { path: '/distro-rhel', label: 'ディストリ版 RHEL 系' },
+  { path: '/distro-sury', label: 'ディストリ版 deb.sury.org (PHP)' },
+  { path: '/distro-debian-bpo', label: 'ディストリ版 Debian バックポート (~bpo)' },
+  { path: '/distro-unmapped', label: 'ディストリ版 対応表に無い版' },
+  { path: '/https-only-headers', label: 'HTTPS 専用ヘッダー (COOP / COEP 対象外検証)' },
+];
+
+/** 起動時に console.log する行。TEST_PAGES の全ページについて http://localhost:${port}${path} を含む行を返す */
+export function getStartupLines(port) {
+  const lines = [`[test-server] テストサーバーが起動しました: http://localhost:${port}`];
+  for (const page of TEST_PAGES) {
+    const p = page.path.startsWith('/') ? page.path : `/${page.path}`;
+    lines.push(`  - ${page.label}: http://localhost:${port}${p === '/' ? '/' : p}`);
+  }
+  return lines;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** distro-map から Ubuntu / Debian / RHEL / 対応表外のバージョンとリリースを抽出する */
+function getDistroValues(distroMap) {
+  if (!distroMap || !Array.isArray(distroMap.entries)) {
+    return null;
+  }
+  const entries = distroMap.entries;
+
+  // 1. Ubuntu: family === 'ubuntu' で同一 release 内に apache と php の両方がある最初のリリース
+  let Ua = null;
+  let Up = null;
+  let UN = null;
+
+  const uReleases = new Map();
+  for (const entry of entries) {
+    if (entry.family === 'ubuntu') {
+      if (!uReleases.has(entry.release)) {
+        uReleases.set(entry.release, {});
+      }
+      const relObj = uReleases.get(entry.release);
+      if (entry.product === 'apache' && !relObj.apache && entry.upstreamVersions?.length > 0) {
+        relObj.apache = entry.upstreamVersions[0];
+      }
+      if (entry.product === 'php' && !relObj.php && entry.upstreamVersions?.length > 0) {
+        relObj.php = entry.upstreamVersions[0];
+      }
+    }
+  }
+  for (const [rel, obj] of uReleases.entries()) {
+    if (obj.apache && obj.php) {
+      Ua = obj.apache;
+      Up = obj.php;
+      UN = rel.includes(':') ? rel.split(':')[1] : rel;
+      break;
+    }
+  }
+
+  // 2. Debian: family === 'debian' で同一 release 内に apache と php の両方がある最初のリリース
+  let Da = null;
+  let Dp = null;
+  let DN = null;
+
+  const dReleases = new Map();
+  for (const entry of entries) {
+    if (entry.family === 'debian') {
+      if (!dReleases.has(entry.release)) {
+        dReleases.set(entry.release, {});
+      }
+      const relObj = dReleases.get(entry.release);
+      if (entry.product === 'apache' && !relObj.apache && entry.upstreamVersions?.length > 0) {
+        relObj.apache = entry.upstreamVersions[0];
+      }
+      if (entry.product === 'php' && !relObj.php && entry.upstreamVersions?.length > 0) {
+        relObj.php = entry.upstreamVersions[0];
+      }
+    }
+  }
+  for (const [rel, obj] of dReleases.entries()) {
+    if (obj.apache && obj.php) {
+      Da = obj.apache;
+      Dp = obj.php;
+      DN = rel.includes(':') ? rel.split(':')[1] : rel;
+      break;
+    }
+  }
+
+  // 3. RHEL: family === 'rhel' かつ product === 'apache' の最初の項目の upstreamVersions[0]
+  let Ra = null;
+  for (const entry of entries) {
+    if (entry.family === 'rhel' && entry.product === 'apache' && entry.upstreamVersions?.length > 0) {
+      Ra = entry.upstreamVersions[0];
+      break;
+    }
+  }
+
+  // 4. X（対応表に無い版）: Ua を . で分け、最後の数字に 1 を足すことを ubuntu apache のどの upstreamVersions にも無くなるまで繰り返す
+  let Xa = null;
+  if (Ua) {
+    const allUbuntuApacheVersions = new Set();
+    for (const entry of entries) {
+      if (entry.family === 'ubuntu' && entry.product === 'apache' && Array.isArray(entry.upstreamVersions)) {
+        for (const v of entry.upstreamVersions) {
+          allUbuntuApacheVersions.add(v);
+        }
+      }
+    }
+    const parts = Ua.split('.');
+    let lastNum = parseInt(parts[parts.length - 1], 10);
+    if (Number.isNaN(lastNum)) lastNum = 999;
+    let candidate = Ua;
+    while (allUbuntuApacheVersions.has(candidate)) {
+      lastNum += 1;
+      parts[parts.length - 1] = String(lastNum);
+      candidate = parts.join('.');
+    }
+    Xa = candidate;
+  }
+
+  return { Ua, Up, UN, Da, Dp, DN, Ra, Xa };
+}
+
+/** リクエストハンドラーを作る。options.distroMap を省略すると data/advisories/distro-map.json を読む */
+export function createRequestHandler(options) {
+  let distroMap = options?.distroMap;
+  if (!distroMap) {
+    try {
+      const distroMapPath = path.resolve(__dirname, '..', 'data', 'advisories', 'distro-map.json');
+      if (fs.existsSync(distroMapPath)) {
+        distroMap = JSON.parse(fs.readFileSync(distroMapPath, 'utf-8'));
+      }
+    } catch {
+      distroMap = { entries: [] };
+    }
+  }
+  const distroVals = getDistroValues(distroMap);
+
+  return function requestHandler(req, res) {
+    const host = (req.headers && req.headers.host) || 'localhost:3000';
+    const url = new URL(req.url, `http://${host}`);
+    const pathname = url.pathname;
+
+    // --- 新規確認ページ (v1.8.1 T07) ---
+    // 1. WAF Cloudflare Challenge
+    if (pathname === '/waf-cloudflare-challenge') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      res.setHeader('cf-mitigated', 'challenge');
+      res.writeHead(403);
+      const content = `
+        <h1>Cloudflare Challenge (/waf-cloudflare-challenge)</h1>
+        <p>Cloudflare WAF / Bot 対策確認画面のテストページです。</p>
+        <script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+      `;
+      return res.end(createLayout('Cloudflare Challenge', content));
+    }
+    if (pathname.startsWith('/cdn-cgi/challenge-platform/')) {
+      res.setHeader('Content-Type', 'application/javascript');
+      res.writeHead(200);
+      return res.end('/* challenge platform stub */');
+    }
+
+    // 2. WAF AWS Captcha
+    if (pathname === '/waf-aws-captcha') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      res.setHeader('x-amzn-waf-action', 'captcha');
+      res.writeHead(405);
+      const content = `
+        <h1>AWS WAF Captcha (/waf-aws-captcha)</h1>
+        <p>AWS WAF Captcha / Challenge アクションのテストページです。</p>
+      `;
+      return res.end(createLayout('AWS WAF Captcha', content));
+    }
+
+    // 3. 外部 CDN の SRI 検証
+    if (pathname === '/sri-cdn') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      res.writeHead(200);
+      const content = `
+        <h1>外部 CDN の SRI 検証 (/sri-cdn)</h1>
+        <p>外部 CDN から読み込まれるリソースの SRI 診断テストページです。</p>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.9/dist/css/bootstrap.min.css" integrity="sha384-yEPZ7jP9S0QKiUQ0m3jjsO4ProIW7wvR9gXkI7JOGa2XVsw53Yke2bsdkBbjmmiX" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.9/dist/css/bootstrap-grid.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.9/dist/js/bootstrap.bundle.min.js" integrity="sha384-WyOxWvTyr1QaMPfiPJSv76iReVthorl5uWlFtZPyK0IEB0hGzo9y5Bp9mYanr8Bu" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.9/dist/js/bootstrap.min.js"></script>
+      `;
+      return res.end(createLayout('外部 CDN の SRI 検証', content));
+    }
+
+    // 4. ディストリ版 Ubuntu (Apache + PHP)
+    if (pathname === '/distro-ubuntu-apache-php') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Ua && distroVals?.Up) {
+        res.setHeader('Server', `Apache/${distroVals.Ua} (Ubuntu)`);
+        res.setHeader('X-Powered-By', `PHP/${distroVals.Up}-1ubuntu0.1`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 Ubuntu (/distro-ubuntu-apache-php)</h1>
+        <p>Ubuntu パッケージ版 Apache (${escapeHtml(distroVals?.Ua ?? '')}) および PHP (${escapeHtml(distroVals?.Up ?? '')}) のバックポート考慮・バージョン推定テストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 Ubuntu', content));
+    }
+
+    // 5. ディストリ版 Debian (~debNuM)
+    if (pathname === '/distro-debian-deb') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Da && distroVals?.Dp && distroVals?.DN) {
+        res.setHeader('Server', `Apache/${distroVals.Da} (Debian)`);
+        res.setHeader('X-Powered-By', `PHP/${distroVals.Dp}-1~deb${distroVals.DN}u1`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 Debian (/distro-debian-deb)</h1>
+        <p>Debian パッケージ版 Apache (${escapeHtml(distroVals?.Da ?? '')}) および PHP (${escapeHtml(distroVals?.Dp ?? '')}) のリリース推定テストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 Debian', content));
+    }
+
+    // 6. ディストリ版 RHEL 系
+    if (pathname === '/distro-rhel') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Ra) {
+        res.setHeader('Server', `Apache/${distroVals.Ra} (Red Hat Enterprise Linux)`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 RHEL (/distro-rhel)</h1>
+        <p>RHEL 系 OS 名を含む Server ヘッダー (${escapeHtml(distroVals?.Ra ?? '')}) のディストリ推定テストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 RHEL', content));
+    }
+
+    // 7. ディストリ版 deb.sury.org (PHP)
+    if (pathname === '/distro-sury') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Ua && distroVals?.Up && distroVals?.UN) {
+        res.setHeader('Server', `Apache/${distroVals.Ua} (Ubuntu)`);
+        res.setHeader('X-Powered-By', `PHP/${distroVals.Up}-1+ubuntu${distroVals.UN}.1+deb.sury.org+1`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 deb.sury.org (/distro-sury)</h1>
+        <p>第三者リポジトリ deb.sury.org の PHP パッケージ版 (${escapeHtml(distroVals?.Up ?? '')}) テストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 deb.sury.org', content));
+    }
+
+    // 8. ディストリ版 Debian バックポート (~bpo)
+    if (pathname === '/distro-debian-bpo') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Da && distroVals?.Dp && distroVals?.DN) {
+        res.setHeader('Server', `Apache/${distroVals.Da} (Debian)`);
+        res.setHeader('X-Powered-By', `PHP/${distroVals.Dp}-1~bpo${distroVals.DN}+1`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 Debian バックポート (/distro-debian-bpo)</h1>
+        <p>Debian 公式バックポート (~bpo) の PHP パッケージ版 (${escapeHtml(distroVals?.Dp ?? '')}) テストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 Debian バックポート', content));
+    }
+
+    // 9. ディストリ版 対応表に無い版
+    if (pathname === '/distro-unmapped') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Xa) {
+        res.setHeader('Server', `Apache/${distroVals.Xa} (Ubuntu)`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 対応表に無い版 (/distro-unmapped)</h1>
+        <p>対応表に収録されていないバージョン (${escapeHtml(distroVals?.Xa ?? '')}) のテストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 対応表に無い版', content));
+    }
+
+    // 10. HTTPS 専用ヘッダー (COOP / COEP 対象外検証)
+    if (pathname === '/https-only-headers') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      res.writeHead(200);
+      const content = `
+        <h1>HTTPS 専用ヘッダー (/https-only-headers)</h1>
+        <p>HTTP のページなので COOP・COEP は対象外と表示されるテストページです。</p>
+      `;
+      return res.end(createLayout('HTTPS 専用ヘッダー', content));
+    }
 
   // 目印つきの Set-Cookie を返すページ (Canary テスト用)
   if (pathname === '/cookie-canary') {
@@ -913,19 +1220,21 @@ const server = http.createServer((req, res) => {
   `;
 
   res.end(createLayout('Web Inspector テスト検証ハブ', defaultContent));
-});
+  };
+}
 
-server.listen(PORT, () => {
-  console.log(`[test-server] テストサーバーが起動しました: http://localhost:${PORT}`);
-  console.log(`  - デフォルト: http://localhost:${PORT}/`);
-  console.log(`  - Cookie用途別判定 (IMP-01): http://localhost:${PORT}/insecure-cookie`);
-  console.log(`  - CSP構文解析 (IMP-02): http://localhost:${PORT}/loose-csp`);
-  console.log(`  - レガシーライブラリ・EOL照合 (IMP-03): http://localhost:${PORT}/legacy-lib`);
-  console.log(`  - エッジケース・誤判定防止検証: http://localhost:${PORT}/edge-cases`);
-  console.log(`  - Rails Cookie誤検知防止検証: http://localhost:${PORT}/rails-session`);
-  console.log(`  - React 18 実機検証: http://localhost:${PORT}/react18-app`);
-  console.log(`  - Vue 3 実機検証: http://localhost:${PORT}/vue3-app`);
-  console.log(`  - Bootstrap 5 のみ (Tailwind誤検知防止): http://localhost:${PORT}/bootstrap-only`);
-  console.log(`  - ディストリ版 Apache (バックポート考慮): http://localhost:${PORT}/distro-apache`);
-  console.log(`  - SPA 待ち時間検証 (T05): http://localhost:${PORT}/spa-settle`);
-});
+const isMain = (() => {
+  try {
+    return Boolean(process.argv[1]) && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
+  http.createServer(createRequestHandler()).listen(PORT, () => {
+    for (const line of getStartupLines(PORT)) {
+      console.log(line);
+    }
+  });
+}

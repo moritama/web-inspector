@@ -292,5 +292,15 @@
     "filtered": 544,
     "no-cpe-range": 7
   },
-  "staleSources": []
+  "staleSources": [],
+  "distro": {
+    "releases": 22,
+    "mapEntries": 74,
+    "advisories": 30,
+    "advisoryEntries": 1896,
+    "skipped": {
+      "no-cve": 67
+    },
+    "warnings": []
+  }
 }

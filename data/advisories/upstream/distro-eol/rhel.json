@@ -1,0 +1,76 @@
+{
+  "slug": "rhel",
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "cycles": [
+    {
+      "cycle": "10",
+      "codename": null,
+      "releaseDate": "2025-05-20",
+      "eol": "2035-05-31",
+      "support": "2030-05-31",
+      "extendedSupport": "2039-05-31",
+      "lts": "2035-05-31",
+      "latest": "10.3"
+    },
+    {
+      "cycle": "9",
+      "codename": null,
+      "releaseDate": "2022-05-18",
+      "eol": "2032-05-31",
+      "support": "2027-05-31",
+      "extendedSupport": "2036-05-31",
+      "lts": "2032-05-31",
+      "latest": "9.9"
+    },
+    {
+      "cycle": "8",
+      "codename": null,
+      "releaseDate": "2019-05-07",
+      "eol": "2029-05-31",
+      "support": "2024-05-31",
+      "extendedSupport": "2033-05-31",
+      "lts": "2029-05-31",
+      "latest": "8.10"
+    },
+    {
+      "cycle": "7",
+      "codename": null,
+      "releaseDate": "2014-06-10",
+      "eol": "2024-06-30",
+      "support": "2019-08-06",
+      "extendedSupport": "2029-05-31",
+      "lts": "2024-06-30",
+      "latest": "7.9"
+    },
+    {
+      "cycle": "6",
+      "codename": null,
+      "releaseDate": "2010-11-10",
+      "eol": "2020-11-30",
+      "support": "2016-05-10",
+      "extendedSupport": "2024-06-30",
+      "lts": "2020-11-30",
+      "latest": "6.10"
+    },
+    {
+      "cycle": "5",
+      "codename": null,
+      "releaseDate": "2007-03-15",
+      "eol": "2017-03-31",
+      "support": "2013-01-08",
+      "extendedSupport": "2020-11-30",
+      "lts": "2017-03-31",
+      "latest": "5.11"
+    },
+    {
+      "cycle": "4",
+      "codename": null,
+      "releaseDate": "2005-02-15",
+      "eol": "2012-02-29",
+      "support": "2009-03-31",
+      "extendedSupport": "2017-03-31",
+      "lts": false,
+      "latest": "4.9"
+    }
+  ]
+}

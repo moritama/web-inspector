@@ -8,7 +8,11 @@ import catalogJson from '../data/advisories/catalog.json';
 import manifestJson from '../public/manifest.json';
 import { AdvisoryDatabase, getAdvisoryDbMetadata, matchOfflineAdvisories } from '../src/detection/advisory';
 import { compareVersions } from '../src/security/version-matcher';
-import { isSameRelease, readPackageVersion } from './helpers/release-version';
+import { isSameRelease, readPackageVersion, REPO_ROOT } from './helpers/release-version';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import type { AdvisoryDistroSection, DistroMapFile } from '../src/shared/types';
 import rawFixtureDb from './fixtures/advisory-db.fixture.json';
 
 /**
@@ -123,7 +127,8 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
     const computedCount = Object.values(libs).reduce((acc, lib) => acc + lib.versions.length, 0);
     const coverage = advisoryDbJson.coverage as { totalAdvisories?: number } | undefined;
 
-    expect(['2.1', '2.2']).toContain(meta.schemaVersion);
+    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）
+    expect(['2.1', '2.2', '2.3']).toContain(meta.schemaVersion);
     expect(meta.schemaVersion).toBe(advisoryDbJson.schemaVersion);
     expect(meta.dataVersion).toBe(advisoryDbJson.dataVersion);
     expect(meta.dataVersion).toMatch(/^\d{8}$/); // YYYYMMDD形式
@@ -147,5 +152,92 @@ describe('照合の挙動（固定 DB で確かめる）', () => {
     expect(ubuntuApache.matchStatus).toBe('Needs Review');
     expect(ubuntuApache.advisories).toHaveLength(0);
     expect(ubuntuApache.upstreamAdvisoriesCount).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * v1.8.1 T02: 同梱 DB の distro 節（総合チェック C17 の前提）。
+ * DB だけの自動リリースで中身が変わっても落ちないよう、件数・日付・特定のリリースの有無は比べない。
+ * OS のライフサイクル（releases）は外部データの取得の後でないと入らないので、空でもよい（取得できなかった夜は空のまま）。
+ */
+describe('v1.8.1 T02: 同梱 advisory-db.json の distro 節', () => {
+  const db = advisoryDbJson as unknown as {
+    distro?: AdvisoryDistroSection;
+    libraries: unknown;
+    integrity?: { digest?: string; distroDigest?: string };
+  };
+  const mapFile = (): DistroMapFile =>
+    JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'advisories', 'distro-map.json'), 'utf-8')) as DistroMapFile;
+  const sha256 = (text: string): string => crypto.createHash('sha256').update(text).digest('hex');
+
+  it('distro 節があり、releases と map が配列であること', () => {
+    expect(db.distro).toBeDefined();
+    expect(Array.isArray(db.distro?.releases)).toBe(true);
+    expect(Array.isArray(db.distro?.map)).toBe(true);
+  });
+
+  it('distro.map は data/advisories/distro-map.json の全項目と同じで、全項目に evidenceUrl と verifiedAt があること', () => {
+    const entries = mapFile().entries;
+    expect(db.distro?.map).toHaveLength(entries.length);
+    for (const src of entries) {
+      const found = db.distro?.map.find((e) => e.release === src.release && e.product === src.product && e.sourcePackage === src.sourcePackage);
+      expect(found, `${src.release} ${src.product}`).toBeDefined();
+      expect(found?.upstreamVersions).toEqual(src.upstreamVersions);
+      expect(found?.evidenceUrl).toMatch(/^https:\/\//);
+      expect(found?.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+
+  it('integrity は libraries と distro の両方と一致すること（distro 節の手編集の検出）', () => {
+    expect(db.integrity?.digest).toBe(sha256(JSON.stringify(db.libraries)));
+    expect(db.integrity?.distroDigest).toBe(sha256(JSON.stringify(db.distro)));
+  });
+
+  it('distro.releases の各項目は catalog.json の OS の節にあるリリースで、標準・延長サポートの終了日の項目を持つこと', () => {
+    const distros = (catalogJson as unknown as { distros?: Record<string, { releases?: string[] }> }).distros ?? {};
+    for (const r of db.distro?.releases ?? []) {
+      expect(r.release).toBe(`${r.family}:${r.cycle}`);
+      expect(distros[r.family]?.releases, r.release).toContain(r.cycle);
+      expect('standardSupportEnd' in r, r.release).toBe(true);
+      expect('extendedSupportEnd' in r, r.release).toBe(true);
+    }
+  });
+});
+
+/**
+ * v1.8.1 T05: 同梱 DB の distro.advisories と distro._source（H2・§5.2・C17）。
+ * OSV の取得（[T05][data]）の前は advisories が空のオブジェクトでよい。件数・日付・特定の CVE の有無は比べない。
+ */
+describe('v1.8.1 T05: 同梱 advisory-db.json の distro.advisories と _source', () => {
+  type SourceRecord = { name?: unknown; url?: unknown; ecosystem?: unknown; license?: unknown; licenseNote?: unknown; retrievedAt?: unknown; recordCount?: unknown };
+  const distro = (advisoryDbJson as unknown as { distro?: { advisories?: Record<string, Record<string, Array<Record<string, unknown>>>>; _source?: SourceRecord[] } }).distro;
+
+  it('_source に OSV（Debian・Ubuntu）と endoflife.date があり、全要素に license か licenseNote があること', () => {
+    const src = distro?._source;
+    expect(Array.isArray(src) && src.length > 0).toBe(true);
+    for (const s of src ?? []) expect(Boolean(s.license) || Boolean(s.licenseNote), String(s.name)).toBe(true);
+    expect(src?.some((s) => s.ecosystem === 'Debian')).toBe(true);
+    expect(src?.some((s) => s.ecosystem === 'Ubuntu')).toBe(true);
+    expect(src?.some((s) => typeof s.url === 'string' && s.url.startsWith('https://endoflife.date/'))).toBe(true);
+    for (const s of src ?? []) expect(typeof s.recordCount === 'number' && s.recordCount >= 0).toBe(true);
+  });
+
+  it('advisories はオブジェクトで、キーは Debian / Ubuntu のリリースだけ（H1）、各 CVE は決めた項目だけを持つこと', () => {
+    const adv = distro?.advisories;
+    expect(adv !== null && typeof adv === 'object' && !Array.isArray(adv)).toBe(true);
+    for (const [release, byPkg] of Object.entries(adv ?? {})) {
+      expect(release).toMatch(/^(debian|ubuntu):[0-9][0-9.]*$/);
+      for (const list of Object.values(byPkg)) {
+        expect(Array.isArray(list)).toBe(true);
+        for (const e of list) {
+          for (const k of Object.keys(e)) expect(['cve', 'status', 'fixedVersions', 'esm', 'osvIds']).toContain(k);
+          expect(['fixed', 'open', 'not-affected']).toContain(e.status);
+        }
+      }
+    }
+  });
+
+  it('distro 節は 800 KB 以下であること（H8）', () => {
+    expect(Buffer.byteLength(JSON.stringify(distro ?? {}))).toBeLessThanOrEqual(800 * 1024);
   });
 });

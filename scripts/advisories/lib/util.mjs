@@ -19,6 +19,7 @@ export const ROOT_DIR = path.resolve(path.dirname(__filename), '..', '..', '..')
 export const PATHS = {
   catalog: path.join(ROOT_DIR, 'data', 'advisories', 'catalog.json'),
   curated: path.join(ROOT_DIR, 'data', 'advisories', 'curated.json'),
+  distroMap: path.join(ROOT_DIR, 'data', 'advisories', 'distro-map.json'),
   upstreamDir: path.join(ROOT_DIR, 'data', 'advisories', 'upstream'),
   buildReport: path.join(ROOT_DIR, 'data', 'advisories', 'build-report.json'),
   outputDb: path.join(ROOT_DIR, 'src', 'detection', 'advisory-db.json'),

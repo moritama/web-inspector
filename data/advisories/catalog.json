@@ -8,6 +8,19 @@
       "includeKevAlways": true
     }
   },
+  "distros": {
+    "ubuntu": { "name": "Ubuntu", "eol": { "slug": "ubuntu" }, "releases": ["18.04", "20.04", "22.04", "24.04", "26.04", "26.10"] },
+    "debian": { "name": "Debian", "eol": { "slug": "debian" }, "releases": ["10", "11", "12", "13"] },
+    "rhel": { "name": "Red Hat Enterprise Linux", "eol": { "slug": "rhel" }, "releases": ["7", "8", "9", "10"] },
+    "centos": { "name": "CentOS", "eol": { "slug": "centos" }, "releases": ["7", "8"] },
+    "almalinux": { "name": "AlmaLinux", "eol": { "slug": "almalinux" }, "releases": ["8", "9", "10"] },
+    "rocky": { "name": "Rocky Linux", "eol": { "slug": "rocky-linux" }, "releases": ["8", "9", "10"] }
+  },
+  "distroSources": [
+    { "name": "OSV.dev (Debian Security Tracker)", "url": "https://osv.dev/list?ecosystem=Debian", "ecosystem": "Debian", "license": null, "licenseNote": "v1.8.2 で確認" },
+    { "name": "OSV.dev (Ubuntu Security Notices)", "url": "https://github.com/canonical/ubuntu-security-notices", "ecosystem": "Ubuntu", "license": "CC-BY-SA-4.0" },
+    { "name": "endoflife.date", "url": "https://endoflife.date/", "ecosystem": null, "license": "MIT" }
+  ],
   "products": {
     "jquery": {
       "aliases": ["jquery"],

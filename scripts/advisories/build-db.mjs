@@ -21,6 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { deriveSeverity } from './lib/cvss.mjs';
+import { buildDistroSection, validateDistroSection } from './lib/distro.mjs';
+import { buildDistroAdvisories, buildDistroSources, osvDistroTargets } from './lib/osv-distro.mjs';
 import { normalizeEol } from './lib/eol.mjs';
 import { kevMap } from './lib/kev.mjs';
 import { nvdToAdvisories } from './lib/nvd.mjs';
@@ -29,7 +31,7 @@ import { isValidRangeSpec } from './lib/range.mjs';
 import { cleanText, safeUrl } from './lib/sanitize.mjs';
 import { PATHS, readJson, sha256, stableStringify, toIsoDate, writeJson } from './lib/util.mjs';
 
-export const OUTPUT_SCHEMA_VERSION = '2.2';
+export const OUTPUT_SCHEMA_VERSION = '2.3';
 /** この DB を正しく解釈できる拡張機能の最低バージョン (fixStatus 等を使う NVD 自動取込を有効化する際に引き上げる) */
 export const MIN_EXTENSION_VERSION = '1.7.0';
 
@@ -95,7 +97,7 @@ function normalizeAuto(adv, ctx) {
 /**
  * DB を生成する (純粋関数: ファイル読込は呼び出し側で行う)
  */
-export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, generatedAt }) {
+export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, generatedAt, distroMap }) {
   const kev = kevMap(upstream.kev);
   const nvdScores = new Map(
     Object.entries(upstream.nvdScores || {})
@@ -234,6 +236,59 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
   }
 
   const librariesJson = JSON.stringify(libraries);
+
+  let distroSection = null;
+  if (catalog?.distros || distroMap) {
+    const { distro, warnings } = buildDistroSection({
+      distros: catalog?.distros,
+      distroEol: upstream?.distroEol,
+      distroMap,
+    });
+    const targets = distroMap ? osvDistroTargets(distroMap) : [];
+    const { advisories, warnings: osvWarnings, skipped } = buildDistroAdvisories({
+      targets,
+      osvDistro: upstream?.osvDistro || {},
+    });
+    const _source = buildDistroSources({
+      definitions: catalog?.distroSources,
+      osvDistro: upstream?.osvDistro || {},
+      distroEol: upstream?.distroEol || {},
+      advisories,
+      releases: distro.releases,
+    });
+
+    distroSection = {
+      releases: distro.releases,
+      map: distro.map,
+      advisories,
+      _source,
+    };
+    validateDistroSection(distroSection);
+
+    let advisoryEntries = 0;
+    for (const byPkg of Object.values(advisories)) {
+      for (const list of Object.values(byPkg)) {
+        advisoryEntries += list.length;
+      }
+    }
+
+    report.distro = {
+      releases: distro.releases.length,
+      mapEntries: distro.map.length,
+      advisories: targets.length,
+      advisoryEntries,
+      skipped,
+      warnings: [...warnings, ...osvWarnings],
+    };
+  }
+
+  const integrity = {
+    algorithm: 'sha256',
+    target: 'libraries',
+    digest: sha256(librariesJson),
+    ...(distroSection ? { distroDigest: sha256(JSON.stringify(distroSection)) } : {}),
+  };
+
   const db = {
     schemaVersion: OUTPUT_SCHEMA_VERSION,
     version: asOf.slice(0, 7).replace('-', '.'),
@@ -243,32 +298,45 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
     sources: [
       'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
       'OSV.dev (GitHub Advisory Database / npm / Packagist)',
+      ...(distroSection ? ['OSV.dev (Debian Security Tracker / Ubuntu Security Notices)'] : []),
       'endoflife.date API',
       'CISA KEV Catalog',
       'Curated (data/advisories/curated.json)',
     ],
     coverage: { totalAdvisories: total, technologies: Object.keys(libraries), byProduct },
     syncStatus: report.staleSources.length === 0 ? 'success' : 'partial',
-    integrity: { algorithm: 'sha256', target: 'libraries', digest: sha256(librariesJson) },
+    integrity,
     libraries,
+    ...(distroSection ? { distro: distroSection } : {}),
   };
   return { db, report };
 }
 
 /** upstream ディレクトリを読み込む */
 export function loadUpstream(dir) {
-  const upstream = { manifest: loadOptional(path.join(dir, 'manifest.json')), osv: {}, nvd: {}, eol: {}, kev: null, nvdScores: {} };
-  const read = (sub, keyOf) => {
+  const upstream = {
+    manifest: loadOptional(path.join(dir, 'manifest.json')),
+    osv: {},
+    osvDistro: {},
+    nvd: {},
+    eol: {},
+    distroEol: {},
+    kev: null,
+    nvdScores: {},
+  };
+  const read = (sub, keyOf, targetProp = sub) => {
     const d = path.join(dir, sub);
     if (!fs.existsSync(d)) return;
     for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.json')).sort()) {
       const json = readJson(path.join(d, f));
-      upstream[sub][keyOf(json)] = json;
+      upstream[targetProp][keyOf(json)] = json;
     }
   };
   read('osv', (j) => `${j.package.ecosystem}:${j.package.name}`);
+  read('osv-distro', (j) => `${j.package.ecosystem}:${j.package.name}`, 'osvDistro');
   read('nvd', (j) => j.target);
   read('eol', (j) => j.slug);
+  read('distro-eol', (j) => j.slug, 'distroEol');
   upstream.kev = loadOptional(path.join(dir, 'kev.json'));
   upstream.nvdScores = loadOptional(path.join(dir, 'nvd-scores.json')) || {};
   return upstream;
@@ -287,6 +355,7 @@ async function main() {
   const args = parseArgs(process.argv);
   const catalog = readJson(PATHS.catalog);
   const curated = readJson(PATHS.curated);
+  const distroMap = loadOptional(PATHS.distroMap);
   const upstream = loadUpstream(PATHS.upstreamDir);
   const previousDb = loadOptional(PATHS.outputDb);
 
@@ -298,11 +367,22 @@ async function main() {
   }
   const generatedAt = fetchedAt || `${asOf}T00:00:00.000Z`;
 
-  const { db, report } = buildDatabase({ catalog, curated, upstream, previousDb, asOf, generatedAt });
+  const { db, report } = buildDatabase({ catalog, curated, upstream, previousDb, asOf, generatedAt, distroMap });
   const output = stableStringify(db);
 
   if (args.check) {
     const current = fs.existsSync(PATHS.outputDb) ? fs.readFileSync(PATHS.outputDb, 'utf-8') : '';
+    if (current) {
+      try {
+        const committed = JSON.parse(current);
+        if (committed && committed.distro) {
+          validateDistroSection(committed.distro);
+        }
+      } catch (err) {
+        console.error(`[build-db] --check 失敗: ${err.message}`);
+        process.exit(1);
+      }
+    }
     if (current !== output) {
       console.error('[build-db] --check 失敗: コミット済みの advisory-db.json が upstream スナップショットからの生成結果と一致しません。');
       console.error('  手編集された可能性があります。`npm run advisories:build` を実行して再生成してください。');
@@ -318,11 +398,26 @@ async function main() {
   for (const [k, v] of Object.entries(report.products)) {
     console.log(`  - ${k}: curated ${v.curated} / auto ${v.auto} / EOL ${v.eolSource}${v.nvdCandidates ? ` / NVD候補 ${v.nvdCandidates}${v.nvdAutoIngest ? '' : ' (未取込)'}` : ''}`);
   }
+  if (report.distro?.warnings?.length) {
+    for (const w of report.distro.warnings) {
+      console.warn(`[build-db] 警告: ${w}`);
+    }
+  }
   if (report.drift.length) console.log(`  ! curated と上流の乖離: ${report.drift.length} 件 (build-report.json を確認)`);
   if (report.staleSources.length) console.log(`  ! 取得失敗/古いソース: ${report.staleSources.map((s) => s.source).join(', ')}`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = fs.realpathSync(process.argv[1]);
+    return import.meta.url === pathToFileURL(scriptPath).href;
+  } catch {
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
+  }
+}
+
+if (isMainModule()) {
   main().catch((err) => {
     console.error('[build-db] エラー:', err);
     process.exit(1);

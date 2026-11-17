@@ -1,0 +1,747 @@
+{
+  "package": {
+    "ecosystem": "Ubuntu:24.04:LTS",
+    "name": "nginx"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": [
+    {
+      "id": "UBUNTU-CVE-2024-7347",
+      "withdrawn": null,
+      "modified": "2026-04-22T15:27:57.677203Z",
+      "cves": [
+        "CVE-2024-7347"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2025-23419",
+      "withdrawn": null,
+      "modified": "2026-11-05T19:01:04.697646629Z",
+      "cves": [
+        "CVE-2025-23419"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2025-53859",
+      "withdrawn": null,
+      "modified": "2026-06-03T17:59:15.393264949Z",
+      "cves": [
+        "CVE-2025-53859"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-15176",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.735583906Z",
+      "cves": [
+        "CVE-2026-15176"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-1642",
+      "withdrawn": null,
+      "modified": "2026-06-03T17:59:15.730156309Z",
+      "cves": [
+        "CVE-2026-1642"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-27651",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:43.134326292Z",
+      "cves": [
+        "CVE-2026-27651"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-27654",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:43.236964170Z",
+      "cves": [
+        "CVE-2026-27654"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-27784",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:44.127037342Z",
+      "cves": [
+        "CVE-2026-27784"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-28753",
+      "withdrawn": null,
+      "modified": "2026-06-03T17:59:16.579885311Z",
+      "cves": [
+        "CVE-2026-28753"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-28755",
+      "withdrawn": null,
+      "modified": "2026-04-28T16:37:11.127936Z",
+      "cves": [
+        "CVE-2026-28755"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-32647",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:52.901246953Z",
+      "cves": [
+        "CVE-2026-32647"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-40701",
+      "withdrawn": null,
+      "modified": "2026-06-03T17:59:17.153383453Z",
+      "cves": [
+        "CVE-2026-40701"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-42055",
+      "withdrawn": null,
+      "modified": "2026-11-05T19:03:31.942625623Z",
+      "cves": [
+        "CVE-2026-42055"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.13"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-42533",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.781952555Z",
+      "cves": [
+        "CVE-2026-42533"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.18"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-42934",
+      "withdrawn": null,
+      "modified": "2026-06-03T17:59:17.606206874Z",
+      "cves": [
+        "CVE-2026-42934"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-42945",
+      "withdrawn": null,
+      "modified": "2026-06-29T13:50:11.299271883Z",
+      "cves": [
+        "CVE-2026-42945"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.8"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-42946",
+      "withdrawn": null,
+      "modified": "2026-06-22T09:30:53.653336482Z",
+      "cves": [
+        "CVE-2026-42946"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-48142",
+      "withdrawn": null,
+      "modified": "2026-11-05T19:02:01.466909631Z",
+      "cves": [
+        "CVE-2026-48142"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.13"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-49975",
+      "withdrawn": null,
+      "modified": "2026-08-20T23:45:00.230752087Z",
+      "cves": [
+        "CVE-2026-49975"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.12"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-56434",
+      "withdrawn": null,
+      "modified": "2026-11-05T19:04:22.956180777Z",
+      "cves": [
+        "CVE-2026-56434"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.14"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-60005",
+      "withdrawn": null,
+      "modified": "2026-11-05T19:03:28.505691879Z",
+      "cves": [
+        "CVE-2026-60005"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.14"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-9256",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:18:17.651564616Z",
+      "cves": [
+        "CVE-2026-9256"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-93479",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.723158339Z",
+      "cves": [
+        "CVE-2026-93479"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-97205",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.823517344Z",
+      "cves": [
+        "CVE-2026-97205"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-97629",
+      "withdrawn": null,
+      "modified": "2026-10-26T22:34:48.214843130Z",
+      "cves": [
+        "CVE-2026-97629"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-7014-1",
+      "withdrawn": null,
+      "modified": "2026-04-22T10:52:02.290661Z",
+      "cves": [
+        "CVE-2024-7347"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-7285-2",
+      "withdrawn": null,
+      "modified": "2026-04-27T17:44:36.168806Z",
+      "cves": [
+        "CVE-2025-23419"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-7715-1",
+      "withdrawn": null,
+      "modified": "2026-04-27T18:15:27.052352Z",
+      "cves": [
+        "CVE-2025-53859"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8038-1",
+      "withdrawn": null,
+      "modified": "2026-04-27T18:23:45.571624Z",
+      "cves": [
+        "CVE-2026-1642"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8210-1",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:15:55.299002523Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8271-1",
+      "withdrawn": null,
+      "modified": "2026-06-29T13:51:19.388256944Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.8"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8354-1",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:16:44.352666338Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8398-1",
+      "withdrawn": null,
+      "modified": "2026-06-09T17:01:17.090740354Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8398-2",
+      "withdrawn": null,
+      "modified": "2026-06-09T21:15:20.239079527Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.11"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8398-3",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:23.456183833Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.12"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8458-1",
+      "withdrawn": null,
+      "modified": "2026-06-30T18:17:35.447433444Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.13"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8563-1",
+      "withdrawn": null,
+      "modified": "2026-07-21T18:19:57.105021051Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.14"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8563-2",
+      "withdrawn": null,
+      "modified": "2026-07-21T18:52:50.569000760Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.15"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8563-3",
+      "withdrawn": null,
+      "modified": "2026-08-20T00:00:07.211458650Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8563-4",
+      "withdrawn": null,
+      "modified": "2026-08-20T05:15:04.273973182Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.17"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8563-5",
+      "withdrawn": null,
+      "modified": "2026-09-14T22:12:16.449768280Z",
+      "cves": [
+        "CVE-2026-42533"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.18"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8955-1",
+      "withdrawn": null,
+      "modified": "2026-10-26T22:46:19.977872622Z",
+      "cves": [
+        "CVE-2026-15176",
+        "CVE-2026-93479",
+        "CVE-2026-95101",
+        "CVE-2026-97205",
+        "CVE-2026-97629"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:24.04:LTS",
+          "introduced": true,
+          "fixed": [
+            "1.24.0-2ubuntu7.19"
+          ]
+        }
+      ]
+    }
+  ]
+}

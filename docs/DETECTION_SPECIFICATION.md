@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector 技術検出仕様および判定基準書
 
-**対象バージョン：** v1.8.0  
+**対象バージョン：** v1.8.1  
 **最終更新日：** 2026年11月12日  
 **対象コンポーネント：** `src/detection/` (ルール定義・判定エンジン・推論エンジン・オフライン脆弱性照合), `src/security/` (セキュリティ診断・CSP解析・Cookie診断・PSLドメイン分析・バージョン比較), `src/shared/` (ステータス・要確認件数集計・完全性評価)
 
@@ -371,6 +371,74 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **「収録 DB 上は該当なし」と収録範囲の明示 (SPEC-03)**:
   脆弱性が 0 件だった場合でも、オフライン DB の収録範囲外である可能性を考慮し「安全（影響なし）」とは断定せず、「収録 DB 上は該当なし（収録 N 件・取得元: curated / OSV / NVD・dataVersion: YYYYMMDD）」と表示します。また、DB に脆弱性が 1 件も収録されていない技術については「この技術の脆弱性は収録していません」と区別して表示します。
 
+### 6.4 OS リリースの推定 (`distroInference`、v1.8.1)
+- **概要**: 受動的調査で観測された `Server` および `X-Powered-By` ヘッダー値から製品ごとに OS のリリースを推定し（`distroInference`）、推定したリリースの標準サポート期間（endoflife.date 由来のライフサイクルデータ）で EOL を判定します。
+- **断定の回避 (H4)**: 推定結果はすべて Needs Review として扱い、「安全」「Supported」等の断定は行いません。
+- **上流 EOL の扱い**: OS のライフサイクルで EOL を判定した場合、上流版の EOL は `upstreamEolInfo`（参考表示）とし、EOL 件数・要確認件数には二重に数えません。
+- **DB 互換性**: advisory-db に `distro` 節が無い旧 DB では推定処理を行わず、第1段階の照合結果を維持します。
+- **第三者リポジトリ・バックポートの印**:
+  - `deb.sury.org`（PPA）や `+ubuntuNN.NN`（例: `+ubuntu20.04.1`）: 第三者リポジトリとして扱い、ディストリのデータによる推定は行わず `thirdParty` を記録します。
+  - `~bpo`（例: `~bpo10+1`）: Debian バックポートとして扱い、ディストリのデータによる推定は行わず `thirdParty`（kind: `backport`）を記録します。
+
+#### 推定の規則と印の一覧
+`Server` および `X-Powered-By` ヘッダー値（各値の先頭 200 文字）から、次の規則と印に従って推定を行います。
+
+| 種類 | 印 | 結果 |
+| --- | --- | --- |
+| 括弧内の OS 名 | `(Ubuntu)`・`(Debian)`・`(Red Hat Enterprise Linux)`・`(CentOS)`・`(AlmaLinux)`・`(Rocky Linux)`（大文字小文字を区別しない） | 系統 ubuntu・debian・rhel・centos・almalinux・rocky |
+| 対象外の OS 名 | `(Unix)`・`(Win64)`・`(Fedora)`・`(Amazon Linux)`、OS 名なし | 推定を付けない |
+| パッケージ版 | `ubuntuN`（例 `-4ubuntu2.19`） | 系統 ubuntu（リリースは対応表で引く） |
+| パッケージ版 | `+debNuM`・`~debNuM`（例 `-1+deb11u5`、`-1~deb12u1`） | 系統 debian、リリース `debian:N`、high |
+| パッケージ版 | `.elN`・`.elN_M`（例 `-1.el9`、`-1.el9_4`） | 系統は同じヘッダーの OS 名（CentOS/AlmaLinux/Rocky Linux/RHEL）または rhel、リリース `<系統>:N`、high |
+| 対象外のパッケージ版 | `.fcNN` など上記以外 | 推定を付けない |
+| 第三者 | `deb.sury.org`、`+ubuntuNN.NN`（例 `+ubuntu20.04.1`） | `thirdParty: { kind: 'third-party' }`、推定しない |
+| バックポート | `~bpoN`（例 `~bpo10+1`） | `thirdParty: { kind: 'backport' }`、推定しない |
+
+#### 推定・判定の手順の要点
+1. **手順 2.1（ヘッダーからの推定手順）**:
+   - `Server`・`X-Powered-By` だけを見ます（ほかのヘッダーは使用しません）。
+   - 製品ごとに次の順で判定します：
+     1. **第三者・バックポートの判定**: 接尾辞に第三者・バックポートの印があれば `thirdParty` を記録して推定終了。
+     2. **系統の特定**: 接尾辞の印（`ubuntuN`, `debNuM`, `.elN`）または括弧内の OS 名から系統を特定。どちらも無ければ推定を付けない。
+     3. **パッケージ版の印による特定**: `+debNuM`/`~debNuM` → `debian:N`、`.elN`/`.elN_M` → `<系統>:N`（確信度 high）。
+     4. **対応表による特定**: `distro.map` から上流版に一致するリリース候補を収集。1 件 → medium、2 件以上 → low、0 件 → none。
+     5. **複数製品の積集合**: 候補が 1 件以上ある製品が複数ある場合、候補の積集合を取る（Server ヘッダーの `OpenSSL/<版>` も積集合の手がかりにします）。積集合が 1 件なら high、2 件以上なら low（印由来で high の製品は high のまま）。
+2. **手順 2.2（ライフサイクルによる EOL 判定手順）**:
+   - 標準サポートの終了日の翌日から EOL と判定し、終了当日まではサポート中と断定せず `status: 'Unknown'` とします（`Supported` にしない）。
+   - 候補が 2 件以上ある場合は、最も早く標準サポートが終了する候補で判定し、文言には全候補を併記します。
+   - 候補のどれかにライフサイクル情報（`standardSupportEnd`）が無い場合は、判定を行いません（第1段階の照合結果のまま）。
+
+#### 確信度 (confidence) の区分
+
+| 確信度 | 判定条件 |
+| --- | --- |
+| high | パッケージ版にリリースの印がある（`+deb11u5`, `.el9` 等）、または複数製品の積集合で 1 件に絞れた |
+| medium | 対応表で 1 製品から 1 件に絞れた |
+| low | 候補が 2 件以上（複数候補がある場合） |
+| none | 対応表に無い上流版、または第三者・バックポート |
+
+### 6.5 CVE ごとのディストリの判定 (`distroStatus`、v1.8.1)
+- **概要**: Debian / Ubuntu でリリースが推定できた製品について、上流照合で該当した CVE（およびディストリ限定の未修正 CVE）ごとに、ディストリビューションでの修正状況 `distroStatus`（6区分）を判定します。判定結果はすべて Needs Review として扱い、「該当なし」「安全」等の断定は行いません（H4）。
+- **判定対象外**: 第三者リポジトリ（PPA等）・Debian バックポート・確信度 none・RHEL 系（第2段階まで）・脆弱性 DB に `distro.advisories` が無い場合は判定を行いません。
+- **版の比較**: パッケージ版の比較には Debian Policy に準拠した dpkg バージョン比較（`compareDpkgVersions`）のみを使用し、上流版の比較ロジックは流用しません。
+
+#### distroStatus の 6 区分と要確認件数への算入
+
+| 区分 (`distroStatus`) | 判定条件 | 要確認件数 (H4a) | 文言の要旨 |
+| --- | --- | :---: | --- |
+| **`not-fixed`** | ディストリに修正版があり、パッケージ版が修正版より古い | 数える | パッケージの版はディストリの修正版より古い可能性があります。更新を検討してください。 |
+| **`open`** | ディストリで未修正（修正版がまだない） | 数える | ディストリで未修正です。セキュリティ情報を確認してください。 |
+| **`unknown-revision`** | ディストリに修正版があるが、パッケージ版が不明 | 数える | パッケージの版が取れないため判定できません。サーバー側で確かめてください。 |
+| **`no-data`** | ディストリのデータにその CVE がない | 数える | ディストリのデータにありません。バックポートの可能性があるため断定できません。 |
+| **`fixed`** | パッケージ版がすべてのディストリ修正版以上 | 数えない | ディストリで修正済みの可能性が高いです。 |
+| **`not-affected`** | ディストリが影響なしと判断 | 数えない | ディストリは影響なしと判断しています。 |
+
+- **悪いほうの順**: 候補リリースが複数ある場合、各候補で判定した結果のうち最も深刻な区分を採用します。
+  `not-fixed` > `open` > `unknown-revision` > `no-data` > `fixed` > `not-affected`
+  候補間で結果が分かれた場合は注記文（`splitNote`）を出力します。
+- **ディストリ限定 CVE の扱い**: ディストリのデータにのみ存在する CVE は、判定結果が `not-fixed` のもののみ並べて要確認に数え、`fixed` のものは件数（`otherFixedCount`）のみ集計して一覧には並べません（`open` や `not-affected` は対象外）。
+- **診断項目 `SEC-DISTRO-CVE-<技術>`**: 数える区分の CVE が 1 件以上ある技術ごとに、新しいセキュリティ診断項目 `SEC-DISTRO-CVE-<技術名の大文字>`（重大度 LOW、ステータス warning）を 1 件生成します（CVE ごとに警告を乱立させないため技術単位で集約）。ヘッダー依存のチェックとして `HEADER_DEPENDENT_CHECK_PREFIXES` に登録されます。
+
 ---
 
 ## 7. オフライン脆弱性・EOL照合およびバージョン比較仕様 (v1.7.1)
@@ -407,7 +475,8 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   - サマリーの重大度内訳（`securityFindings.critical` / `high` / `medium` / `low`）も**要確認の項目のみ**を集計するため、`CRITICAL + HIGH + MEDIUM + LOW === requiresAttentionCount` が常に成り立ちます。
   - `securityFindings.info` は `status` が `'pass'` または `'info'` の項目数（「参考情報・問題のない項目」）を集計します。
 - **ステータス表示の厳密一致**:
-  UI（ポップアップ・ダッシュボード）およびエクスポート（Markdown・CSV）のすべてにおいて、`pass` → `PASS`、`info` → `INFO`、`warning` → `WARN`、`fail` → `FAIL` として表示します（`info` の項目を `WARN` と表示しません）。
+  UI（ポップアップ・ダッシュボード）およびエクスポート（Markdown・CSV）のすべてにおいて、`pass` → `PASS`、`info` → `INFO`、`warning` → `WARN`、`fail` → `FAIL`、`unknown` → `UNKNOWN`、`not-applicable` → `N/A`（ラベル「対象外」）として表示します（`info` の項目を `WARN` と表示しません）。
+  また「対象外 (`not-applicable`)」は、HTTP のページの COOP・COEP など、ブラウザの仕様によりヘッダーが無視される対象に適用され、要確認件数や重大度内訳（INFO・UNKNOWN 含む）には数えません（`securityFindings.notApplicable` に集計）。なお、ヘッダー未観測の場合は未観測（`unknown`）が優先されます。
 - **推奨対応ロードマップの動的生成 (`src/export/markdown.ts` / E3)**:
   Markdown レポートのセクション 13「推奨対応ロードマップ」は固定文を持たず、要確認の指摘のみから重大度別に「至急対応 (CRITICAL / HIGH)」「計画的対応 (MEDIUM)」「継続的改善 (LOW)」を動的に組み立てます（該当のない段は省略し、要確認 0 件の場合は「対応が必要な項目はありません。」と出力します）。
 - **診断項目名のステータス間統一 (`R05`)**:
@@ -434,9 +503,9 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **`X-Content-Type-Options` / `X-Frame-Options`**: `nosniff` の厳密一致および `DENY` / `SAMEORIGIN` の妥当性を検証します。CSP `frame-ancestors` により保護されている場合は `X-Frame-Options` の観測値に `CSP frame-ancestors により保護` と明記して `info` とします。
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
 - **技術情報露出 (`SEC-DISC-01`〜`05` / T08, v1.8.0 T06)**: `Server`（詳細版露出時）、`X-Powered-By`、`X-AspNet-Version`（`SEC-DISC-03`）に加え、`X-AspNetMvc-Version`（`SEC-DISC-04` / `warning`・`low`）および `Server-Timing`（`SEC-DISC-05` / `info`・`info`）の露出を報告します。
-- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a）**:
-  - `SEC-COOP-01` (`info` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。
-  - `SEC-COEP-01` (`info` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。
+- **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a, v1.8.1 T07）**:
+  - `SEC-COOP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。なお、HTTP 接続のページではブラウザが COOP を無視するため、設定値によらず `not-applicable`（対象外）として出力します（ヘッダー未観測時は `unknown` が優先）。
+  - `SEC-COEP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。なお、HTTP 接続のページで COEP が設定されている場合、ブラウザがこれを無視するため `not-applicable`（対象外）として出力します（未設定時は出力しません。ヘッダー未観測時は `unknown` が優先）。
   - `SEC-CORP-01` (`info` / `info`): `Cross-Origin-Resource-Policy` に仕様で定義されていない値（`same-origin`, `same-site`, `cross-origin` 以外）が指定されている場合に出力します。
   - `SEC-XXSS-01` (`info` / `info`): `X-XSS-Protection` に旧式の値 `1` または `1; mode=block` が指定されている場合に出力します（モダンブラウザでは非推奨であり、`0` またはヘッダー削除を推奨）。
   - `SEC-PERM-02` (`warning` / `low`): `Permissions-Policy` で強い権限（`camera`, `microphone`, `geolocation`, `payment`, `usb`）のいずれかが `*`（ワイルドカード）で許可されている場合に出力します（複数該当時も 1 件に集約）。

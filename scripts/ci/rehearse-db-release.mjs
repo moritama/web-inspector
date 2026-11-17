@@ -76,6 +76,9 @@ export function bumpAdvisoryDb(db) {
     algorithm: 'sha256',
     target: 'libraries',
     digest,
+    ...(cloned.distro !== undefined
+      ? { distroDigest: crypto.createHash('sha256').update(JSON.stringify(cloned.distro)).digest('hex') }
+      : {}),
   };
 
   return cloned;

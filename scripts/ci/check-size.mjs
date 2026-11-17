@@ -20,6 +20,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 export const SIZE_LIMITS = {
   advisoryDb: 2 * 1024 * 1024, // 2 MiB
   dist: 3 * 1024 * 1024,       // 3 MiB
+  distro: 800 * 1024,          // 800 KiB (v1.8.1 T05 / H8)
 };
 
 /** 警告しきい値の比率 (80%) */
@@ -82,7 +83,7 @@ export function checkSizes(options = {}) {
     ? path.resolve(options.distDir)
     : path.join(REPO_ROOT, 'dist');
 
-  /** @type {Array<{ target: 'advisoryDb' | 'dist', path: string, bytes: number | null, limit: number, level: 'ok' | 'warn' | 'fail' }>} */
+  /** @type {Array<{ target: 'advisoryDb' | 'dist' | 'distro', path: string, bytes: number | null, limit: number, level: 'ok' | 'warn' | 'fail' }>} */
   const results = [];
 
   // 1. 同梱 DB のサイズ検査
@@ -96,6 +97,25 @@ export function checkSizes(options = {}) {
       limit: SIZE_LIMITS.advisoryDb,
       level,
     });
+
+    // 1.1 distro 節のサイズ検査 (JSON として読めて distro を持つ場合のみ)
+    try {
+      const raw = fs.readFileSync(advisoryDbPath, 'utf-8');
+      const db = JSON.parse(raw);
+      if (db && typeof db === 'object' && db.distro) {
+        const distroBytes = Buffer.byteLength(JSON.stringify(db.distro));
+        const distroLevel = classifySize(distroBytes, SIZE_LIMITS.distro);
+        results.push({
+          target: 'distro',
+          path: advisoryDbPath,
+          bytes: distroBytes,
+          limit: SIZE_LIMITS.distro,
+          level: distroLevel,
+        });
+      }
+    } catch {
+      // JSON として読めない、または distro を持たない場合は distro 節の検査は行わない
+    }
   } else {
     results.push({
       target: 'advisoryDb',

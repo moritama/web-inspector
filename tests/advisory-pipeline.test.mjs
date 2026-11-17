@@ -203,9 +203,10 @@ describe('EOL 正規化', () => {
 });
 
 describe('DB 生成 (build-db)', () => {
-  it('生成結果は strict 検証 (schema 2.2) に合格する', () => {
+  it('生成結果は strict 検証 (schema 2.3) に合格する', () => {
     const { db } = build();
-    expect(db.schemaVersion).toBe('2.2');
+    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）
+    expect(db.schemaVersion).toBe('2.3');
     expect(() => validateDb({ ...db, integrity: undefined, libraries: { ...db.libraries, ...padProducts() } })).not.toThrow();
     // 改ざん検知: libraries を書き換えると integrity 検証で失敗する
     const padded = { ...db, libraries: { ...db.libraries, ...padProducts() } };
@@ -435,7 +436,8 @@ describe('DB 差分分類 (diff-db)', () => {
     const { db } = build();
 
     // 1. schemaVersion の変更 -> major
-    const headSchema = { ...structuredClone(db), schemaVersion: '2.3' };
+    // v1.8.1 T02: 生成 DB が 2.3 になったため、変更後の値は生成 DB と必ず異なる合成の値にする
+    const headSchema = { ...structuredClone(db), schemaVersion: '9.9' };
     const dSchema = diffDatabases(db, headSchema);
     expect(dSchema.classification).toBe('major');
     expect(dSchema.reasonsMajor.join('\n')).toContain('schemaVersion');

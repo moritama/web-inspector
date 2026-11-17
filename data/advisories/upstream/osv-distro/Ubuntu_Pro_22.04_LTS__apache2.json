@@ -1,0 +1,8 @@
+{
+  "package": {
+    "ecosystem": "Ubuntu:Pro:22.04:LTS",
+    "name": "apache2"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": []
+}

@@ -1,0 +1,8 @@
+{
+  "package": {
+    "ecosystem": "Ubuntu:Pro:26.04:LTS",
+    "name": "php8.5"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": []
+}

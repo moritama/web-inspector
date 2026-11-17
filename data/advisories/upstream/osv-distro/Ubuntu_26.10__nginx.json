@@ -1,0 +1,121 @@
+{
+  "package": {
+    "ecosystem": "Ubuntu:26.10",
+    "name": "nginx"
+  },
+  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "vulns": [
+    {
+      "id": "UBUNTU-CVE-2026-15176",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.735583906Z",
+      "cves": [
+        "CVE-2026-15176"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-93479",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.723158339Z",
+      "cves": [
+        "CVE-2026-93479"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-95101",
+      "withdrawn": null,
+      "modified": "2026-10-28T20:17:49.089285493Z",
+      "cves": [
+        "CVE-2026-95101"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-97205",
+      "withdrawn": null,
+      "modified": "2026-11-06T01:11:58.823517344Z",
+      "cves": [
+        "CVE-2026-97205"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-97629",
+      "withdrawn": null,
+      "modified": "2026-10-26T22:34:48.214843130Z",
+      "cves": [
+        "CVE-2026-97629"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-8955-1",
+      "withdrawn": null,
+      "modified": "2026-10-26T22:46:19.977872622Z",
+      "cves": [
+        "CVE-2026-15176",
+        "CVE-2026-93479",
+        "CVE-2026-95101",
+        "CVE-2026-97205",
+        "CVE-2026-97629"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    }
+  ]
+}

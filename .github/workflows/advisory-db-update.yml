@@ -95,6 +95,11 @@ jobs:
       - name: Validate advisory DB
         run: node scripts/validate-advisories.mjs
 
+      # 対応表 (distro-map.json) と Launchpad / sources.debian.org の API の突き合わせ (H3)。
+      # 取得に失敗しても「未確認」を build-report.json に記録して 0 で終わる。対応表は書き換えない
+      - name: Check distro map drift
+        run: node scripts/advisories/check-distro-map.mjs
+
       - name: Diff against main
         id: diff
         run: node scripts/advisories/diff-db.mjs --base-ref origin/main --refresh-days 21 --md "$RUNNER_TEMP/db-diff.md" --json "$RUNNER_TEMP/db-diff.json"
@@ -142,6 +147,7 @@ jobs:
             --has-app-token "$HAS_APP_TOKEN" \
             --diff-md "$RUNNER_TEMP/db-diff.md" \
             --test-log "$RUNNER_TEMP/test-output.log" \
+            --build-report data/advisories/build-report.json \
             --out-body "$RUNNER_TEMP/pr-body.md" \
             --out-json "$RUNNER_TEMP/pr-plan.json"
 

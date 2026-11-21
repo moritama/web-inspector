@@ -43,3 +43,16 @@
   - `scripts/test-e2e-smoke.mjs` に幅 450px でのポップアップ表示検証（`.item-main` 幅、横スクロールなし、ディストリ版バッジの有無確認）を追加
 - 外部の事実: なし（設計メモの範囲内）
 - 未解決: なし
+
+## T02 設計  (2026-11-21 20:58)
+- 変更ファイル: docs/dev/v1.8.2/design/T02.md（新規）, tests/content-script-iife-build.test.ts（新規）, tests/ci-content-script-iife.test.ts（新規）
+- 判断したこと:
+  - 2 回注入の SyntaxError は、ビルドの出力を node:vm の同じコンテキストで 2 回実行して再現・確認する（同じフレームの isolated world に classic script として 2 回評価されるのと同じ条件）。今の出力は 2 回目で「Identifier 'W' has already been declared」になり、iife で出すと 2 回ともエラーにならずリスナーは 1 回だけだった
+  - 2 段目のビルドは vite.config.ts のプラグイン（closeBundle で build()）から起動する。package.json の build スクリプトの書き換えは K2.1 の「scripts の追加のみ」の外になるため。設定は contentScriptBuildConfig(outDir) として export し、configFile: false・publicDir: false・emptyOutDir: false・format iife・inlineDynamicImports: true。出力先は 1 段目の解決後の outDir
+  - テストは npm run build を使わず、Vite の build() に vite.config.ts を渡し outDir を os.tmpdir() に上書きして確かめる（リポジトリの dist に触らない）
+  - CI のチェック scripts/ci/check-content-script-iife.mjs の基準は総合チェック C20 と同じ（const・let・class・var・import・export を不合格、関数式の即時実行で始まれば合格）。ファイルが無ければ不合格。ci.yml には build の後に手順を 1 つ足す
+  - 「IIFE の後にトップレベルの const が続く」形は §5.1 の基準（先頭）の外なので CI のチェックのテストに入れず、実際の出力の 2 回実行のテストで確かめる
+  - E2E は isolated world の addListener の呼び出しを数える方式で仕様を書いた（ページのコンソールに isolated world のエラーが出ないことがあるため、調査の結果の注入の失敗も見る）
+  - 期待値を変えた既存テストは無い
+- 外部の事実: Rollup の output.format iife・inlineDynamicImports・name — https://rollupjs.org/configuration-options/ 、Vite の build()・configFile・apply・configResolved・closeBundle・emptyOutDir — https://vite.dev/guide/api-javascript 、https://vite.dev/guide/api-plugin 、https://vite.dev/config/build-options 、chrome.scripting.executeScript の files・world の既定 ISOLATED — https://developer.chrome.com/docs/extensions/reference/api/scripting （いずれも 2026-11-21）。同じ拡張機能の content script が同じフレームで isolated world を共有することは文書に明記が無く、不具合の報告と手元の再現で確かめた
+- 未解決: npm run watch で closeBundle が再ビルドごとに呼ばれるかは確かめていない（受け入れ条件の外）

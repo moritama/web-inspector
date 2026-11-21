@@ -127,8 +127,8 @@ describe('同梱 advisory-db.json の不変条件 (Invariants)', () => {
     const computedCount = Object.values(libs).reduce((acc, lib) => acc + lib.versions.length, 0);
     const coverage = advisoryDbJson.coverage as { totalAdvisories?: number } | undefined;
 
-    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）
-    expect(['2.1', '2.2', '2.3']).toContain(meta.schemaVersion);
+    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）。v1.8.2 T06: sources の構造化で schema 2.4（H10）
+    expect(['2.1', '2.2', '2.3', '2.4']).toContain(meta.schemaVersion);
     expect(meta.schemaVersion).toBe(advisoryDbJson.schemaVersion);
     expect(meta.dataVersion).toBe(advisoryDbJson.dataVersion);
     expect(meta.dataVersion).toMatch(/^\d{8}$/); // YYYYMMDD形式
@@ -239,5 +239,66 @@ describe('v1.8.1 T05: 同梱 advisory-db.json の distro.advisories と _source'
 
   it('distro 節は 800 KB 以下であること（H8）', () => {
     expect(Buffer.byteLength(JSON.stringify(distro ?? {}))).toBeLessThanOrEqual(800 * 1024);
+  });
+});
+
+/**
+ * v1.8.2 T06: 同梱 DB の出典（sources）とスキーマ 2.4・サイズ（指示書 §5.3、H9・H10）。
+ * 同梱 DB は実装の工程で夜のシェルが build-db（ネットワークなし）で作り直す。件数・日付は比べない。
+ */
+describe('v1.8.2 T06: 同梱 advisory-db.json の sources（スキーマ 2.4）', () => {
+  type TopSource = { name?: unknown; url?: unknown; ecosystem?: unknown; license?: unknown; licenseNote?: unknown; retrievedAt?: unknown; recordCount?: unknown };
+  const db = advisoryDbJson as unknown as { schemaVersion: string; sources?: unknown[]; distro?: { _source?: TopSource[] } };
+  const DB_FILE = path.join(REPO_ROOT, 'src', 'detection', 'advisory-db.json');
+
+  it('schemaVersion が 2.4 であること', () => {
+    expect(db.schemaVersion).toBe('2.4');
+  });
+
+  it('sources はすべてオブジェクトで、name・url（https）・license か licenseNote・retrievedAt・recordCount を持つこと', () => {
+    expect(Array.isArray(db.sources) && db.sources.length > 0).toBe(true);
+    for (const raw of db.sources ?? []) {
+      expect(typeof raw === 'object' && raw !== null, `文字列のままの出典: ${String(raw)}`).toBe(true);
+      const s = raw as TopSource;
+      expect(typeof s.name === 'string' && s.name.length > 0).toBe(true);
+      expect(typeof s.url === 'string' && s.url.startsWith('https://'), String(s.name)).toBe(true);
+      expect('license' in s, String(s.name)).toBe(true);
+      expect(Boolean(s.license) || Boolean(s.licenseNote), `license も licenseNote も無い: ${String(s.name)}`).toBe(true);
+      expect(s.retrievedAt === null || (typeof s.retrievedAt === 'string' && !Number.isNaN(Date.parse(s.retrievedAt))), String(s.name)).toBe(true);
+      expect(Number.isInteger(s.recordCount) && (s.recordCount as number) >= 0, String(s.name)).toBe(true);
+    }
+  });
+
+  it('Debian の出典は license: null と licenseNote「ライセンスの明記なし（出典のみ表示）」、Ubuntu は CC-BY-SA-4.0 であること', () => {
+    const srcs = (db.sources ?? []) as TopSource[];
+    const deb = srcs.filter((s) => s.ecosystem === 'Debian');
+    const ubu = srcs.filter((s) => s.ecosystem === 'Ubuntu');
+    expect(deb).toHaveLength(1);
+    expect(ubu).toHaveLength(1);
+    expect(deb[0].license).toBeNull();
+    expect(deb[0].licenseNote).toBe('ライセンスの明記なし（出典のみ表示）');
+    expect(ubu[0].license).toBe('CC-BY-SA-4.0');
+  });
+
+  it('同梱 DB は validateDb を通ること（スキーマ 2.4 の検査を含む）', () => {
+    expect(() => validateDb(advisoryDbJson, { sizeBytes: fs.statSync(DB_FILE).size })).not.toThrow();
+  });
+
+  it('同梱 DB のファイルサイズが上限（check-size の advisoryDb）以下で、distro 節も上限以下であること', async () => {
+    // @ts-expect-error scripts/ci/check-size.mjs は型定義を持たない .mjs モジュール
+    const mod = (await import('../scripts/ci/check-size.mjs')) as { SIZE_LIMITS: { advisoryDb: number; distro: number } };
+    expect(fs.statSync(DB_FILE).size).toBeLessThanOrEqual(mod.SIZE_LIMITS.advisoryDb);
+    expect(Buffer.byteLength(JSON.stringify(db.distro ?? {}))).toBeLessThanOrEqual(mod.SIZE_LIMITS.distro);
+  });
+
+  it('getAdvisoryDbMetadata() の sources は従来どおり文字列（出典の名前）の配列で、sourceRecords に構造化した出典が入ること（互換）', () => {
+    type Meta = ReturnType<typeof getAdvisoryDbMetadata> & { sourceRecords?: Array<{ name: string; license: string | null; licenseNote?: string }> };
+    const meta = getAdvisoryDbMetadata() as Meta;
+    const names = ((db.sources ?? []) as TopSource[]).map((s) => s.name);
+    expect(meta.sources.every((s) => typeof s === 'string')).toBe(true);
+    expect(meta.sources).toEqual(names);
+    expect(Array.isArray(meta.sourceRecords)).toBe(true);
+    expect(meta.sourceRecords?.map((s) => s.name)).toEqual(names);
+    for (const s of meta.sourceRecords ?? []) expect(Boolean(s.license) || Boolean(s.licenseNote), s.name).toBe(true);
   });
 });

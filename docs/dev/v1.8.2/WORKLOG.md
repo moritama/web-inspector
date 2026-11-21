@@ -154,3 +154,19 @@
   - `test-server/server.mjs`: `/https-only-headers` の説明文を localhost で通常判定、LAN の IP で対象外となる旨に更新
 - 外部の事実: なし（設計メモの範囲内）
 - 未解決: なし
+
+## T06 設計  (2026-11-22 03:10)
+- 変更ファイル: docs/dev/v1.8.2/design/T06.md（新規）, tests/advisory-sources.test.mjs（新規）, tests/advisory-sources-compat.test.ts（新規）, tests/advisory-db-invariants.test.ts（T06 の describe を追加、既存 1 件の期待値を変更）, tests/advisory-distro-pipeline.test.mjs・tests/advisory-pipeline.test.mjs（既存の期待値を変更）
+- 判断したこと:
+  - 最上位の `sources` は §5.2 の表のうち DB に入る 6 つ（NVD・GitHub Advisory Database・Ubuntu・Debian・endoflife.date・CISA KEV）。Ubuntu・Debian は distro 節があるときだけ。curated・PSL・Launchpad・sources.debian.org は載せない。形は `distro._source` と同じ（name・url・ecosystem・license・licenseNote?・retrievedAt・recordCount）
+  - catalog.json は変更禁止なので、出典の定義は `scripts/advisories/lib/sources.mjs`（新規）の定数に置く。値は設計メモの JSON。Debian は `license: null` と licenseNote「ライセンスの明記なし（出典のみ表示）」（§5.3）。`distro._source` は catalog から作る今のまま
+  - retrievedAt は出典ごとのスナップショットのいちばん新しい取得日時、recordCount はその出典に由来して DB に入った件数。スナップショットが無ければ null と 0（値を作らない）。Ubuntu・Debian は `distro._source` の値を写す
+  - validateDb: 2.4 では全要素がオブジェクトで license か licenseNote を持つことを検査。2.3 以前の文字列の配列はこれまでどおり受け付ける。拡張機能の側は `normalizeAdvisoryDbSources` で新旧をそろえ、`getAdvisoryDbMetadata().sources` は名前の `string[]` のまま、構造化した出典は任意の `sourceRecords` に入れる。古い文字列からライセンス・件数・日時を作らない（null）
+  - CI: `scripts/ci/check-data-sources.mjs`（新規）を ci.yml に足す。THIRD_PARTY_NOTICES.md（T07 で作る）が無ければ照合を飛ばして警告だけにする（T07 は scripts/ci/ を変えられないので、照合の仕組みは T06 で入れる）
+  - PSL: `renderPslGeneratedTs` の先頭のコメントに MPL 2.0 の 3 行と元のファイルの URL を足す。生成ファイルは夜のシェルの spec:generate で作り直される
+  - 既存テストの変更（全件）: tests/advisory-distro-pipeline.test.mjs の schema 2.3 の describe の 3 か所（`'2.3'` → `'2.4'`／`OUTPUT_SCHEMA_VERSION`）、tests/advisory-pipeline.test.mjs の「strict 検証 (schema 2.3)」1 件（2.4 に）、tests/advisory-db-invariants.test.ts の getAdvisoryDbMetadata の 1 件（受け付けるスキーマに 2.4 を追加）。理由はいずれも H10 でスキーマが 2.4 に上がるため。`db.sources` の全体比較をしている既存テストは無い
+  - 実装の前は、新しいテストが「機能が無い」ことで失敗することを確認した（5 ファイル・47 件が失敗。schema が 2.3、sources が文字列、`normalizeAdvisoryDbSources` と check-data-sources.mjs が無い、PSL の表示が無い）。互換のテスト（照合が sources の形に依存しない、2.3 の文字列の配列を通す）は今も通る。`npx tsc --noEmit` と tests/test-hygiene.test.ts は通る
+- 外部の事実: OSV data sources — https://google.github.io/osv.dev/data/ （GHSA CC-BY 4.0、Ubuntu CC-BY-SA 4.0、Debian は記載なし）、https://github.com/github/advisory-database （CC-BY 4.0）、https://github.com/canonical/ubuntu-security-notices （CC BY-SA 4.0）、https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE （MIT、Copyright 2020 endoflife.date contributors）、https://github.com/cisagov/kev-data （CC0）、https://publicsuffix.org/list/public_suffix_list.dat （先頭の MPL 2.0 の表示）。いずれも 2026-11-22 確認
+- 未解決:
+  - NVD の表示文の一字一句（指示書は「uses the NVD API」、検索の要約には「uses data from the NVD API」）は、NVD のページを取得できず確かめられなかった。T06 の DB には英文を入れず、T07 で確かめる
+  - catalog.json の `distroSources` の Debian の licenseNote が仮の値（「v1.8.2 で確認」）のままで、`distro._source` に入る。catalog.json は変更禁止のため、人が直すかを判断する

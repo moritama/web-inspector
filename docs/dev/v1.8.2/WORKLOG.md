@@ -170,3 +170,8 @@
 - 未解決:
   - NVD の表示文の一字一句（指示書は「uses the NVD API」、検索の要約には「uses data from the NVD API」）は、NVD のページを取得できず確かめられなかった。T06 の DB には英文を入れず、T07 で確かめる
   - catalog.json の `distroSources` の Debian の licenseNote が仮の値（「v1.8.2 で確認」）のままで、`distro._source` に入る。catalog.json は変更禁止のため、人が直すかを判断する
+
+## T06 停止（夜間スクリプトによる自動記録）  (2026-11-22 03:10)
+- 理由: 実装の担当が、テストの期待値の変更が必要と判断した: PSL生成ファイルのMPL表示の改行を修正。tests/osv-distro-pipeline.test.mjs:649 はT05のschema 2.3前提（sourcesが単一文字列）の古いテストのため、schema 2.4（オブジェクト配列）のT06仕様と矛盾しておりテスト側の期待値更新が必要です。
+- 変更の退避先: git stash の「v1.8.2 T06 stop 20261122-021831」（記録時点で stash@{0}。番号はずれるので git stash list で名前を確認）。夜間ログのフォルダにパッチもある
+- 人間に判断してほしいこと: 設計メモとテストを読み、期待値を変えるべきか判断する。変えるなら人がテストを直してコミットし、RETRY_STOPPED=1 で再実行

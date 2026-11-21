@@ -486,7 +486,7 @@ export async function getInspectedCookies(url: string): Promise<InspectedCookieI
 export async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
   const collectionErrors: string[] = [];
 
-  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する (二重注入は content-script 先頭の印で防止)
+  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する。content-script.js は IIFE で出している（vite.config.ts の 2 段目のビルド）ので、同じフレームへ 2 回目を注入しても重複宣言にならず、先頭の印（CONTENT_SCRIPT_GUARD_KEY）でリスナーの二重登録を防ぐ
   try {
     if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript) {
       await chrome.scripting.executeScript({

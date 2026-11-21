@@ -234,6 +234,15 @@ export async function runSmokeTest() {
     // 検証 1: 肯定コントロール (/react18-app)
     // -------------------------------------------------------------
     console.log('[e2e-smoke] [1/6] 肯定コントロール: /react18-app を検証中...');
+    // v1.8.2 T02: ページのコンソールエラーを集め、重複宣言エラーが発生しないことを監視
+    const pageErrors = [];
+    const onPageError = (err) => pageErrors.push(String(err));
+    const onConsole = (msg) => {
+      if (msg.type() === 'error') pageErrors.push(msg.text());
+    };
+    page.on('pageerror', onPageError);
+    page.on('console', onConsole);
+
     const reactReport = await inspectUrl('http://localhost:3000/react18-app');
     if (!reactReport || !reactReport.technologies || reactReport.technologies.length === 0) {
       throw new Error('/react18-app: 技術が0件しか検出されませんでした (全滅バグ再発の疑い)。');
@@ -244,7 +253,7 @@ export async function runSmokeTest() {
     }
     console.log(`  ✓ React 18.2.0 (confirmed) を正常検出`);
 
-    // T11 (IMPL-08): 同じページを2回調査しても evidence が重複しないこと
+    // T11 (IMPL-08) & T02 (v1.8.2 H6): 同じページを2回調査しても evidence が重複せず、二重注入・SyntaxError が起きないこと
     const reactReport2 = await inspectCurrentTabAgain();
     const reactTech2 = reactReport2.technologies.find((t) => t.technology === 'React');
     if (!reactTech2 || reactTech2.evidence.length !== reactTech.evidence.length) {
@@ -253,6 +262,94 @@ export async function runSmokeTest() {
       );
     }
     console.log(`  ✓ 同一ページの2回連続調査で evidence が重複しないことを確認 (${reactTech2.evidence.length}件)`);
+
+    // T02 (v1.8.2 / H6): 2回目の調査結果の確認（二重注入・already been declared の不在確認）
+    const report2Str = JSON.stringify(reactReport2);
+    if (/注入に失敗/.test(report2Str) || /already been declared/.test(report2Str)) {
+      throw new Error(`/react18-app: 2回目の調査結果に二重注入または構文エラーが含まれています: ${report2Str}`);
+    }
+    if (reactReport.coverage?.domSignals?.reason !== reactReport2.coverage?.domSignals?.reason) {
+      throw new Error(`/react18-app: 2回目の調査で DOM 収集理由が変化しました (二重注入の疑い)`);
+    }
+
+    // T02 手順3: isolated world の addListener をラップして呼び出し回数を数え、3 回目の調査を実行
+    await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      if (tabs.length === 0) throw new Error('localhost タブが見つかりません');
+      const tabId = tabs[0].id;
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          globalThis.__e2eAddListenerCalls = 0;
+          const originalAddListener = chrome.runtime.onMessage.addListener.bind(chrome.runtime.onMessage);
+          chrome.runtime.onMessage.addListener = (...args) => {
+            globalThis.__e2eAddListenerCalls = (globalThis.__e2eAddListenerCalls || 0) + 1;
+            return originalAddListener(...args);
+          };
+        },
+      });
+    });
+
+    const reactReport3 = await inspectCurrentTabAgain();
+    const report3Str = JSON.stringify(reactReport3);
+    if (/注入に失敗/.test(report3Str) || /already been declared/.test(report3Str)) {
+      throw new Error(`/react18-app: 3回目の調査結果に二重注入または構文エラー (already been declared) が含まれています: ${report3Str}`);
+    }
+
+    const check3 = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      const tabId = tabs[0].id;
+      const [res] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => ({
+          addListenerCalls: globalThis.__e2eAddListenerCalls,
+          injectedGuard: globalThis.__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__,
+        }),
+      });
+      return res.result;
+    });
+
+    if (check3.addListenerCalls !== 0) {
+      throw new Error(`/react18-app: 3回目の調査で addListener が重複登録されました (呼び出し回数: ${check3.addListenerCalls}) 二重注入の印でスキップされていません`);
+    }
+    if (check3.injectedGuard !== true) {
+      throw new Error(`/react18-app: 二重注入防止の印 (__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__) が true でありません`);
+    }
+
+    // T02 手順4: 2回目が SyntaxError で止まらず本当に実行されていることを確認するため、印を消してから再度注入しリスナー登録が +1 されることを確認
+    const addListenerCalls4 = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      const tabId = tabs[0].id;
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          delete globalThis.__WEB_INSPECTOR_CONTENT_SCRIPT_INJECTED__;
+        },
+      });
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content/content-script.js'],
+      });
+      const [res] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => globalThis.__e2eAddListenerCalls,
+      });
+      return res.result;
+    });
+
+    if (addListenerCalls4 !== 1) {
+      throw new Error(`/react18-app: 印削除後の content-script 再注入で addListener が実行されませんでした (calls: ${addListenerCalls4}) 二重注入テスト失敗`);
+    }
+
+    for (const err of pageErrors) {
+      if (/already been declared/.test(err)) {
+        throw new Error(`/react18-app: ページのコンソールに already been declared エラーが記録されています: ${err}`);
+      }
+    }
+    page.off('pageerror', onPageError);
+    page.off('console', onConsole);
+    await page.reload({ waitUntil: 'networkidle' });
+    console.log(`  ✓ 同一ページの2回以上の調査（二重注入）で already been declared エラーなくリスナーが重複しないことを確認`);
 
     // -------------------------------------------------------------
     // 検証 2: 肯定コントロール (/apache-positive, /laravel-positive)

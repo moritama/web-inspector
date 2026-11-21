@@ -56,3 +56,13 @@
   - 期待値を変えた既存テストは無い
 - 外部の事実: Rollup の output.format iife・inlineDynamicImports・name — https://rollupjs.org/configuration-options/ 、Vite の build()・configFile・apply・configResolved・closeBundle・emptyOutDir — https://vite.dev/guide/api-javascript 、https://vite.dev/guide/api-plugin 、https://vite.dev/config/build-options 、chrome.scripting.executeScript の files・world の既定 ISOLATED — https://developer.chrome.com/docs/extensions/reference/api/scripting （いずれも 2026-11-21）。同じ拡張機能の content script が同じフレームで isolated world を共有することは文書に明記が無く、不具合の報告と手元の再現で確かめた
 - 未解決: npm run watch で closeBundle が再ビルドごとに呼ばれるかは確かめていない（受け入れ条件の外）
+
+## T02 実装  (2026-11-21 21:07)
+- 変更ファイル: vite.config.ts, scripts/ci/check-content-script-iife.mjs（新規）, .github/workflows/ci.yml, src/background/service-worker.ts, scripts/test-e2e-smoke.mjs
+- 判断したこと:
+  - `vite.config.ts` でメインビルドの入力から `content-script` を外し、2 段目ビルド用設定関数 `contentScriptBuildConfig(outDir)` を export。`contentScriptIifePlugin` プラグインの `closeBundle` フックから 1 段目の解決後 `outDir` を渡して `build(contentScriptBuildConfig(outDir))` を呼び出す構成を実装
+  - `scripts/ci/check-content-script-iife.mjs` を新設し、`checkIifeSource(text)` と `checkContentScriptIife(options)` を export。先頭コメントや `use strict` を除いた本文がトップレベル宣言や import/export で始まらず、即時実行関数式で始まるかを総合チェック C20 と同等の基準で判定。CLI では `--file` オプションに対応し、終了コードと GitHub Actions 形式のエラーログを出力
+  - `.github/workflows/ci.yml` の `verify` ジョブで、`npm run build` および `check-size.mjs` の直後に `node scripts/ci/check-content-script-iife.mjs` を実行する手順を追加
+  - `src/background/service-worker.ts` の `chrome.scripting.executeScript` 呼び出し直前コメントに、content-script.js が IIFE で出力されている旨を明記
+  - `scripts/test-e2e-smoke.mjs` の検証 1 に、同一タブへの複数回調査で `already been declared` や `注入に失敗` が出ないこと、isolated world 内のリスナー重複登録がないこと、二重注入防止の印を消した際の再登録動作を検証するケースを追加
+- 未解決: なし

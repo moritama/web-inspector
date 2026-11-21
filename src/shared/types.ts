@@ -80,6 +80,9 @@ export type EvidenceType =
   | 'dom-marker'            // DOMマーカー
   | 'pattern';              // その他パターン
 
+/** Cookie のスコープ（v1.8.2 T03 / H1・H3）。host = host-only、domain = Domain 属性あり（親ドメイン・apex を含む）、unknown = document.cookie にだけある */
+export type CookieScope = 'host' | 'domain' | 'unknown';
+
 /**
  * 検出根拠 (エビデンス)
  */
@@ -97,6 +100,8 @@ export interface Evidence {
   confidence?: 'high' | 'medium' | 'low';
   /** この単体エビデンスが付与する基礎スコア */
   weight?: number;
+  /** Cookie のスコープ (v1.8.2 T03) */
+  cookieScope?: CookieScope;
 }
 
 /**
@@ -326,6 +331,8 @@ export interface DetectedTechnology {
   distroAdvisories?: DistroAdvisoryAssessment;
   /** 参考: 上流の版による EOL（数えない） (v1.8.1 T03) */
   upstreamEolInfo?: EolInfo;
+  /** Cookie スコープにより確信度を 35 に下げた印 (v1.8.2 T03 / H2) */
+  cookieScopeDowngraded?: boolean;
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */

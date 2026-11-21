@@ -79,3 +79,23 @@
   - 実装の前に、新しいテストは機能が無いことが理由で失敗する（cookie-scope 19 件、cookie-store 11 件）。既存の detection・service-worker・test-hygiene は通る（135 件）。期待値を変えた既存テストは無い
 - 外部の事実: chrome.cookies の getAllCookieStores・CookieStore（id・tabIds）・getAll の storeId と partitionKey・Cookie.hostOnly — https://developer.chrome.com/docs/extensions/reference/api/cookies 、manifest の incognito（既定は spanning）— https://developer.chrome.com/docs/extensions/reference/manifest/incognito 、Set-Cookie の Domain 属性と host-only-flag — https://www.rfc-editor.org/rfc/rfc6265 §5.2・§5.2.3・§5.3（いずれも 2026-11-22）。spanning で storeId を省略すると通常の保存先を読むことは指示書 §4.5（2026-11-19 の確認）による
 - 未解決: Set-Cookie はヘッダーの記録（sanitizeHeaders）で落とされるため、実際の調査では Set-Cookie の経路はほぼ使われない（検出エンジンの入力としてテストした）。下げた技術に後から連動の根拠が足されて引き上げられたときも `cookieScopeDowngraded` が残るので、T04 の注記ではその場合の扱いを決める必要がある
+
+## T03 実装  (2026-11-22 00:40)
+- 変更ファイル: src/shared/types.ts, src/detection/engine.ts, src/background/service-worker.ts
+- 判断したこと:
+  - `src/shared/types.ts`: `CookieScope`（`'host' | 'domain' | 'unknown'`）を定義し、`Evidence.cookieScope` および `DetectedTechnology.cookieScopeDowngraded`（任意プロパティ）を追加
+  - `src/detection/engine.ts`:
+    - Cookie 名の収集を `Set<string>` から `Map<string, CookieScope>`（`cookieScopes`）に変更。スコープの優先順位（host > domain > unknown）に従って合成
+    - chrome.cookies は `hostOnly === false` なら `domain`、真偽値以外または `true` なら `host`
+    - Set-Cookie は先頭の `;` より後にある属性から大文字小文字を無視して `domain` 属性を抽出し、値が空でなければ `domain`、それ以外（属性なし・値が空）は `host`
+    - document.cookie は `unknown`
+    - `case 'cookie'` で `Evidence` に `cookieScope` を付与
+    - 根拠がすべて `cookie-name` かつどれも `host` でない場合、確信度を 35（low / possible / direct）に引き下げ、下げる前の確信度が 50 以上だった場合のみ `cookieScopeDowngraded: true` を設定
+    - 採用しきい値フィルタで `cookieScopeDowngraded === true` を除外対象から外して一覧に残す
+    - `consolidateCandidates` で Laravel のセッション＋XSRF-TOKEN による 70 への引き上げについて、根拠がすべて `cookie-name` かつ非 host の場合は引き上げをスキップ
+  - `src/background/service-worker.ts`:
+    - `CookieStoreLookup` 型を定義し、`resolveCookieStoreId(tabId, cookiesApi?)` を新設・export。引数が 2 つ未満のときは `chrome.cookies` を使用し、指定の `tabId` を含む保存先の `id` を解決（見つからない・例外時は `undefined`）
+    - `getInspectedCookies(url, tabId?)` を更新し、`resolveCookieStoreId(tabId)` で得られた `storeId` があれば `{ storeId }` を通常 Cookie および CHIPS の `getAll` の両方に渡し、未定義の場合はキー自体を付与しない
+    - `InspectionDependencies.getInspectedCookies` に `tabId?: number` を追加し、`executeInspection` から `deps.getInspectedCookies(url, currentTabId)` で呼び出すよう配線
+- 外部の事実: なし（設計メモの範囲内）
+- 未解決: なし

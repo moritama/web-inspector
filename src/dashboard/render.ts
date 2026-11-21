@@ -11,6 +11,7 @@ import {
 import { filterDisplayEvidences } from '../detection/engine';
 import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
+import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import {
   getSecurityCheckDisplayBadge,
   isFindingExcludedByException,
@@ -25,6 +26,7 @@ import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
+  InspectedCookieInfo,
   InspectionReport,
   SecurityAdvisory,
   SecurityCheckResult,
@@ -398,7 +400,11 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
 /**
  * 技術詳細アコーディオン一覧のHTML文字列を生成する
  */
-export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage?: any): string {
+export function renderFullTechnologiesHtml(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  cookies?: readonly InspectedCookieInfo[]
+): string {
   const noticeHtml = (coverage && coverage.networkHeadersObserved === false)
     ? `<div style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: var(--warning-color); line-height: 1.5;">
          ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、対象ページを再読み込み（リロード）して再調査してください。
@@ -729,6 +735,12 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             return itemsHtml + remHtml;
           })()}
         </ul>
+        ${(() => {
+          const note = formatCookieScopeNote(t, cookies);
+          return note
+            ? `<div style="margin-top:6px;font-size:12px;color:var(--text-muted);background:rgba(245, 158, 11, 0.08);padding:6px 10px;border-radius:4px;border:1px solid rgba(245, 158, 11, 0.3);">※ ${escapeHtml(note)}</div>`
+            : '';
+        })()}
       </div>
     </div>
   `;
@@ -764,6 +776,11 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
         `
             : '';
 
+        const parentScopeBreakdown =
+          typeof c.parentDomainCookieCount === 'number' && c.parentDomainCookieCount > 0
+            ? ` （うち ${c.parentDomainCookieCount} 件は親ドメインのスコープ）`
+            : '';
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
@@ -777,7 +794,7 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
         </div>
       </div>
       <div class="accordion-body">
-        <div><strong>観測値:</strong> <code>${escapeHtml(c.observed)}</code></div>
+        <div><strong>観測値:</strong> <code>${escapeHtml(c.observed)}</code>${parentScopeBreakdown}</div>
         <div><strong>セキュリティ上の影響:</strong> ${escapeHtml(c.description)}</div>
         <div style="color:var(--accent-color);"><strong>推奨対応:</strong> ${escapeHtml(c.recommendation)}</div>
         ${

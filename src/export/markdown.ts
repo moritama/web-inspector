@@ -33,6 +33,7 @@ import {
   isRequiresAttention,
 } from '../shared/security-status';
 import { normalizeCookieCategory } from '../security/cookies';
+import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import { evaluatePolicyIssuesWithIntersection } from '../security/csp-parser';
 import { compareReportsEnhanced } from '../storage/diff';
 
@@ -402,6 +403,17 @@ ${
   }
 
   // 4. 検出技術スタック
+  const cookieScopeNotes: string[] = [];
+  for (const t of report.technologies) {
+    const note = formatCookieScopeNote(t, report.cookies);
+    if (note) {
+      cookieScopeNotes.push(`- **${escapeMarkdown(t.technology)}**: ${escapeMarkdown(note)}`);
+    }
+  }
+  const cookieScopeSection = cookieScopeNotes.length > 0
+    ? `\n\n> [!NOTE]\n> **親ドメインの Cookie だけで検出した技術:**\n${cookieScopeNotes.map((n) => `> ${n}`).join('\n')}`
+    : '';
+
   sections.push(`## 4. 検出技術スタック
 
 > [!NOTE]
@@ -417,7 +429,7 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
   return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(t.category)} | ${formatMarkdownCodeSpan(ver, { inTable: true })} | ${distro} | ${method} | ${escapeMarkdownTableCell(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
-}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}${distroAdvSection}
+}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}${distroAdvSection}${cookieScopeSection}
 `);
 
   // 5. セキュリティ診断結果
@@ -428,7 +440,11 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
 ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
   const statBadge = formatMarkdownStatusBadge(c.status);
   const exBadge = c.exceptionStatus === 'accepted' ? '🛡️ 許容済' : c.exceptionStatus === 'false-positive' ? '❌ 誤検知除外' : '-';
-  return `| ${escapeMarkdownTableCell(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | ${formatMarkdownCodeSpan(c.observed, { inTable: true })} | ${exBadge} |`;
+  const parentScopeBreakdown =
+    typeof c.parentDomainCookieCount === 'number' && c.parentDomainCookieCount > 0
+      ? ` （うち ${c.parentDomainCookieCount} 件は親ドメインのスコープ）`
+      : '';
+  return `| ${escapeMarkdownTableCell(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | ${formatMarkdownCodeSpan(c.observed, { inTable: true })}${parentScopeBreakdown} | ${exBadge} |`;
 }).join('\n') : '| なし | - | - | - | - |'}
 `);
 
@@ -651,6 +667,11 @@ ${buildRoadmapSectionBody(report.securityChecks)}
         )
         .join(', ');
       evidenceLines.push(`- **検出されたテーマ:** ${themeList}`);
+    }
+
+    const scopeNote = formatCookieScopeNote(t, report.cookies);
+    if (scopeNote) {
+      evidenceLines.push(`- ※ ${escapeMarkdown(scopeNote)}`);
     }
 
     return `\n### ${t.technology} (確信度: ${t.confidenceLevel} - ${t.confidence}%)\n${evidenceLines.join('\n')}\n`;

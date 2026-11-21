@@ -388,6 +388,7 @@ export function checkCookies(
   }
 
   const issues: CookieIssue[] = [];
+  const issueIsParentDomain = new Map<CookieIssue, boolean>();
 
   for (const rawCookie of cookies) {
     const classification = classifyCookieAdvanced(rawCookie.name);
@@ -396,6 +397,8 @@ export function checkCookies(
 
     if (issue) {
       issues.push(issue);
+      const isParentScope = typeof rawCookie.hostOnly === 'boolean' && rawCookie.hostOnly === false;
+      issueIsParentDomain.set(issue, isParentScope);
       if (issue.missingAttributes.includes('Secure')) issueTexts.push('Secure属性未設定');
       if (issue.missingAttributes.includes('HttpOnly')) issueTexts.push('HttpOnly属性未設定');
     } else {
@@ -467,6 +470,7 @@ export function checkCookies(
     }
 
     if (missingSecure.length > 0) {
+      const parentCount = missingSecure.filter((i) => issueIsParentDomain.get(i) === true).length;
       checks.push({
         checkId: 'SEC-COOKIE-SECURE',
         category: 'cookies',
@@ -479,6 +483,7 @@ export function checkCookies(
         recommendation: 'すべての認証Cookieに「Secure」属性を付与してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies#restrict_access_to_cookies'],
         scope: url,
+        ...(parentCount > 0 ? { parentDomainCookieCount: parentCount } : {}),
       });
     }
   }
@@ -488,6 +493,7 @@ export function checkCookies(
   if (csrfIssues.length > 0) {
     const missingSecure = csrfIssues.filter((i) => i.missingAttributes.includes('Secure'));
     if (missingSecure.length > 0) {
+      const parentCount = missingSecure.filter((i) => issueIsParentDomain.get(i) === true).length;
       const namesSummary = formatCookieNamesForObserved(
         missingSecure.map((i) => i.name),
         3
@@ -503,6 +509,7 @@ export function checkCookies(
         recommendation: 'CSRFトークンを保持するCookieに「Secure」属性を付与してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
         scope: url,
+        ...(parentCount > 0 ? { parentDomainCookieCount: parentCount } : {}),
       });
     }
   }
@@ -519,6 +526,7 @@ export function checkCookies(
   if (generalIssues.length > 0) {
     const missingSecure = generalIssues.filter((i) => i.missingAttributes.includes('Secure'));
     if (missingSecure.length > 0) {
+      const parentCount = missingSecure.filter((i) => issueIsParentDomain.get(i) === true).length;
       const namesSummary = formatCookieNamesForObserved(
         missingSecure.map((i) => i.name),
         3
@@ -534,6 +542,7 @@ export function checkCookies(
         recommendation: 'Webサーバーまたは発行スクリプトで「Secure」フラグを付与してください。',
         referenceUrls: ['https://developer.mozilla.org/ja/docs/Web/HTTP/Cookies'],
         scope: url,
+        ...(parentCount > 0 ? { parentDomainCookieCount: parentCount } : {}),
       });
     }
   }

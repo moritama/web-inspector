@@ -11,6 +11,7 @@ import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
   FindingException,
+  InspectedCookieInfo,
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
@@ -256,7 +257,7 @@ function renderDashboard(report: InspectionReport): void {
   renderLibrarySecurityView(report.technologies);
 
   // 3. 検出技術 & エビデンス
-  renderFullTechnologies(report.technologies, report.coverage);
+  renderFullTechnologies(report.technologies, report.coverage, report.cookies);
 
   // 4. HTTPセキュリティ診断
   renderFullSecurity(report.securityChecks);
@@ -283,8 +284,12 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
   librarySecurityTableContainerEl.innerHTML = renderLibrarySecurityTableHtml(techs);
 }
 
-function renderFullTechnologies(techs: DetectedTechnology[], coverage?: any): void {
-  fullTechsContainerEl.innerHTML = renderFullTechnologiesHtml(techs, coverage);
+function renderFullTechnologies(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  cookies?: readonly InspectedCookieInfo[]
+): void {
+  fullTechsContainerEl.innerHTML = renderFullTechnologiesHtml(techs, coverage, cookies);
 }
 
 function renderFullSecurity(checks: SecurityCheckResult[]): void {

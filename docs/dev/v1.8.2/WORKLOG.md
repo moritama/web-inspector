@@ -111,3 +111,16 @@
   - 実装の前は、新しいテストが機能が無いことを理由に失敗する（56 件中 40 件失敗。`npx tsc --noEmit` は新規モジュールが無いため失敗）。test-hygiene は通る。期待値を変えた既存テストは無い
 - 外部の事実: localtest.me とそのサブドメインが 127.0.0.1 に解決されること — https://weblogs.asp.net/owscott/introducing-testing-domain-localtest-me 、`.test` の予約 — https://datatracker.ietf.org/doc/html/rfc6761#section-6.2 、Domain 属性と host-only-flag・domain-match — https://www.rfc-editor.org/rfc/rfc6265 §5.1.3・§5.3 、chrome.cookies の hostOnly・domain — https://developer.chrome.com/docs/extensions/reference/api/cookies （いずれも 2026-11-22）。ルーターの DNS リバインディング対策で localtest.me が解決できないことがある点は一次資料で確かめられず、代わりの手順を書く理由としてだけ使う
 - 未解決: Secure の内訳は HTTPS でしか出ないため、テストサーバー（HTTP）では目視できない（Vitest で確かめる）
+
+## T04 実装  (2026-11-22 01:38)
+- 変更ファイル: src/shared/types.ts, src/shared/cookie-scope-note.ts（新規）, src/security/cookies.ts, src/export/markdown.ts, src/dashboard/render.ts, src/dashboard/dashboard.ts, test-server/server.mjs
+- 判断したこと:
+  - `src/shared/cookie-scope-note.ts` を新設し `formatCookieScopeNote(tech, cookies?)` を実装。`tech.cookieScopeDowngraded === true` かつ `tech.evidence` のすべてが `type === 'cookie-name'` かつ `cookieScope !== 'host'` の場合のみ注記文を生成。Cookie 名とドメイン（`cookies` 内で `c.hostOnly === false` のもの）を出現順・重複除外で収集し、「同一ドメインの別サイトで発行された可能性があり、このホスト単体での利用は確認できていません」をちょうど1回付与
+  - `src/shared/types.ts`: `SecurityCheckResult` に `parentDomainCookieCount?: number` を追加
+  - `src/security/cookies.ts`: `checkCookies` で各 `CookieIssue` について入力 Cookie の `typeof rawCookie.hostOnly === 'boolean' && rawCookie.hostOnly === false` を保持し、`SEC-COOKIE-SECURE`、`SEC-COOKIE-SECURE-CSRF`、`SEC-COOKIE-SECURE-GENERAL` で親ドメイン件数が 1 以上の場合に `parentDomainCookieCount` を付与。`observed` 文字列は変更せず維持
+  - `src/export/markdown.ts`: §4 の表後に親ドメイン Cookie 根拠技術の注記ブロック（`> [!NOTE]`）を追加。§14 の技術エビデンス詳細節の末尾に `- ※ ${注記}` を追加。§5 の観測値列に `parentDomainCookieCount > 0` の場合「（うち N 件は親ドメインのスコープ）」を添える
+  - `src/dashboard/render.ts`: `renderFullTechnologiesHtml` に第 3 引数 `cookies`（任意）を追加し、「判定根拠 (Evidence)」の直後に注記 HTML を出力。`renderFullSecurityHtml` の観測値に親ドメイン件数を付記
+  - `src/dashboard/dashboard.ts`: `renderFullTechnologies` に `report.cookies` を渡すよう更新
+  - `test-server/server.mjs`: `TEST_PAGES` に `/parent-cookie-issuer` と `/parent-cookie-target` を追加し、`getStartupLines` に起動時 URL 行を追加。リクエスト Host から `localtest.me` または `example.test` を判定し、`/parent-cookie-issuer` で親ドメインの `_ga` を発行（GA スクリプトは不含）、DNS リバインディング対策の `/etc/hosts` 手順を記載。`/parent-cookie-target` は案内のみ。`/clear-cookies` で親ドメインの `_ga` 期限切れ（Max-Age=0）を設定
+- 外部の事実: なし（設計メモの範囲内）
+- 未解決: なし

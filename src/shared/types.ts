@@ -431,6 +431,8 @@ export interface SecurityCheckResult {
   recommendation: string;
   referenceUrls: string[];
   scope: string;
+  /** Secure 未設定の Cookie のうち、親ドメインのスコープ（hostOnly === false）の件数。1 以上のときだけ付ける (v1.8.2 T04) */
+  parentDomainCookieCount?: number;
   /** 安定ID (Rev.2.1 IMP-07 / IMP-10) */
   findingId?: string;
   /** 例外・許容ステータス (Rev.2.1 IMP-10) */

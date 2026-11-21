@@ -66,3 +66,16 @@
   - `src/background/service-worker.ts` の `chrome.scripting.executeScript` 呼び出し直前コメントに、content-script.js が IIFE で出力されている旨を明記
   - `scripts/test-e2e-smoke.mjs` の検証 1 に、同一タブへの複数回調査で `already been declared` や `注入に失敗` が出ないこと、isolated world 内のリスナー重複登録がないこと、二重注入防止の印を消した際の再登録動作を検証するケースを追加
 - 未解決: なし
+
+## T03 設計  (2026-11-22 00:30)
+- 変更ファイル: docs/dev/v1.8.2/design/T03.md（新規）, tests/cookie-scope.test.ts（新規）, tests/cookie-store.test.ts（新規）
+- 判断したこと:
+  - Cookie のスコープは名前ごとに host > domain > unknown の強い方を残す。chrome.cookies は hostOnly、Set-Cookie は Domain 属性（値が空でなければ、ホストと同じ値でも domain）、document.cookie だけの名前は unknown（H1・H3）
+  - 根拠の cookie-name に属性 `cookieScope` を足す（detail の文言は T03 では変えない。注記は T04）
+  - 確信度 35 に下げた技術は今の採用しきい値（50 未満を捨てる）で一覧から消え、「GA は low・possible」を確かめられない。そこで、下げる前が 50 以上だった技術にだけ `cookieScopeDowngraded: true` を付けてしきい値の対象から外す。下げる前から 50 未満のもの（親ドメインの csrftoken だけなど）は従来どおり出さない（警告を増やしすぎない）
+  - consolidateCandidates の「*_session と XSRF-TOKEN で 70」は、どちらも host でないときは上げない（H2 に合わせる）
+  - hostOnly が真偽値でない Cookie（既存テスト・合成データ）は従来どおり host とした。Chrome の Cookie.hostOnly は必須の真偽値で実際の調査では起きず、既存テストの 20 件以上が hostOnly を書いていないため。domain の先頭の `.` などからは推測しない（H1）
+  - D-3 は `resolveCookieStoreId(tabId, cookiesApi?)` を新設し、`getInspectedCookies(url, tabId?)` が通常と分割 Cookie の両方の getAll に storeId を渡す。見つからない・API が無い・例外・タブ ID なしのときは storeId のキーを付けない（既存の IMPL-11 の完全一致を壊さない）。executeInspection は (URL, タブ ID) を渡す
+  - 実装の前に、新しいテストは機能が無いことが理由で失敗する（cookie-scope 19 件、cookie-store 11 件）。既存の detection・service-worker・test-hygiene は通る（135 件）。期待値を変えた既存テストは無い
+- 外部の事実: chrome.cookies の getAllCookieStores・CookieStore（id・tabIds）・getAll の storeId と partitionKey・Cookie.hostOnly — https://developer.chrome.com/docs/extensions/reference/api/cookies 、manifest の incognito（既定は spanning）— https://developer.chrome.com/docs/extensions/reference/manifest/incognito 、Set-Cookie の Domain 属性と host-only-flag — https://www.rfc-editor.org/rfc/rfc6265 §5.2・§5.2.3・§5.3（いずれも 2026-11-22）。spanning で storeId を省略すると通常の保存先を読むことは指示書 §4.5（2026-11-19 の確認）による
+- 未解決: Set-Cookie はヘッダーの記録（sanitizeHeaders）で落とされるため、実際の調査では Set-Cookie の経路はほぼ使われない（検出エンジンの入力としてテストした）。下げた技術に後から連動の根拠が足されて引き上げられたときも `cookieScopeDowngraded` が残るので、T04 の注記ではその場合の扱いを決める必要がある

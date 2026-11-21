@@ -71,9 +71,8 @@ const OS_LIFECYCLE_SOURCE = 'endoflife.date（OS のライフサイクル）';
 /**
  * リリース欄の表示（解釈 7 の順序）。distroInference が無ければ ''
  * (1) inf.release があればその表示名
- * (2) 候補が 1 件以上で eolInfo.source が OS のライフサイクルで eolInfo.label があれば label
- * (3) 候補が 1 件以上なら候補の表示名を ' / ' で連結
- * (4) それ以外（第三者・バックポート・none）は '推定なし'
+ * (2) 候補が 1 件以上なら候補の表示名を ' / ' で連結
+ * (3) それ以外（第三者・バックポート・none）は '推定なし'
  */
 export function formatDistroReleaseDisplay(tech: Pick<DetectedTechnology, 'distroInference' | 'eolInfo'>): string {
   const inf = tech.distroInference;
@@ -84,17 +83,37 @@ export function formatDistroReleaseDisplay(tech: Pick<DetectedTechnology, 'distr
     return formatDistroReleaseName(inf.release);
   }
 
-  // (2) 候補が 1 件以上で eolInfo.source が OS のライフサイクル判定由来で label があれば採用
+  // (2) 候補が 1 件以上なら候補の表示名を ' / ' で連結
   if (inf.candidates && inf.candidates.length > 0) {
-    if (tech.eolInfo?.source === OS_LIFECYCLE_SOURCE && tech.eolInfo.label) {
-      return tech.eolInfo.label;
-    }
-    // (3) 候補が 1 件以上なら候補の表示名を ' / ' で連結
     return inf.candidates.map((c) => formatDistroReleaseName(c)).join(' / ');
   }
 
-  // (4) それ以外（第三者・バックポート・none）は '推定なし'
+  // (3) それ以外（第三者・バックポート・none）は '推定なし'
   return '推定なし';
+}
+
+/**
+ * リリース名に確信度を 1 回だけ付ける（指摘文用。例: 'Ubuntu 18.04 LTS（推定・確信度 高）'）
+ * 推定が無い（第三者・バックポート・候補なし・none）は formatDistroReleaseDisplay と同じ（'推定なし'）。distroInference が無ければ ''
+ */
+export function formatDistroReleaseWithConfidence(
+  tech: Pick<DetectedTechnology, 'distroInference' | 'eolInfo'>
+): string {
+  const inf = tech.distroInference;
+  if (!inf) return '';
+
+  const display = formatDistroReleaseDisplay(tech);
+  if (inf.thirdParty || !inf.candidates || inf.candidates.length === 0 || inf.confidence === 'none') {
+    return display;
+  }
+
+  // 名前の部分: eolInfo.label があり、確信度を含まなければ label（LTS 付きなど）、それ以外は display
+  let name = display;
+  if (tech.eolInfo?.source === OS_LIFECYCLE_SOURCE && tech.eolInfo.label && !tech.eolInfo.label.includes('確信度')) {
+    name = tech.eolInfo.label;
+  }
+
+  return `${name}（推定・確信度 ${formatDistroConfidenceJp(inf.confidence)}）`;
 }
 
 /**

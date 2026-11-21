@@ -87,6 +87,7 @@ export const TEST_PAGES = [
   { path: '/distro-sury', label: 'ディストリ版 deb.sury.org (PHP)' },
   { path: '/distro-debian-bpo', label: 'ディストリ版 Debian バックポート (~bpo)' },
   { path: '/distro-unmapped', label: 'ディストリ版 対応表に無い版' },
+  { path: '/distro-multi-candidate', label: 'ディストリ版 候補が 2 件以上のリリース' },
   { path: '/https-only-headers', label: 'HTTPS 専用ヘッダー (COOP / COEP 対象外検証)' },
 ];
 
@@ -206,7 +207,35 @@ function getDistroValues(distroMap) {
     Xa = candidate;
   }
 
-  return { Ua, Up, UN, Da, Dp, DN, Ra, Xa };
+  // 5. Multi-candidate (v1.8.2 T01)
+  // entries を順に見て、製品が apache か nginx で、同じ family・product の 2 件以上のリリースの upstreamVersions に入っている最初の版
+  let Mf = null;
+  let Mp = null;
+  let Mv = null;
+  const multiMap = new Map();
+  const multiCandidatesList = [];
+  for (const entry of entries) {
+    if ((entry.product === 'apache' || entry.product === 'nginx') && Array.isArray(entry.upstreamVersions)) {
+      for (const v of entry.upstreamVersions) {
+        const k = `${entry.family}|${entry.product}|${v}`;
+        if (!multiMap.has(k)) {
+          multiMap.set(k, new Set());
+          multiCandidatesList.push({ family: entry.family, product: entry.product, version: v, key: k });
+        }
+        multiMap.get(k).add(entry.release);
+      }
+    }
+  }
+  for (const item of multiCandidatesList) {
+    if (multiMap.get(item.key).size >= 2) {
+      Mf = item.family;
+      Mp = item.product;
+      Mv = item.version;
+      break;
+    }
+  }
+
+  return { Ua, Up, UN, Da, Dp, DN, Ra, Xa, Mf, Mp, Mv };
 }
 
 /** リクエストハンドラーを作る。options.distroMap を省略すると data/advisories/distro-map.json を読む */
@@ -361,6 +390,30 @@ export function createRequestHandler(options) {
         <p>対応表に収録されていないバージョン (${escapeHtml(distroVals?.Xa ?? '')}) のテストページです。</p>
       `;
       return res.end(createLayout('ディストリ版 対応表に無い版', content));
+    }
+
+    // ディストリ版 候補が 2 件以上のリリース (v1.8.2 T01)
+    if (pathname === '/distro-multi-candidate') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Mf && distroVals?.Mp && distroVals?.Mv) {
+        const prodName = distroVals.Mp === 'apache' ? 'Apache' : distroVals.Mp === 'nginx' ? 'nginx' : distroVals.Mp;
+        const osMap = {
+          ubuntu: 'Ubuntu',
+          debian: 'Debian',
+          rhel: 'Red Hat Enterprise Linux',
+          centos: 'CentOS',
+          almalinux: 'AlmaLinux',
+          rocky: 'Rocky Linux',
+        };
+        const osName = osMap[distroVals.Mf] || distroVals.Mf;
+        res.setHeader('Server', `${prodName}/${distroVals.Mv} (${osName})`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 候補が 2 件以上のリリース (/distro-multi-candidate)</h1>
+        <p>同一製品・同一系統で 2 件以上のリリース候補が存在するテストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 候補が 2 件以上のリリース', content));
     }
 
     // 10. HTTPS 専用ヘッダー (COOP / COEP 対象外検証)

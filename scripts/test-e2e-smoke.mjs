@@ -724,6 +724,99 @@ export async function runSmokeTest() {
       throw new Error(`Canary機密情報保護テスト失敗:\n  ${canaryErrors.join('\n  ')}`);
     }
 
+    // -------------------------------------------------------------
+    // 検証 8: ポップアップ 450px 表示検証 (v1.8.2 T01 / C21)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [8] ポップアップ 450px 表示検証 (v1.8.2 T01) を検証中...');
+    const popup450Targets = [
+      { url: 'http://localhost:3000/distro-ubuntu-apache-php', label: 'distro-ubuntu-apache-php', checkDistroBadge: true },
+      { url: 'http://localhost:3000/distro-multi-candidate', label: 'distro-multi-candidate', checkDistroBadge: true },
+      { url: 'http://localhost:3000/distro-unmapped', label: 'distro-unmapped', checkDistroBadge: false },
+      { url: 'http://localhost:3000/distro-rhel', label: 'distro-rhel', checkDistroBadge: false },
+    ];
+
+    for (const target of popup450Targets) {
+      await page.goto(target.url, { waitUntil: 'networkidle' });
+      const targetTabId = await serviceWorker.evaluate(async () => {
+        const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+        return tabs.length > 0 ? tabs[0].id : null;
+      });
+
+      const popupPage450 = await context.newPage();
+      await popupPage450.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'networkidle' });
+
+      // sendMessage を包み、INSPECT_CURRENT_TAB で tabId が無いときに targetTabId を渡す
+      await popupPage450.evaluate((tId) => {
+        const origSendMessage = chrome.runtime.sendMessage.bind(chrome.runtime);
+        chrome.runtime.sendMessage = function (message, ...args) {
+          if (message && message.type === 'INSPECT_CURRENT_TAB' && message.tabId === undefined) {
+            message.tabId = tId;
+          }
+          return origSendMessage(message, ...args);
+        };
+      }, targetTabId);
+
+      // 再スキャンをクリックして結果が出るまで待機
+      await popupPage450.click('#rescanBtn');
+      await popupPage450.waitForSelector('#techsList .item-row', { timeout: 10000 });
+
+      // 450px 幅とレイアウトを検証
+      const evalResult = await popupPage450.evaluate((checkBadge) => {
+        const bodyWidth = document.body.getBoundingClientRect().width;
+        if (Math.abs(bodyWidth - 450) > 1) {
+          return { ok: false, error: `body幅が450pxではありません (実測: ${bodyWidth})` };
+        }
+
+        const rows = Array.from(document.querySelectorAll('#techsList .item-row'));
+        if (rows.length === 0) {
+          return { ok: false, error: '技術一覧の行 (.item-row) が見つかりません' };
+        }
+
+        for (const row of rows) {
+          const itemMain = row.querySelector('.item-main');
+          if (!itemMain || itemMain.getBoundingClientRect().width <= 0) {
+            return { ok: false, error: '.item-main の幅が 0 または見つかりません' };
+          }
+          const itemName = itemMain.querySelector('.item-name');
+          if (!itemName || itemName.getBoundingClientRect().width <= 0) {
+            return { ok: false, error: '.item-name の幅が 0 または見つかりません' };
+          }
+          if (row.scrollWidth > row.clientWidth + 1) {
+            return { ok: false, error: `.item-row で横スクロールが発生しています (scrollWidth: ${row.scrollWidth}, clientWidth: ${row.clientWidth})` };
+          }
+        }
+
+        const techsList = document.querySelector('#techsList');
+        if (techsList && techsList.scrollWidth > techsList.clientWidth + 1) {
+          return { ok: false, error: `#techsList で横スクロールが発生しています (scrollWidth: ${techsList.scrollWidth}, clientWidth: ${techsList.clientWidth})` };
+        }
+
+        if (checkBadge) {
+          const hasDistroBadge = rows.some((row) => {
+            const meta = row.querySelector('.item-meta');
+            return meta && Array.from(meta.querySelectorAll('*')).some((el) => (el.textContent || '').trim() === 'ディストリ版');
+          });
+          if (!hasDistroBadge) {
+            return { ok: false, error: '.item-meta に「ディストリ版」バッジが見つかりません' };
+          }
+        }
+
+        return { ok: true };
+      }, target.checkDistroBadge);
+
+      if (!evalResult.ok) {
+        const shotPath = path.join(ROOT_DIR, '.tmp', `popup-450-${target.label}.png`);
+        try {
+          await popupPage450.screenshot({ path: shotPath });
+        } catch {}
+        await popupPage450.close();
+        throw new Error(`[450px 検証エラー] ${target.label}: ${evalResult.error}`);
+      }
+
+      console.log(`  ✓ ポップアップ 450px 検証合格: ${target.label} (幅 450px, .item-main幅正常, 横スクロールなし)`);
+      await popupPage450.close();
+    }
+
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {

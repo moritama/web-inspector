@@ -26,7 +26,7 @@ import {
   deleteFindingException,
   matchFindingException,
 } from '../storage/exceptions';
-import { formatDistroReleaseDisplay } from '../shared/distro-display';
+import { formatDistroReleaseWithConfidence } from '../shared/distro-display';
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
@@ -923,11 +923,12 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         )}${instVersion ? `_${instVersion}` : ''}`;
 
         const isDistroEol = Boolean(tech.distroInference && instEolInfo?.source === 'endoflife.date（OS のライフサイクル）');
+        const distroReleaseWithConf = formatDistroReleaseWithConfidence(tech);
         const eolObserved = isDistroEol
-          ? `検出バージョン: ${instVersion || '不明'}（推定した OS: ${instEolInfo?.label || 'OS'}、EOL日: ${instEolDate || '過去'}）`
+          ? `検出バージョン: ${instVersion || '不明'}（推定した OS: ${distroReleaseWithConf || instEolInfo?.label || 'OS'}、EOL日: ${instEolDate || '過去'}）`
           : `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`;
         const eolDescription = isDistroEol
-          ? `${tech.technology}${instVersion ? ` (${instVersion})` : ''} が稼働する推定 OS（${instEolInfo?.label || 'OS'}）の標準サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されない可能性があります。`
+          ? `${tech.technology}${instVersion ? ` (${instVersion})` : ''} が稼働する推定 OS（${distroReleaseWithConf || instEolInfo?.label || 'OS'}）の標準サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されない可能性があります。`
           : `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`;
 
         librarySecurityChecks.push({
@@ -1053,7 +1054,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
       const openCount = da.cves.filter((c) => c.distroStatus === 'open').length;
       const unknownRevCount = da.cves.filter((c) => c.distroStatus === 'unknown-revision').length;
       const noDataCount = da.cves.filter((c) => c.distroStatus === 'no-data').length;
-      const releaseName = formatDistroReleaseDisplay(tech);
+      const releaseName = formatDistroReleaseWithConfidence(tech);
 
       const parts: string[] = [];
       if (notFixedCount > 0) parts.push(`修正版より古い ${notFixedCount} 件`);

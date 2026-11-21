@@ -13,8 +13,7 @@ import {
 } from '../shared/types';
 import {
   escapeHtml,
-  formatCategory,
-  formatMultiVersionSummary,
+  renderTechRowHtml,
   renderCookieModalHtml,
   renderInterstitialNoticeHtml,
   renderSecurityCheckRowHtml,
@@ -226,102 +225,7 @@ function renderTechnologies(
   techs.forEach((t) => {
     const row = document.createElement('div');
     row.className = 'item-row';
-
-    const confClass = t.confidenceLevel === 'high' ? 'badge-high' : t.confidenceLevel === 'medium' ? 'badge-medium' : 'badge-low';
-    const confLabel = t.confidenceLevel === 'high' ? '高' : t.confidenceLevel === 'medium' ? '中' : '低';
-
-    // 検出方式バッジ (IMP-18)
-    let methodBadgeHtml = '';
-    if (t.isCandidateGroup || t.detectionMethod === 'associated') {
-      methodBadgeHtml = '<span class="badge badge-associated">候補</span>';
-    } else if (t.detectionMethod === 'inferred') {
-      const srcText = t.inferredFrom ? ` · ${escapeHtml(t.inferredFrom)}` : '';
-      methodBadgeHtml = `<span class="badge badge-inferred">連動${srcText}</span>`;
-    } else {
-      methodBadgeHtml = '<span class="badge badge-direct">直接</span>';
-    }
-
-    // ランタイム状態バッジ (IMP-18)
-    let runtimeBadgeHtml = '';
-    if (t.runtimeStatus === 'unknown') {
-      runtimeBadgeHtml = '<span class="badge badge-runtime-unknown">稼働未確認</span>';
-    } else if (t.runtimeStatus === 'possible') {
-      runtimeBadgeHtml = '<span class="badge badge-runtime-possible">稼働可能性</span>';
-    }
-
-    // EOLバッジ
-    let eolBadgeHtml = '';
-    if (t.supportStatus === 'EOL') {
-      eolBadgeHtml = `<span class="badge badge-eol">${escapeHtml(t.eolInfo?.label || 'EOL')}</span>`;
-    } else if (t.supportStatus === 'Maintenance') {
-      eolBadgeHtml = `<span class="badge badge-medium">${escapeHtml(t.eolInfo?.label || '保守')}</span>`;
-    } else if (t.eolInfo?.label) {
-      eolBadgeHtml = `<span class="badge badge-high">${escapeHtml(t.eolInfo.label)}</span>`;
-    }
-
-    // CVEバッジ・KEVバッジ (T03 / SPEC-13)
-    let cveBadgeHtml = '';
-    if (t.advisories && t.advisories.length > 0) {
-      const hasKev = t.advisories.some((a) => a.kev === true);
-      const kevBadge = hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : '';
-      cveBadgeHtml = `${kevBadge}<span class="badge badge-cve">CVE ${t.maxCvss ? `CVSS ${t.maxCvss}` : `${t.advisories.length}件`}</span>`;
-    }
-
-    // 不一致バッジ
-    let mismatchBadgeHtml = '';
-    if (t.versionIntegrity?.status === 'mismatch') {
-      mismatchBadgeHtml = '<span class="badge badge-mismatch">不一致</span>';
-    }
-
-    // ディストリ版バッジ (T04 / SPEC-02)
-    let distroBadgeHtml = '';
-    if (t.distroHint) {
-      distroBadgeHtml = `<span class="badge badge-medium" title="${escapeHtml(t.distroHint)}">ディストリ版（バックポートの可能性）</span>`;
-    }
-
-    // バージョン表示 (v1.7.0 T08 / SPEC-10: 複数バージョン検出時は「jQuery 1.12.4 / 3.7.1（2 つのバージョン）」形式で表示)
-    const multiVerSummary = formatMultiVersionSummary(t);
-    const displayName = multiVerSummary ? `${t.technology} ${multiVerSummary}` : t.technology;
-    let verLabel = t.isCandidateGroup
-      ? 'いずれかの可能性あり'
-      : multiVerSummary
-      ? multiVerSummary
-      : t.version
-      ? /^\d/.test(t.version)
-        ? `v${t.version}`
-        : t.version
-      : 'バージョン不明';
-    if (!multiVerSummary && t.versionSource === 'runtime') {
-      verLabel += ' (実行時)';
-    }
-
-    const iconText = t.isCandidateGroup ? '？' : t.technology.slice(0, 2).toUpperCase();
-    const categoryText = t.isCandidateGroup ? '言語・FW候補' : formatCategory(t.category);
-
-    row.innerHTML = `
-      <div class="item-main">
-        <div class="tech-icon-badge">${escapeHtml(iconText)}</div>
-        <div class="item-texts">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span class="item-name">${escapeHtml(displayName)}</span>
-            ${methodBadgeHtml}
-            ${runtimeBadgeHtml}
-          </div>
-          <div class="item-meta">
-            <span class="item-version-badge">${escapeHtml(verLabel)}</span>
-            <span>${escapeHtml(categoryText)}</span>
-          </div>
-        </div>
-      </div>
-      <div class="item-side">
-        ${distroBadgeHtml}
-        ${mismatchBadgeHtml}
-        ${eolBadgeHtml}
-        ${cveBadgeHtml}
-        <span class="badge ${confClass}">${confLabel} · ${t.confidence}</span>
-      </div>
-    `;
-
+    row.innerHTML = renderTechRowHtml(t);
     row.addEventListener('click', () => showTechModal(t));
     techsListEl.appendChild(row);
   });

@@ -29,3 +29,17 @@
   - 期待値を変えた既存テストは無い
 - 外部の事実: Playwright の addInitScript の評価の時点と、拡張機能のページの開き方 — https://playwright.dev/docs/api/class-page#page-add-init-script 、https://playwright.dev/docs/chrome-extensions （2026-11-21）。setViewportSize の引数は確かめられなかったので使わない
 - 未解決: v1.8.1 以前に保存したレポートの eolInfo.label（確信度入り）を、ダッシュボードの EOL バッジがそのまま出すのは直さない（保存データを書き換えない）
+
+## T01 実装  (2026-11-21 20:51)
+- 変更ファイル: src/detection/distro-inference.ts, src/shared/distro-display.ts, src/background/service-worker.ts, src/popup/render.ts, src/popup/popup.ts, src/popup/popup.css, test-server/server.mjs, scripts/test-e2e-smoke.mjs
+- 判断したこと:
+  - `judgeDistroEol` で `eolInfo.label` から確信度表示を除去しリリース名のみ（`candidateNames.join(' / ')`）を設定。`eolInfo.note` は仕様どおり確信度入りのまま保持
+  - `formatDistroReleaseDisplay` の分岐 (2) を削除し、`formatDistroReleaseWithConfidence` を新設・export。第三者・バックポート・none の推定なし時は「推定なし」（確信度なし）、推定あり時はリリース名に「（推定・確信度 X）」をちょうど1回付与
+  - `src/background/service-worker.ts` の EOL 指摘文（`eolObserved`, `eolDescription`）および `SEC-DISTRO-CVE` の `observed` で `formatDistroReleaseWithConfidence` を使用
+  - `src/popup/render.ts` に `renderTechRowHtml(tech)` を新設・export。ディストリ版バッジを `.item-meta` に短縮形「ディストリ版」として配置し、`title` に全文「ディストリ版（バックポートの可能性）: <distroHint>」を設定（エスケープ適用）。`.item-side` からは除外
+  - `src/popup/popup.ts` の技術一覧生成を `renderTechRowHtml` に置き換え
+  - `src/popup/popup.css` で `.item-main` に `flex: 1 1 auto; min-width: 0;`、`.item-side` に `flex-shrink: 1; flex-wrap: wrap; justify-content: flex-end;` を設定
+  - `test-server/server.mjs` に `/distro-multi-candidate` を追加し、同一系統・同一製品で 2 以上のリリース候補にまたがる版を動的に抽出して `Server` ヘッダーを出力
+  - `scripts/test-e2e-smoke.mjs` に幅 450px でのポップアップ表示検証（`.item-main` 幅、横スクロールなし、ディストリ版バッジの有無確認）を追加
+- 外部の事実: なし（設計メモの範囲内）
+- 未解決: なし

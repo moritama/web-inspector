@@ -61,6 +61,9 @@ jobs:
       - name: Check content-script is an IIFE
         run: node scripts/ci/check-content-script-iife.mjs
 
+      - name: Check bundled data sources and licenses
+        run: node scripts/ci/check-data-sources.mjs
+
       - name: Check for forbidden paths and environment traces (CI-01 Guard)
         run: |
           echo "Checking for sensitive author environment paths or tools..."

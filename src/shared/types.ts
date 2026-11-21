@@ -162,6 +162,17 @@ export interface AdvisoryProductCoverage {
   sources: string[];
 }
 
+/** advisory-db.json の sources の要素（v1.8.2 T06。schema 2.3 以前の文字列は名前だけの要素にそろえる） */
+export interface AdvisoryDbSourceRecord {
+  name: string;
+  url: string | null;          // https のみ。古い文字列・不正な値は null
+  ecosystem: string | null;
+  license: string | null;
+  licenseNote?: string;        // 空でない文字列のときだけ
+  retrievedAt: string | null;  // Date.parse できる文字列のときだけ
+  recordCount: number | null;  // 0 以上の整数のときだけ。古い文字列は null（0 にしない）
+}
+
 /**
  * 脆弱性DBスナップショットメタデータ (Rev.2.1 IMP-06 / 5.4)
  */
@@ -170,6 +181,7 @@ export interface AdvisoryDbMetadata {
   dataVersion: string;
   generatedAt: string;
   sources: string[];
+  sourceRecords?: AdvisoryDbSourceRecord[];
   coverage: {
     technologies: string[];
     totalAdvisories?: number;

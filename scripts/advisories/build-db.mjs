@@ -8,7 +8,8 @@
  *   - data/advisories/curated.json   : レビュー済みアドバイザリ・除外リスト・静的EOL (人間管理, 自動取得より優先)
  *   - data/advisories/upstream/**    : fetch-upstream.mjs が保存した上流スナップショット
  *
- * 出力スキーマ 2.2 は 2.1 (v1.6.5 の advisory.ts が読む形式) の上位互換:
+ * 出力スキーマ 2.4 は 2.3 (v1.8.1 T02 の advisory.ts が読む形式) の上位互換:
+ *   sources を構造化オブジェクトの配列に変更 (H9/H10・§5.2/§5.3)。
  *   libraries[key].versions[] に origin / fixStatus / kev / ghsa / published 等の任意フィールドを追加。
  *
  * 使い方:
@@ -29,9 +30,10 @@ import { nvdToAdvisories } from './lib/nvd.mjs';
 import { osvToAdvisories } from './lib/osv.mjs';
 import { isValidRangeSpec } from './lib/range.mjs';
 import { cleanText, safeUrl } from './lib/sanitize.mjs';
+import { buildDbSources } from './lib/sources.mjs';
 import { PATHS, readJson, sha256, stableStringify, toIsoDate, writeJson } from './lib/util.mjs';
 
-export const OUTPUT_SCHEMA_VERSION = '2.3';
+export const OUTPUT_SCHEMA_VERSION = '2.4';
 /** この DB を正しく解釈できる拡張機能の最低バージョン (fixStatus 等を使う NVD 自動取込を有効化する際に引き上げる) */
 export const MIN_EXTENSION_VERSION = '1.7.0';
 
@@ -289,20 +291,24 @@ export function buildDatabase({ catalog, curated, upstream, previousDb, asOf, ge
     ...(distroSection ? { distroDigest: sha256(JSON.stringify(distroSection)) } : {}),
   };
 
+  const eolSourceByProduct = {};
+  for (const [k, p] of Object.entries(report.products)) {
+    eolSourceByProduct[k] = p.eolSource;
+  }
+  const sources = buildDbSources({
+    upstream,
+    libraries,
+    eolSourceByProduct,
+    distroSection,
+  });
+
   const db = {
     schemaVersion: OUTPUT_SCHEMA_VERSION,
     version: asOf.slice(0, 7).replace('-', '.'),
     dataVersion: asOf.replace(/-/g, ''),
     generatedAt,
     minExtensionVersion: MIN_EXTENSION_VERSION,
-    sources: [
-      'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
-      'OSV.dev (GitHub Advisory Database / npm / Packagist)',
-      ...(distroSection ? ['OSV.dev (Debian Security Tracker / Ubuntu Security Notices)'] : []),
-      'endoflife.date API',
-      'CISA KEV Catalog',
-      'Curated (data/advisories/curated.json)',
-    ],
+    sources,
     coverage: { totalAdvisories: total, technologies: Object.keys(libraries), byProduct },
     syncStatus: report.staleSources.length === 0 ? 'success' : 'partial',
     integrity,

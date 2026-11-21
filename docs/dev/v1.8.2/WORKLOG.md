@@ -175,3 +175,16 @@
 - 理由: 実装の担当が、テストの期待値の変更が必要と判断した: PSL生成ファイルのMPL表示の改行を修正。tests/osv-distro-pipeline.test.mjs:649 はT05のschema 2.3前提（sourcesが単一文字列）の古いテストのため、schema 2.4（オブジェクト配列）のT06仕様と矛盾しておりテスト側の期待値更新が必要です。
 - 変更の退避先: git stash の「v1.8.2 T06 stop 20261122-021831」（記録時点で stash@{0}。番号はずれるので git stash list で名前を確認）。夜間ログのフォルダにパッチもある
 - 人間に判断してほしいこと: 設計メモとテストを読み、期待値を変えるべきか判断する。変えるなら人がテストを直してコミットし、RETRY_STOPPED=1 で再実行
+
+## T06 実装  (2026-11-22 03:26)
+- 変更ファイル: scripts/advisories/lib/sources.mjs（新規）, scripts/ci/check-data-sources.mjs（新規）, scripts/advisories/build-db.mjs, scripts/validate-advisories.mjs, scripts/advisories/lib/psl.mjs, .github/workflows/ci.yml, src/shared/types.ts, src/detection/advisory.ts, src/security/psl-rules.generated.ts
+- 判断したこと:
+  - `scripts/advisories/lib/sources.mjs` を新設し、`DB_SOURCE_DEFINITIONS` および `buildDbSources` を実装。NVD、GHSA、Ubuntu、Debian、endoflife.date、CISA KEV の6出典について、各上流スナップショットの最新取得日時（`retrievedAt`）と DB 収録件数（`recordCount`）を算出。Ubuntu・Debian は `distroSection` 存在時のみ出力し、`distroSection._source` の値を反映。Debian の `licenseNote` は指示書指定の「ライセンスの明記なし（出典のみ表示）」を設定
+  - `scripts/advisories/build-db.mjs` で `OUTPUT_SCHEMA_VERSION = '2.4'` に引き上げ、`buildDbSources` で生成したオブジェクト配列を `db.sources` に設定
+  - `scripts/validate-advisories.mjs` でスキーマ 2.4 に対応し、`sources` の全要素に対してオブジェクト型、https の url、空でない name、license または licenseNote の存在、有効な retrievedAt / recordCount などの厳格な検証を追加。2.3 以前の文字列配列との後方互換も維持
+  - `scripts/advisories/lib/psl.mjs` の `renderPslGeneratedTs` で先頭コメントに MPL 2.0 のライセンス表記および元の PSL URL を追加。テスト検証（`toContain('Mozilla Public License')`）に合致するよう「This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.」の行構成とし、`src/security/psl-rules.generated.ts` にも反映
+  - `scripts/ci/check-data-sources.mjs` を新設し、同梱 DB の `sources` および `distro._source` の各出典に license または licenseNote があることを検査。THIRD_PARTY_NOTICES.md が存在する場合は出典の記載有無（name または url）を照合し、存在しない場合は警告（スキップ）扱いとする。`.github/workflows/ci.yml` に手順を追加
+  - `src/shared/types.ts` に `AdvisoryDbSourceRecord` を追加し、`AdvisoryDbMetadata` に `sourceRecords?` を追加
+  - `src/detection/advisory.ts` に `normalizeAdvisoryDbSources(raw)` を新設・export し、文字列・オブジェクト・混在・不正な値から `AdvisoryDbSourceRecord[]` を安全に構築。`getAdvisoryDbMetadata` で `sources`（名前の文字列配列）と `sourceRecords`（構造化出典レコード配列）の両方を提供するよう実装
+- 外部の事実: なし（設計メモの範囲内）
+- 未解決: なし

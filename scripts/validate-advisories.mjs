@@ -22,7 +22,7 @@ const DB_FILE = path.join(ROOT_DIR, 'src', 'detection', 'advisory-db.json');
 export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB上限
 const MIN_PRODUCT_COUNT = 5; // 最低5製品
 const MIN_ADVISORY_COUNT = 10; // 最低10件のアドバイザリ
-const SUPPORTED_SCHEMA_VERSIONS = new Set(['2.1', '2.2', '2.3']);
+const SUPPORTED_SCHEMA_VERSIONS = new Set(['2.1', '2.2', '2.3', '2.4']);
 
 const ID_PATTERN = /^(?:CVE-\d{4}-\d{4,7}|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|[A-Z]+-\d{4}-[0-9A-Za-z-]+)$/;
 const URL_PREFIXES = ['https://nvd.nist.gov/vuln/detail/', 'https://github.com/advisories/', 'https://osv.dev/vulnerability/'];
@@ -79,6 +79,36 @@ export function isValidRange(spec) {
 }
 
 /**
+ * schema 2.4 の構造化された出典レコードを検証する
+ */
+function validateSourceRecord(s) {
+  if (typeof s.name !== 'string' || !s.name.trim() || s.name.length > 120 || UNSAFE_TEXT.test(s.name)) {
+    throw new Error(`sources.name が不正です: ${JSON.stringify(s.name)}`);
+  }
+  if (typeof s.url !== 'string' || !s.url.startsWith('https://') || UNSAFE_TEXT.test(s.url)) {
+    throw new Error(`[${s.name}] sources.url は https:// で始まる必要があります: ${JSON.stringify(s.url)}`);
+  }
+  if (!('license' in s) || (s.license !== null && (typeof s.license !== 'string' || !s.license.trim() || UNSAFE_TEXT.test(s.license)))) {
+    throw new Error(`[${s.name}] sources.license は null または空でない文字列である必要があります: ${JSON.stringify(s.license)}`);
+  }
+  if ('licenseNote' in s && (typeof s.licenseNote !== 'string' || !s.licenseNote.trim() || s.licenseNote.length > 300 || UNSAFE_TEXT.test(s.licenseNote))) {
+    throw new Error(`[${s.name}] sources.licenseNote が不正です: ${JSON.stringify(s.licenseNote)}`);
+  }
+  if (!s.license && !s.licenseNote) {
+    throw new Error(`[${s.name}] sources には license または licenseNote の少なくとも一方が必要です`);
+  }
+  if (!('retrievedAt' in s) || (s.retrievedAt !== null && (typeof s.retrievedAt !== 'string' || Number.isNaN(Date.parse(s.retrievedAt))))) {
+    throw new Error(`[${s.name}] sources.retrievedAt は null または有効なISO日時形式である必要があります: ${JSON.stringify(s.retrievedAt)}`);
+  }
+  if (!Number.isInteger(s.recordCount) || s.recordCount < 0) {
+    throw new Error(`[${s.name}] sources.recordCount は 0 以上の整数である必要があります: ${JSON.stringify(s.recordCount)}`);
+  }
+  if ('ecosystem' in s && s.ecosystem !== null && (typeof s.ecosystem !== 'string' || !s.ecosystem.trim())) {
+    throw new Error(`[${s.name}] sources.ecosystem は null または文字列である必要があります: ${JSON.stringify(s.ecosystem)}`);
+  }
+}
+
+/**
  * DB オブジェクトを検証する (テストから直接呼び出し可能)
  * @returns {{ productCount: number, advisoryCount: number }}
  */
@@ -100,6 +130,23 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
   }
   if (!Array.isArray(db.sources) || db.sources.length === 0) {
     throw new Error('sources 配列が空または存在しません。');
+  }
+
+  for (const s of db.sources) {
+    if (db.schemaVersion === '2.4') {
+      if (typeof s !== 'object' || s === null || Array.isArray(s)) {
+        throw new Error('schema 2.4 では sources の要素はオブジェクトである必要があります。');
+      }
+      validateSourceRecord(s);
+    } else {
+      if (typeof s === 'string') {
+        if (!s.trim()) throw new Error('sources に空文字が含まれています。');
+      } else if (typeof s === 'object' && s !== null && !Array.isArray(s)) {
+        validateSourceRecord(s);
+      } else {
+        throw new Error('sources の要素が文字列またはオブジェクトではありません。');
+      }
+    }
   }
   if (!db.coverage || !Array.isArray(db.coverage.technologies)) {
     throw new Error('coverage.technologies 配列が存在しません。');
@@ -191,7 +238,7 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
       if (v.title && v.title.length > 200) throw new Error(`[${key} / ${id}] title が長すぎます (${v.title.length} > 200)`);
       if (v.summary && v.summary.length > 500) throw new Error(`[${key} / ${id}] summary が長すぎます (${v.summary.length} > 500)`);
 
-      if (db.schemaVersion === '2.2' || db.schemaVersion === '2.3') {
+      if (db.schemaVersion === '2.2' || db.schemaVersion === '2.3' || db.schemaVersion === '2.4') {
         if (!ORIGINS.has(v.origin)) throw new Error(`[${key} / ${id}] origin が不正です: "${v.origin}"`);
         if (v.fixStatus !== undefined && !FIX_STATUSES.has(v.fixStatus)) throw new Error(`[${key} / ${id}] fixStatus が不正です: "${v.fixStatus}"`);
       }
@@ -200,7 +247,7 @@ export function validateDb(db, { sizeBytes = 0 } = {}) {
     for (const e of lib.eol) {
       if (!e || typeof e.cycle !== 'string' || !e.cycle) throw new Error(`[${key}] eol.cycle が不正です: ${JSON.stringify(e)}`);
       if (!EOL_STATUSES.has(e.status)) throw new Error(`[${key}] eol.status が不正です: ${JSON.stringify(e)}`);
-      if ((db.schemaVersion === '2.2' || db.schemaVersion === '2.3') && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
+      if ((db.schemaVersion === '2.2' || db.schemaVersion === '2.3' || db.schemaVersion === '2.4') && e.eolDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(e.eolDate)) {
         throw new Error(`[${key}] eol.eolDate は YYYY-MM-DD または null である必要があります: ${JSON.stringify(e)}`);
       }
       if (e.label !== undefined) {

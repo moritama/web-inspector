@@ -12,6 +12,8 @@
  * - report-lint の R10「総数 = First-Party + Third-Party + Local」が、合わないレポートを不合格にする
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { executeInspection, InspectionDependencies } from '../src/background/service-worker';
 import { renderExternalConnectionsHtml } from '../src/dashboard/render';
@@ -324,6 +326,30 @@ describe('T05: Markdown §9 に Local の件数を出す', () => {
       expect(localLine).not.toMatch(/[^0-9]0\s*件/);
     }
   });
+
+  // テストレビューへの対応: localCount の無い保存済みレポートで Local が 0（総数 = First + Third）のときは、
+  // 「0 件」の行を出さず、過去の Markdown（tests/fixtures/reports/*.md）と同じ §9 にする（§4.4「Local の行を出さない」「0 と表示しない」）
+  it('保存済みレポート（localCount なし）で総数 = First + Third: Local の行を出さず、First/Third/総数の行は変わらない', async () => {
+    const report = await inspect('https://app.example.test/', ['https://static.example.test/a.js', 'https://cdn.other.example/b.js']);
+    expect(report.externalConnections!.localCount).toBe(0);
+    const legacy = structuredClone(report);
+    delete (legacy.externalConnections as Partial<ExternalConnectionsAnalysis>).localCount;
+    const legacyMd = generateMarkdownReport(legacy);
+    const c = mdCounts(legacyMd);
+    expect(c.local).toBeNull();
+    expect(section9(legacyMd)).not.toMatch(MD_LOCAL);
+    expect(c.first).toBe(report.externalConnections!.firstPartyCount);
+    expect(c.third).toBe(report.externalConnections!.thirdPartyCount);
+    expect(c.total).toBe((c.first as number) + (c.third as number));
+    // 新しいレポート（localCount 0）の §9 から Local の行を除いたものと同じ
+    const newSec = section9(generateMarkdownReport(report))
+      .split('\n')
+      .filter((l) => !(MD_LOCAL.test(l) && l.trim().startsWith('- ')))
+      .join('\n');
+    expect(section9(legacyMd)).toBe(newSec);
+    expect(r10(legacy, legacyMd)?.passed).toBe(true);
+  });
+  // 対照（保存済みで Local が 1 以上なら行を出す）は「保存済みレポート（localCount なし）: 総数と内訳の合計が食い違わない」が確かめる
 });
 
 describe('T05: ダッシュボードの集計に「ローカル N」を出す', () => {
@@ -348,6 +374,60 @@ describe('T05: ダッシュボードの集計に「ローカル N」を出す', 
   it('保存済みレポートで Local が分からない: 「ローカル 0」と表示しない', () => {
     const s = dashSummary(renderExternalConnectionsHtml({ ...legacyAnalysis(), firstPartyCount: 5 }));
     expect(s).not.toMatch(/ローカル[^0-9]*0(?![0-9])/);
+  });
+
+  it('保存済みレポート（localCount なし）で総数 = First + Third: 「ローカル」を出さず、合計が検出ホスト数と一致', () => {
+    const a: ExternalConnectionsAnalysis = {
+      ...legacyAnalysis(),
+      totalConnections: 2,
+      connections: legacyAnalysis().connections.slice(0, 2),
+    };
+    const s = dashSummary(renderExternalConnectionsHtml(a));
+    expect(s).not.toMatch(/ローカル/);
+    expect(dashCount(s, '検出ホスト数')).toBe((dashCount(s, '自社') as number) + (dashCount(s, '外部') as number));
+  });
+
+  it('対照: 新しいレポート（localCount 0）では「ローカル 0」を出す', () => {
+    const a: ExternalConnectionsAnalysis = {
+      ...legacyAnalysis(),
+      totalConnections: 2,
+      connections: legacyAnalysis().connections.slice(0, 2),
+      localCount: 0,
+    };
+    expect(dashCount(dashSummary(renderExternalConnectionsHtml(a)), 'ローカル')).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3b. 既存の回帰用フィクスチャ（tests/fixtures/reports/。localCount なし・Local なし）
+// ---------------------------------------------------------------------------
+
+describe('T05: 回帰用フィクスチャの §9 は変わらない（テストレビューへの対応）', () => {
+  const FIXTURES_DIR = path.resolve(__dirname, 'fixtures', 'reports');
+  const names = fs
+    .readdirSync(FIXTURES_DIR)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => f.replace(/\.json$/, ''));
+
+  it('フィクスチャがあり、どれも localCount が無く、総数 = First + Third', () => {
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      const report = JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, `${name}.json`), 'utf8')) as InspectionReport;
+      const ext = report.externalConnections;
+      if (!ext) continue;
+      expect(ext.localCount).toBeUndefined();
+      expect(ext.totalConnections).toBe(ext.firstPartyCount + ext.thirdPartyCount);
+    }
+  });
+
+  it.each(names)('%s: 生成した Markdown の §9 に Local の行が無く、保存済み .md の §9 と同じ', (name) => {
+    const report = JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, `${name}.json`), 'utf8')) as InspectionReport;
+    const savedMd = fs.readFileSync(path.join(FIXTURES_DIR, `${name}.md`), 'utf8');
+    const generatedMd = generateMarkdownReport(report);
+    if (!report.externalConnections) return;
+    expect(section9(generatedMd)).not.toMatch(MD_LOCAL);
+    expect(section9(generatedMd).trim()).toBe(section9(savedMd).trim());
+    expect(r10(report, generatedMd)?.passed).toBe(true);
   });
 });
 

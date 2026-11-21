@@ -136,3 +136,5 @@
   - 実装の前は、新しい 2 ファイルが新規モジュールの無いことで読み込みに失敗し、report-lint.test.ts の 1 件が R10 の無いことで失敗する（赤を確認）。`npx tsc --noEmit` の失敗は新規モジュール・`localCount`・`isSecureContext` だけ。test-hygiene は通る。§4.3 の表は、一時ディレクトリの参照実装で全行が期待どおりになることを確かめた
 - 外部の事実: W3C Secure Contexts「Is origin potentially trustworthy?」— https://www.w3.org/TR/secure-contexts/#is-origin-trustworthy （§3.1。CRD 2023-11-10）、HTML の COOP・COEP の non-secure context の扱い — https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers ・ #obtain-an-embedder-policy （いずれも 2026-11-22 確認）
 - 未解決: 指示書 §4.3 は「W3C Secure Contexts §3.2（Is origin potentially trustworthy?）」と書くが、現行の文書では §3.1（§3.2 は Is url potentially trustworthy?）。規則の中身は H7 と同じなので作業は止めず、設計メモに正しい節を書いた。COEP の手順 2 の末尾の語句は逐語では確かめられていない（判定の向きは COOP と同じ）
+- テストレビューへの対応: 採用 1 件・却下 0 件
+  - 採用: localCount の無い保存済みレポートで Local が 0（総数 = First + Third）でも「Local … 0 件」を出す設計だと、tests/report-lint.test.ts の回帰用フィクスチャの完全一致比較（保存済み .md には Local の行が無い）が必ず失敗する、という矛盾の指摘。§4.4「Local の行を出さない」「0 と表示しない」に合わせ、localCount が無ければ求めた値が 1 以上のときだけ Local を出す（localCount があれば 0 でも出す）ように設計メモを直し、tests/connection-local-count.test.ts に陰性・対照・フィクスチャの §9 のテストを足した。フィクスチャの .md は変えていない

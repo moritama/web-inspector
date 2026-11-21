@@ -302,3 +302,44 @@ describe('v1.8.2 T06: 同梱 advisory-db.json の sources（スキーマ 2.4）'
     for (const s of meta.sourceRecords ?? []) expect(Boolean(s.license) || Boolean(s.licenseNote), s.name).toBe(true);
   });
 });
+
+/**
+ * v1.8.2 T07: 同梱 DB の出典が THIRD_PARTY_NOTICES.md と拡張機能内の出典の一覧にすべて載っていること（指示書 §5.4、§7 C22）。
+ * 件数・日付は比べない。照合は名前と URL だけ。
+ */
+describe('v1.8.2 T07: 同梱 DB の出典と THIRD_PARTY_NOTICES.md・出典の一覧の一致', () => {
+  type Src = { name?: unknown; url?: unknown };
+  const db = advisoryDbJson as unknown as { sources?: Src[]; distro?: { _source?: Src[] } };
+  const NOTICES_FILE = path.join(REPO_ROOT, 'THIRD_PARTY_NOTICES.md');
+  const allDbSources = (): Src[] => [...(db.sources ?? []), ...(db.distro?._source ?? [])];
+
+  it('CI のチェック（check-data-sources）が、同梱 DB と THIRD_PARTY_NOTICES.md で合格し、照合を飛ばさないこと', async () => {
+    // @ts-expect-error scripts/ci/check-data-sources.mjs は型定義を持たない .mjs モジュール
+    const mod = (await import('../scripts/ci/check-data-sources.mjs')) as {
+      checkDataSources: (i: { db: unknown; noticesText: string | null }) => { ok: boolean; issues: string[]; warnings: string[] };
+    };
+    expect(fs.existsSync(NOTICES_FILE)).toBe(true);
+    const res = mod.checkDataSources({ db: advisoryDbJson, noticesText: fs.readFileSync(NOTICES_FILE, 'utf-8') });
+    expect(res.issues).toEqual([]);
+    expect(res.ok).toBe(true);
+    expect(res.warnings.join('\n')).not.toContain('スキップ');
+  });
+
+  it('同梱 DB の出典（sources と distro._source）の名前と URL が、どちらも THIRD_PARTY_NOTICES.md にあること', () => {
+    expect(fs.existsSync(NOTICES_FILE)).toBe(true);
+    const text = fs.readFileSync(NOTICES_FILE, 'utf-8');
+    for (const s of allDbSources()) {
+      expect(text, String(s.name)).toContain(String(s.name));
+      expect(text, String(s.name)).toContain(String(s.url));
+    }
+  });
+
+  it('同梱 DB の出典は、拡張機能内の出典の一覧（BUNDLED_DATA_SOURCES）に同じ名前と URL で入っていること', async () => {
+    const { BUNDLED_DATA_SOURCES } = await import('../src/shared/data-sources');
+    for (const s of allDbSources()) {
+      const hit = BUNDLED_DATA_SOURCES.find((b: { name: string; url: string }) => b.url === s.url);
+      expect(hit, `出典の一覧に無い: ${String(s.name)}`).toBeDefined();
+      expect(hit!.name).toBe(s.name);
+    }
+  });
+});

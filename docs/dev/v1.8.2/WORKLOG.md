@@ -188,3 +188,18 @@
   - `src/detection/advisory.ts` に `normalizeAdvisoryDbSources(raw)` を新設・export し、文字列・オブジェクト・混在・不正な値から `AdvisoryDbSourceRecord[]` を安全に構築。`getAdvisoryDbMetadata` で `sources`（名前の文字列配列）と `sourceRecords`（構造化出典レコード配列）の両方を提供するよう実装
 - 外部の事実: なし（設計メモの範囲内）
 - 未解決: なし
+
+## T07 設計  (2026-11-22 06:31)
+- 変更ファイル: docs/dev/v1.8.2/design/T07.md（新規）, tests/data-sources-display.test.ts（新規）, tests/third-party-notices.test.ts（新規）, tests/advisory-db-invariants.test.ts（T07 の describe を追加。既存の期待値は変えていない）
+- 判断したこと:
+  - 表示の出典の一覧を `src/shared/data-sources.ts`（新規）の `BUNDLED_DATA_SOURCES`（§5.2 の 7 種類）と `NVD_NOTICE`・`NVD_TERMS_URL`・`DATA_SOURCES_VIEW_ID` に置く前提。名前と URL は同梱 DB の `sources`・`distro._source` と同じにし、一致を同梱 DB を読んでよい advisory-db-invariants で確かめる。PSL は DB に無いが同梱物なので一覧に入れる
+  - 「DB の出典がすべて NOTICES にある（CI）」: T06 の `check-data-sources.mjs` は NOTICES が無いと照合を飛ばすが、T07 は `scripts/ci/` を変えられないため、Vitest で「合格し、照合を飛ばさない」「名前と URL の両方が NOTICES にある」を確かめる
+  - ダッシュボードはサイドバーに欄を足し、URL のハッシュ `#dataSourcesView` で初期表示をその欄にする（ナビのある id だけ。不正な値は無視）。ポップアップはフッターのリンクで `dashboard.html#dataSourcesView` を開くだけ
+  - Markdown は §15 の後に `## 16. データの出典とライセンス`。既存の Markdown の比較（§9 の保存済み .md との比較、§15 の toContain、report-lint の節の切り出し）に影響しないことを確かめた
+  - zip: `scripts/package.mjs` を os.tmpdir の作業場所（realpath 済み）で実行し、NOTICES が zip の直下に入ること、無ければ失敗して zip を作らないことを確かめる（zip・unzip が無い環境では skip）
+  - endoflife.date の製品説明を使っていないことは、build-db がサイクルの項目だけを使うことをコードで確かめた
+  - 実装の前は、新しい 2 ファイルが `src/shared/data-sources` の無いことで読み込みに失敗し、advisory-db-invariants は T07 の 3 件だけ失敗する（既存 34 件は通る）。`npx tsc --noEmit` の失敗は新規モジュールが無いことによるものだけ。test-hygiene は通る
+- 外部の事実: NVD の表示文「This product uses the NVD API but is not endorsed or certified by the NVD.」— https://nvd.nist.gov/developers/terms-of-use （ページは JavaScript で描画されるため直接取得できず、検索エンジンの同ページの抜粋で確認）、endoflife.date の MIT の全文 — https://raw.githubusercontent.com/endoflife-date/endoflife.date/master/LICENSE （いずれも 2026-11-22）。他は T06 の確認を引き継ぐ
+- 未解決:
+  - NVD の Start Here のページは「uses data from the NVD API」という別の言い回し。指示書が資料に挙げる Terms of Use の文を採用した。人が Terms of Use のページをブラウザで開いて一字一句を確かめること
+  - catalog.json の Debian の `distro._source` の licenseNote が仮の値（「v1.8.2 で確認」）のまま（T06 の未解決を引き継ぐ。表示は `BUNDLED_DATA_SOURCES` の「ライセンスの明記なし（出典のみ表示）」を使うので画面には出ない）

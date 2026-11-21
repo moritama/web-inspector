@@ -124,3 +124,15 @@
   - `test-server/server.mjs`: `TEST_PAGES` に `/parent-cookie-issuer` と `/parent-cookie-target` を追加し、`getStartupLines` に起動時 URL 行を追加。リクエスト Host から `localtest.me` または `example.test` を判定し、`/parent-cookie-issuer` で親ドメインの `_ga` を発行（GA スクリプトは不含）、DNS リバインディング対策の `/etc/hosts` 手順を記載。`/parent-cookie-target` は案内のみ。`/clear-cookies` で親ドメインの `_ga` 期限切れ（Max-Age=0）を設定
 - 外部の事実: なし（設計メモの範囲内）
 - 未解決: なし
+
+## T05 設計  (2026-11-22 02:31)
+- 変更ファイル: docs/dev/v1.8.2/design/T05.md（新規）, tests/secure-context.test.ts（新規）, tests/connection-local-count.test.ts（新規）, tests/report-lint.test.ts（既存の 2 件の期待値を変更）
+- 判断したこと:
+  - D-1: `isSecureContextUrl(url)` を `src/shared/secure-context.ts` に新設する前提。真は https・wss・file・localhost・*.localhost・127.0.0.0/8・[::1]（H7）。§4.3 の偽の行はすべて陰性テストにし、`isIpOrLocalHost()` が真にする範囲（LAN の IP・.local）と、localhost や 127 を含むだけのドメインも偽にした
+  - `checkHttpHeaders` の `isSecureContext` は既存の第 4 引数 `options` の任意の項目にした（省略時は `isHttps`。既存の呼び出しとテストを変えない）。切り替えるのは COOP・COEP の分岐だけで、HSTS・Cookie の Secure・混在コンテンツ・CORP・SEC-HTTPS-01 は「localhost と LAN の IP で COOP・COEP 以外の項目が一致する」テストで変わらないことを確かめる
+  - D-2: `localCount` は常に数値で返す（型は任意）。localCount の無い保存済みレポートは、表（connections）から数え直さず「総数 − First − Third」で求める（履歴の保存の上限で表は 50 件に切り詰められるが総数は残るため）。求められないときは null で、Markdown・ダッシュボードに Local を出さない（0 と表示しない）。共通の関数 `resolveLocalConnectionCount`（src/shared/connection-counts.ts）
+  - R10: JSON に localCount があれば 総数 = 合計、無ければ First + Third ≤ 総数。Markdown は Local の行があれば合計を確かめ、無い場合は JSON に localCount があれば不合格（過去の Markdown は検査しない）。既存のフィクスチャはこの規則で合格する
+  - 既存テストの変更: tests/report-lint.test.ts の「全 9 項目」の 2 件（`toBe(9)` を CHECK_DEFINITIONS の件数と R01〜R10 の ID に替えた）。理由は R10 の追加で項目が 10 になるため（設計メモ「期待値を変えた既存テスト」）
+  - 実装の前は、新しい 2 ファイルが新規モジュールの無いことで読み込みに失敗し、report-lint.test.ts の 1 件が R10 の無いことで失敗する（赤を確認）。`npx tsc --noEmit` の失敗は新規モジュール・`localCount`・`isSecureContext` だけ。test-hygiene は通る。§4.3 の表は、一時ディレクトリの参照実装で全行が期待どおりになることを確かめた
+- 外部の事実: W3C Secure Contexts「Is origin potentially trustworthy?」— https://www.w3.org/TR/secure-contexts/#is-origin-trustworthy （§3.1。CRD 2023-11-10）、HTML の COOP・COEP の non-secure context の扱い — https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers ・ #obtain-an-embedder-policy （いずれも 2026-11-22 確認）
+- 未解決: 指示書 §4.3 は「W3C Secure Contexts §3.2（Is origin potentially trustworthy?）」と書くが、現行の文書では §3.1（§3.2 は Is url potentially trustworthy?）。規則の中身は H7 と同じなので作業は止めず、設計メモに正しい節を書いた。COEP の手順 2 の末尾の語句は逐語では確かめられていない（判定の向きは COOP と同じ）

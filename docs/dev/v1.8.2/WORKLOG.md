@@ -99,3 +99,15 @@
     - `InspectionDependencies.getInspectedCookies` に `tabId?: number` を追加し、`executeInspection` から `deps.getInspectedCookies(url, currentTabId)` で呼び出すよう配線
 - 外部の事実: なし（設計メモの範囲内）
 - 未解決: なし
+
+## T04 設計  (2026-11-22 01:35)
+- 変更ファイル: docs/dev/v1.8.2/design/T04.md（新規）, tests/cookie-scope-note.test.ts（新規）, tests/cookie-secure-breakdown.test.ts（新規）, tests/test-server-parent-cookie.test.ts（新規）
+- 判断したこと:
+  - 根拠の注記は新設の `formatCookieScopeNote(tech, cookies?)`（src/shared/cookie-scope-note.ts）で組み立て、Markdown の §4（表の後）・§14（技術の節の中）とダッシュボードの「判定根拠」の後に出す。ポップアップ・CSV には出さない（§4.2 が挙げていないため。450px の見え方は変わらない）
+  - 注記の条件は `cookieScopeDowngraded === true` かつ根拠がすべて host でない `cookie-name`。T03 の未解決（連動検出で後から根拠が足されても印が残る）は、注記の側で根拠を確かめて出さないことにした（H2 と揃える。印の付け方は変えない）
+  - 注記の趣旨の語句（「別サイト」「このホスト単体での利用は確認できていません」）は注記 1 つに 1 回。Cookie 名が複数・同じ名前が複数の親ドメインのケースを別にテストした
+  - Secure の内訳は `SecurityCheckResult.parentDomainCookieCount?`（hostOnly === false の件数。1 以上のときだけ）に持ち、`observed` は変えない（ポップアップと差分に影響させない）。Markdown §5 とダッシュボードの観測値に「うち N 件は親ドメインのスコープ」を添える。0 件・旧レポートでは何も添えない
+  - 確認ページは test-server の `/parent-cookie-issuer`（`*.localtest.me` なら `Domain=localtest.me`、`*.example.test` なら `Domain=example.test` の `_ga`）と `/parent-cookie-target`。名前解決できない環境の代わりに `/etc/hosts` へ `issuer.example.test`・`app.example.test` を足す手順をページに書く。`/clear-cookies` は親ドメインの `_ga` も消す
+  - 実装の前は、新しいテストが機能が無いことを理由に失敗する（56 件中 40 件失敗。`npx tsc --noEmit` は新規モジュールが無いため失敗）。test-hygiene は通る。期待値を変えた既存テストは無い
+- 外部の事実: localtest.me とそのサブドメインが 127.0.0.1 に解決されること — https://weblogs.asp.net/owscott/introducing-testing-domain-localtest-me 、`.test` の予約 — https://datatracker.ietf.org/doc/html/rfc6761#section-6.2 、Domain 属性と host-only-flag・domain-match — https://www.rfc-editor.org/rfc/rfc6265 §5.1.3・§5.3 、chrome.cookies の hostOnly・domain — https://developer.chrome.com/docs/extensions/reference/api/cookies （いずれも 2026-11-22）。ルーターの DNS リバインディング対策で localtest.me が解決できないことがある点は一次資料で確かめられず、代わりの手順を書く理由としてだけ使う
+- 未解決: Secure の内訳は HTTPS でしか出ないため、テストサーバー（HTTP）では目視できない（Vitest で確かめる）

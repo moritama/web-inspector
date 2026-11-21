@@ -138,3 +138,19 @@
 - 未解決: 指示書 §4.3 は「W3C Secure Contexts §3.2（Is origin potentially trustworthy?）」と書くが、現行の文書では §3.1（§3.2 は Is url potentially trustworthy?）。規則の中身は H7 と同じなので作業は止めず、設計メモに正しい節を書いた。COEP の手順 2 の末尾の語句は逐語では確かめられていない（判定の向きは COOP と同じ）
 - テストレビューへの対応: 採用 1 件・却下 0 件
   - 採用: localCount の無い保存済みレポートで Local が 0（総数 = First + Third）でも「Local … 0 件」を出す設計だと、tests/report-lint.test.ts の回帰用フィクスチャの完全一致比較（保存済み .md には Local の行が無い）が必ず失敗する、という矛盾の指摘。§4.4「Local の行を出さない」「0 と表示しない」に合わせ、localCount が無ければ求めた値が 1 以上のときだけ Local を出す（localCount があれば 0 でも出す）ように設計メモを直し、tests/connection-local-count.test.ts に陰性・対照・フィクスチャの §9 のテストを足した。フィクスチャの .md は変えていない
+
+## T05 実装  (2026-11-22 02:45)
+- 変更ファイル: src/shared/secure-context.ts（新規）, src/shared/connection-counts.ts（新規）, src/shared/types.ts, src/security/headers.ts, src/security/engine.ts, src/security/domain-analyzer.ts, src/export/markdown.ts, src/dashboard/render.ts, scripts/report-lint.mjs, test-server/server.mjs
+- 判断したこと:
+  - `src/shared/secure-context.ts` を新設し `isSecureContextUrl(url)` を実装。スキーム（https:, wss:, file:）、ホスト（localhost, *.localhost, 127.0.0.0/8, [::1]）を判定。IPv4 は 4 オクテット各 0-255 かつ先頭 127 を正規表現と数値で検証し、不正な URL や文字列以外の入力は例外を投げずに false を返却
+  - `src/security/headers.ts`: `CheckHttpHeadersOptions` に `isSecureContext?: boolean` を追加し、`checkHttpHeaders` 内で `const secureContext = options?.isSecureContext ?? isHttps;` として COOP および COEP の対象外判定（not-applicable）を `!secureContext` に変更。対象外時の説明文に「安全なコンテキスト（HTTPS・localhost）」の語句を反映。HSTS・CORP 等の他の判定は `isHttps` のまま維持
+  - `src/security/engine.ts`: `checkHttpHeaders` の options に `isSecureContext: isSecureContextUrl(input.url)` を渡すよう更新
+  - `src/shared/types.ts`: `ExternalConnectionsAnalysis` に `localCount?: number` を追加
+  - `src/security/domain-analyzer.ts`: `analyzeExternalConnections` で `resInfo.isIpOrLocal` 時に `localCount` をカウントし、戻り値に含めるよう実装（常に数値型で返却）
+  - `src/shared/connection-counts.ts` を新設し、`resolveLocalConnectionCount(analysis)` および `shouldShowLocalConnectionCount(analysis)` を実装。`localCount` が 0 以上の整数ならその値を採用し、未定義（旧レポート）なら `totalConnections - firstPartyCount - thirdPartyCount` で算出（差が負または不正値なら null）。表示判定は、`localCount` があれば 0 件でも表示し、未定義なら 1 件以上の場合のみ表示（0 件や null は非表示）として回帰用フィクスチャ整合性を維持
+  - `src/export/markdown.ts`: §9 の Third-Party 行の直後に、表示対象の場合のみ `- **Local（ローカル・IP アドレス）:** N 件` を出力
+  - `src/dashboard/render.ts`: `renderExternalConnectionsHtml` で表示対象の場合のみ `(自社/First-Party: A, 外部/Third-Party: B, ローカル/Local: <strong>C</strong>)` と出力
+  - `scripts/report-lint.mjs`: `CHECK_DEFINITIONS` に `R10`（pending: false）を追加し、`checkConnectionTotalsIncludeLocal(report, markdown)` を実装。JSON の `total === first + third + local` および Markdown §9 の箇条書き内訳との整合性を検証（旧レポートで localCount なし・Local 行なしの場合は合格扱い）
+  - `test-server/server.mjs`: `/https-only-headers` の説明文を localhost で通常判定、LAN の IP で対象外となる旨に更新
+- 外部の事実: なし（設計メモの範囲内）
+- 未解決: なし

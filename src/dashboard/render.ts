@@ -31,6 +31,7 @@ import {
   SecurityAdvisory,
   SecurityCheckResult,
 } from '../shared/types';
+import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
 
@@ -871,6 +872,10 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
     )
     .join('');
 
+  const showLocal = shouldShowLocalConnectionCount(analysis);
+  const localCount = showLocal ? resolveLocalConnectionCount(analysis) : null;
+  const localText = showLocal && localCount !== null ? `, ローカル/Local: <strong>${localCount}</strong>` : '';
+
   return `
     <div class="diff-box">
       <div class="diff-title">読み込まれたリソースの取得元ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
@@ -879,7 +884,7 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
       </div>
       <div style="margin-bottom:8px;">
         検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
-        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
+        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>${localText})
       </div>
       <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
     </div>

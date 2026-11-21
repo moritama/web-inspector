@@ -847,6 +847,8 @@ export interface ExternalConnectionItem {
  */
 export interface ExternalConnectionsAnalysis {
   totalConnections: number;
+  /** Local（localhost・IP アドレスなど）のホスト数。総数 = firstPartyCount + thirdPartyCount + localCount (v1.8.2 T05 / H8) */
+  localCount?: number;
   firstPartyCount: number;
   thirdPartyCount: number;
   categoryBreakdown: Record<Exclude<ExternalServiceCategory, 'security'>, number> & { security?: number };

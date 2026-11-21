@@ -327,6 +327,8 @@ const ALL_RECOGNIZED_REFERRER_POLICIES = new Set([
 export interface CheckHttpHeadersOptions {
   metaCsp?: string[];
   metaCspReportOnly?: string[];
+  /** ページが secure context か（省略時は isHttps と同じ）。COOP・COEP の「対象外」の判定だけに使う (v1.8.2 T05 / H7) */
+  isSecureContext?: boolean;
 }
 
 /**
@@ -345,6 +347,7 @@ export function checkHttpHeaders(
   options?: CheckHttpHeadersOptions
 ): SecurityCheckResult[] {
   const results: SecurityCheckResult[] = [];
+  const secureContext = options?.isSecureContext ?? isHttps;
 
   // ヘッダー取得ヘルパー (小文字化キーで先頭値または結合値を取得)
   const getHeader = (name: string): string | null => {
@@ -781,8 +784,8 @@ export function checkHttpHeaders(
   // COOP (Cross-Origin-Opener-Policy)
   const coop = getHeader('cross-origin-opener-policy');
   const validCoopValues = new Set(['same-origin', 'same-origin-allow-popups', 'noopener-allow-popups']);
-  if (!isHttps) {
-    // HTTP のページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6)
+  if (!secureContext) {
+    // 安全なコンテキスト（HTTPS・localhost 等）でないページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6, v1.8.2 T05 / H7)
     results.push({
       checkId: 'SEC-COOP-01',
       category: 'http-headers',
@@ -791,7 +794,7 @@ export function checkHttpHeaders(
       severity: 'info',
       observed: coop ?? 'ヘッダー未設定',
       description:
-        'Cross-Origin-Opener-Policy (COOP) は HTTPS のページでだけ有効で、HTTP のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
+        'Cross-Origin-Opener-Policy (COOP) は安全なコンテキスト（HTTPS・localhost）のページでだけ有効で、それ以外のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
       recommendation:
         'サイトを HTTPS で配信したうえで、COOP の設定を確認してください。',
       referenceUrls: [
@@ -840,8 +843,8 @@ export function checkHttpHeaders(
   // COEP (Cross-Origin-Embedder-Policy) - 既定では推奨せず、値の誤りだけ指摘
   const coep = getHeader('cross-origin-embedder-policy');
   if (coep) {
-    if (!isHttps) {
-      // HTTP のページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6)
+    if (!secureContext) {
+      // 安全なコンテキスト（HTTPS・localhost 等）でないページではブラウザがヘッダーを無視するため対象外 (v1.8.1 T07 / H6, v1.8.2 T05 / H7)
       results.push({
         checkId: 'SEC-COEP-01',
         category: 'http-headers',
@@ -850,7 +853,7 @@ export function checkHttpHeaders(
         severity: 'info',
         observed: coep,
         description:
-          'Cross-Origin-Embedder-Policy (COEP) は HTTPS のページでだけ有効で、HTTP のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
+          'Cross-Origin-Embedder-Policy (COEP) は安全なコンテキスト（HTTPS・localhost）のページでだけ有効で、それ以外のページではブラウザがこのヘッダーを無視するため、評価の対象外です。',
         recommendation:
           'サイトを HTTPS で配信したうえで、COEP の設定を確認してください。',
         referenceUrls: [

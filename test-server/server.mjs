@@ -493,7 +493,7 @@ export function createRequestHandler(options) {
       res.writeHead(200);
       const content = `
         <h1>HTTPS 専用ヘッダー (/https-only-headers)</h1>
-        <p>HTTP のページなので COOP・COEP は対象外と表示されるテストページです。</p>
+        <p>http://localhost:3000/https-only-headers で開くと COOP・COEP は通常どおり判定され、LAN の IP（http://&lt;LAN の IP&gt;:3000/https-only-headers）で開くと対象外になります。</p>
       `;
       return res.end(createLayout('HTTPS 専用ヘッダー', content));
     }

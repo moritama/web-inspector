@@ -36,6 +36,7 @@ import { normalizeCookieCategory } from '../security/cookies';
 import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import { evaluatePolicyIssuesWithIntersection } from '../security/csp-parser';
 import { compareReportsEnhanced } from '../storage/diff';
+import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
 
 /**
  * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
@@ -565,13 +566,17 @@ ${issueBlock}
 
   // 9. 外部通信先・サードパーティ分析 (IMP-11 / v1.7.1 T05: 読み込まれたリソースの取得元)
   const ext = report.externalConnections;
+  const showLocal = shouldShowLocalConnectionCount(ext);
+  const localCount = showLocal ? resolveLocalConnectionCount(ext) : null;
+  const localLine = showLocal && localCount !== null ? `\n- **Local（ローカル・IP アドレス）:** ${localCount} 件` : '';
+
   sections.push(`## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）
 
 ※ **集計対象:** ページ本体および実際に読み込まれたサブリソース（Performance Resource Timing API・DOMの \`script\` / \`stylesheet\` / \`preload\` / \`modulepreload\` / \`icon\` / \`manifest\` / 画像・メディア等）の取得元ホストを集計しています（\`alternate\`・\`canonical\`・\`dns-prefetch\`・\`preconnect\`・フォームの \`action\` 送信先など、読み込みを伴わない参照は含みません）。
 
 - **総通信先ホスト数:** ${ext?.totalConnections ?? 0} 件
 - **First-Party (同一組織・自社ドメイン):** ${ext?.firstPartyCount ?? 0} 件
-- **Third-Party (外部サービス通信先):** ${ext?.thirdPartyCount ?? 0} 件
+- **Third-Party (外部サービス通信先):** ${ext?.thirdPartyCount ?? 0} 件${localLine}
 
 | 接続先ホスト名 | 登録可能ドメイン (eTLD+1) | 所属種別 | 推定カテゴリ | 観測リソース数 |
 |---|---|:---:|:---:|:---:|

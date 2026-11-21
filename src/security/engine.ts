@@ -14,6 +14,7 @@ import { checkLegacyAnalyticsTags } from './domain-analyzer';
 import { checkAuthPageCacheControl, checkHttpHeaders } from './headers';
 import { checkHttpsAndMixedContent } from './https';
 import { checkSubresourceIntegrity } from './sri';
+import { isSecureContextUrl } from '../shared/secure-context';
 
 /**
  * セキュリティ診断入力パラメータ
@@ -43,6 +44,7 @@ export class SecurityEngine {
     const headerChecks = checkHttpHeaders(headers, input.url, isHttps, {
       metaCsp: input.dom?.metaCsp,
       metaCspReportOnly: input.dom?.metaCspReportOnly,
+      isSecureContext: isSecureContextUrl(input.url),
     });
     allChecks.push(...headerChecks);
 

@@ -681,6 +681,7 @@ export function analyzeExternalConnections(
 
   let firstPartyCount = 0;
   let thirdPartyCount = 0;
+  let localCount = 0;
   const categoryBreakdown: Record<ExternalServiceCategory, number> = {
     cdn: 0,
     analytics: 0,
@@ -700,6 +701,7 @@ export function analyzeExternalConnections(
     let partyType: DomainPartyType = 'third-party';
     if (resInfo.isIpOrLocal) {
       partyType = 'local';
+      localCount++;
     } else if (resInfo.registrableDomain === pageInfo.registrableDomain) {
       partyType = 'first-party';
       firstPartyCount++;
@@ -727,6 +729,7 @@ export function analyzeExternalConnections(
 
   return {
     totalConnections: connections.length,
+    localCount,
     firstPartyCount,
     thirdPartyCount,
     categoryBreakdown,

@@ -16,6 +16,7 @@
  *   (7) R07: 同じ根拠が重複しない
  *   (8) R08: 完全性が「完全」なら通信先が 1 件以上（T05・T06 以降に有効化）
  *   (9) R09: CSP があるページの CSP の重大度が CSP なしを上回らない（T10）
+ *   (10) R10: 通信先の総数 = First-Party + Third-Party + Local (v1.8.2 T05 / H8)
  *
  * 使い方:
  *   npm run reports:lint
@@ -97,6 +98,13 @@ export const CHECK_DEFINITIONS = [
     id: 'R09',
     number: 9,
     title: 'CSP があるページの CSP の重大度が CSP なしを上回らない',
+    pending: false,
+    pendingUntil: null,
+  },
+  {
+    id: 'R10',
+    number: 10,
+    title: '通信先の総数 = First-Party + Third-Party + Local',
     pending: false,
     pendingUntil: null,
   },
@@ -940,6 +948,84 @@ export function checkCspSeverityNotExceedingMissing(report, markdown) {
 }
 
 /**
+ * (10) R10: 通信先の総数 = First-Party + Third-Party + Local (v1.8.2 T05 / H8)
+ */
+export function checkConnectionTotalsIncludeLocal(report, markdown) {
+  const violations = [];
+  const ext = report?.externalConnections;
+  if (!ext) {
+    // externalConnections が無ければ合格
+    return violations;
+  }
+
+  const total = ext.totalConnections;
+  const first = ext.firstPartyCount;
+  const third = ext.thirdPartyCount;
+  const hasLocalCount = typeof ext.localCount === 'number' && Number.isInteger(ext.localCount);
+
+  if (hasLocalCount) {
+    const local = ext.localCount;
+    if (total !== first + third + local) {
+      violations.push(
+        `JSONの通信先総数 (${total}) が First-Party (${first}) + Third-Party (${third}) + Local (${local}) = ${first + third + local} と一致しません`
+      );
+    }
+  } else {
+    // localCount が無い場合: first + third <= total でなければ不合格（数が壊れている）
+    if (typeof total === 'number' && typeof first === 'number' && typeof third === 'number') {
+      if (first + third > total) {
+        violations.push(
+          `JSONの通信先内訳 First-Party (${first}) + Third-Party (${third}) = ${first + third} が総数 (${total}) を超えています`
+        );
+      }
+    }
+  }
+
+  // Markdown の検査（markdown があり、## 9. が存在する場合）
+  if (typeof markdown === 'string' && markdown.trim().length > 0) {
+    const sec9 = extractMarkdownSection(markdown, '## 9.');
+    if (sec9) {
+      const bullets = sec9
+        .split(/\r?\n/)
+        .filter((l) => l.trim().startsWith('- '))
+        .join('\n');
+
+      const mTotal = bullets.match(/-\s+\*\*総通信先ホスト数:\*\*\s*(\d+)\s*件/);
+      const mFirst = bullets.match(/-\s+\*\*First-Party[^*]*:\*\*\s*(\d+)\s*件/);
+      const mThird = bullets.match(/-\s+\*\*Third-Party[^*]*:\*\*\s*(\d+)\s*件/);
+      const mLocal = bullets.match(/-\s+\*\*Local（ローカル・IP アドレス）:\*\*\s*(\d+)\s*件/);
+
+      const mdTotal = mTotal ? Number(mTotal[1]) : null;
+      const mdFirst = mFirst ? Number(mFirst[1]) : null;
+      const mdThird = mThird ? Number(mThird[1]) : null;
+      const mdLocal = mLocal ? Number(mLocal[1]) : null;
+
+      if (mdLocal !== null) {
+        // Local の行がある場合: total === first + third + local でなければ不合格
+        if (mdTotal !== null && mdFirst !== null && mdThird !== null) {
+          if (mdTotal !== mdFirst + mdThird + mdLocal) {
+            violations.push(
+              `Markdown「9. 外部通信先」の総数 (${mdTotal} 件) が First-Party (${mdFirst}) + Third-Party (${mdThird}) + Local (${mdLocal}) = ${mdFirst + mdThird + mdLocal} 件 と一致しません`
+            );
+          }
+        }
+      } else {
+        // Local の行が無い場合
+        if (hasLocalCount) {
+          // JSON に localCount がある新しいレポートなのに Markdown に Local の行が無い場合は不合格
+          violations.push(
+            `JSON に localCount (${ext.localCount}) が存在しますが、Markdown「9. 外部通信先」に Local の行が見つかりません`
+          );
+        }
+        // Local の行が無く、JSON にも localCount が無い（過去の Markdown）なら合格（検査しない）
+      }
+    }
+  }
+
+  return violations;
+}
+
+/**
  * 単一のレポート（JSON オブジェクトと Markdown 文字列の組）を検査する
  *
  * @param {object} report InspectionReport JSON オブジェクト
@@ -961,6 +1047,7 @@ export function lintReportPair(report, markdown, options = {}) {
     R07: () => checkNoDuplicateEvidence(report, markdown),
     R08: () => checkCompleteCoverageHasConnections(report, markdown),
     R09: () => checkCspSeverityNotExceedingMissing(report, markdown),
+    R10: () => checkConnectionTotalsIncludeLocal(report, markdown),
   };
 
   const results = [];

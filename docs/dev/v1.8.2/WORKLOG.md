@@ -203,3 +203,18 @@
 - 未解決:
   - NVD の Start Here のページは「uses data from the NVD API」という別の言い回し。指示書が資料に挙げる Terms of Use の文を採用した。人が Terms of Use のページをブラウザで開いて一字一句を確かめること
   - catalog.json の Debian の `distro._source` の licenseNote が仮の値（「v1.8.2 で確認」）のまま（T06 の未解決を引き継ぐ。表示は `BUNDLED_DATA_SOURCES` の「ライセンスの明記なし（出典のみ表示）」を使うので画面には出ない）
+
+## T07 実装  (2026-11-22 13:20)
+- 変更ファイル: src/shared/data-sources.ts（新規）, THIRD_PARTY_NOTICES.md（新規）, dashboard.html, src/dashboard/render.ts, src/dashboard/dashboard.ts, popup.html, src/popup/popup.ts, src/popup/popup.css, src/export/markdown.ts, scripts/package.mjs, README.md, scripts/test-e2e-smoke.mjs
+- 判断したこと:
+  - `src/shared/data-sources.ts` を新規作成し、同梱データ 7 種類（NVD, GHSA, Ubuntu, Debian, endoflife.date, CISA KEV, PSL）の定義 `BUNDLED_DATA_SOURCES`、および `NVD_NOTICE`, `NVD_TERMS_URL`, `DATA_SOURCES_VIEW_ID` を定義。Debian はライセンス明記なしとし、NVD には承認・認定を受けていない旨の加工注記を記載
+  - リポジトリ直下に `THIRD_PARTY_NOTICES.md` を作成。各出典の名称、URL、ライセンス表記、同梱内容、加工有無を網羅。NVD の利用規定表示文、Ubuntu の CC BY-SA 4.0、Debian の「ライセンスの明記なし」、endoflife.date の MIT 全文（著作権表示含む）、PSL の MPL 2.0 参照および元ファイル・生成ファイル名を記載。環境固有文字列を含まないよう配慮
+  - `dashboard.html` のサイドバーに「データの出典」ナビボタン、メイン領域に `dataSourcesView` パネルを追加。`src/dashboard/render.ts` に `renderDataSourcesHtml()` を追加し、NVD 表示文・利用規約リンクおよび 7 出典の情報を安全に描画（XSS 防止・https リンク・インラインハンドラ排除）。`src/dashboard/dashboard.ts` で初期表示時のハッシュ判定 (`applyInitialHashView`) を実装し、`#dataSourcesView` で初期表示を切り替え可能とした（不正ハッシュ時は概要サマリー維持・例外非送出）
+  - `popup.html` のフッターに `#dataSourcesLink`（文言: 「出典・ライセンス」）を追加し、クリック時に `dashboard.html#dataSourcesView` を新しいタブで開く処理を `src/popup/popup.ts` に追加。ポップアップ側には一覧や表示文を持たせずリンクのみとし、`src/popup/popup.css` で 450px 幅でも横スクロールが発生しないスタイルを設定
+  - `src/export/markdown.ts` に `## 16. データの出典とライセンス` セクションを追加。設計メモの固定文面およびフィクスチャと完全に合致する表を出力
+  - `scripts/package.mjs` で zip 作成前に `THIRD_PARTY_NOTICES.md` の存在を検証し、zip アーカイブ直下に同ファイルを同梱するよう修正（失敗時は zip 削除）
+  - `README.md` のライセンス節を更新し、コードは MIT、同梱データはそれぞれのライセンスに従う旨（Ubuntu は CC BY-SA 4.0、詳細は THIRD_PARTY_NOTICES.md）を記載
+  - `scripts/test-e2e-smoke.mjs` に検証 9（ポップアップ 450px の出典リンク検証およびダッシュボード連携検証）を追加
+- 外部の事実: 設計メモ記載の事実・URL（NVD Terms of Use: https://nvd.nist.gov/developers/terms-of-use、endoflife.date LICENSE 全文: https://raw.githubusercontent.com/endoflife-date/endoflife.date/master/LICENSE 等、2026-11-22 確認）を引用
+- 未解決: なし
+

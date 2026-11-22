@@ -432,4 +432,6 @@ npm run package
 
 ## ライセンス
 
-MIT License
+本拡張機能のソースコードは [MIT License](LICENSE) のもとで公開されています。
+
+同梱データはそれぞれのライセンスに従います（Ubuntu の部分は CC BY-SA 4.0）。詳細は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。

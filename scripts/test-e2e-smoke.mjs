@@ -914,6 +914,85 @@ export async function runSmokeTest() {
       await popupPage450.close();
     }
 
+    // -------------------------------------------------------------
+    // 検証 9: ポップアップ 450px の出典リンク (v1.8.2 T07 / H11, H12)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [9] ポップアップ 450px の出典リンク (v1.8.2 T07) を検証中...');
+    await page.goto('http://localhost:3000/distro-ubuntu-apache-php', { waitUntil: 'networkidle' });
+    const targetTabIdForT07 = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      return tabs.length > 0 ? tabs[0].id : null;
+    });
+
+    const popupPageT07 = await context.newPage();
+    await popupPageT07.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'networkidle' });
+    await popupPageT07.evaluate((tId) => {
+      const origSendMessage = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = function (message, ...args) {
+        if (message && message.type === 'INSPECT_CURRENT_TAB' && message.tabId === undefined) {
+          message.tabId = tId;
+        }
+        return origSendMessage(message, ...args);
+      };
+    }, targetTabIdForT07);
+
+    await popupPageT07.click('#rescanBtn');
+    await popupPageT07.waitForSelector('#techsList .item-row', { timeout: 10000 });
+
+    const evalLinkResult = await popupPageT07.evaluate(() => {
+      const link = document.getElementById('dataSourcesLink');
+      if (!link) return { ok: false, error: '#dataSourcesLink が見つかりません' };
+      const rect = link.getBoundingClientRect();
+      if (rect.width <= 0) return { ok: false, error: '#dataSourcesLink の幅が 0 以下です' };
+      if (rect.right > 450) return { ok: false, error: `#dataSourcesLink が右端をはみ出しています (right: ${rect.right})` };
+      const footer = document.querySelector('.footer');
+      if (footer && footer.scrollWidth > footer.clientWidth + 1) {
+        return { ok: false, error: `.footer で横スクロールが発生しています (scrollWidth: ${footer.scrollWidth}, clientWidth: ${footer.clientWidth})` };
+      }
+      if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1) {
+        return { ok: false, error: `documentElement で横スクロールが発生しています (scrollWidth: ${document.documentElement.scrollWidth}, clientWidth: ${document.documentElement.clientWidth})` };
+      }
+      return { ok: true };
+    });
+
+    if (!evalLinkResult.ok) {
+      await popupPageT07.close();
+      throw new Error(`[出典リンク検証エラー] ${evalLinkResult.error}`);
+    }
+
+    // リンクをクリックして開いたタブの確認
+    const [dashPage] = await Promise.all([
+      context.waitForEvent('page'),
+      popupPageT07.click('#dataSourcesLink'),
+    ]);
+    await dashPage.waitForLoadState('networkidle');
+
+    if (!dashPage.url().endsWith('dashboard.html#dataSourcesView')) {
+      await popupPageT07.close();
+      await dashPage.close();
+      throw new Error(`開いたタブの URL が dashboard.html#dataSourcesView で終わりません (実測: ${dashPage.url()})`);
+    }
+
+    const evalDashResult = await dashPage.evaluate(() => {
+      const panel = document.getElementById('dataSourcesView');
+      if (!panel) return { ok: false, error: '#dataSourcesView が見つかりません' };
+      if (!panel.classList.contains('active')) return { ok: false, error: '#dataSourcesView が .active ではありません' };
+      if (!panel.textContent?.includes('This product uses the NVD API but is not endorsed or certified by the NVD.')) {
+        return { ok: false, error: 'パネルに NVD の表示文が見つかりません' };
+      }
+      return { ok: true };
+    });
+
+    if (!evalDashResult.ok) {
+      await popupPageT07.close();
+      await dashPage.close();
+      throw new Error(`[ダッシュボード出典欄検証エラー] ${evalDashResult.error}`);
+    }
+
+    console.log('  ✓ ポップアップ 450px の出典リンク検証合格 (幅正常・横スクロールなし・ダッシュボード連携正常)');
+    await popupPageT07.close();
+    await dashPage.close();
+
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {

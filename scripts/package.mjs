@@ -23,7 +23,14 @@ if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, 'manifest.json'
   process.exit(1);
 }
 
-// 2. release フォルダの作成
+// 2. THIRD_PARTY_NOTICES.md の存在確認 (v1.8.2 T07)
+const noticesPath = path.join(rootDir, 'THIRD_PARTY_NOTICES.md');
+if (!fs.existsSync(noticesPath)) {
+  console.error('エラー: THIRD_PARTY_NOTICES.md が見つかりません。配布パッケージの作成にはサードパーティ表示文書が必要です。');
+  process.exit(1);
+}
+
+// 3. release フォルダの作成
 if (!fs.existsSync(releaseDir)) {
   fs.mkdirSync(releaseDir, { recursive: true });
 }
@@ -36,11 +43,14 @@ if (fs.existsSync(zipPath)) {
   process.exit(1);
 }
 
-// 3. ZIPコマンドで dist 内部のファイルをアーカイブ化
+// 4. ZIPコマンドで dist 内部のファイルをアーカイブ化
 try {
   console.log(`パッケージング中: ${zipName}...`);
   execSync(`cd "${distDir}" && zip -r "${zipPath}" . -x "*.DS_Store"`, { stdio: 'inherit' });
   
+  // THIRD_PARTY_NOTICES.md を ZIP アーカイブ直下に追加 (v1.8.2 T07)
+  execSync(`zip -j "${zipPath}" "${noticesPath}"`, { stdio: 'inherit' });
+
   const stats = fs.statSync(zipPath);
   const sizeKb = (stats.size / 1024).toFixed(1);
   console.log(`\n======================================================`);
@@ -49,5 +59,10 @@ try {
   console.log(`======================================================\n`);
 } catch (error) {
   console.error('ZIPアーカイブの作成に失敗しました:', error);
+  if (fs.existsSync(zipPath)) {
+    try {
+      fs.unlinkSync(zipPath);
+    } catch {}
+  }
   process.exit(1);
 }

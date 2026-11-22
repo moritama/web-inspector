@@ -37,6 +37,7 @@ import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import { evaluatePolicyIssuesWithIntersection } from '../security/csp-parser';
 import { compareReportsEnhanced } from '../storage/diff';
 import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
+import { BUNDLED_DATA_SOURCES, NVD_NOTICE } from '../shared/data-sources';
 
 /**
  * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
@@ -701,6 +702,21 @@ ${report.technologies.map(formatTechEvidenceSection).join('\n')}
 5. **TLS/SSL証明書の検証対象外:**
    本拡張機能は通信プロトコル（HTTPS/HTTP）およびヘッダー設定を確認しますが、TLS/SSL証明書の有効期限や信頼性（失効状態・発行元認証局の妥当性など）は診断しないため、証明書の有効性は対象外です。
 `);
+
+  // 16. データの出典とライセンス
+  const dataSourcesRows = BUNDLED_DATA_SOURCES.map(
+    (s) => `| ${escapeMarkdownTableCell(s.name)} | ${escapeMarkdownTableCell(s.licenseLabel)} | ${s.url} |`
+  ).join('\n');
+
+  sections.push(`## 16. データの出典とライセンス
+
+本拡張機能がオフライン診断で利用している同梱データの出典元、ライセンス、加工内容の一覧です。詳細はリポジトリ同梱の THIRD_PARTY_NOTICES.md を参照してください。
+
+> ${NVD_NOTICE}
+
+| 出典名 | ライセンス | 公式URL |
+|---|---|---|
+${dataSourcesRows}`);
 
   return sections.join('\n\n');
 }

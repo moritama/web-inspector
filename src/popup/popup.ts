@@ -20,6 +20,7 @@ import {
   renderSecurityModalHtml,
   renderTechModalHtml,
 } from './render';
+import { DATA_SOURCES_VIEW_ID } from '../shared/data-sources';
 
 let currentReport: InspectionReport | null = null;
 
@@ -81,6 +82,14 @@ function setupEventListeners(): void {
   rescanBtn.addEventListener('click', () => runScan());
   openDashboardBtn.addEventListener('click', openDashboard);
   fullReportBtn.addEventListener('click', openDashboard);
+
+  const dataSourcesLinkEl = document.getElementById('dataSourcesLink') as HTMLButtonElement | null;
+  if (dataSourcesLinkEl) {
+    dataSourcesLinkEl.addEventListener('click', () => {
+      const dashboardUrl = `${chrome.runtime.getURL('dashboard.html')}#${DATA_SOURCES_VIEW_ID}`;
+      chrome.tabs.create({ url: dashboardUrl });
+    });
+  }
 
   exportJsonBtn.addEventListener('click', () => {
     if (currentReport) downloadJsonFile(currentReport);

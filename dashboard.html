@@ -46,6 +46,9 @@
         <button class="nav-item" data-view="exceptionsView">
           <span class="nav-icon">🛡️</span> 許容設定 (Exceptions)
         </button>
+        <button class="nav-item" data-view="dataSourcesView">
+          <span class="nav-icon">📚</span> データの出典
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -257,6 +260,19 @@
             <div id="exceptionsTableContainer">
               <div class="empty-state">登録されている許容・除外設定はありません。</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ビュー 9: データの出典とライセンス (v1.8.2 T07) -->
+      <section id="dataSourcesView" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">データの出典とライセンス</h2>
+            <span class="card-desc">オフライン診断で使用している同梱データの出典元、ライセンス、加工内容</span>
+          </div>
+          <div class="card-body">
+            <div id="dataSourcesContainer"></div>
           </div>
         </div>
       </section>

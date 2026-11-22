@@ -32,6 +32,11 @@ import {
   SecurityCheckResult,
 } from '../shared/types';
 import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
+import {
+  BUNDLED_DATA_SOURCES,
+  NVD_NOTICE,
+  NVD_TERMS_URL,
+} from '../shared/data-sources';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
 
@@ -935,6 +940,66 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
               .join('')}
           </tbody>
         </table>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * データ出典とライセンス一覧HTMLを描画する (v1.8.2 T07)
+ */
+export function renderDataSourcesHtml(): string {
+  const nvdNoticeHtml = `
+    <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--info-color);">
+      <div class="card-header" style="padding: 12px 16px;">
+        <h3 class="card-title" style="font-size: 13px;">NVD API 利用規定に基づく表示</h3>
+      </div>
+      <div class="card-body" style="padding: 12px 16px;">
+        <p style="margin-bottom: 8px; font-weight: 500;">${escapeHtml(NVD_NOTICE)}</p>
+        <div>
+          <a href="${safeHref(NVD_TERMS_URL)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color); font-size: 12px;">NVD API Terms of Use (利用規約) ↗</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const sourcesListHtml = BUNDLED_DATA_SOURCES.map((source) => {
+    const licenseLink = source.licenseUrl
+      ? `<a href="${safeHref(source.licenseUrl)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">${escapeHtml(source.licenseLabel)} ↗</a>`
+      : `<span>${escapeHtml(source.licenseLabel)}</span>`;
+
+    return `
+      <div class="card" style="margin-bottom: 12px;" data-source-id="${escapeHtml(source.id)}">
+        <div class="card-header flex-between" style="padding: 12px 16px;">
+          <div>
+            <h3 class="card-title" style="font-size: 14px;">
+              <a href="${safeHref(source.url)}" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: none;">${escapeHtml(source.name)} ↗</a>
+            </h3>
+          </div>
+          <div>
+            <span class="badge" style="background: var(--bg-hover);">${licenseLink}</span>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 12px 16px; font-size: 13px;">
+          <div style="margin-bottom: 6px;">
+            <strong style="color: var(--text-sub);">同梱内容:</strong> <span>${escapeHtml(source.contents)}</span>
+          </div>
+          <div>
+            <strong style="color: var(--text-sub);">加工の有無:</strong> <span>${escapeHtml(source.modification)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="data-sources-container">
+      ${nvdNoticeHtml}
+      <div class="data-sources-list">
+        ${sourcesListHtml}
+      </div>
+      <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+        ※ 各データのライセンス本文および詳細な権利義務関係については、リポジトリ同梱の <code>THIRD_PARTY_NOTICES.md</code> を参照してください。
       </div>
     </div>
   `;

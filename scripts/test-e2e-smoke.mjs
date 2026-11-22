@@ -961,19 +961,19 @@ export async function runSmokeTest() {
     }
 
     // リンクをクリックして開いたタブの確認
-    const [dashPage] = await Promise.all([
+    const [dataSourcesPage] = await Promise.all([
       context.waitForEvent('page'),
       popupPageT07.click('#dataSourcesLink'),
     ]);
-    await dashPage.waitForLoadState('networkidle');
+    await dataSourcesPage.waitForLoadState('networkidle');
 
-    if (!dashPage.url().endsWith('dashboard.html#dataSourcesView')) {
+    if (!dataSourcesPage.url().endsWith('dashboard.html#dataSourcesView')) {
       await popupPageT07.close();
-      await dashPage.close();
-      throw new Error(`開いたタブの URL が dashboard.html#dataSourcesView で終わりません (実測: ${dashPage.url()})`);
+      await dataSourcesPage.close();
+      throw new Error(`開いたタブの URL が dashboard.html#dataSourcesView で終わりません (実測: ${dataSourcesPage.url()})`);
     }
 
-    const evalDashResult = await dashPage.evaluate(() => {
+    const evalDashResult = await dataSourcesPage.evaluate(() => {
       const panel = document.getElementById('dataSourcesView');
       if (!panel) return { ok: false, error: '#dataSourcesView が見つかりません' };
       if (!panel.classList.contains('active')) return { ok: false, error: '#dataSourcesView が .active ではありません' };
@@ -985,13 +985,13 @@ export async function runSmokeTest() {
 
     if (!evalDashResult.ok) {
       await popupPageT07.close();
-      await dashPage.close();
+      await dataSourcesPage.close();
       throw new Error(`[ダッシュボード出典欄検証エラー] ${evalDashResult.error}`);
     }
 
     console.log('  ✓ ポップアップ 450px の出典リンク検証合格 (幅正常・横スクロールなし・ダッシュボード連携正常)');
     await popupPageT07.close();
-    await dashPage.close();
+    await dataSourcesPage.close();
 
     // -------------------------------------------------------------
     // 検証 10: ヘッダー未観測の案内のポップアップ 450px 表示 (v1.8.2 T08 / D-3)

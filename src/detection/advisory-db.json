@@ -180,7 +180,7 @@
     "algorithm": "sha256",
     "target": "libraries",
     "digest": "99a37d9e8ad7c84e179e282348d4b4a9cd46d20b3e357c8ff14a652b96da739d",
-    "distroDigest": "ff6cc4dda34cef3b2f2abf156df8d69f92f699e592a7610200d897b10cca3d99"
+    "distroDigest": "7423a00d6710650278b6e60930db2aebdb0ef348890f7948177e1d55ef008961"
   },
   "libraries": {
     "jquery": {
@@ -30473,7 +30473,7 @@
         "url": "https://osv.dev/list?ecosystem=Debian",
         "ecosystem": "Debian",
         "license": null,
-        "licenseNote": "v1.8.2 で確認",
+        "licenseNote": "ライセンスの明記なし（出典のみ表示）",
         "retrievedAt": "2026-11-15T15:53:23.777Z",
         "recordCount": 479
       },

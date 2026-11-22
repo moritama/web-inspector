@@ -17,7 +17,7 @@
     "rocky": { "name": "Rocky Linux", "eol": { "slug": "rocky-linux" }, "releases": ["8", "9", "10"] }
   },
   "distroSources": [
-    { "name": "OSV.dev (Debian Security Tracker)", "url": "https://osv.dev/list?ecosystem=Debian", "ecosystem": "Debian", "license": null, "licenseNote": "v1.8.2 で確認" },
+    { "name": "OSV.dev (Debian Security Tracker)", "url": "https://osv.dev/list?ecosystem=Debian", "ecosystem": "Debian", "license": null, "licenseNote": "ライセンスの明記なし（出典のみ表示）" },
     { "name": "OSV.dev (Ubuntu Security Notices)", "url": "https://github.com/canonical/ubuntu-security-notices", "ecosystem": "Ubuntu", "license": "CC-BY-SA-4.0" },
     { "name": "endoflife.date", "url": "https://endoflife.date/", "ecosystem": null, "license": "MIT" }
   ],

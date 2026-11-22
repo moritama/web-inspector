@@ -47,7 +47,7 @@
 | `npm test`（vitest） | 合格 | passed 2184 / skipped 0 / failed 0 |
 | `npm run reports:lint` | 合格 | 回帰用フィクスチャで R01〜R10 の全 10 項目合格 |
 | `npm run build` | 合格 | content-script 12.06 KB、service-worker 234.78 KB、dist 合計 1119.57 KB（上限 2048 KB に収まる） |
-| 同梱 DB | 合格 | schema 2.4（2.4 に更新完了）、収録件数 418 件（v1.8.1 から変化なし、fixed: 301, none: 12, partial: 9, unknown: 96）、サイズ 976.08 KB（distro: 244.79 KB、releases: 22, mapEntries: 74, advisoryReleases: 10）、`sources` の数 3 件（Debian: license null / licenseNote "v1.8.2 で確認" / 479 件, Ubuntu: license "CC-BY-SA-4.0" / 393 件, endoflife.date: license "MIT" / 22 件） |
+| 同梱 DB | 合格 | schema 2.4（2.4 に更新完了）、収録件数 418 件（v1.8.1 から変化なし、fixed: 301, none: 12, partial: 9, unknown: 96）、サイズ 976.08 KB（distro: 244.79 KB、releases: 22, mapEntries: 74, advisoryReleases: 10）、`sources` の数 3 件（Debian: license null / licenseNote "ライセンスの明記なし（出典のみ表示）" / 479 件, Ubuntu: license "CC-BY-SA-4.0" / 393 件, endoflife.date: license "MIT" / 22 件） |
 | DB だけのリリースの予行（`scripts/ci/rehearse-db-release.mjs`） | 合格 | passed 2184 / skipped 0 / failed 0（所要 6s） |
 | `npm run test:e2e` | 未実行（夜間モード。人間が確認） | 手動実行または人による確認待ち |
 | `node scripts/dev/check-v1.8.2.mjs` | 合格（27 PASS / 1 FAIL / 1 WARN） | C14 は本報告書の作成で解消（スクリプトが再チェック）。C24 は作成前の WARN であり URL 記載により解消。その他全項目 PASS |
@@ -121,10 +121,10 @@ flowchart TD
 
 ## 7. 未解決の問題・既知の制限
 
-- **Debian 出典の licenseNote**: `catalog.json` 内の Debian 出典の `licenseNote` が初期の仮の値（「v1.8.2 で確認」）のまま残っています（`catalog.json` は変更禁止ファイルのため）。ただし、同梱 DB 生成時の最上位 `sources` および画面表示（`BUNDLED_DATA_SOURCES`）では正式な「ライセンスの明記なし（出典のみ表示）」が使用されており、画面表示や整合性上の実害はありません。人間が `catalog.json` を更新するか判断してください。
+- **Debian 出典の licenseNote（解決済み）**: `catalog.json` の Debian 出典の `licenseNote` が仮の値（「v1.8.2 で確認」）のままで、同梱 DB の `distro._source` にも入っていた（画面には出ない）。夜間の作業の後に、人が `catalog.json` を「ライセンスの明記なし（出典のみ表示）」に直し、`npm run advisories:build`（ネットワークなし）で DB を作り直した。DB の差分は `distro._source` の licenseNote と `distroDigest` だけ。
 - **シークレットウィンドウ調査履歴の保存先**: シークレットウィンドウのタブを調査した結果が、通常ウィンドウの `chrome.storage.local`（調査履歴）に保存される動作（Manifest V3 spanning 拡張機能の既定挙動）。PRIVACY_POLICY に追記すべきかは人の判断事項です。
 - **次期バージョンの文字列**: 次期バージョン（v1.8.3）の文字列（`'1.8.3'`）が `tests/advisory.test.ts` に 1 件存在します（次期バージョン対応時に test-hygiene 検査対象となるため次回版上げ時に対応）。
-- **退避した変更（git stash）**: T06（`v1.8.2 T06 stop 20261122-021831`）および T08（`v1.8.2 T08 stop 20261122-131243`）の自動退避 stash が存在します。いずれも設計・テスト側の調整完了により解決済みであり、不要であれば人間が確認後に `git stash drop` 可能です。
+- **退避した変更（git stash）**: 停止のたびに退避された前回の実装は、再実行で完了した後に人が消した（`git stash drop`・`git stash clear`）。残っているものは無い。
 - **失敗しているテスト**: なし（全 2184 件 PASS）
 
 ## 8. 人間の確認が必要な事項
@@ -282,6 +282,11 @@ flowchart TD
 - **OS の対応表（distro-map.json）の保守（週次のずれの報告を受けて人が一次資料で確かめて更新）**:
   各ディストリビューションのリリースライフサイクルやパッケージバージョンのマッピングについて、週次自動チェック等のずれ報告をもとに定期的に一次資料（ディストリビューション公式情報）を確認し、手動で対応表を更新・同期する。
 - **作業中に気づいた改善点・リスク**:
-  - 夜間キットでフィクスチャ Markdown（`tests/fixtures/reports/*.md`）の全体一致比較が設計時に見落とされ、実装担当がテストを変更できないルールにより停止が発生した。レポートの末尾セクション追加時は回帰テストフィクスチャの追記方針を設計段階で確実に洗い出す必要がある。
+  - **設計の工程での既存テストの見落とし（3 回）**: どれも実装の担当がテストを変えられない規則を守って止まり、人が設計の側を直して再実行した。
+    - T06: DB の `sources` を文字列の配列からオブジェクトの配列にしたが、要素を文字列として扱う既存テスト（`tests/osv-distro-pipeline.test.mjs` の `.some((s) => /…/.test(s))`）を見落とした（`e4ee9cb` で修正）。
+    - T07: Markdown に §16 を足したが、`tests/report-lint.test.ts` が保存済みのレポート（`tests/fixtures/reports/*.md`）と全体で比べることを見落とした。あわせて、設計メモ自身に書いた相対リンクがリンクの検査（`npm run test:links`）で切れていた。3 回目の実装はリンクの検査をゆるめて通そうとしたが、その変更は採らなかった（`59abb91` で修正）。
+    - T08: §15 に項目を足したが、同じ全体比較を見落とし、設計メモに「全体比較するテストは無い」と書いていた（`1729e10` で修正）。
+    - また、T07 の再実行の前の事前チェックで、確定済みのテストが未作成のモジュールを読むため型チェック（`npm run build`）が落ちて止まった。キットを直し、実装がまだのタスクがあるときは `vite build` が通れば続けるようにした。
+    - v1.8.3 のキットへ: (1) 設計の規則に「出力や型を変えるときは、`tests/fixtures/` の保存済みファイルと比べるテストと、要素の型を前提にしたテストを探す」「設計メモに相対リンクを書かない」を足す。(2) 設計の後にスクリプトが全テストを 1 回流し、受け入れテスト以外で落ちたテストがあれば設計の工程で止める。
   - シークレットウィンドウでの調査結果が通常ウィンドウの `chrome.storage.local` に保存される挙動について、プライバシーポリシー上での明記検討が推奨される。
   - `catalog.json` 内の Debian 出典の `licenseNote` が変更禁止のため更新できなかった件について、メンテナンス用のスクリプトまたは手動更新フローの確立が望まれる。

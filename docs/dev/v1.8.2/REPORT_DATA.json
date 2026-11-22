@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T05:11:15.175Z",
+  "generatedAt": "2026-11-22T05:36:20.509Z",
   "vitest": {
     "success": true,
     "numTotalTests": 2184,
@@ -25,9 +25,9 @@
       "partial": 9,
       "unknown": 96
     },
-    "sizeKB": 976.08,
+    "sizeKB": 976.12,
     "distro": {
-      "sizeKB": 244.79,
+      "sizeKB": 244.83,
       "releases": 22,
       "mapEntries": 74,
       "advisoryReleases": 10,
@@ -35,7 +35,7 @@
         {
           "name": "OSV.dev (Debian Security Tracker)",
           "license": null,
-          "licenseNote": "v1.8.2 で確認",
+          "licenseNote": "ライセンスの明記なし（出典のみ表示）",
           "recordCount": 479
         },
         {

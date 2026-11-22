@@ -384,6 +384,10 @@ export function renderPslGeneratedTs(rulesResult) {
  * Web Technology & Security Inspector
  * 自動生成された Public Suffix List (PSL) ルール定義 (src/security/psl-rules.generated.ts)
  *
+ * このファイルのルールは Public Suffix List (${PSL_UPSTREAM_URL}) から生成しています。
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+ * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
  * ※このファイルは scripts/advisories/lib/psl.mjs (または npm run spec:generate) により自動生成されます。
  * 直接手動で編集しないでください (v1.7.0 T13 / DOC-12)。
  */

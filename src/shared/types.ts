@@ -80,6 +80,9 @@ export type EvidenceType =
   | 'dom-marker'            // DOMマーカー
   | 'pattern';              // その他パターン
 
+/** Cookie のスコープ（v1.8.2 T03 / H1・H3）。host = host-only、domain = Domain 属性あり（親ドメイン・apex を含む）、unknown = document.cookie にだけある */
+export type CookieScope = 'host' | 'domain' | 'unknown';
+
 /**
  * 検出根拠 (エビデンス)
  */
@@ -97,6 +100,8 @@ export interface Evidence {
   confidence?: 'high' | 'medium' | 'low';
   /** この単体エビデンスが付与する基礎スコア */
   weight?: number;
+  /** Cookie のスコープ (v1.8.2 T03) */
+  cookieScope?: CookieScope;
 }
 
 /**
@@ -157,6 +162,17 @@ export interface AdvisoryProductCoverage {
   sources: string[];
 }
 
+/** advisory-db.json の sources の要素（v1.8.2 T06。schema 2.3 以前の文字列は名前だけの要素にそろえる） */
+export interface AdvisoryDbSourceRecord {
+  name: string;
+  url: string | null;          // https のみ。古い文字列・不正な値は null
+  ecosystem: string | null;
+  license: string | null;
+  licenseNote?: string;        // 空でない文字列のときだけ
+  retrievedAt: string | null;  // Date.parse できる文字列のときだけ
+  recordCount: number | null;  // 0 以上の整数のときだけ。古い文字列は null（0 にしない）
+}
+
 /**
  * 脆弱性DBスナップショットメタデータ (Rev.2.1 IMP-06 / 5.4)
  */
@@ -165,6 +181,7 @@ export interface AdvisoryDbMetadata {
   dataVersion: string;
   generatedAt: string;
   sources: string[];
+  sourceRecords?: AdvisoryDbSourceRecord[];
   coverage: {
     technologies: string[];
     totalAdvisories?: number;
@@ -326,6 +343,8 @@ export interface DetectedTechnology {
   distroAdvisories?: DistroAdvisoryAssessment;
   /** 参考: 上流の版による EOL（数えない） (v1.8.1 T03) */
   upstreamEolInfo?: EolInfo;
+  /** Cookie スコープにより確信度を 35 に下げた印 (v1.8.2 T03 / H2) */
+  cookieScopeDowngraded?: boolean;
 
   // --- Version 1.1 追加項目 ---
   /** CSS側から検出されたバージョン */
@@ -424,6 +443,8 @@ export interface SecurityCheckResult {
   recommendation: string;
   referenceUrls: string[];
   scope: string;
+  /** Secure 未設定の Cookie のうち、親ドメインのスコープ（hostOnly === false）の件数。1 以上のときだけ付ける (v1.8.2 T04) */
+  parentDomainCookieCount?: number;
   /** 安定ID (Rev.2.1 IMP-07 / IMP-10) */
   findingId?: string;
   /** 例外・許容ステータス (Rev.2.1 IMP-10) */
@@ -838,6 +859,8 @@ export interface ExternalConnectionItem {
  */
 export interface ExternalConnectionsAnalysis {
   totalConnections: number;
+  /** Local（localhost・IP アドレスなど）のホスト数。総数 = firstPartyCount + thirdPartyCount + localCount (v1.8.2 T05 / H8) */
+  localCount?: number;
   firstPartyCount: number;
   thirdPartyCount: number;
   categoryBreakdown: Record<Exclude<ExternalServiceCategory, 'security'>, number> & { security?: number };

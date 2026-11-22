@@ -792,16 +792,17 @@ describe('DetectionEngine', () => {
       expect(angular).toBeUndefined();
     });
 
-    it('AngularJS 1.8.2 を検出した場合に EOL (2022年1月公式終了) と判定されること', () => {
+    // v1.8.2 T08: 入力の版を 1.7.9 に変えた（拡張機能の版と同じ文字列だと test-hygiene の版の直書きの検査に掛かるため。EOL の判定は 1.x 全体で同じ）
+    it('AngularJS 1.7.9 を検出した場合に EOL (2022年1月公式終了) と判定されること', () => {
       const results = engine.detect({
         url: 'https://example.com/',
         dom: emptyDom,
-        runtimeVersions: { angularjs: '1.8.2' },
+        runtimeVersions: { angularjs: '1.7.9' },
       });
 
       const angularjs = results.find((r) => r.technology === 'AngularJS');
       expect(angularjs).toBeDefined();
-      expect(angularjs?.version).toBe('1.8.2');
+      expect(angularjs?.version).toBe('1.7.9');
       expect(angularjs?.supportStatus).toBe('EOL');
       expect(angularjs?.eolDate).toMatch(/^2022-01/);
     });

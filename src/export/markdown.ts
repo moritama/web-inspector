@@ -33,8 +33,11 @@ import {
   isRequiresAttention,
 } from '../shared/security-status';
 import { normalizeCookieCategory } from '../security/cookies';
+import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import { evaluatePolicyIssuesWithIntersection } from '../security/csp-parser';
 import { compareReportsEnhanced } from '../storage/diff';
+import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
+import { BUNDLED_DATA_SOURCES, NVD_NOTICE } from '../shared/data-sources';
 
 /**
  * 複数バージョンインスタンスを持つ技術をインスタンス単位の配列に展開する (v1.7.0 T08 / SPEC-10)
@@ -254,7 +257,7 @@ export function generateMarkdownReport(
   const sanitizedUrl = sanitizeUrlForReport(report.url);
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const extVer = report.extensionVersion || '1.8.1';
+  const extVer = report.extensionVersion || '1.8.2';
   const advDbVer = formatAdvisoryDbVersion(report.advisoryDatabaseVersion);
 
   // 差分分析の計算
@@ -402,6 +405,17 @@ ${
   }
 
   // 4. 検出技術スタック
+  const cookieScopeNotes: string[] = [];
+  for (const t of report.technologies) {
+    const note = formatCookieScopeNote(t, report.cookies);
+    if (note) {
+      cookieScopeNotes.push(`- **${escapeMarkdown(t.technology)}**: ${escapeMarkdown(note)}`);
+    }
+  }
+  const cookieScopeSection = cookieScopeNotes.length > 0
+    ? `\n\n> [!NOTE]\n> **親ドメインの Cookie だけで検出した技術:**\n${cookieScopeNotes.map((n) => `> ${n}`).join('\n')}`
+    : '';
+
   sections.push(`## 4. 検出技術スタック
 
 > [!NOTE]
@@ -417,7 +431,7 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
   const runtime = t.runtimeStatus === 'confirmed' ? '稼働確認済' : t.runtimeStatus === 'possible' ? '稼働可能性あり' : t.runtimeStatus === 'unknown' ? '稼働未確認' : '-';
   const integrity = t.versionIntegrity?.status === 'mismatch' ? '⚠️ 不一致' : t.versionIntegrity?.status === 'match' ? '一致' : '-';
   return `| **${escapeMarkdownTableCell(t.technology)}** | ${escapeMarkdownTableCell(t.category)} | ${formatMarkdownCodeSpan(ver, { inTable: true })} | ${distro} | ${method} | ${escapeMarkdownTableCell(relation)} | ${runtime} | ${t.confidenceLevel} (${t.confidence}%) | ${integrity} |`;
-}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}${distroAdvSection}
+}).join('\n') : '| なし | - | - | - | - | - | - | - | - |'}${distroSection}${distroAdvSection}${cookieScopeSection}
 `);
 
   // 5. セキュリティ診断結果
@@ -428,7 +442,11 @@ ${expandedTechnologies.length > 0 ? expandedTechnologies.map((t) => {
 ${report.securityChecks.length > 0 ? report.securityChecks.map((c) => {
   const statBadge = formatMarkdownStatusBadge(c.status);
   const exBadge = c.exceptionStatus === 'accepted' ? '🛡️ 許容済' : c.exceptionStatus === 'false-positive' ? '❌ 誤検知除外' : '-';
-  return `| ${escapeMarkdownTableCell(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | ${formatMarkdownCodeSpan(c.observed, { inTable: true })} | ${exBadge} |`;
+  const parentScopeBreakdown =
+    typeof c.parentDomainCookieCount === 'number' && c.parentDomainCookieCount > 0
+      ? ` （うち ${c.parentDomainCookieCount} 件は親ドメインのスコープ）`
+      : '';
+  return `| ${escapeMarkdownTableCell(c.name)} | ${statBadge} | ${c.severity.toUpperCase()} | ${formatMarkdownCodeSpan(c.observed, { inTable: true })}${parentScopeBreakdown} | ${exBadge} |`;
 }).join('\n') : '| なし | - | - | - | - |'}
 `);
 
@@ -549,13 +567,17 @@ ${issueBlock}
 
   // 9. 外部通信先・サードパーティ分析 (IMP-11 / v1.7.1 T05: 読み込まれたリソースの取得元)
   const ext = report.externalConnections;
+  const showLocal = shouldShowLocalConnectionCount(ext);
+  const localCount = showLocal ? resolveLocalConnectionCount(ext) : null;
+  const localLine = showLocal && localCount !== null ? `\n- **Local（ローカル・IP アドレス）:** ${localCount} 件` : '';
+
   sections.push(`## 9. 外部通信先・サードパーティ分析（読み込まれたリソースの取得元 / eTLD+1）
 
 ※ **集計対象:** ページ本体および実際に読み込まれたサブリソース（Performance Resource Timing API・DOMの \`script\` / \`stylesheet\` / \`preload\` / \`modulepreload\` / \`icon\` / \`manifest\` / 画像・メディア等）の取得元ホストを集計しています（\`alternate\`・\`canonical\`・\`dns-prefetch\`・\`preconnect\`・フォームの \`action\` 送信先など、読み込みを伴わない参照は含みません）。
 
 - **総通信先ホスト数:** ${ext?.totalConnections ?? 0} 件
 - **First-Party (同一組織・自社ドメイン):** ${ext?.firstPartyCount ?? 0} 件
-- **Third-Party (外部サービス通信先):** ${ext?.thirdPartyCount ?? 0} 件
+- **Third-Party (外部サービス通信先):** ${ext?.thirdPartyCount ?? 0} 件${localLine}
 
 | 接続先ホスト名 | 登録可能ドメイン (eTLD+1) | 所属種別 | 推定カテゴリ | 観測リソース数 |
 |---|---|:---:|:---:|:---:|
@@ -653,6 +675,11 @@ ${buildRoadmapSectionBody(report.securityChecks)}
       evidenceLines.push(`- **検出されたテーマ:** ${themeList}`);
     }
 
+    const scopeNote = formatCookieScopeNote(t, report.cookies);
+    if (scopeNote) {
+      evidenceLines.push(`- ※ ${escapeMarkdown(scopeNote)}`);
+    }
+
     return `\n### ${t.technology} (確信度: ${t.confidenceLevel} - ${t.confidence}%)\n${evidenceLines.join('\n')}\n`;
   };
 
@@ -674,7 +701,26 @@ ${report.technologies.map(formatTechEvidenceSection).join('\n')}
    Cookieの値、認証トークン、Authorizationヘッダーなどのシークレット情報はメモリ保持およびレポート出力から完全に除外されています。
 5. **TLS/SSL証明書の検証対象外:**
    本拡張機能は通信プロトコル（HTTPS/HTTP）およびヘッダー設定を確認しますが、TLS/SSL証明書の有効期限や信頼性（失効状態・発行元認証局の妥当性など）は診断しないため、証明書の有効性は対象外です。
+6. **拡張機能の更新・設定の切り替えの後:**
+   拡張機能の更新や、シークレットでの実行の許可を切り替えた後は、それまでに開いていたページの HTTP レスポンスヘッダーが記録されていません。ページを再読み込みしてから調べてください。
+7. **ダッシュボードの表示:**
+   ダッシュボードは通常ウィンドウで開いてください（拡張機能のページはシークレットのタブでは開けません）。
 `);
+
+  // 16. データの出典とライセンス
+  const dataSourcesRows = BUNDLED_DATA_SOURCES.map(
+    (s) => `| ${escapeMarkdownTableCell(s.name)} | ${escapeMarkdownTableCell(s.licenseLabel)} | ${s.url} |`
+  ).join('\n');
+
+  sections.push(`## 16. データの出典とライセンス
+
+本拡張機能がオフライン診断で利用している同梱データの出典元、ライセンス、加工内容の一覧です。詳細はリポジトリ同梱の THIRD_PARTY_NOTICES.md を参照してください。
+
+> ${NVD_NOTICE}
+
+| 出典名 | ライセンス | 公式URL |
+|---|---|---|
+${dataSourcesRows}`);
 
   return sections.join('\n\n');
 }

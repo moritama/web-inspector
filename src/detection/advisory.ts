@@ -8,6 +8,7 @@
 
 import {
   AdvisoryDbMetadata,
+  AdvisoryDbSourceRecord,
   AdvisoryDistroSection,
   AdvisoryFixStatus,
   AdvisoryMatchStatus,
@@ -66,7 +67,7 @@ export interface AdvisoryDatabase {
   version?: string;
   dataVersion?: string;
   generatedAt: string;
-  sources?: string[];
+  sources?: Array<string | AdvisoryDbSourceRecord>;
   coverage?: {
     technologies: string[];
     totalAdvisories?: number;
@@ -107,6 +108,52 @@ export interface OfflineAdvisoryResult {
 }
 
 /**
+ * DB の sources（文字列・オブジェクト・混在・不正）を AdvisoryDbSourceRecord の配列にそろえる (v1.8.2 T06)
+ */
+export function normalizeAdvisoryDbSources(raw: unknown): AdvisoryDbSourceRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const results: AdvisoryDbSourceRecord[] = [];
+
+  for (const item of raw) {
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if (!trimmed) continue;
+      results.push({
+        name: trimmed,
+        url: null,
+        ecosystem: null,
+        license: null,
+        retrievedAt: null,
+        recordCount: null,
+      });
+    } else if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+      const obj = item as Record<string, unknown>;
+      if (typeof obj.name !== 'string') continue;
+      const name = obj.name.trim();
+      if (!name) continue;
+
+      const url = typeof obj.url === 'string' && obj.url.startsWith('https://') ? obj.url : null;
+      const ecosystem = typeof obj.ecosystem === 'string' ? obj.ecosystem : null;
+      const license = typeof obj.license === 'string' && obj.license.length > 0 ? obj.license : null;
+      const licenseNote = typeof obj.licenseNote === 'string' && obj.licenseNote.length > 0 ? obj.licenseNote : undefined;
+      const retrievedAt = typeof obj.retrievedAt === 'string' && !Number.isNaN(Date.parse(obj.retrievedAt)) ? obj.retrievedAt : null;
+      const recordCount = typeof obj.recordCount === 'number' && Number.isInteger(obj.recordCount) && obj.recordCount >= 0 ? obj.recordCount : null;
+
+      results.push({
+        name,
+        url,
+        ecosystem,
+        license,
+        ...(licenseNote !== undefined ? { licenseNote } : {}),
+        retrievedAt,
+        recordCount,
+      });
+    }
+  }
+  return results;
+}
+
+/**
  * DBスナップショットのメタデータを取得する (Rev.2.1 IMP-06 / 5.4)
  */
 export function getAdvisoryDbMetadata(): AdvisoryDbMetadata {
@@ -116,16 +163,21 @@ export function getAdvisoryDbMetadata(): AdvisoryDbMetadata {
     0
   );
 
+  const defaultSources = [
+    'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
+    'GitHub Advisory Database (GHSA)',
+    'endoflife.date API',
+    'CISA KEV Catalog',
+  ];
+  const sourceRecords = normalizeAdvisoryDbSources(advisoryDb.sources || defaultSources);
+  const sources = sourceRecords.map((s) => s.name);
+
   return {
     schemaVersion: advisoryDb.schemaVersion || '2.1',
     dataVersion: advisoryDb.dataVersion || advisoryDb.version || 'unknown',
     generatedAt: advisoryDb.generatedAt || new Date().toISOString(),
-    sources: advisoryDb.sources || [
-      'NIST NVD 2.0 API (Primary: nvd@nist.gov)',
-      'GitHub Advisory Database (GHSA)',
-      'endoflife.date API',
-      'CISA KEV Catalog',
-    ],
+    sources,
+    sourceRecords,
     coverage: advisoryDb.coverage || {
       technologies: Object.keys(libs),
       totalAdvisories: computedCount,

@@ -273,21 +273,27 @@ function createValidBaseReport(): InspectionReport {
 }
 
 describe('v1.7.1 T03: レポート整合性チェッカー (scripts/report-lint.mjs)', () => {
-  it('正常なレポート（JSON と Markdown の組）では保留項目を含めて全 9 項目が合格すること', () => {
+  // v1.8.2 T05: R10 の追加に合わせ、項目数を直書きせず CHECK_DEFINITIONS と R01〜R10 の ID で確かめる
+  it('正常なレポート（JSON と Markdown の組）では保留項目を含めて全項目が合格すること', () => {
     const report = createValidBaseReport();
     const md = generateMarkdownReport(report);
     const result = lintReportPair(report, md, { includePending: true });
 
     expect(result.ok).toBe(true);
     expect(result.violations).toEqual([]);
-    expect(result.results.length).toBe(9);
+    expect(result.results.length).toBe(CHECK_DEFINITIONS.length);
+    expect(result.results.map((r) => r.id)).toEqual(CHECK_DEFINITIONS.map((d) => d.id));
     expect(result.results.every((r) => r.passed)).toBe(true);
   });
 
-  it('T05・T10 で全 9 項目が既定で有効（保留 0 件）になっていること', () => {
+  it('T05・T10 で R01〜R10 の全項目が既定で有効（保留 0 件）になっていること', () => {
     const pending = getPendingChecks();
     expect(pending.map((p) => p.id)).toEqual([]);
-    expect(CHECK_DEFINITIONS.length).toBe(9);
+    const ids = CHECK_DEFINITIONS.map((d) => d.id);
+    for (const id of ['R01', 'R02', 'R03', 'R04', 'R05', 'R06', 'R07', 'R08', 'R09', 'R10']) {
+      expect(ids, id).toContain(id);
+    }
+    expect(new Set(ids).size).toBe(ids.length);
     expect(CHECK_DEFINITIONS.every((d) => !d.pending)).toBe(true);
   });
 

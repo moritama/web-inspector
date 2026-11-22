@@ -9,6 +9,10 @@
 
 import { DomSignals, InspectionCoverage, InspectionStatus } from './types';
 
+/** ヘッダー未観測（拡張機能起動前の通信）の Partial の理由。再読み込みの案内を添える (v1.8.2 T08 / D-3) */
+export const HEADER_UNOBSERVED_PRESCAN_REASON =
+  '拡張機能起動前の通信のため HTTP レスポンスヘッダーが未観測です。ページを再読み込みしてから、もう一度調べてください';
+
 export interface CoverageAssessmentInputs {
   hasDom: boolean;
   hasHeaders: boolean;
@@ -132,7 +136,7 @@ export function assessInspectionCoverage(inputs: CoverageAssessmentInputs): Insp
     headers = inputs.unobservedPreScan ? 'partial' : 'unavailable';
     partialReasons.push(
       inputs.unobservedPreScan
-        ? '拡張機能起動前の通信のため HTTP レスポンスヘッダーが未観測です'
+        ? HEADER_UNOBSERVED_PRESCAN_REASON
         : 'HTTP レスポンスヘッダーを取得できませんでした'
     );
   }

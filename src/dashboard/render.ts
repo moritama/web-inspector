@@ -11,6 +11,7 @@ import {
 import { filterDisplayEvidences } from '../detection/engine';
 import { formatCookieCategory, normalizeCookieCategory } from '../security/cookies';
 import { escapeHtml, renderSafeExternalLink, safeHref } from '../shared/html';
+import { formatCookieScopeNote } from '../shared/cookie-scope-note';
 import {
   getSecurityCheckDisplayBadge,
   isFindingExcludedByException,
@@ -25,10 +26,17 @@ import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
   ExternalServiceCategory,
+  InspectedCookieInfo,
   InspectionReport,
   SecurityAdvisory,
   SecurityCheckResult,
 } from '../shared/types';
+import { resolveLocalConnectionCount, shouldShowLocalConnectionCount } from '../shared/connection-counts';
+import {
+  BUNDLED_DATA_SOURCES,
+  NVD_NOTICE,
+  NVD_TERMS_URL,
+} from '../shared/data-sources';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
 
@@ -398,10 +406,14 @@ export function renderLibrarySecurityTableHtml(techs: DetectedTechnology[]): str
 /**
  * 技術詳細アコーディオン一覧のHTML文字列を生成する
  */
-export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage?: any): string {
-  const noticeHtml = (coverage && coverage.networkHeadersObserved === false)
+export function renderFullTechnologiesHtml(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  cookies?: readonly InspectedCookieInfo[]
+): string {
+  const noticeHtml = (coverage?.details?.unobservedPreScan === true || coverage?.networkHeadersObserved === false)
     ? `<div style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: var(--warning-color); line-height: 1.5;">
-         ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、対象ページを再読み込み（リロード）して再調査してください。
+         ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、ページを再読み込みしてから、もう一度調べてください。
        </div>`
     : '';
 
@@ -729,6 +741,12 @@ export function renderFullTechnologiesHtml(techs: DetectedTechnology[], coverage
             return itemsHtml + remHtml;
           })()}
         </ul>
+        ${(() => {
+          const note = formatCookieScopeNote(t, cookies);
+          return note
+            ? `<div style="margin-top:6px;font-size:12px;color:var(--text-muted);background:rgba(245, 158, 11, 0.08);padding:6px 10px;border-radius:4px;border:1px solid rgba(245, 158, 11, 0.3);">※ ${escapeHtml(note)}</div>`
+            : '';
+        })()}
       </div>
     </div>
   `;
@@ -764,6 +782,11 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
         `
             : '';
 
+        const parentScopeBreakdown =
+          typeof c.parentDomainCookieCount === 'number' && c.parentDomainCookieCount > 0
+            ? ` （うち ${c.parentDomainCookieCount} 件は親ドメインのスコープ）`
+            : '';
+
         return `
     <div class="accordion-item">
       <div class="accordion-header">
@@ -777,7 +800,7 @@ export function renderFullSecurityHtml(checks: SecurityCheckResult[]): string {
         </div>
       </div>
       <div class="accordion-body">
-        <div><strong>観測値:</strong> <code>${escapeHtml(c.observed)}</code></div>
+        <div><strong>観測値:</strong> <code>${escapeHtml(c.observed)}</code>${parentScopeBreakdown}</div>
         <div><strong>セキュリティ上の影響:</strong> ${escapeHtml(c.description)}</div>
         <div style="color:var(--accent-color);"><strong>推奨対応:</strong> ${escapeHtml(c.recommendation)}</div>
         ${
@@ -854,6 +877,10 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
     )
     .join('');
 
+  const showLocal = shouldShowLocalConnectionCount(analysis);
+  const localCount = showLocal ? resolveLocalConnectionCount(analysis) : null;
+  const localText = showLocal && localCount !== null ? `, ローカル/Local: <strong>${localCount}</strong>` : '';
+
   return `
     <div class="diff-box">
       <div class="diff-title">読み込まれたリソースの取得元ドメイン集計 (eTLD+1 / Public Suffix List 判定)</div>
@@ -862,7 +889,7 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
       </div>
       <div style="margin-bottom:8px;">
         検出ホスト数: <strong>${analysis.totalConnections} 件</strong>
-        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>)
+        (自社/First-Party: <strong>${analysis.firstPartyCount}</strong>, 外部/Third-Party: <strong>${analysis.thirdPartyCount}</strong>${localText})
       </div>
       <div>推定用途別内訳: ${categoryChips || '<span style="color:var(--text-muted);">-</span>'}</div>
     </div>
@@ -913,6 +940,66 @@ export function renderExternalConnectionsHtml(analysis?: ExternalConnectionsAnal
               .join('')}
           </tbody>
         </table>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * データ出典とライセンス一覧HTMLを描画する (v1.8.2 T07)
+ */
+export function renderDataSourcesHtml(): string {
+  const nvdNoticeHtml = `
+    <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--info-color);">
+      <div class="card-header" style="padding: 12px 16px;">
+        <h3 class="card-title" style="font-size: 13px;">NVD API 利用規定に基づく表示</h3>
+      </div>
+      <div class="card-body" style="padding: 12px 16px;">
+        <p style="margin-bottom: 8px; font-weight: 500;">${escapeHtml(NVD_NOTICE)}</p>
+        <div>
+          <a href="${safeHref(NVD_TERMS_URL)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color); font-size: 12px;">NVD API Terms of Use (利用規約) ↗</a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const sourcesListHtml = BUNDLED_DATA_SOURCES.map((source) => {
+    const licenseLink = source.licenseUrl
+      ? `<a href="${safeHref(source.licenseUrl)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">${escapeHtml(source.licenseLabel)} ↗</a>`
+      : `<span>${escapeHtml(source.licenseLabel)}</span>`;
+
+    return `
+      <div class="card" style="margin-bottom: 12px;" data-source-id="${escapeHtml(source.id)}">
+        <div class="card-header flex-between" style="padding: 12px 16px;">
+          <div>
+            <h3 class="card-title" style="font-size: 14px;">
+              <a href="${safeHref(source.url)}" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: none;">${escapeHtml(source.name)} ↗</a>
+            </h3>
+          </div>
+          <div>
+            <span class="badge" style="background: var(--bg-hover);">${licenseLink}</span>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 12px 16px; font-size: 13px;">
+          <div style="margin-bottom: 6px;">
+            <strong style="color: var(--text-sub);">同梱内容:</strong> <span>${escapeHtml(source.contents)}</span>
+          </div>
+          <div>
+            <strong style="color: var(--text-sub);">加工の有無:</strong> <span>${escapeHtml(source.modification)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="data-sources-container">
+      ${nvdNoticeHtml}
+      <div class="data-sources-list">
+        ${sourcesListHtml}
+      </div>
+      <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+        ※ 各データのライセンス本文および詳細な権利義務関係については、リポジトリ同梱の <code>THIRD_PARTY_NOTICES.md</code> を参照してください。
       </div>
     </div>
   `;

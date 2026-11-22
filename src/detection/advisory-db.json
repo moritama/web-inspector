@@ -1,16 +1,63 @@
 {
-  "schemaVersion": "2.3",
+  "schemaVersion": "2.4",
   "version": "2026.11",
   "dataVersion": "20261115",
   "generatedAt": "2026-11-15T23:59:48.920Z",
   "minExtensionVersion": "1.7.0",
   "sources": [
-    "NIST NVD 2.0 API (Primary: nvd@nist.gov)",
-    "OSV.dev (GitHub Advisory Database / npm / Packagist)",
-    "OSV.dev (Debian Security Tracker / Ubuntu Security Notices)",
-    "endoflife.date API",
-    "CISA KEV Catalog",
-    "Curated (data/advisories/curated.json)"
+    {
+      "name": "NIST National Vulnerability Database (NVD)",
+      "url": "https://nvd.nist.gov/",
+      "ecosystem": null,
+      "license": null,
+      "licenseNote": "米国政府（NIST）の公開データ。NVD API の利用規約に従い、NVD の表示文を拡張機能内に載せます（NVD による承認・認定は受けていません）",
+      "retrievedAt": "2026-11-15T23:59:48.920Z",
+      "recordCount": 331
+    },
+    {
+      "name": "GitHub Advisory Database (OSV.dev 経由: npm / Packagist)",
+      "url": "https://github.com/github/advisory-database",
+      "ecosystem": null,
+      "license": "CC-BY-4.0",
+      "licenseNote": "OSV.dev 経由で取得し、影響範囲・重大度・タイトルを加工して収録しています",
+      "retrievedAt": "2026-11-15T23:59:48.920Z",
+      "recordCount": 64
+    },
+    {
+      "name": "OSV.dev (Ubuntu Security Notices)",
+      "url": "https://github.com/canonical/ubuntu-security-notices",
+      "ecosystem": "Ubuntu",
+      "license": "CC-BY-SA-4.0",
+      "licenseNote": "Ubuntu の部分は CC BY-SA 4.0 です。OSV.dev 経由で取得し、状態・修正版を加工して収録しています",
+      "retrievedAt": "2026-11-15T15:53:23.777Z",
+      "recordCount": 393
+    },
+    {
+      "name": "OSV.dev (Debian Security Tracker)",
+      "url": "https://osv.dev/list?ecosystem=Debian",
+      "ecosystem": "Debian",
+      "license": null,
+      "licenseNote": "ライセンスの明記なし（出典のみ表示）",
+      "retrievedAt": "2026-11-15T15:53:23.777Z",
+      "recordCount": 479
+    },
+    {
+      "name": "endoflife.date",
+      "url": "https://endoflife.date/",
+      "ecosystem": null,
+      "license": "MIT",
+      "licenseNote": "Copyright 2020 endoflife.date contributors。製品のサポート期間だけを収録しています（製品の説明文は使っていません）",
+      "retrievedAt": "2026-11-15T23:59:48.920Z",
+      "recordCount": 215
+    },
+    {
+      "name": "CISA Known Exploited Vulnerabilities Catalog",
+      "url": "https://github.com/cisagov/kev-data",
+      "ecosystem": null,
+      "license": "CC0-1.0",
+      "retrievedAt": "2026-11-15T23:59:48.920Z",
+      "recordCount": 21
+    }
   ],
   "coverage": {
     "totalAdvisories": 418,
@@ -133,7 +180,7 @@
     "algorithm": "sha256",
     "target": "libraries",
     "digest": "99a37d9e8ad7c84e179e282348d4b4a9cd46d20b3e357c8ff14a652b96da739d",
-    "distroDigest": "ff6cc4dda34cef3b2f2abf156df8d69f92f699e592a7610200d897b10cca3d99"
+    "distroDigest": "7423a00d6710650278b6e60930db2aebdb0ef348890f7948177e1d55ef008961"
   },
   "libraries": {
     "jquery": {
@@ -30426,7 +30473,7 @@
         "url": "https://osv.dev/list?ecosystem=Debian",
         "ecosystem": "Debian",
         "license": null,
-        "licenseNote": "v1.8.2 で確認",
+        "licenseNote": "ライセンスの明記なし（出典のみ表示）",
         "retrievedAt": "2026-11-15T15:53:23.777Z",
         "recordCount": 479
       },

@@ -183,13 +183,14 @@ function padded(db) {
 // schema 2.3
 // ---------------------------------------------------------------------------
 
-describe('T02: schema 2.3（H7）', () => {
-  it('build-db の出力スキーマは 2.3 で、生成した DB の schemaVersion もそうであること', () => {
-    expect(OUTPUT_SCHEMA_VERSION).toBe('2.3');
-    expect(buildPlain().db.schemaVersion).toBe('2.3');
+// v1.8.2 T06: sources の構造化でスキーマは 2.4 に上がった（H10）。2.3 の直書きを OUTPUT_SCHEMA_VERSION に替えた（設計メモ T06）
+describe('T02: schema 2.3（H7）→ v1.8.2 T06 で 2.4', () => {
+  it('build-db の出力スキーマは 2.4 で、生成した DB の schemaVersion もそうであること', () => {
+    expect(OUTPUT_SCHEMA_VERSION).toBe('2.4');
+    expect(buildPlain().db.schemaVersion).toBe(OUTPUT_SCHEMA_VERSION);
   });
 
-  it('validateDb は schema 2.3 の DB を受け付け、distro 節が無い 2.3 の DB も受け付けること（追加だけの互換）', () => {
+  it('validateDb は現行スキーマの DB を受け付け、distro 節が無い DB も受け付けること（追加だけの互換）', () => {
     const { db } = buildPlain();
     expect(db.distro).toBeUndefined();
     expect(() => validateDb(padded(db))).not.toThrow();
@@ -201,9 +202,9 @@ describe('T02: schema 2.3（H7）', () => {
     ['origin が不正', (db) => (db.libraries.dummy0.versions[0].origin = 'bogus')],
     ['fixStatus が不正', (db) => (db.libraries.dummy0.versions[0].fixStatus = 'bogus')],
     ['eol.eolDate が YYYY-MM-DD でない', (db) => (db.libraries.dummy0.eol = [{ cycle: '1', eolDate: '2090/01/01', status: 'EOL' }])],
-  ])('validateDb は schema 2.3 でも 2.2 と同じ厳格な検査をすること（%s なら拒否。陰性）', (_label, mutate) => {
+  ])('validateDb は現行スキーマでも 2.2 と同じ厳格な検査をすること（%s なら拒否。陰性）', (_label, mutate) => {
     const db = padded(buildPlain().db);
-    expect(db.schemaVersion).toBe('2.3');
+    expect(db.schemaVersion).toBe(OUTPUT_SCHEMA_VERSION);
     mutate(db);
     expect(() => validateDb({ ...db, integrity: undefined })).toThrow();
   });

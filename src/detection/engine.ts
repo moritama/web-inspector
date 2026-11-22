@@ -8,6 +8,7 @@ import { getActiveDistroSection, listUpstreamAdvisoryCves, matchOfflineAdvisorie
 import { inferDistroFromHeaders, judgeDistroEol } from './distro-inference';
 import { assessDistroAdvisories } from './distro-advisory';
 import {
+  CookieScope,
   DetectedTechnology,
   DistroProduct,
   DomSignals,
@@ -256,19 +257,35 @@ export class DetectionEngine {
     const urlObj = this.parseUrl(input.url);
     const runtime = input.runtimeVersions || input.dom?.runtimeVersions || {};
 
-    // IMPL-12: cookies API と document.cookie の両方から得た Cookie 名の重複を Set で除去する
-    const uniqueCookieNames = new Set<string>();
+    // IMPL-12 / v1.8.2 T03: cookies API, document.cookie, Set-Cookie から Cookie 名とスコープを収集・合成する
+    // 合成優先順位: host > domain > unknown (H3)
+    const cookieScopes = new Map<string, CookieScope>();
+    const mergeScope = (name: string, scope: CookieScope) => {
+      const current = cookieScopes.get(name);
+      if (!current) {
+        cookieScopes.set(name, scope);
+      } else if (current === 'host' || scope === 'host') {
+        cookieScopes.set(name, 'host');
+      } else if (current === 'domain' || scope === 'domain') {
+        cookieScopes.set(name, 'domain');
+      } else {
+        cookieScopes.set(name, 'unknown');
+      }
+    };
+
     if (input.network?.cookies) {
       for (const c of input.network.cookies) {
         if (c.name) {
-          uniqueCookieNames.add(c.name);
+          // hostOnly === false は domain、それ以外（true または真偽値でない互換データ）は host (H1)
+          const scope: CookieScope = c.hostOnly === false ? 'domain' : 'host';
+          mergeScope(c.name, scope);
         }
       }
     }
     if (input.dom?.cookiesFromDocument) {
       for (const name of input.dom.cookiesFromDocument) {
         if (name) {
-          uniqueCookieNames.add(name);
+          mergeScope(name, 'unknown');
         }
       }
     }
@@ -280,7 +297,25 @@ export class DetectionEngine {
             if (eqIdx > 0) {
               const cName = rawSetCookie.slice(0, eqIdx).trim();
               if (cName) {
-                uniqueCookieNames.add(cName);
+                // 属性は最初の ';' より後だけを見る（値の中の Domain= と混同しないため）
+                const semiIdx = rawSetCookie.indexOf(';');
+                let scope: CookieScope = 'host';
+                if (semiIdx >= 0) {
+                  const attrsStr = rawSetCookie.slice(semiIdx + 1);
+                  const attrs = attrsStr.split(';');
+                  for (const attr of attrs) {
+                    const attrEq = attr.indexOf('=');
+                    if (attrEq >= 0) {
+                      const attrName = attr.slice(0, attrEq).trim().toLowerCase();
+                      const attrVal = attr.slice(attrEq + 1).trim();
+                      if (attrName === 'domain' && attrVal.length > 0) {
+                        scope = 'domain';
+                        break;
+                      }
+                    }
+                  }
+                }
+                mergeScope(cName, scope);
               }
             }
           }
@@ -290,7 +325,7 @@ export class DetectionEngine {
 
     // 旧 ASP (Classic ASP) と ASP.NET の排他判定 (v1.7.1 T08)
     // ASPSESSIONID* の Cookie があり ASP.NET_SessionId も X-AspNet-Version もない場合は Classic ASP とし、ASP.NET にしない
-    const cookieNameList = Array.from(uniqueCookieNames);
+    const cookieNameList = Array.from(cookieScopes.keys());
     const hasAspSessionIdCookie = cookieNameList.some((n) => /^ASPSESSIONID[A-Z0-9]*$/i.test(n));
     const hasAspNetSessionCookie = cookieNameList.some((n) => /^ASP\.NET_SessionId$/i.test(n));
     const headersObj = input.network?.responseHeaders || {};
@@ -558,7 +593,7 @@ export class DetectionEngine {
             ) {
               break;
             }
-            for (const name of uniqueCookieNames) {
+            for (const name of cookieScopes.keys()) {
               if (matchedCookieNames.has(name)) {
                 continue;
               }
@@ -571,6 +606,7 @@ export class DetectionEngine {
                   source: input.url,
                   detail: signal.detail || `Cookie「${name}」の存在を検出`,
                   weight: signal.weight,
+                  cookieScope: cookieScopes.get(name),
                 });
               }
             }
@@ -948,6 +984,18 @@ export class DetectionEngine {
           level = confidence >= 50 ? 'medium' : 'low';
         }
 
+        // Cookie のスコープによる確信度引き下げ (v1.8.2 T03 / H2)
+        // 根拠がすべて cookie-name で、どれも host でない（domain または unknown）場合
+        const cookieOnlyNonHost =
+          cleanedEvidences.length > 0 &&
+          cleanedEvidences.every((e) => e.type === 'cookie-name' && e.cookieScope !== 'host');
+        let cookieScopeDowngraded = false;
+        if (cookieOnlyNonHost) {
+          cookieScopeDowngraded = confidence >= 50; // 従来なら一覧に出ていた
+          confidence = Math.min(confidence, 35);
+          level = 'low';
+        }
+
         // --- D. CSS・JavaScriptバージョン整合性判定 (ADD-03) ---
         let versionIntegrity: VersionIntegrityInfo | undefined = undefined;
         if (rule.id === 'bootstrap') {
@@ -1038,6 +1086,7 @@ export class DetectionEngine {
           website: rule.website,
           detectionMethod: 'direct',
           runtimeStatus: level === 'high' ? 'confirmed' : 'possible',
+          ...(cookieScopeDowngraded ? { cookieScopeDowngraded: true } : {}),
         });
       }
     }
@@ -1048,9 +1097,9 @@ export class DetectionEngine {
     // --- 複数候補の集約・抑制フェーズ (Candidate Consolidation & Suppression) ---
     this.consolidateCandidates(results, input);
 
-    // --- 採用しきい値フィルタ (確信度50%未満の不確定な単独検出を抑制。ただし複数候補集約は保持) ---
+    // --- 採用しきい値フィルタ (確信度50%未満の不確定な単独検出を抑制。ただし複数候補集約は保持、cookieScopeDowngraded は一覧に残す) ---
     const filteredResults = results.filter(
-      (r) => r.confidence >= 50 || r.technology.includes('(候補)')
+      (r) => r.confidence >= 50 || r.technology.includes('(候補)') || r.cookieScopeDowngraded === true
     );
 
     // --- T03: OS リリースの推定とライフサイクルによる EOL 判定 ---
@@ -1147,8 +1196,16 @@ export class DetectionEngine {
           results.splice(laravelIndex, 1);
         } else {
           // 両方揃っている場合は確信度70%として確定採用
-          laravelItem.confidence = 70;
-          laravelItem.confidenceLevel = 'medium';
+          // ただし根拠がすべて cookie-name で、どれも host でない場合は引き上げない (v1.8.2 T03 / H2)
+          const allCookieNonHost =
+            laravelItem.evidence.length > 0 &&
+            laravelItem.evidence.every(
+              (e) => e.type === 'cookie-name' && e.cookieScope !== 'host'
+            );
+          if (!allCookieNonHost) {
+            laravelItem.confidence = 70;
+            laravelItem.confidenceLevel = 'medium';
+          }
         }
       }
     }

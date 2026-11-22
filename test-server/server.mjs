@@ -57,6 +57,8 @@ function createLayout(title, content) {
       <a href="/relative-urls-only">/relative-urls-only (相対URLのみ)</a>
       <a href="/wordpress-legacy-ga">/wordpress-legacy-ga (WP &amp; ga.js)</a>
       <a href="/spa-settle">/spa-settle (SPA待ち)</a>
+      <a href="/parent-cookie-issuer">/parent-cookie-issuer (親Cookie発行)</a>
+      <a href="/parent-cookie-target">/parent-cookie-target (親Cookie確認)</a>
       <a href="/clear-cookies" style="color: #dc2626; font-weight: bold;">[Cookie全消去]</a>
     </nav>
     ${content}
@@ -87,7 +89,10 @@ export const TEST_PAGES = [
   { path: '/distro-sury', label: 'ディストリ版 deb.sury.org (PHP)' },
   { path: '/distro-debian-bpo', label: 'ディストリ版 Debian バックポート (~bpo)' },
   { path: '/distro-unmapped', label: 'ディストリ版 対応表に無い版' },
+  { path: '/distro-multi-candidate', label: 'ディストリ版 候補が 2 件以上のリリース' },
   { path: '/https-only-headers', label: 'HTTPS 専用ヘッダー (COOP / COEP 対象外検証)' },
+  { path: '/parent-cookie-issuer', label: '親ドメインの Cookie の発行（サブドメインをまたぐ確認）' },
+  { path: '/parent-cookie-target', label: '親ドメインの Cookie の確認先（別のサブドメイン）' },
 ];
 
 /** 起動時に console.log する行。TEST_PAGES の全ページについて http://localhost:${port}${path} を含む行を返す */
@@ -97,6 +102,8 @@ export function getStartupLines(port) {
     const p = page.path.startsWith('/') ? page.path : `/${page.path}`;
     lines.push(`  - ${page.label}: http://localhost:${port}${p === '/' ? '/' : p}`);
   }
+  lines.push(`  - サブドメイン間Cookie確認 (issuer): http://issuer.localtest.me:${port}/parent-cookie-issuer`);
+  lines.push(`  - サブドメイン間Cookie確認 (target): http://app.localtest.me:${port}/parent-cookie-target`);
   return lines;
 }
 
@@ -206,7 +213,35 @@ function getDistroValues(distroMap) {
     Xa = candidate;
   }
 
-  return { Ua, Up, UN, Da, Dp, DN, Ra, Xa };
+  // 5. Multi-candidate (v1.8.2 T01)
+  // entries を順に見て、製品が apache か nginx で、同じ family・product の 2 件以上のリリースの upstreamVersions に入っている最初の版
+  let Mf = null;
+  let Mp = null;
+  let Mv = null;
+  const multiMap = new Map();
+  const multiCandidatesList = [];
+  for (const entry of entries) {
+    if ((entry.product === 'apache' || entry.product === 'nginx') && Array.isArray(entry.upstreamVersions)) {
+      for (const v of entry.upstreamVersions) {
+        const k = `${entry.family}|${entry.product}|${v}`;
+        if (!multiMap.has(k)) {
+          multiMap.set(k, new Set());
+          multiCandidatesList.push({ family: entry.family, product: entry.product, version: v, key: k });
+        }
+        multiMap.get(k).add(entry.release);
+      }
+    }
+  }
+  for (const item of multiCandidatesList) {
+    if (multiMap.get(item.key).size >= 2) {
+      Mf = item.family;
+      Mp = item.product;
+      Mv = item.version;
+      break;
+    }
+  }
+
+  return { Ua, Up, UN, Da, Dp, DN, Ra, Xa, Mf, Mp, Mv };
 }
 
 /** リクエストハンドラーを作る。options.distroMap を省略すると data/advisories/distro-map.json を読む */
@@ -228,6 +263,69 @@ export function createRequestHandler(options) {
     const host = (req.headers && req.headers.host) || 'localhost:3000';
     const url = new URL(req.url, `http://${host}`);
     const pathname = url.pathname;
+
+    // --- サブドメイン間 Cookie 確認ページ (v1.8.2 T04) ---
+    const hostHeader = (req.headers && req.headers.host) ? String(req.headers.host) : '';
+    const hostParts = hostHeader.split(':');
+    const reqHostname = hostParts[0].toLowerCase();
+    const reqPort = hostParts[1] || String(PORT);
+
+    let parentDomain = null;
+    if (reqHostname === 'localtest.me' || reqHostname.endsWith('.localtest.me')) {
+      parentDomain = 'localtest.me';
+    } else if (reqHostname === 'example.test' || reqHostname.endsWith('.example.test')) {
+      parentDomain = 'example.test';
+    }
+
+    if (pathname === '/parent-cookie-issuer') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (parentDomain) {
+        res.setHeader('Set-Cookie', [
+          `_ga=GA1.1.1000000000.1700000000; Domain=${parentDomain}; Path=/; SameSite=Lax`,
+        ]);
+      }
+      res.writeHead(200);
+
+      const content = `
+        <h1>親ドメインの Cookie 発行 (/parent-cookie-issuer)</h1>
+        ${parentDomain
+          ? `<p>親ドメイン（<code>Domain=${parentDomain}</code>）の <code>_ga</code> Cookie を発行しました。</p>`
+          : `<p style="color:#d97706;font-weight:bold;">現在のホスト (${escapeHtml(reqHostname)}) は親ドメイン発行の対象外です。Domain 付きの Cookie は発行されません。</p>
+             <p>テストを実行するには、<a href="http://issuer.localtest.me:${reqPort}/parent-cookie-issuer">http://issuer.localtest.me:${reqPort}/parent-cookie-issuer</a> から開いてください。</p>`
+        }
+        <div class="card">
+          <h3>確認手順:</h3>
+          <ol>
+            <li>このページを開いて親ドメイン Cookie を取得します。</li>
+            <li>続けてターゲットページ <a href="http://app.localtest.me:${reqPort}/parent-cookie-target">http://app.localtest.me:${reqPort}/parent-cookie-target</a> を開いて調査します。</li>
+          </ol>
+          <p>期待する結果: ターゲットページで Google Analytics が確信度 low（35%）で検出され、Markdown §14 に注記が表示されます。</p>
+        </div>
+        <div class="card" style="margin-top:1rem;">
+          <h3>DNS リバインディング対策環境での代替手順:</h3>
+          <p><code>localtest.me</code> が名前解決できない場合は、<code>/etc/hosts</code> に以下を追加してください:</p>
+          <pre><code>127.0.0.1 issuer.example.test
+127.0.0.1 app.example.test</code></pre>
+          <p>追加後、<a href="http://issuer.example.test:${reqPort}/parent-cookie-issuer">http://issuer.example.test:${reqPort}/parent-cookie-issuer</a> から <a href="http://app.example.test:${reqPort}/parent-cookie-target">http://app.example.test:${reqPort}/parent-cookie-target</a> の順に開いて確認します。</p>
+        </div>
+      `;
+      return res.end(createLayout('親ドメイン Cookie 発行', content));
+    }
+
+    if (pathname === '/parent-cookie-target') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      res.writeHead(200);
+
+      const content = `
+        <h1>親ドメイン Cookie 確認ターゲット (/parent-cookie-target)</h1>
+        <p>このページ自体は <code>_ga</code> Cookie を発行せず、解析スクリプトも読み込みません。</p>
+        <div class="card">
+          <p>事前に <a href="http://issuer.localtest.me:${reqPort}/parent-cookie-issuer">http://issuer.localtest.me:${reqPort}/parent-cookie-issuer</a> で親ドメインの Cookie を発行した状態でこのページを調査してください。</p>
+          <p>期待する結果: Google Analytics が確信度 low（35%）で検出され、根拠の注記（同一ドメインの別サイトで発行された可能性があり、このホスト単体での利用は確認できていません）が表示されます。</p>
+        </div>
+      `;
+      return res.end(createLayout('親ドメイン Cookie 確認ターゲット', content));
+    }
 
     // --- 新規確認ページ (v1.8.1 T07) ---
     // 1. WAF Cloudflare Challenge
@@ -363,6 +461,30 @@ export function createRequestHandler(options) {
       return res.end(createLayout('ディストリ版 対応表に無い版', content));
     }
 
+    // ディストリ版 候補が 2 件以上のリリース (v1.8.2 T01)
+    if (pathname === '/distro-multi-candidate') {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      if (distroVals?.Mf && distroVals?.Mp && distroVals?.Mv) {
+        const prodName = distroVals.Mp === 'apache' ? 'Apache' : distroVals.Mp === 'nginx' ? 'nginx' : distroVals.Mp;
+        const osMap = {
+          ubuntu: 'Ubuntu',
+          debian: 'Debian',
+          rhel: 'Red Hat Enterprise Linux',
+          centos: 'CentOS',
+          almalinux: 'AlmaLinux',
+          rocky: 'Rocky Linux',
+        };
+        const osName = osMap[distroVals.Mf] || distroVals.Mf;
+        res.setHeader('Server', `${prodName}/${distroVals.Mv} (${osName})`);
+      }
+      res.writeHead(200);
+      const content = `
+        <h1>ディストリ版 候補が 2 件以上のリリース (/distro-multi-candidate)</h1>
+        <p>同一製品・同一系統で 2 件以上のリリース候補が存在するテストページです。</p>
+      `;
+      return res.end(createLayout('ディストリ版 候補が 2 件以上のリリース', content));
+    }
+
     // 10. HTTPS 専用ヘッダー (COOP / COEP 対象外検証)
     if (pathname === '/https-only-headers') {
       res.setHeader('Content-Type', 'text/html; charset=UTF-8');
@@ -371,7 +493,7 @@ export function createRequestHandler(options) {
       res.writeHead(200);
       const content = `
         <h1>HTTPS 専用ヘッダー (/https-only-headers)</h1>
-        <p>HTTP のページなので COOP・COEP は対象外と表示されるテストページです。</p>
+        <p>http://localhost:3000/https-only-headers で開くと COOP・COEP は通常どおり判定され、LAN の IP（http://&lt;LAN の IP&gt;:3000/https-only-headers）で開くと対象外になります。</p>
       `;
       return res.end(createLayout('HTTPS 専用ヘッダー', content));
     }
@@ -701,6 +823,15 @@ export function createRequestHandler(options) {
 
   // --- 8. /clear-cookies (全テストCookieの消去) ---
   if (pathname === '/clear-cookies') {
+    const clearHostHeader = (req.headers && req.headers.host) ? String(req.headers.host) : '';
+    const clearHostOnly = clearHostHeader.split(':')[0].toLowerCase();
+    let clearParentDomain = null;
+    if (clearHostOnly === 'localtest.me' || clearHostOnly.endsWith('.localtest.me')) {
+      clearParentDomain = 'localtest.me';
+    } else if (clearHostOnly === 'example.test' || clearHostOnly.endsWith('.example.test')) {
+      clearParentDomain = 'example.test';
+    }
+
     const expiredCookies = [
       'AWSALB=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       'AWSALBCORS=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=None; Secure',
@@ -719,6 +850,11 @@ export function createRequestHandler(options) {
       '__utma=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
       '__utmz=deleted; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0',
     ];
+    if (clearParentDomain) {
+      expiredCookies.push(
+        `_ga=deleted; Domain=${clearParentDomain}; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0`
+      );
+    }
     res.setHeader('Set-Cookie', expiredCookies);
     res.setHeader('Content-Type', 'text/html; charset=UTF-8');
     res.writeHead(200);

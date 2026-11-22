@@ -203,10 +203,10 @@ describe('EOL 正規化', () => {
 });
 
 describe('DB 生成 (build-db)', () => {
-  it('生成結果は strict 検証 (schema 2.3) に合格する', () => {
+  it('生成結果は strict 検証 (schema 2.4) に合格する', () => {
     const { db } = build();
-    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）
-    expect(db.schemaVersion).toBe('2.3');
+    // v1.8.1 T02: distro 節の追加で schema 2.3（H7）。v1.8.2 T06: sources の構造化で schema 2.4（H10）
+    expect(db.schemaVersion).toBe('2.4');
     expect(() => validateDb({ ...db, integrity: undefined, libraries: { ...db.libraries, ...padProducts() } })).not.toThrow();
     // 改ざん検知: libraries を書き換えると integrity 検証で失敗する
     const padded = { ...db, libraries: { ...db.libraries, ...padProducts() } };

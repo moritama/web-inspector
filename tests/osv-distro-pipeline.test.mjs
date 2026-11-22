@@ -646,9 +646,11 @@ describe('T05: distro._source（H2・§5.2）', () => {
 
   it('DB 全体の sources に OSV（Debian / Ubuntu）が足され、distro 節の無い DB の sources は変わらないこと', async () => {
     const { db } = (await fetchAndBuild()).build();
-    expect(db.sources.some((s) => /OSV/.test(s) && /Debian/.test(s) && /Ubuntu/.test(s))).toBe(true);
+    // v1.8.2 T06: sources はスキーマ 2.4 で出典ごとのオブジェクト（文字列の配列ではない）。ecosystem で見る
+    expect(db.sources.some((s) => s.ecosystem === 'Debian')).toBe(true);
+    expect(db.sources.some((s) => s.ecosystem === 'Ubuntu')).toBe(true);
     const plain = buildDatabase({ catalog: fixtureCatalog, curated: fixtureCurated, upstream: fixtureUpstream, previousDb: null, asOf: AS_OF, generatedAt: GENERATED_AT }).db;
-    expect(plain.sources.some((s) => /Debian|Ubuntu/.test(s))).toBe(false);
+    expect(plain.sources.some((s) => s.ecosystem === 'Debian' || s.ecosystem === 'Ubuntu')).toBe(false);
   });
 
   it.each([

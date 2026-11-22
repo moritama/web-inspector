@@ -26,7 +26,7 @@ import {
   deleteFindingException,
   matchFindingException,
 } from '../storage/exceptions';
-import { formatDistroReleaseDisplay } from '../shared/distro-display';
+import { formatDistroReleaseWithConfidence } from '../shared/distro-display';
 import { generateFindingIdFromCheck } from '../shared/identity';
 import { summarizeSecurityChecks } from '../shared/security-status';
 import { analyzeCSPPolicies, parseCSPHeaderValues } from '../security/csp-parser';
@@ -55,7 +55,7 @@ import {
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.8.1';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.8.2';
 
 /**
  * キャッシュに保持するヘッダーエントリ構造
@@ -395,15 +395,65 @@ export function resolveTopLevelSite(url: string): string | null {
   }
 }
 
+/** getAllCookieStores だけを持つ、差し替え可能な Cookie API（v1.8.2 T03 / H13） */
+export interface CookieStoreLookup {
+  getAllCookieStores?: () => Promise<Array<{ id: string; tabIds: number[] }>>;
+}
+
+/**
+ * 調べるタブが属する Cookie の保存先の ID を返す。見つからない・API が無い・例外のときは undefined
+ * cookiesApi を省略すると chrome.cookies（無ければ undefined）
+ */
+export async function resolveCookieStoreId(
+  tabId: number | undefined,
+  cookiesApi?: CookieStoreLookup
+): Promise<string | undefined> {
+  if (typeof tabId !== 'number') {
+    return undefined;
+  }
+  const api =
+    arguments.length < 2
+      ? typeof chrome !== 'undefined'
+        ? (chrome.cookies as CookieStoreLookup | undefined)
+        : undefined
+      : cookiesApi;
+  if (!api || typeof api.getAllCookieStores !== 'function') {
+    return undefined;
+  }
+  try {
+    const stores = await api.getAllCookieStores();
+    if (!Array.isArray(stores)) {
+      return undefined;
+    }
+    const matched = stores.find(
+      (s) =>
+        s &&
+        typeof s.id === 'string' &&
+        Array.isArray(s.tabIds) &&
+        s.tabIds.includes(tabId)
+    );
+    return matched?.id;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Cookie属性の取得 (値は除外)。通常の Cookie に加え、partitionKey: { topLevelSite } 付きで CHIPS も取得する (IMPL-11)
+ * 調べるタブの保存先の storeId を解決して渡す (v1.8.2 T03 / D-3)
  */
-export async function getInspectedCookies(url: string): Promise<InspectedCookieInfo[]> {
+export async function getInspectedCookies(
+  url: string,
+  tabId?: number
+): Promise<InspectedCookieInfo[]> {
   try {
     if (typeof chrome === 'undefined' || !chrome.cookies?.getAll) {
       return [];
     }
-    const normalCookies = (await chrome.cookies.getAll({ url })) || [];
+    const storeId = await resolveCookieStoreId(tabId);
+    const storeDetails = storeId !== undefined ? { storeId } : {};
+
+    const normalCookies = (await chrome.cookies.getAll({ url, ...storeDetails })) || [];
     const topLevelSite = resolveTopLevelSite(url);
     let partitionedCookies: chrome.cookies.Cookie[] = [];
 
@@ -419,6 +469,7 @@ export async function getInspectedCookies(url: string): Promise<InspectedCookieI
           )({
             url,
             partitionKey: { topLevelSite },
+            ...storeDetails,
           })) || [];
       } catch {
         // partitionKey 未対応環境等の場合は通常の Cookie のみで継続
@@ -486,7 +537,7 @@ export async function getInspectedCookies(url: string): Promise<InspectedCookieI
 export async function fetchDomSignals(tabId: number, url: string): Promise<DomSignals> {
   const collectionErrors: string[] = [];
 
-  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する (二重注入は content-script 先頭の印で防止)
+  // 1. 調査実行時に chrome.scripting.executeScript で Content Script を注入する。content-script.js は IIFE で出している（vite.config.ts の 2 段目のビルド）ので、同じフレームへ 2 回目を注入しても重複宣言にならず、先頭の印（CONTENT_SCRIPT_GUARD_KEY）でリスナーの二重登録を防ぐ
   try {
     if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript) {
       await chrome.scripting.executeScript({
@@ -652,7 +703,7 @@ export interface InspectionDependencies {
   fetchDomSignals: (tabId: number, url: string) => Promise<DomSignals>;
   fetchRuntimeVersions: (tabId: number) => Promise<{ versions: Record<string, string | null>; frameworkMarkers: string[] }>;
   getCachedHeaders: (tabId: number) => Promise<{ url: string; headers: Record<string, string[]>; observed?: boolean } | undefined>;
-  getInspectedCookies: (url: string) => Promise<InspectedCookieInfo[]>;
+  getInspectedCookies: (url: string, tabId?: number) => Promise<InspectedCookieInfo[]>;
   getAllFindingExceptions: () => Promise<FindingException[]>;
   saveReport?: (report: InspectionReport) => Promise<void>;
   updateBadge?: (count: number, isWarning: boolean, tabId: number) => void;
@@ -785,7 +836,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
   const rawHeadersObserved = Boolean(cachedData?.observed ?? cachedData);
   const headersObserved = rawHeadersObserved && isOriginMatch;
   const responseHeaders = headersObserved ? (cachedData?.headers || {}) : {};
-  const cookies = await deps.getInspectedCookies(url);
+  const cookies = await deps.getInspectedCookies(url, currentTabId);
 
   const networkSignals: NetworkSignals = {
     url,
@@ -923,11 +974,12 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
         )}${instVersion ? `_${instVersion}` : ''}`;
 
         const isDistroEol = Boolean(tech.distroInference && instEolInfo?.source === 'endoflife.date（OS のライフサイクル）');
+        const distroReleaseWithConf = formatDistroReleaseWithConfidence(tech);
         const eolObserved = isDistroEol
-          ? `検出バージョン: ${instVersion || '不明'}（推定した OS: ${instEolInfo?.label || 'OS'}、EOL日: ${instEolDate || '過去'}）`
+          ? `検出バージョン: ${instVersion || '不明'}（推定した OS: ${distroReleaseWithConf || instEolInfo?.label || 'OS'}、EOL日: ${instEolDate || '過去'}）`
           : `検出バージョン: ${instVersion || '不明'} (EOL日: ${instEolDate || '過去'})`;
         const eolDescription = isDistroEol
-          ? `${tech.technology}${instVersion ? ` (${instVersion})` : ''} が稼働する推定 OS（${instEolInfo?.label || 'OS'}）の標準サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されない可能性があります。`
+          ? `${tech.technology}${instVersion ? ` (${instVersion})` : ''} が稼働する推定 OS（${distroReleaseWithConf || instEolInfo?.label || 'OS'}）の標準サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されない可能性があります。`
           : `${tech.technology}${instVersion ? ` (${instVersion})` : ''} は公式サポートが終了しています。新たな脆弱性が発見されてもセキュリティパッチが提供されません。`;
 
         librarySecurityChecks.push({
@@ -1053,7 +1105,7 @@ export async function executeInspection(deps: InspectionDependencies): Promise<I
       const openCount = da.cves.filter((c) => c.distroStatus === 'open').length;
       const unknownRevCount = da.cves.filter((c) => c.distroStatus === 'unknown-revision').length;
       const noDataCount = da.cves.filter((c) => c.distroStatus === 'no-data').length;
-      const releaseName = formatDistroReleaseDisplay(tech);
+      const releaseName = formatDistroReleaseWithConfidence(tech);
 
       const parts: string[] = [];
       if (notFixedCount > 0) parts.push(`修正版より古い ${notFixedCount} 件`);

@@ -326,6 +326,8 @@ body {
   align-items: center;
   gap: 10px;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .tech-icon-badge {
@@ -380,7 +382,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* バッジ類 */
@@ -561,6 +565,22 @@ body {
 
 .footer-btn.primary:hover {
   opacity: 0.95;
+}
+
+.footer-link {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 6px;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.footer-link:hover {
+  color: var(--text-primary);
 }
 
 /* モーダル */

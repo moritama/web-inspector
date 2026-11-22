@@ -1,0 +1,191 @@
+{
+  "checkedAt": "2026-11-22T05:53:23.244Z",
+  "targetVersion": "1.8.2",
+  "baseRef": "f0d67ab",
+  "mode": "full+e2e",
+  "passed": 29,
+  "failed": 1,
+  "warned": 0,
+  "results": [
+    {
+      "id": "C01",
+      "title": "feature/v1.8.2 が f0d67ab の子孫である",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C02",
+      "title": "npm test が全件合格し、skip が 0 件",
+      "status": "PASS",
+      "detail": "Tests  2184 passed (2184) (6s)"
+    },
+    {
+      "id": "C03a",
+      "title": "npm run build",
+      "status": "PASS",
+      "detail": "(2s)"
+    },
+    {
+      "id": "C03b",
+      "title": "サイズ上限（scripts/ci/check-size.mjs）に収まる",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
+      "id": "C04",
+      "title": "DB だけのリリースの予行（scripts/ci/rehearse-db-release.mjs）が合格",
+      "status": "PASS",
+      "detail": "Tests  2184 passed (2184) (6s)"
+    },
+    {
+      "id": "C05",
+      "title": "作業ツリーに未コミットの変更が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C06",
+      "title": "test-hygiene（tests/test-hygiene.test.ts）があり、合格する",
+      "status": "PASS",
+      "detail": "Tests  13 passed (13) (1s)"
+    },
+    {
+      "id": "C07",
+      "title": "実装の工程のコミットが tests/ を変更していない（設計・データの工程は許可された場所だけ）",
+      "status": "PASS",
+      "detail": "実装 8 件・設計 19 件・データ 0 件を確認"
+    },
+    {
+      "id": "C08",
+      "title": "新しいチェック ID を含め、仕様書のカタログが最新（spec:generate で差分が出ない）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C09",
+      "title": "ヘッダーに依存する新しいチェックの接頭辞が HEADER_DEPENDENT_CHECK_PREFIXES にある（未観測なら unknown）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C10",
+      "title": "npm run reports:lint が回帰用フィクスチャで全項目合格",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
+      "id": "C11",
+      "title": "actionlint",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C12",
+      "title": "package.json・lock・manifest・RULES_VERSION などが 1.8.2 で一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C13",
+      "title": "curated.json と脆弱性の中身（libraries・distro）が f0d67ab から変わらず、DB のスキーマが 2.4",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C13b",
+      "title": "build-db --check（DB が手編集されていない）",
+      "status": "PASS",
+      "detail": "(0s)"
+    },
+    {
+      "id": "C14",
+      "title": "完了報告書があり、件数・skip のテスト名が REPORT_DATA.json と一致し、TODO(報告書) が残っていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C15",
+      "title": "キットのログに、全タスクのモデル・retry 回数・所要時間がある",
+      "status": "PASS",
+      "detail": "9 タスク分"
+    },
+    {
+      "id": "C16",
+      "title": "npm run test:e2e（test-server を別に起動しておく）",
+      "status": "PASS",
+      "detail": "(51s)"
+    },
+    {
+      "id": "C18",
+      "title": "推定にもとづく結果の文言に「該当なし」「安全」「Not Affected」が無い（distro 関係の文字列。v1.8.1 から継続）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C20",
+      "title": "dist/content/content-script.js がトップレベルの const / let / class / import を持たない（IIFE に包まれている）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C21",
+      "title": "E2E（scripts/test-e2e-smoke.mjs）に T01・T02 のケースがある（実行は --e2e）",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C22",
+      "title": "DB の sources がすべて license か licenseNote を持ち、THIRD_PARTY_NOTICES.md に載り、NVD の表示文・PSL の MPL 表示・zip への同梱がある",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C23",
+      "title": "scripts/report-lint.mjs に R10（総数 = First-Party + Third-Party + Local）がある",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "C24",
+      "title": "完了報告書 §8 の画面を見る項目に、確認する URL がある",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "K01",
+      "title": "キットが改変されていない",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R01",
+      "title": "review-v1.6.5-acceptance.test.ts に it.skip / describe.skip が無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R02",
+      "title": "src/ 配下に HTML が無く、インラインイベントハンドラも無い",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "R03",
+      "title": "コミット対象に禁止語・実サイトのホスト名・キットのファイル・変更禁止領域の変更が無い",
+      "status": "FAIL",
+      "detail": "変更禁止: data/advisories/catalog.json"
+    },
+    {
+      "id": "R03b",
+      "title": "WORKLOG に 8 タスクすべての記録がある",
+      "status": "PASS",
+      "detail": "記録済み: 8/8"
+    },
+    {
+      "id": "R04",
+      "title": "manifest の権限が f0d67ab と同じで、content_scripts が無い",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import {
   DetectedTechnology,
   ExternalConnectionsAnalysis,
   FindingException,
+  InspectedCookieInfo,
   InspectionReport,
   SecurityCheckResult,
 } from '../shared/types';
@@ -24,6 +25,7 @@ import {
   renderLibrarySecurityTableHtml,
   renderOverviewLibrarySecHtml,
   renderOverviewSecurityHtml,
+  renderDataSourcesHtml,
 } from './render';
 
 let currentReport: InspectionReport | null = null;
@@ -48,6 +50,7 @@ let fullSecurityContainerEl = document.getElementById('fullSecurityContainer') a
 let cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
 let historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
 let exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
+let dataSourcesContainerEl = document.getElementById('dataSourcesContainer') as HTMLElement;
 
 let compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
 let compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
@@ -81,6 +84,7 @@ function initDomElements(): void {
   cookiesTableBodyEl = document.getElementById('cookiesTableBody') as HTMLElement;
   historyListContainerEl = document.getElementById('historyListContainer') as HTMLElement;
   exceptionsTableContainerEl = document.getElementById('exceptionsTableContainer') as HTMLElement;
+  dataSourcesContainerEl = document.getElementById('dataSourcesContainer') as HTMLElement;
 
   compareSelectA = document.getElementById('compareSelectA') as HTMLSelectElement;
   compareSelectB = document.getElementById('compareSelectB') as HTMLSelectElement;
@@ -104,7 +108,11 @@ export async function initDashboard(): Promise<void> {
   initTheme();
   setupVersionBadge();
   setupNav();
+  applyInitialHashView();
   setupActions();
+  if (dataSourcesContainerEl) {
+    dataSourcesContainerEl.innerHTML = renderDataSourcesHtml();
+  }
   await loadDashboardData();
 }
 
@@ -121,7 +129,7 @@ if (typeof document !== 'undefined') {
 function setupVersionBadge(): void {
   const badgeEl = document.getElementById('dashboardVersion');
   if (badgeEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.1';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.2';
     badgeEl.textContent = `v${ver}`;
   }
 }
@@ -156,6 +164,25 @@ function setupNav(): void {
       }
     });
   });
+}
+
+/**
+ * URLハッシュに基づく初期表示ビューの切り替え (v1.8.2 T07)
+ */
+function applyInitialHashView(): void {
+  try {
+    const rawHash = window.location.hash;
+    if (!rawHash || !rawHash.startsWith('#')) return;
+    const hash = decodeURIComponent(rawHash.slice(1));
+    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(hash)) return;
+    const targetNav = document.querySelector(`.nav-item[data-view="${hash}"]`) as HTMLElement | null;
+    const targetPanel = document.getElementById(hash);
+    if (targetNav && targetPanel && targetPanel.classList.contains('view-panel')) {
+      targetNav.click();
+    }
+  } catch {
+    // 不正なURIエンコーディングなどは無視して概要サマリーのままにする
+  }
 }
 
 function setupActions(): void {
@@ -256,7 +283,7 @@ function renderDashboard(report: InspectionReport): void {
   renderLibrarySecurityView(report.technologies);
 
   // 3. 検出技術 & エビデンス
-  renderFullTechnologies(report.technologies, report.coverage);
+  renderFullTechnologies(report.technologies, report.coverage, report.cookies);
 
   // 4. HTTPセキュリティ診断
   renderFullSecurity(report.securityChecks);
@@ -283,8 +310,12 @@ function renderLibrarySecurityView(techs: DetectedTechnology[]): void {
   librarySecurityTableContainerEl.innerHTML = renderLibrarySecurityTableHtml(techs);
 }
 
-function renderFullTechnologies(techs: DetectedTechnology[], coverage?: any): void {
-  fullTechsContainerEl.innerHTML = renderFullTechnologiesHtml(techs, coverage);
+function renderFullTechnologies(
+  techs: DetectedTechnology[],
+  coverage?: any,
+  cookies?: readonly InspectedCookieInfo[]
+): void {
+  fullTechsContainerEl.innerHTML = renderFullTechnologiesHtml(techs, coverage, cookies);
 }
 
 function renderFullSecurity(checks: SecurityCheckResult[]): void {

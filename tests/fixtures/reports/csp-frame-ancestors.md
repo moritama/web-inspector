@@ -156,3 +156,24 @@ frame-ancestors 'self'
    Cookieの値、認証トークン、Authorizationヘッダーなどのシークレット情報はメモリ保持およびレポート出力から完全に除外されています。
 5. **TLS/SSL証明書の検証対象外:**
    本拡張機能は通信プロトコル（HTTPS/HTTP）およびヘッダー設定を確認しますが、TLS/SSL証明書の有効期限や信頼性（失効状態・発行元認証局の妥当性など）は診断しないため、証明書の有効性は対象外です。
+6. **拡張機能の更新・設定の切り替えの後:**
+   拡張機能の更新や、シークレットでの実行の許可を切り替えた後は、それまでに開いていたページの HTTP レスポンスヘッダーが記録されていません。ページを再読み込みしてから調べてください。
+7. **ダッシュボードの表示:**
+   ダッシュボードは通常ウィンドウで開いてください（拡張機能のページはシークレットのタブでは開けません）。
+
+
+## 16. データの出典とライセンス
+
+本拡張機能がオフライン診断で利用している同梱データの出典元、ライセンス、加工内容の一覧です。詳細はリポジトリ同梱の THIRD_PARTY_NOTICES.md を参照してください。
+
+> This product uses the NVD API but is not endorsed or certified by the NVD.
+
+| 出典名 | ライセンス | 公式URL |
+|---|---|---|
+| NIST National Vulnerability Database (NVD) | 公有（米国政府の著作物）。NVD API の利用規約に従います | https://nvd.nist.gov/ |
+| GitHub Advisory Database (OSV.dev 経由: npm / Packagist) | CC BY 4.0 | https://github.com/github/advisory-database |
+| OSV.dev (Ubuntu Security Notices) | CC BY-SA 4.0（Ubuntu の部分） | https://github.com/canonical/ubuntu-security-notices |
+| OSV.dev (Debian Security Tracker) | ライセンスの明記なし（出典のみ表示） | https://osv.dev/list?ecosystem=Debian |
+| endoflife.date | MIT License | https://endoflife.date/ |
+| CISA Known Exploited Vulnerabilities Catalog | CC0 1.0 | https://github.com/cisagov/kev-data |
+| Public Suffix List | MPL 2.0 | https://publicsuffix.org/ |

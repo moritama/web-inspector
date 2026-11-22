@@ -446,7 +446,7 @@ export function judgeDistroEol(
   const candidateNames = candidateLifecycles.map(formatReleaseName);
   const basisName = formatReleaseName(basis);
 
-  const label = `${candidateNames.join(' / ')}（推定・確信度 ${confJp}）`;
+  const label = candidateNames.join(' / ');
 
   let note = isEol
     ? `${basisName}（推定・確信度 ${confJp}）：標準サポートは ${basis.standardSupportEnd} に終了。${extName} で延長されている可能性があります。`

@@ -26,7 +26,9 @@ import {
   SecurityCheckResult,
   SecurityAdvisory,
   InterstitialInfo,
+  InspectionCoverage,
 } from '../shared/types';
+import { HEADER_UNOBSERVED_PRESCAN_REASON } from '../shared/coverage';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
 
@@ -610,4 +612,118 @@ export function renderInterstitialNoticeHtml(info: InterstitialInfo | null | und
   </div>
   ${evidenceItems ? `<ul style="margin: 4px 0 0 16px; padding: 0;">${evidenceItems}</ul>` : ''}
 </div>`;
+}
+
+/**
+ * ポップアップの技術一覧の 1 行の中身（.item-main と .item-side）。
+ * popup.ts の renderTechnologies が .item-row の innerHTML に入れる
+ */
+export function renderTechRowHtml(tech: DetectedTechnology): string {
+  const confClass = tech.confidenceLevel === 'high' ? 'badge-high' : tech.confidenceLevel === 'medium' ? 'badge-medium' : 'badge-low';
+  const confLabel = tech.confidenceLevel === 'high' ? '高' : tech.confidenceLevel === 'medium' ? '中' : '低';
+
+  // 検出方式バッジ (IMP-18)
+  let methodBadgeHtml = '';
+  if (tech.isCandidateGroup || tech.detectionMethod === 'associated') {
+    methodBadgeHtml = '<span class="badge badge-associated">候補</span>';
+  } else if (tech.detectionMethod === 'inferred') {
+    const srcText = tech.inferredFrom ? ` · ${escapeHtml(tech.inferredFrom)}` : '';
+    methodBadgeHtml = `<span class="badge badge-inferred">連動${srcText}</span>`;
+  } else {
+    methodBadgeHtml = '<span class="badge badge-direct">直接</span>';
+  }
+
+  // ランタイム状態バッジ (IMP-18)
+  let runtimeBadgeHtml = '';
+  if (tech.runtimeStatus === 'unknown') {
+    runtimeBadgeHtml = '<span class="badge badge-runtime-unknown">稼働未確認</span>';
+  } else if (tech.runtimeStatus === 'possible') {
+    runtimeBadgeHtml = '<span class="badge badge-runtime-possible">稼働可能性</span>';
+  }
+
+  // EOLバッジ
+  let eolBadgeHtml = '';
+  if (tech.supportStatus === 'EOL') {
+    eolBadgeHtml = `<span class="badge badge-eol">${escapeHtml(tech.eolInfo?.label || 'EOL')}</span>`;
+  } else if (tech.supportStatus === 'Maintenance') {
+    eolBadgeHtml = `<span class="badge badge-medium">${escapeHtml(tech.eolInfo?.label || '保守')}</span>`;
+  } else if (tech.eolInfo?.label) {
+    eolBadgeHtml = `<span class="badge badge-high">${escapeHtml(tech.eolInfo.label)}</span>`;
+  }
+
+  // CVEバッジ・KEVバッジ (T03 / SPEC-13)
+  let cveBadgeHtml = '';
+  if (tech.advisories && tech.advisories.length > 0) {
+    const hasKev = tech.advisories.some((a) => a.kev === true);
+    const kevBadge = hasKev ? '<span class="badge badge-kev">悪用確認済み（CISA KEV）</span>' : '';
+    cveBadgeHtml = `${kevBadge}<span class="badge badge-cve">CVE ${tech.maxCvss ? `CVSS ${tech.maxCvss}` : `${tech.advisories.length}件`}</span>`;
+  }
+
+  // 不一致バッジ
+  let mismatchBadgeHtml = '';
+  if (tech.versionIntegrity?.status === 'mismatch') {
+    mismatchBadgeHtml = '<span class="badge badge-mismatch">不一致</span>';
+  }
+
+  // ディストリ版バッジ (H5・§3.2-5: .item-meta に置き、文字は「ディストリ版」、title に全文)
+  let distroBadgeHtml = '';
+  if (tech.distroHint) {
+    const fullText = `ディストリ版（バックポートの可能性）: ${tech.distroHint}`;
+    distroBadgeHtml = `<span class="badge badge-medium" title="${escapeHtml(fullText)}">ディストリ版</span>`;
+  }
+
+  // バージョン表示 (v1.7.0 T08 / SPEC-10: 複数バージョン検出時は「jQuery 1.12.4 / 3.7.1（2 つのバージョン）」形式で表示)
+  const multiVerSummary = formatMultiVersionSummary(tech);
+  const displayName = multiVerSummary ? `${tech.technology} ${multiVerSummary}` : tech.technology;
+  let verLabel = tech.isCandidateGroup
+    ? 'いずれかの可能性あり'
+    : multiVerSummary
+    ? multiVerSummary
+    : tech.version
+    ? /^\d/.test(tech.version)
+      ? `v${tech.version}`
+      : tech.version
+    : 'バージョン不明';
+  if (!multiVerSummary && tech.versionSource === 'runtime') {
+    verLabel += ' (実行時)';
+  }
+
+  const iconText = tech.isCandidateGroup ? '？' : tech.technology.slice(0, 2).toUpperCase();
+  const categoryText = tech.isCandidateGroup ? '言語・FW候補' : formatCategory(tech.category);
+
+  return `
+    <div class="item-main">
+      <div class="tech-icon-badge">${escapeHtml(iconText)}</div>
+      <div class="item-texts">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="item-name">${escapeHtml(displayName)}</span>
+          ${methodBadgeHtml}
+          ${runtimeBadgeHtml}
+        </div>
+        <div class="item-meta">
+          <span class="item-version-badge">${escapeHtml(verLabel)}</span>
+          <span>${escapeHtml(categoryText)}</span>
+          ${distroBadgeHtml}
+        </div>
+      </div>
+    </div>
+    <div class="item-side">
+      ${mismatchBadgeHtml}
+      ${eolBadgeHtml}
+      ${cveBadgeHtml}
+      <span class="badge ${confClass}">${confLabel} · ${tech.confidence}</span>
+    </div>
+  `;
+}
+
+/**
+ * ヘッダー未観測（拡張機能起動前の通信）時の案内バナーHTMLを生成する (v1.8.2 T08 / D-3)
+ */
+export function renderHeaderUnobservedNoticeHtml(
+  coverage: InspectionCoverage | null | undefined
+): string {
+  if (coverage?.details?.unobservedPreScan !== true) {
+    return '';
+  }
+  return `<div class="notice-banner header-unobserved-banner" role="status" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--warning-color); line-height: 1.4; overflow-wrap: anywhere;">⚠️ <strong>HTTPヘッダー未取得</strong>: ${escapeHtml(HEADER_UNOBSERVED_PRESCAN_REASON)}</div>`;
 }

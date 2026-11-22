@@ -1,7 +1,7 @@
 # Web Technology & Security Inspector 技術検出仕様および判定基準書
 
-**対象バージョン：** v1.8.1  
-**最終更新日：** 2026年11月12日  
+**対象バージョン：** v1.8.2  
+**最終更新日：** 2026年11月22日  
 **対象コンポーネント：** `src/detection/` (ルール定義・判定エンジン・推論エンジン・オフライン脆弱性照合), `src/security/` (セキュリティ診断・CSP解析・Cookie診断・PSLドメイン分析・バージョン比較), `src/shared/` (ステータス・要確認件数集計・完全性評価)
 
 ---
@@ -13,6 +13,7 @@
 ### 1.1 受動的調査の原則（Passive Inspection Only）
 - **追加リクエストの非送信**: 脆弱性探索やプロービング（`/admin/`, `/login.action` 等への能動的アクセス）は一切行わず、ユーザーが通常閲覧したページの応答データのみを利用します。
 - **オンデマンドContent Script注入**: 閲覧中の全ページに常時スクリプトを配置せず、ユーザーが調査を実行した対象タブに対してのみ `chrome.scripting.executeScript` で Content Script を注入します（二重注入防止ガード付き）。
+- **同梱データの出典とライセンス (v1.8.2 / E)**: 同梱データ（NVD・GitHub Advisory Database・Ubuntu・Debian・endoflife.date・CISA KEV・Public Suffix List）の出典とライセンスは `THIRD_PARTY_NOTICES.md` とダッシュボードの「データの出典とライセンス」欄に載せます。
 - **ローカル完結**: 判定ロジックおよび正規表現照合はすべてブラウザ内部で完結し、外部サーバーへの通信は一切行いません。
 - **エビデンス（根拠）の保持**: すべての検出結果は「どのヘッダー」「どのCookie」「どのDOM要素」から判定されたかを必ず保持・明示します。
 
@@ -367,7 +368,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   `Server: Apache/2.4.41 (Ubuntu)` のように OS パッケージ版が使用されている場合、バージョン番号上は古く見えても、セキュリティパッチがバックポート（逆移植）されている可能性があります。そのため、診断レポート上では「バージョン表記上は該当。Linuxディストリビューション版（Ubuntu/RHEL等）の場合はバックポート修正済みの可能性あり（要確認）」と確度を分けてガイダンスします。
   1. **ディストリビューション判定 (`distroHint`)**: `DetectionEngine` において、`Server` および `X-Powered-By` ヘッダー値のみを対象に、括弧内の OS 名（`Ubuntu`, `Debian`, `RHEL`, `CentOS`, `Fedora`, `Amazon Linux` 等）および抽出されたバージョンの直後に続くパッケージ版の接尾辞（`-4ubuntu2.19`, `+deb11u1`, `.fc38` 等。Fedora の `fc` は `\.fc\d{2}\b` のみ）を自動検出し、`DetectedTechnology.distroHint` を設定します（`x-vercel-id` 等の無関係なリクエストIDヘッダーでは発火しません）。
   2. **オフライン脆弱性照合での安全処理と上流件数の併記**: `matchOfflineAdvisories()` は `distroHint` が存在する場合、Linux パッケージ版と判定して照合結果を `matchStatus: 'Needs Review'`, `offlineMatchStatus: 'Unknown Version'` とし、あわせて `distroHint` が無いと仮定した場合（上流版として照合した場合）に一致する脆弱性件数を `upstreamAdvisoriesCount` として算出します。
-  3. **UI・エクスポート連携**: ポップアップ画面およびダッシュボードにおいて「ディストリ版（バックポートの可能性）」バッジと「参考: 上流版として照合すると N 件に該当」の案内を表示し、JSON / CSV / Markdown エクスポートにも `distroHint`・`upstreamAdvisoriesCount` および注記文を出力します。
+  3. **UI・エクスポート連携**: ポップアップ画面の一覧ではディストリ版のバッジを「ディストリ版」と短縮表示（全文は title 属性に保持）し、ダッシュボードおよび JSON / CSV / Markdown エクスポートでは全文の「ディストリ版（バックポートの可能性）」バッジと「参考: 上流版として照合すると N 件に該当」の案内を出力します。
 - **「収録 DB 上は該当なし」と収録範囲の明示 (SPEC-03)**:
   脆弱性が 0 件だった場合でも、オフライン DB の収録範囲外である可能性を考慮し「安全（影響なし）」とは断定せず、「収録 DB 上は該当なし（収録 N 件・取得元: curated / OSV / NVD・dataVersion: YYYYMMDD）」と表示します。また、DB に脆弱性が 1 件も収録されていない技術については「この技術の脆弱性は収録していません」と区別して表示します。
 
@@ -375,6 +376,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **概要**: 受動的調査で観測された `Server` および `X-Powered-By` ヘッダー値から製品ごとに OS のリリースを推定し（`distroInference`）、推定したリリースの標準サポート期間（endoflife.date 由来のライフサイクルデータ）で EOL を判定します。
 - **断定の回避 (H4)**: 推定結果はすべて Needs Review として扱い、「安全」「Supported」等の断定は行いません。
 - **上流 EOL の扱い**: OS のライフサイクルで EOL を判定した場合、上流版の EOL は `upstreamEolInfo`（参考表示）とし、EOL 件数・要確認件数には二重に数えません。
+- **確信度付きリリース名と表示統一 (v1.8.2 / C)**: `eolInfo.label` は推定したリリースの名前だけで、確信度は表示側で 1 回だけ付けます。指摘文は `formatDistroReleaseWithConfidence`（`src/shared/distro-display.ts`）で「名前（推定・確信度 X）」にします。ポップアップの一覧ではディストリ版のバッジを「ディストリ版」と短く出し、全文は `title` に入れます。
 - **DB 互換性**: advisory-db に `distro` 節が無い旧 DB では推定処理を行わず、第1段階の照合結果を維持します。
 - **第三者リポジトリ・バックポートの印**:
   - `deb.sury.org`（PPA）や `+ubuntuNN.NN`（例: `+ubuntu20.04.1`）: 第三者リポジトリとして扱い、ディストリのデータによる推定は行わず `thirdParty` を記録します。
@@ -476,7 +478,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   - `securityFindings.info` は `status` が `'pass'` または `'info'` の項目数（「参考情報・問題のない項目」）を集計します。
 - **ステータス表示の厳密一致**:
   UI（ポップアップ・ダッシュボード）およびエクスポート（Markdown・CSV）のすべてにおいて、`pass` → `PASS`、`info` → `INFO`、`warning` → `WARN`、`fail` → `FAIL`、`unknown` → `UNKNOWN`、`not-applicable` → `N/A`（ラベル「対象外」）として表示します（`info` の項目を `WARN` と表示しません）。
-  また「対象外 (`not-applicable`)」は、HTTP のページの COOP・COEP など、ブラウザの仕様によりヘッダーが無視される対象に適用され、要確認件数や重大度内訳（INFO・UNKNOWN 含む）には数えません（`securityFindings.notApplicable` に集計）。なお、ヘッダー未観測の場合は未観測（`unknown`）が優先されます。
+  また「対象外 (`not-applicable`)」は、安全なコンテキスト（HTTPS・localhost など）でないページの COOP・COEP など、ブラウザの仕様によりヘッダーが無視される対象に適用され、要確認件数や重大度内訳（INFO・UNKNOWN 含む）には数えません（`securityFindings.notApplicable` に集計）。なお、ヘッダー未観測の場合は未観測（`unknown`）が優先されます。
 - **推奨対応ロードマップの動的生成 (`src/export/markdown.ts` / E3)**:
   Markdown レポートのセクション 13「推奨対応ロードマップ」は固定文を持たず、要確認の指摘のみから重大度別に「至急対応 (CRITICAL / HIGH)」「計画的対応 (MEDIUM)」「継続的改善 (LOW)」を動的に組み立てます（該当のない段は省略し、要確認 0 件の場合は「対応が必要な項目はありません。」と出力します）。
 - **診断項目名のステータス間統一 (`R05`)**:
@@ -504,8 +506,8 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **`Referrer-Policy` (T01)**: 未設定時（`SEC-REF-01`）はモダンブラウザの既定値（`strict-origin-when-cross-origin`）が安全であるため `status: 'info'`, `severity: 'info'` とし、`unsafe-url` 等の危険な値や無効な設定値のみ `warning` とします。
 - **技術情報露出 (`SEC-DISC-01`〜`05` / T08, v1.8.0 T06)**: `Server`（詳細版露出時）、`X-Powered-By`、`X-AspNet-Version`（`SEC-DISC-03`）に加え、`X-AspNetMvc-Version`（`SEC-DISC-04` / `warning`・`low`）および `Server-Timing`（`SEC-DISC-05` / `info`・`info`）の露出を報告します。
 - **Cross-Origin 系・X-XSS-Protection・Permissions-Policy の追加評価（v1.8.0 T06 / NEW-03a, v1.8.1 T07）**:
-  - `SEC-COOP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。なお、HTTP 接続のページではブラウザが COOP を無視するため、設定値によらず `not-applicable`（対象外）として出力します（ヘッダー未観測時は `unknown` が優先）。
-  - `SEC-COEP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。なお、HTTP 接続のページで COEP が設定されている場合、ブラウザがこれを無視するため `not-applicable`（対象外）として出力します（未設定時は出力しません。ヘッダー未観測時は `unknown` が優先）。
+  - `SEC-COOP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Opener-Policy` が未設定、または `unsafe-none`（あるいは仕様外の値）の場合に出力します。同一オリジン間のコンテキスト分離を促します。なお、安全なコンテキスト（HTTPS・localhost など。`isSecureContextUrl`）でないページではブラウザが COOP を無視するため、設定値によらず `not-applicable`（対象外）として出力します（ヘッダー未観測時は `unknown` が優先）。
+  - `SEC-COEP-01` (`info` / `info` または `not-applicable` / `info`): `Cross-Origin-Embedder-Policy` に仕様で定義されていない値（`require-corp`, `credentialless`, `unsafe-none` 以外）が指定されている場合に出力します（COEP 自体の設定は外部リソースを破壊しやすいため未設定時は推奨しません）。なお、安全なコンテキスト（HTTPS・localhost など。`isSecureContextUrl`）でないページで COEP が設定されている場合、ブラウザがこれを無視するため `not-applicable`（対象外）として出力します（未設定時は出力しません。ヘッダー未観測時は `unknown` が優先）。
   - `SEC-CORP-01` (`info` / `info`): `Cross-Origin-Resource-Policy` に仕様で定義されていない値（`same-origin`, `same-site`, `cross-origin` 以外）が指定されている場合に出力します。
   - `SEC-XXSS-01` (`info` / `info`): `X-XSS-Protection` に旧式の値 `1` または `1; mode=block` が指定されている場合に出力します（モダンブラウザでは非推奨であり、`0` またはヘッダー削除を推奨）。
   - `SEC-PERM-02` (`warning` / `low`): `Permissions-Policy` で強い権限（`camera`, `microphone`, `geolocation`, `payment`, `usb`）のいずれかが `*`（ワイルドカード）で許可されている場合に出力します（複数該当時も 1 件に集約）。
@@ -519,6 +521,7 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   - `SEC-SRI-01` (`warning` / `low`): サードパーティ（PSL で別サイト）の script および stylesheet（`rel` に `stylesheet` を含む `link`）に integrity 属性が設定されていない場合に出力します。クエリ・フラグメントを除去した URL を最大 10 件まで観測値に表示します（ヘッダー非依存）。
   - `SEC-SRI-02` (`info` / `info`): タグマネージャー（`www.googletagmanager.com`）、Stripe.js（`js.stripe.com`）、PayPal SDK（`www.paypal.com/sdk/js`）、Google Identity Services（`accounts.google.com/gsi/`）など、内容が自動更新され SRI の適用が推奨されない配信元の資源について、CSP 等での読み込み元制限を促す情報として出力します（SEC-SRI-01 とは排他）。
   - `SEC-CACHE-01` (`warning` / `low`): 認証系 Cookie が存在するページにおいて、HTTP レスポンスヘッダーの `Cache-Control` に `no-store` ディレクティブが指定されていない（ヘッダー未設定、または `no-cache` / `private` 等のみで `no-store` が欠落している）場合に出力します（ヘッダー依存）。
+- **安全なコンテキストの判定 (v1.8.2 / D-1)**: `isSecureContextUrl`（`src/shared/secure-context.ts`）が真になる範囲は、https・wss・file スキーム、localhost・*.localhost、およびローカルループバックアドレス（`127.0.0.0/8`、`[::1]`）です（`.local` や LAN のプライベート IP は偽）。`isIpOrLocalHost()` は流用せず、COOP および COEP の対象外判定のみをこの安全なコンテキスト判定で切り替えます（CORP・HSTS・Cookie の Secure・混在コンテンツは HTTPS かどうかで判定）。
 
 ### 8.4 Cookie の用途分類（6 区分）と一般 Cookie の独立チェック (`src/security/cookies.ts` / T07)
 - **6 つの用途分類 (`CookieCategory`) と優先順位**:
@@ -535,15 +538,16 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
 - **認証系 Cookie の有効期限・SameSite チェック（v1.8.0 T08 / NEW-03c）**:
   - `SEC-COOKIE-EXPIRY` (`warning` / `low`): 認証系 Cookie（`classifyCookieAdvanced` で `authentication` に分類される Cookie）のうち、セッション Cookie ではなく有効期限（`expirationDate`）が調査時刻から 1 年（365 日）を超えるものがある場合に出力します。観測値に対象 Cookie 名を最大 3 件＋「他 ○ 件」で表示します。
   - `SEC-COOKIE-SAMESITE-NONE` (`warning` / `low`): 認証系 Cookie に `SameSite=None`（Chrome API の `no_restriction`）かつ `Secure` 属性が設定されている場合に出力します（Secure なしの SameSite=None はブラウザで保存されないため対象外）。クロスサイトリクエスト時の送信制限（Lax / Strict）を促します。
+- **Cookie のスコープと確信度 (`src/detection/engine.ts` / v1.8.2 A)**: Cookie 名の根拠は、名前ごとにスコープ（host / domain / unknown）を持ちます。`chrome.cookies` の `hostOnly === true` と、`Domain` 属性の無い `Set-Cookie` は host、`hostOnly === false` と `Domain` 属性のある `Set-Cookie` は domain、`document.cookie` にだけある名前は unknown です（同じ名前に host が 1 つでもあれば host）。根拠がすべて Cookie 名で、どのスコープも host でない技術は、確信度を 35（low）に下げ、ランタイム状態は「稼働可能性（possible）」になります（検出方式は direct のまま。親ドメインで発行された Cookie の可能性があるため、このホストでの利用は確認できていない扱いです）。他の種類の根拠が 1 つでもあれば下げません。Public Suffix List やドメインの文字列比較は使いません。
 
 ### 8.5 外部通信先の定義と調査完全性 (`src/content/content-script.ts`, `src/security/domain-analyzer.ts`, `src/shared/coverage.ts` / T05, T06)
 - **外部通信先（読み込まれたリソースの取得元）の定義 (E2)**:
   1. Performance Resource Timing API（`performance.getEntriesByType('resource')`）の `name` と `initiatorType` から取得した**実際に読み込まれたサブリソース**を主とします。
   2. DOM 上の読み込み対象要素（`script[src]`、`rel` が `stylesheet` / `preload` / `modulepreload` / `icon` / `manifest` の `link[href]`、`img`、`iframe`、メディア要素等。`noscript`・`template` 内は除外）を `document.baseURI` 基準の絶対 URL に解決して補完し、メイン文書自身の URL も自ホストの 1 リソースとして計上します。
   3. `<link rel="alternate">`（`hreflang` 等）、`canonical`、`prev`/`next`、`dns-prefetch`、`preconnect`、および `<form action>` の送信先は読み込みを伴わない参照（`referenceOnlyUrls`）として分離し、通信先には含めません。
-  4. Public Suffix List（`src/security/psl-rules.generated.ts`）に基づき eTLD+1 単位で First-Party / Third-Party / Local に分類し、用途（`cdn`, `analytics`, `security` 等。Application Insights は `analytics`、reCAPTCHA は `security`）を推定します。保存・出力するサンプル URL からはクエリ文字列とフラグメントをマスクします。
+  4. Public Suffix List（`src/security/psl-rules.generated.ts`）に基づき eTLD+1 単位で First-Party / Third-Party / Local に分類し、用途（`cdn`, `analytics`, `security` 等。Application Insights は `analytics`、reCAPTCHA は `security`）を推定します。保存・出力するサンプル URL からはクエリ文字列とフラグメントをマスクします。通信先の総数は First-Party + Third-Party + Local（`localCount`）の合計です（v1.8.2 / D-2。レポートの lint の R10 が確かめます）。`localCount` の無い保存済みレポートは、総数から First-Party と Third-Party を引いた値を使い、Local の行を 0 と表示しません。
 - **調査完全性 (`Coverage`) の判定**:
-  `domItemCount` は `meta` とスクリプト URL だけでなく、収集した DOM マーカー・スタイルシート・クラス名の件数も合算します。Content Script の一部ステップで例外が発生した場合（`collectionPartial: true`）や、DOM に読み込み対象リソースの参照があるのに通信先が 0 件となった場合は、完全性を `partial`（一部制限あり）とし、その理由を `partialReasons` に記録・表示します。
+  `domItemCount` は `meta` とスクリプト URL だけでなく、収集した DOM マーカー・スタイルシート・クラス名の件数も合算します。Content Script の一部ステップで例外が発生した場合（`collectionPartial: true`）や、DOM に読み込み対象リソースの参照があるのに通信先が 0 件となった場合は、完全性を `partial`（一部制限あり）とし、その理由を `partialReasons` に記録・表示します。HTTP レスポンスヘッダーが未観測（拡張機能の起動前・再読み込みの後に開かれたタブ）のときは、Partial の理由に「ページを再読み込みしてから、もう一度調べてください」と添え、ポップアップとダッシュボードにも同じ案内を出します (v1.8.2 / D-3)。
 
 ### 8.6 連動推論マージ・URLサニタイズ・Content Script 動的注入
 - **直接証拠と連動推論の合算防止 (`src/detection/engine.ts` / SPEC-11)**:
@@ -552,3 +556,5 @@ Web Inspector では、受動的調査の原則に従ってバージョンを抽
   `normalizeUrlForStorage()` および `sanitizeReportUrls()` により、保存される履歴データと JSON / CSV / Markdown エクスポート内の URL（`report.url`, `evidence[].value`, `evidence[].source`, `securityChecks[].scope`, `mixedContent[].url`, `externalConnections[].sampleUrls`）からクエリ文字列（`?...`）とフラグメント（`#...`）を除去します。 Markdown 出力ではコードスパン（バッククォート長の自動拡張・バックスラッシュ不使用）と表セル（`|` のみエスケープ）の関数を分離し、記号を含む識別子が崩れないようにします。
 - **Content Script のオンデマンド注入 (`src/background/service-worker.ts`, `public/manifest.json` / IMPL-08)**:
   `manifest.json` の常時 `content_scripts` 宣言を廃止し、ユーザーが調査を実行した対象タブに対してのみ `chrome.scripting.executeScript` で `content/content-script.js` を注入（二重注入防止ガード付き）します。
+  content/content-script.js は IIFE（即時実行関数式）で出力し、同じフレームに 2 回注入しても重複宣言の SyntaxError にならず、二重注入防止の印で 2 回目を止めます (v1.8.2 / B。`scripts/ci/check-content-script-iife.mjs` が CI で確かめます)。
+  Cookie は調べるタブが属する保存先から読みます。`chrome.cookies.getAllCookieStores()` でタブ ID を含む保存先を探し、その `storeId` を `getAll` に渡します（見つからなければ指定なし。manifest の `incognito` は既定の spanning のまま） (v1.8.2 / D-3)。

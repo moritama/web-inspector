@@ -1,6 +1,6 @@
 # Web Technology & Security Inspector
 
-[![Version](https://img.shields.io/badge/version-1.8.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.8.2-blue.svg)](package.json)
 [![Manifest](https://img.shields.io/badge/Manifest-V3-success.svg)](public/manifest.json)
 [![Browser](https://img.shields.io/badge/browser-Chrome%20%7C%20Edge-brightgreen.svg)](#インストール方法-chrome--edge)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](tsconfig.json)
@@ -16,7 +16,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 - [Web Technology \& Security Inspector](#web-technology--security-inspector)
   - [目次](#目次)
   - [主な特徴・原則](#主な特徴原則)
-  - [機能一覧 (v1.8.1)](#機能一覧-v181)
+  - [機能一覧 (v1.8.2)](#機能一覧-v182)
   - [対応技術スタック \& 診断カバレッジ (Coverage)](#対応技術スタック--診断カバレッジ-coverage)
   - [システムアーキテクチャ](#システムアーキテクチャ)
     - [診断・通信シーケンス](#診断通信シーケンス)
@@ -40,7 +40,7 @@ Wappalyzerのような技術検出機能に加え、保守・セキュリティ�
 
 ---
 
-## 機能一覧 (v1.8.1)
+## 機能一覧 (v1.8.2)
 
 | 機能ID | 項目 | 概要 |
 |---|---|---|

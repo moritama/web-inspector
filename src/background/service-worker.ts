@@ -55,7 +55,7 @@ import {
 } from '../shared/types';
 import { formatAdvisoryRecommendation } from '../detection/advisory';
 
-const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.8.1';
+const EXTENSION_VERSION = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '1.8.2';
 
 /**
  * キャッシュに保持するヘッダーエントリ構造

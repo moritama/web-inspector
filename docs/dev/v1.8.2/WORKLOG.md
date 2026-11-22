@@ -239,3 +239,26 @@
 - 理由: 実装の担当が、テストの期待値の変更が必要と判断した: Markdown §15 に項目 6・7 を追加したことで tests/report-lint.test.ts の各フィクスチャ Markdown 整合性検査が不一致となります。設計メモ T08.md §5 に保存済みフィクスチャ .md との比較テストは無いと誤認されていましたが、実際には全体比較が存在するため、tests/fixtures/reports/*.md（4件）の §15 に項目 6 と 7 を追記するテスト側の更新が必要です。
 - 変更の退避先: git stash の「v1.8.2 T08 stop 20261122-131243」（記録時点で stash@{0}。番号はずれるので git stash list で名前を確認）。夜間ログのフォルダにパッチもある
 - 人間に判断してほしいこと: 設計メモとテストを読み、期待値を変えるべきか判断する。変えるなら人がテストを直してコミットし、RETRY_STOPPED=1 で再実行
+
+## T08 実装  (2026-11-22 14:05)
+- 変更ファイル:
+  - `package.json`, `package-lock.json`, `public/manifest.json`: バージョンを 1.8.2 に更新
+  - `src/detection/rules/index.ts`: `RULES_VERSION` を 1.8.2 に更新
+  - `src/background/service-worker.ts`, `src/popup/popup.ts`, `src/dashboard/dashboard.ts`, `src/export/markdown.ts`, `src/export/csv.ts`: バージョン予備文字列を 1.8.2 に更新
+  - `popup.html`, `dashboard.html`: バージョン表示を v1.8.2 に更新
+  - `README.md`: バッジ、目次リンク、見出しのバージョンを 1.8.2 に更新
+  - `src/shared/coverage.ts`: `HEADER_UNOBSERVED_PRESCAN_REASON` 定数を新設・export し、ヘッダー未観測時の Partial 理由を同定数（再読み込み案内付き）に更新
+  - `src/popup/render.ts`: `renderHeaderUnobservedNoticeHtml` 関数を新設・export（`coverage.details.unobservedPreScan === true` 時にバナー生成）
+  - `src/popup/popup.ts`: `renderTechnologies` 内で `renderHeaderUnobservedNoticeHtml` の戻り値により案内バナーを描画するよう更新
+  - `src/dashboard/render.ts`: `renderFullTechnologiesHtml` の案内バナー表示条件を `coverage?.details?.unobservedPreScan === true || coverage?.networkHeadersObserved === false` に更新し、案内文を再読み込み案内に統一
+  - `src/export/markdown.ts`: セクション 15「調査上の制限事項・免責事項」に項目 6（拡張機能の更新・設定切り替え後の再読み込み）と項目 7（ダッシュボードは通常ウィンドウで開く）を追加
+  - `docs/DETECTION_SPECIFICATION.md`: 対象バージョンを v1.8.2 に更新し、v1.8.2 での変更点（A: Cookie スコープと確信度 35・low、B: content-script IIFE、C: formatDistroReleaseWithConfidence、D-1: SEC-COOP-01/SEC-COEP-01 の安全なコンテキスト・localhost、isSecureContextUrl の 127.0.0.0/8・[::1]、D-2: localCount と First-Party・Third-Party、D-3: getAllCookieStores と storeId、未観測と再読み込み、E: THIRD_PARTY_NOTICES.md）を記載。COOP・COEP 項から古い「HTTP 接続のページで（は）」記述を削除
+  - `docs/MAINTENANCE_GUIDE.md`: レポート lint 検査項目一覧に R10 を追加（見出し・図も R01〜R10 に更新）、§5.4（check-content-script-iife.mjs）および §5.5（check-data-sources.mjs と出典更新手順）を追加
+  - `scripts/test-e2e-smoke.mjs`: 検証 10（ヘッダー未観測の案内のポップアップ 450px 表示検証および陰性検証）を追加
+- 判断したこと:
+  - 設計メモ T08.md の方針および確定したテストの期待値に厳密に従って実装
+  - テストコード（`tests/`）および設計メモは一切変更しない方針を遵守
+  - PRIVACY_POLICY.md は通信・権限の増加がないため変更なし
+  - 外部の事実は設計メモ記載の範囲内のみを利用
+- 外部の事実: manifest の `incognito`（既定は spanning。spanning の拡張機能は自分のページをシークレットのタブのメインフレームに読み込めない）— https://developer.chrome.com/docs/extensions/reference/manifest/incognito 、`chrome.cookies`（`cookies` 権限と host permissions、`getAllCookieStores` の `id`・`tabIds`、`getAll` の `storeId`）— https://developer.chrome.com/docs/extensions/reference/api/cookies （いずれも 2026-11-22 確認）
+- 未解決: なし（設計メモ記載の「シークレットのタブの調査結果が通常の履歴に保存されることのポリシー記載要否」は人の判断待ち）

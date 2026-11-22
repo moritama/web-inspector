@@ -411,9 +411,9 @@ export function renderFullTechnologiesHtml(
   coverage?: any,
   cookies?: readonly InspectedCookieInfo[]
 ): string {
-  const noticeHtml = (coverage && coverage.networkHeadersObserved === false)
+  const noticeHtml = (coverage?.details?.unobservedPreScan === true || coverage?.networkHeadersObserved === false)
     ? `<div style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: var(--warning-color); line-height: 1.5;">
-         ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、対象ページを再読み込み（リロード）して再調査してください。
+         ⚠️ <strong>HTTPレスポンスヘッダー未取得</strong>: 拡張機能起動前またはバックグラウンドスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、ページを再読み込みしてから、もう一度調べてください。
        </div>`
     : '';
 

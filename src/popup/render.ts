@@ -26,7 +26,9 @@ import {
   SecurityCheckResult,
   SecurityAdvisory,
   InterstitialInfo,
+  InspectionCoverage,
 } from '../shared/types';
+import { HEADER_UNOBSERVED_PRESCAN_REASON } from '../shared/coverage';
 
 export { escapeHtml, renderSafeExternalLink, safeHref };
 
@@ -712,4 +714,16 @@ export function renderTechRowHtml(tech: DetectedTechnology): string {
       <span class="badge ${confClass}">${confLabel} · ${tech.confidence}</span>
     </div>
   `;
+}
+
+/**
+ * ヘッダー未観測（拡張機能起動前の通信）時の案内バナーHTMLを生成する (v1.8.2 T08 / D-3)
+ */
+export function renderHeaderUnobservedNoticeHtml(
+  coverage: InspectionCoverage | null | undefined
+): string {
+  if (coverage?.details?.unobservedPreScan !== true) {
+    return '';
+  }
+  return `<div class="notice-banner header-unobserved-banner" role="status" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--warning-color); line-height: 1.4; overflow-wrap: anywhere;">⚠️ <strong>HTTPヘッダー未取得</strong>: ${escapeHtml(HEADER_UNOBSERVED_PRESCAN_REASON)}</div>`;
 }

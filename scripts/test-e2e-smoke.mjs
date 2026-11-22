@@ -993,6 +993,127 @@ export async function runSmokeTest() {
     await popupPageT07.close();
     await dashPage.close();
 
+    // -------------------------------------------------------------
+    // 検証 10: ヘッダー未観測の案内のポップアップ 450px 表示 (v1.8.2 T08 / D-3)
+    // -------------------------------------------------------------
+    console.log('[e2e-smoke] [10] ヘッダー未観測の案内のポップアップ 450px 表示 (v1.8.2 T08) を検証中...');
+    await page.goto('http://localhost:3000/https-only-headers', { waitUntil: 'networkidle' });
+    const targetTabIdForT08 = await serviceWorker.evaluate(async () => {
+      const tabs = await chrome.tabs.query({ url: '*://localhost/*' });
+      return tabs.length > 0 ? tabs[0].id : null;
+    });
+
+    const popupPageT08 = await context.newPage();
+    await popupPageT08.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'networkidle' });
+
+    // 応答のレポートの coverage をヘッダー未観測の Partial に差し替える
+    await popupPageT08.evaluate((tId) => {
+      const origSendMessage = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = async function (message, ...args) {
+        if (message && message.type === 'INSPECT_CURRENT_TAB' && message.tabId === undefined) {
+          message.tabId = tId;
+        }
+        const res = await origSendMessage(message, ...args);
+        if (res && res.report) {
+          res.report.coverage = {
+            ...(res.report.coverage || {}),
+            overallStatus: 'partial',
+            headers: 'partial',
+            details: {
+              ...(res.report.coverage?.details || {}),
+              unobservedPreScan: true,
+              partialReasons: [
+                '拡張機能起動前の通信のため HTTP レスポンスヘッダーが未観測です。ページを再読み込みしてから、もう一度調べてください',
+              ],
+            },
+          };
+        }
+        return res;
+      };
+    }, targetTabIdForT08);
+
+    await popupPageT08.click('#rescanBtn');
+    await popupPageT08.waitForSelector('#techsList .header-unobserved-banner', { timeout: 10000 });
+
+    const evalT08Result = await popupPageT08.evaluate(() => {
+      const bodyWidth = document.body.getBoundingClientRect().width;
+      if (Math.abs(bodyWidth - 450) > 1) {
+        return { ok: false, error: `body幅が450pxではありません (実測: ${bodyWidth})` };
+      }
+
+      const banners = Array.from(document.querySelectorAll('#techsList .header-unobserved-banner'));
+      if (banners.length !== 1) {
+        return { ok: false, error: `header-unobserved-banner の数が 1 ではありません (実測: ${banners.length})` };
+      }
+
+      const banner = banners[0];
+      if (!banner.textContent || !banner.textContent.includes('再読み込み')) {
+        return { ok: false, error: '案内の文に「再読み込み」が含まれていません' };
+      }
+
+      const bannerRect = banner.getBoundingClientRect();
+      if (bannerRect.right > 450) {
+        return { ok: false, error: `案内バナーが右端をはみ出しています (right: ${bannerRect.right})` };
+      }
+
+      const techsList = document.querySelector('#techsList');
+      if (techsList && techsList.scrollWidth > techsList.clientWidth + 1) {
+        return { ok: false, error: `#techsList で横スクロールが発生しています (scrollWidth: ${techsList.scrollWidth}, clientWidth: ${techsList.clientWidth})` };
+      }
+
+      if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1) {
+        return { ok: false, error: `documentElement で横スクロールが発生しています (scrollWidth: ${document.documentElement.scrollWidth}, clientWidth: ${document.documentElement.clientWidth})` };
+      }
+
+      const rows = Array.from(document.querySelectorAll('#techsList .item-row'));
+      for (const row of rows) {
+        const itemMain = row.querySelector('.item-main');
+        if (!itemMain || itemMain.getBoundingClientRect().width <= 0) {
+          return { ok: false, error: '.item-main の幅が 0 または見つかりません' };
+        }
+      }
+
+      return { ok: true };
+    });
+
+    if (!evalT08Result.ok) {
+      await popupPageT08.close();
+      throw new Error(`[ヘッダー未観測案内検証エラー] ${evalT08Result.error}`);
+    }
+
+    // 陰性: 差し替えのない通常の調査では .header-unobserved-banner が無いこと
+    const normalPopupPage = await context.newPage();
+    await normalPopupPage.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'networkidle' });
+    await normalPopupPage.evaluate((tId) => {
+      const origSendMessage = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = function (message, ...args) {
+        if (message && message.type === 'INSPECT_CURRENT_TAB' && message.tabId === undefined) {
+          message.tabId = tId;
+        }
+        return origSendMessage(message, ...args);
+      };
+    }, targetTabIdForT08);
+    await normalPopupPage.click('#rescanBtn');
+    await normalPopupPage.waitForSelector('#techsList .item-row', { timeout: 10000 });
+
+    const evalNegative = await normalPopupPage.evaluate(() => {
+      const banners = document.querySelectorAll('#techsList .header-unobserved-banner');
+      if (banners.length > 0) {
+        return { ok: false, error: '通常の調査で .header-unobserved-banner が表示されています' };
+      }
+      return { ok: true };
+    });
+
+    if (!evalNegative.ok) {
+      await normalPopupPage.close();
+      await popupPageT08.close();
+      throw new Error(`[ヘッダー未観測案内陰性検証エラー] ${evalNegative.error}`);
+    }
+
+    await normalPopupPage.close();
+    await popupPageT08.close();
+    console.log('  ✓ ヘッダー未観測の案内のポップアップ 450px 表示検証合格 (幅正常・案内表示・横スクロールなし・陰性正常)');
+
     console.log('[e2e-smoke] ✅ 包括的スモークE2Eテスト完全合格！全検証（肯定/否定/エッジケース/CVE文言assert/エクスポート保存/Canary保護）が実機で確認されました。');
   } finally {
     if (context) {

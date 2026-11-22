@@ -257,7 +257,7 @@ export function generateMarkdownReport(
   const sanitizedUrl = sanitizeUrlForReport(report.url);
   const hostname = report.hostname;
   const inspectedDate = new Date(report.inspectedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-  const extVer = report.extensionVersion || '1.8.1';
+  const extVer = report.extensionVersion || '1.8.2';
   const advDbVer = formatAdvisoryDbVersion(report.advisoryDatabaseVersion);
 
   // 差分分析の計算
@@ -701,6 +701,10 @@ ${report.technologies.map(formatTechEvidenceSection).join('\n')}
    Cookieの値、認証トークン、Authorizationヘッダーなどのシークレット情報はメモリ保持およびレポート出力から完全に除外されています。
 5. **TLS/SSL証明書の検証対象外:**
    本拡張機能は通信プロトコル（HTTPS/HTTP）およびヘッダー設定を確認しますが、TLS/SSL証明書の有効期限や信頼性（失効状態・発行元認証局の妥当性など）は診断しないため、証明書の有効性は対象外です。
+6. **拡張機能の更新・設定の切り替えの後:**
+   拡張機能の更新や、シークレットでの実行の許可を切り替えた後は、それまでに開いていたページの HTTP レスポンスヘッダーが記録されていません。ページを再読み込みしてから調べてください。
+7. **ダッシュボードの表示:**
+   ダッシュボードは通常ウィンドウで開いてください（拡張機能のページはシークレットのタブでは開けません）。
 `);
 
   // 16. データの出典とライセンス

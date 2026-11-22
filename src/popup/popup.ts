@@ -15,6 +15,7 @@ import {
   escapeHtml,
   renderTechRowHtml,
   renderCookieModalHtml,
+  renderHeaderUnobservedNoticeHtml,
   renderInterstitialNoticeHtml,
   renderSecurityCheckRowHtml,
   renderSecurityModalHtml,
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupVersionBadge(): void {
   const versionEl = document.getElementById('brandVersion');
   if (versionEl) {
-    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.1';
+    const ver = chrome.runtime?.getManifest?.()?.version || '1.8.2';
     versionEl.textContent = `v${ver}`;
   }
 }
@@ -216,12 +217,11 @@ function renderTechnologies(
     techsListEl.appendChild(storageBanner);
   }
 
-  if (coverage && coverage.networkHeadersObserved === false) {
+  const headerUnobservedHtml = renderHeaderUnobservedNoticeHtml(coverage);
+  if (headerUnobservedHtml) {
     const banner = document.createElement('div');
-    banner.className = 'notice-banner';
-    banner.style.cssText = 'background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning-color); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 11px; color: var(--warning-color); line-height: 1.4;';
-    banner.innerHTML = '⚠️ <strong>HTTPヘッダー未取得</strong>: 拡張機能起動前またはスリープ中に開かれたタブです。サーバーや言語ヘッダーを診断するには、ページを再読み込み（リロード）して再調査してください。';
-    techsListEl.appendChild(banner);
+    banner.innerHTML = headerUnobservedHtml;
+    techsListEl.appendChild(banner.firstElementChild || banner);
   }
 
   if (techs.length === 0) {

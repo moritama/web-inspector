@@ -482,7 +482,7 @@ sequenceDiagram
 flowchart LR
     subgraph Offline ["1. 回帰検証・CI (オフライン完結)"]
         Fixtures["tests/fixtures/reports/<br>(合成フィクスチャ *.example.test)"] --> LintCmd["npm run reports:lint<br>(scripts/report-lint.mjs)"]
-        LintCmd --> LintRes["全 9 検査項目 (R01〜R09) の合否判定"]
+        LintCmd --> LintRes["全 10 検査項目 (R01〜R10) の合否判定"]
     end
 
     subgraph LiveCheck ["2. リリース前の実機・公開サイト検証 (ローカル実行)"]
@@ -506,7 +506,7 @@ node scripts/report-lint.mjs reports/2026-11-08_0900
 node scripts/report-lint.mjs path/to/web-inspector-report-example.test-2026-11-08.json
 ```
 
-#### 検査項目一覧（R01〜R09）
+#### 検査項目一覧（R01〜R10）
 | ID | 検査内容 |
 |---|---|
 | **R01** | サマリーの「要確認」件数（`requiresAttentionCount`）と重大度内訳（`CRITICAL`〜`LOW` の合計）が一致し、`INFO` 件数が `pass`＋`info` と一致すること |
@@ -518,6 +518,7 @@ node scripts/report-lint.mjs path/to/web-inspector-report-example.test-2026-11-0
 | **R07** | 同一技術内で同じ種別・同じ値の検出根拠が重複して出力されていないこと |
 | **R08** | 調査完全性が「完全（`complete`）」である場合、外部通信先（自ホストを含む読み込み元）が 1 件以上計上されていること |
 | **R09** | CSP が設定されているページの CSP 指摘重大度が、CSP 未設定（`MEDIUM`）を上回らないこと（`HIGH` / `CRITICAL` が出ないこと） |
+| **R10** | 通信先（セクション 9）の総数が First-Party・Third-Party・Local の件数の合計と一致すること（`localCount` の無い古いレポートは総数から数え直す） |
 
 ---
 
@@ -602,5 +603,14 @@ node scripts/ci/check-size.mjs
 - **内蔵脆弱性データベース (`src/detection/advisory-db.json`)**: 上限 **2 MB**（2 MiB）
 - **ビルド成果物合計 (`dist/` ディレクトリ全体)**: 上限 **3 MB**（3 MiB）
 - **早期警告**: 各上限の 80% を超過した場合、警告（WARN）が出力されます。
+
+### 5.4 content-script の IIFE の検査 (`scripts/ci/check-content-script-iife.mjs`)
+
+build の後に `dist/content/content-script.js` の先頭がトップレベルの `const` / `let` でない（IIFE に包まれている）ことを確かめる。CI の `ci.yml` で実行される。不合格なら vite.config.ts の 2 段目のビルド（`format: 'iife'`）を確かめる。
+
+### 5.5 同梱データの出典とライセンスの検査と更新手順 (`scripts/ci/check-data-sources.mjs`)
+
+同梱 DB の `sources` と `distro._source` のすべてに `license` か `licenseNote` があること、`THIRD_PARTY_NOTICES.md` に DB の出典がすべて載っていることを CI で確かめる。
+出典を足す・変えるときは、`scripts/advisories/lib/sources.mjs`（DB の `sources` の定義）、`src/shared/data-sources.ts`（画面と Markdown の出典の一覧）、`THIRD_PARTY_NOTICES.md` を一緒に直し、`npm run advisories:build` で DB を作り直してから `npm run advisories:validate` と `npm test` で確かめる。`advisory-db.json` は手で編集しない。
 
 

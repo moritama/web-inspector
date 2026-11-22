@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-11-22T05:11:29.476Z",
+  "checkedAt": "2026-11-22T05:53:23.244Z",
   "targetVersion": "1.8.2",
   "baseRef": "f0d67ab",
-  "mode": "full",
-  "passed": 28,
-  "failed": 0,
-  "warned": 1,
+  "mode": "full+e2e",
+  "passed": 29,
+  "failed": 1,
+  "warned": 0,
   "results": [
     {
       "id": "C01",
@@ -17,7 +17,7 @@
       "id": "C02",
       "title": "npm test が全件合格し、skip が 0 件",
       "status": "PASS",
-      "detail": "Tests  2184 passed (2184) (5s)"
+      "detail": "Tests  2184 passed (2184) (6s)"
     },
     {
       "id": "C03a",
@@ -40,8 +40,8 @@
     {
       "id": "C05",
       "title": "作業ツリーに未コミットの変更が無い",
-      "status": "WARN",
-      "detail": "2 件（ほかの項目は途中の変更を見ている可能性があります）: docs/dev/v1.8.2/WORKLOG.md, docs/dev/v1.8.2/COMPLETION_REPORT.md"
+      "status": "PASS",
+      "detail": ""
     },
     {
       "id": "C06",
@@ -110,6 +110,12 @@
       "detail": "9 タスク分"
     },
     {
+      "id": "C16",
+      "title": "npm run test:e2e（test-server を別に起動しておく）",
+      "status": "PASS",
+      "detail": "(51s)"
+    },
+    {
       "id": "C18",
       "title": "推定にもとづく結果の文言に「該当なし」「安全」「Not Affected」が無い（distro 関係の文字列。v1.8.1 から継続）",
       "status": "PASS",
@@ -166,8 +172,8 @@
     {
       "id": "R03",
       "title": "コミット対象に禁止語・実サイトのホスト名・キットのファイル・変更禁止領域の変更が無い",
-      "status": "PASS",
-      "detail": ""
+      "status": "FAIL",
+      "detail": "変更禁止: data/advisories/catalog.json"
     },
     {
       "id": "R03b",

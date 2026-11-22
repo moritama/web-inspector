@@ -218,3 +218,19 @@
 - 外部の事実: 設計メモ記載の事実・URL（NVD Terms of Use: https://nvd.nist.gov/developers/terms-of-use、endoflife.date LICENSE 全文: https://raw.githubusercontent.com/endoflife-date/endoflife.date/master/LICENSE 等、2026-11-22 確認）を引用
 - 未解決: なし
 
+## T08 設計  (2026-11-22 13:28)
+- 変更ファイル: docs/dev/v1.8.2/design/T08.md（新規）, tests/header-unobserved-guidance.test.ts（新規）, tests/release-docs-spec-guide.test.ts（新規）, tests/detection.test.ts（既存。AngularJS の入力値だけ変更）
+- 判断したこと:
+  - 版の一致は既存の spec-integrity・release-docs・release-version・test-hygiene が package.json の版で確かめるので、新しいテストは足さない（v1.8.1 T08 と同じ）。目標の版を前提に、版の直書きの検査と同じ形（引用符付き・`v` 付き・4 つ目付き・エスケープした形）を tests/ 全体にかけたところ、tests/detection.test.ts の AngularJS の入力値が目標の版と同じ文字列だった。入力値と期待値を 1.7.9 に変えた（EOL の判定は 1.x 全体で同じで、判定の期待値は変えていない）。変更後は 0 件
+  - D-3 の文言: ヘッダー未観測の Partial の理由を新しい定数 `HEADER_UNOBSERVED_PRESCAN_REASON`（元の文＋「ページを再読み込みしてから、もう一度調べてください」）にする。Markdown §2 は保存された理由を出すだけ（古いレポートに案内を作り足さない）
+  - ポップアップには Partial の理由を出す場所が無く、既存の「HTTPヘッダー未取得」の案内は型にも調査の統括にも無いキー（`coverage.networkHeadersObserved`）を条件にしていて一度も出ない。受け入れ条件（ポップアップ 450px）を満たす最小の変更として、条件を `coverage.details.unobservedPreScan === true` に直し、純粋関数 `renderHeaderUnobservedNoticeHtml`（src/popup/render.ts）に切り出す。ダッシュボードの同じ案内も同じ条件にする。450px の見え方は E2E の検証 10 として仕様を書いた（応答のレポートを差し替えて表示を確かめる）
+  - 「制限事項」はレポートの Markdown §15 と解釈し、6・7 の 2 項目を足す。ダッシュボードとポップアップに制限事項の欄は新しく作らない
+  - DETECTION_SPECIFICATION と MAINTENANCE_GUIDE は起点から変わっていないので、v1.8.2 の変更（A・B・C・D-1・D-2・D-3・E）の要点と、R10・CI の補助スクリプト 2 つ・出典の更新手順を書く。テストは語だけを見る。COOP・COEP の項の「HTTP 接続のページで（は）」は事実と違うので置き換えを陰性テストで求める
+  - PRIVACY_POLICY は変更しない（通信も権限も増えない。Cookie は名前と属性だけを扱うまま）。manifest の incognito が spanning のまま、新しい権限が無いことをテストで確かめる
+  - 既存テストへの影響: 理由の文を完全一致で比べるテスト・フィクスチャ、ポップアップの案内の有無を比べるテストは無い。§15 は toContain と節の位置だけのテストなので項目を足しても壊れない
+  - 実装の前は、新しい 2 ファイルの 30 件が「機能・文書が無い」ことで失敗し、16 件（陰性・互換・検査自身の確認・manifest）は通る。tests/test-hygiene.test.ts と tests/detection.test.ts は通る。`npx tsc --noEmit` の失敗は `renderHeaderUnobservedNoticeHtml` が無いことによるものだけ
+- 外部の事実: manifest の `incognito`（既定は spanning。spanning の拡張機能は自分のページをシークレットのタブのメインフレームに読み込めない）— https://developer.chrome.com/docs/extensions/reference/manifest/incognito 、`chrome.cookies`（`cookies` 権限と host permissions、`getAllCookieStores` の `id`・`tabIds`、`getAll` の `storeId`）— https://developer.chrome.com/docs/extensions/reference/api/cookies （いずれも 2026-11-22 確認）
+- 未解決:
+  - シークレットのタブを調べた結果も、spanning のため通常の `chrome.storage.local` の調査履歴に保存される（v1.8.2 の前からの挙動）。PRIVACY_POLICY の第 3 章には書かれていない。書くかどうかは人が判断する（T08 では変えない）
+  - 次の版（一般公開）の版の文字列が tests/advisory.test.ts に 1 件ある（`src/detection/advisory.ts` の一般公開の版に合わせた値）。その版に上げるときに test-hygiene に掛かるので、次の版上げの設計で扱う
+

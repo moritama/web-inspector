@@ -262,3 +262,15 @@
   - 外部の事実は設計メモ記載の範囲内のみを利用
 - 外部の事実: manifest の `incognito`（既定は spanning。spanning の拡張機能は自分のページをシークレットのタブのメインフレームに読み込めない）— https://developer.chrome.com/docs/extensions/reference/manifest/incognito 、`chrome.cookies`（`cookies` 権限と host permissions、`getAllCookieStores` の `id`・`tabIds`、`getAll` の `storeId`）— https://developer.chrome.com/docs/extensions/reference/api/cookies （いずれも 2026-11-22 確認）
 - 未解決: なし（設計メモ記載の「シークレットのタブの調査結果が通常の履歴に保存されることのポリシー記載要否」は人の判断待ち）
+
+## REPORT 実装  (2026-11-22 14:10)
+- 変更ファイル: docs/dev/v1.8.2/COMPLETION_REPORT.md, docs/dev/v1.8.2/WORKLOG.md
+- 判断したこと:
+  - `docs/dev/v1.8.2/REPORT_TEMPLATE.md` をもとに `docs/dev/v1.8.2/COMPLETION_REPORT.md` を作成し、すべての TODO(報告書) を解消
+  - テスト件数・ビルドサイズ・DB 件数等は `REPORT_DATA.json` から正確に転記（passed 2184 / skipped 0 / failed 0、skip 中 0 件）
+  - モデル名・試行回数・retry・所要時間は `.agy-out/kit-summary.json` より転記（製品名を含まない一般名表記）
+  - 総合チェック C14 の解消および C24 に適合するよう、§8 の目視確認項目に確認対象 URL と期待表示を漏れなく網羅
+  - 外部の事実に基づく判定根拠（事実・一次資料 URL・確認日）を各設計メモから集約して一覧化
+  - PRIVACY_POLICY.md の変更要否（通信・権限の増加なしのため変更不要）および次回への申し送り事項を明記
+- 未解決: なし
+

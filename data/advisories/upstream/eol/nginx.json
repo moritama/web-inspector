@@ -1,18 +1,18 @@
 {
   "slug": "nginx",
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "cycles": [
     {
       "cycle": "1.31",
       "releaseDate": "2026-05-13",
       "eol": false,
-      "latest": "1.31.8"
+      "latest": "1.31.9"
     },
     {
       "cycle": "1.30",
       "releaseDate": "2026-04-14",
       "eol": false,
-      "latest": "1.30.6"
+      "latest": "1.30.7"
     },
     {
       "cycle": "1.29",

@@ -3,7 +3,7 @@
     "ecosystem": "Packagist",
     "name": "laravel/framework"
   },
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
     {
       "id": "GHSA-3p32-j457-pg5x",

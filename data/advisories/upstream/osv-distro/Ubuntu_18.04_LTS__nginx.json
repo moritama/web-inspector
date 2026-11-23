@@ -3,7 +3,7 @@
     "ecosystem": "Ubuntu:18.04:LTS",
     "name": "nginx"
   },
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
     {
       "id": "UBUNTU-CVE-2018-16843",
@@ -134,7 +134,7 @@
     {
       "id": "UBUNTU-CVE-2020-11724",
       "withdrawn": null,
-      "modified": "2026-11-05T19:01:03.299977050Z",
+      "modified": "2026-11-19T15:15:52.340887847Z",
       "cves": [
         "CVE-2020-11724"
       ],
@@ -152,7 +152,7 @@
     {
       "id": "UBUNTU-CVE-2020-36309",
       "withdrawn": null,
-      "modified": "2026-11-05T19:01:03.382785196Z",
+      "modified": "2026-11-19T15:15:53.065959976Z",
       "cves": [
         "CVE-2020-36309"
       ],
@@ -188,7 +188,7 @@
     {
       "id": "UBUNTU-CVE-2021-3618",
       "withdrawn": null,
-      "modified": "2026-11-05T19:01:03.364749585Z",
+      "modified": "2026-11-19T15:15:52.910628623Z",
       "cves": [
         "CVE-2021-3618"
       ],

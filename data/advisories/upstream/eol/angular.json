@@ -1,13 +1,13 @@
 {
   "slug": "angular",
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "cycles": [
     {
       "cycle": "22",
       "releaseDate": "2026-06-03",
       "eol": "2028-06-30",
       "support": "2027-06-30",
-      "latest": "22.2.6"
+      "latest": "22.3.0"
     },
     {
       "cycle": "21",

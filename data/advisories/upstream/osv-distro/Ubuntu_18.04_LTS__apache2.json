@@ -3,7 +3,7 @@
     "ecosystem": "Ubuntu:18.04:LTS",
     "name": "apache2"
   },
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
     {
       "id": "UBUNTU-CVE-2006-20001",

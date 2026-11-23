@@ -1,412 +1,412 @@
 {
   "schemaVersion": 1,
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "sources": {
     "distro-eol:almalinux": {
       "status": "ok",
       "count": 3,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "distro-eol:centos": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "distro-eol:debian": {
       "status": "ok",
       "count": 18,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "distro-eol:rhel": {
       "status": "ok",
       "count": 7,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "distro-eol:rocky-linux": {
       "status": "ok",
       "count": 3,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "distro-eol:ubuntu": {
       "status": "ok",
       "count": 45,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:angular": {
       "status": "ok",
       "count": 14,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:apache-http-server": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:bootstrap": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:jquery": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:laravel": {
       "status": "ok",
       "count": 10,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:nginx": {
       "status": "ok",
       "count": 32,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:nodejs": {
       "status": "ok",
       "count": 26,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:php": {
       "status": "ok",
-      "count": 23,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "count": 24,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:react": {
       "status": "ok",
       "count": 5,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:vue": {
       "status": "ok",
       "count": 15,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "eol:wordpress": {
       "status": "ok",
       "count": 56,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "kev": {
       "status": "ok",
-      "count": 1781,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "count": 1790,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd-scores": {
       "status": "ok",
       "count": 85,
-      "fetchedAt": "2026-11-15T23:59:48.920Z",
+      "fetchedAt": "2026-11-23T00:56:37.374Z",
       "errors": 0
     },
     "nvd:apache:http_server": {
       "status": "ok",
       "count": 372,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd:f5:nginx": {
       "status": "ok",
       "count": 41,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd:nginx:nginx": {
       "status": "ok",
       "count": 2,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd:nodejs:node.js": {
       "status": "ok",
       "count": 189,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd:php:php": {
       "status": "ok",
       "count": 760,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "nvd:wordpress:wordpress": {
       "status": "ok",
       "count": 585,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:10:apache2": {
       "status": "ok",
       "count": 9,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:10:nginx": {
       "status": "ok",
       "count": 4,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:10:php7.3": {
       "status": "ok",
       "count": 13,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:11:apache2": {
       "status": "ok",
-      "count": 9,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 12,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:11:nginx": {
       "status": "ok",
-      "count": 3,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 6,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:11:php7.4": {
       "status": "ok",
-      "count": 37,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 39,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:12:apache2": {
       "status": "ok",
-      "count": 270,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 273,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:12:nginx": {
       "status": "ok",
-      "count": 64,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 75,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:12:php8.2": {
       "status": "ok",
-      "count": 63,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 81,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:13:apache2": {
       "status": "ok",
-      "count": 268,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 272,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:13:nginx": {
       "status": "ok",
-      "count": 71,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 88,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Debian:13:php8.4": {
       "status": "ok",
-      "count": 41,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 61,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:18.04:LTS:apache2": {
       "status": "ok",
       "count": 66,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:18.04:LTS:nginx": {
       "status": "ok",
       "count": 19,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:18.04:LTS:php7.2": {
       "status": "ok",
       "count": 88,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:20.04:LTS:apache2": {
       "status": "ok",
       "count": 63,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:20.04:LTS:nginx": {
       "status": "ok",
       "count": 13,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:20.04:LTS:php7.4": {
       "status": "ok",
       "count": 66,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:22.04:LTS:apache2": {
       "status": "ok",
       "count": 107,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:22.04:LTS:nginx": {
       "status": "ok",
-      "count": 45,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 53,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:22.04:LTS:php8.1": {
       "status": "ok",
-      "count": 83,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 100,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:24.04:LTS:apache2": {
       "status": "ok",
       "count": 84,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:24.04:LTS:nginx": {
       "status": "ok",
-      "count": 42,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 50,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:24.04:LTS:php8.3": {
       "status": "ok",
-      "count": 59,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 76,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.04:LTS:apache2": {
       "status": "ok",
       "count": 57,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.04:LTS:nginx": {
       "status": "ok",
-      "count": 30,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 40,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.04:LTS:php8.5": {
       "status": "ok",
-      "count": 33,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 50,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.10:apache2": {
       "status": "ok",
       "count": 21,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.10:nginx": {
       "status": "ok",
-      "count": 6,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 16,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:26.10:php8.5": {
       "status": "ok",
-      "count": 14,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 31,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:18.04:LTS:apache2": {
       "status": "ok",
       "count": 76,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:18.04:LTS:nginx": {
       "status": "ok",
-      "count": 28,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 36,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:18.04:LTS:php7.2": {
       "status": "ok",
-      "count": 60,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 77,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:20.04:LTS:apache2": {
       "status": "ok",
       "count": 65,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:20.04:LTS:nginx": {
       "status": "ok",
-      "count": 24,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 32,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:20.04:LTS:php7.4": {
       "status": "ok",
-      "count": 34,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "count": 51,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:22.04:LTS:apache2": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:22.04:LTS:nginx": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:22.04:LTS:php8.1": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:24.04:LTS:apache2": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:24.04:LTS:nginx": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:24.04:LTS:php8.3": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:26.04:LTS:apache2": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:26.04:LTS:nginx": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv-distro:Ubuntu:Pro:26.04:LTS:php8.5": {
       "status": "ok",
       "count": 0,
-      "fetchedAt": "2026-11-15T15:53:23.777Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:@angular/core": {
       "status": "ok",
       "count": 9,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:angular": {
       "status": "ok",
       "count": 15,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:bootstrap": {
       "status": "ok",
       "count": 9,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:jquery": {
       "status": "ok",
       "count": 8,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:lodash": {
       "status": "ok",
       "count": 10,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:moment": {
       "status": "ok",
       "count": 5,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:react": {
       "status": "ok",
       "count": 2,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:react-dom": {
       "status": "ok",
       "count": 1,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:npm:vue": {
       "status": "ok",
       "count": 1,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "osv:Packagist:laravel/framework": {
       "status": "ok",
       "count": 29,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     },
     "psl:public_suffix_list": {
       "status": "ok",
-      "count": 8995,
-      "fetchedAt": "2026-11-15T23:59:48.920Z"
+      "count": 9016,
+      "fetchedAt": "2026-11-23T00:56:37.374Z"
     }
   }
 }

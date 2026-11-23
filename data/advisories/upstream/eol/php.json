@@ -1,34 +1,41 @@
 {
   "slug": "php",
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "cycles": [
+    {
+      "cycle": "8.6",
+      "releaseDate": "2026-11-19",
+      "eol": "2030-12-31",
+      "support": "2028-12-31",
+      "latest": "8.6.0"
+    },
     {
       "cycle": "8.5",
       "releaseDate": "2025-11-20",
       "eol": "2029-12-31",
       "support": "2027-12-31",
-      "latest": "8.5.12"
+      "latest": "8.5.13"
     },
     {
       "cycle": "8.4",
       "releaseDate": "2024-11-21",
       "eol": "2028-12-31",
       "support": "2026-12-31",
-      "latest": "8.4.27"
+      "latest": "8.4.28"
     },
     {
       "cycle": "8.3",
       "releaseDate": "2023-11-23",
       "eol": "2027-12-31",
       "support": "2025-12-31",
-      "latest": "8.3.36"
+      "latest": "8.3.37"
     },
     {
       "cycle": "8.2",
       "releaseDate": "2022-12-08",
       "eol": "2026-12-31",
       "support": "2024-12-31",
-      "latest": "8.2.35"
+      "latest": "8.2.36"
     },
     {
       "cycle": "8.1",

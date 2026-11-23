@@ -3,12 +3,12 @@
     "ecosystem": "Debian:11",
     "name": "nginx"
   },
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
     {
       "id": "DLA-4091-1",
       "withdrawn": null,
-      "modified": "2026-03-09T01:23:27.282147Z",
+      "modified": "2026-11-20T01:18:56.884771867Z",
       "cves": [
         "CVE-2024-7347",
         "CVE-2025-23419"
@@ -27,7 +27,7 @@
     {
       "id": "DLA-4228-1",
       "withdrawn": null,
-      "modified": "2026-03-09T01:20:57.808777Z",
+      "modified": "2026-11-20T01:18:59.690397934Z",
       "cves": [
         "CVE-2020-36309",
         "CVE-2024-33452"
@@ -44,9 +44,74 @@
       ]
     },
     {
+      "id": "DLA-4589-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:30.996312972Z",
+      "cves": [
+        "CVE-2025-53859",
+        "CVE-2026-1642",
+        "CVE-2026-27651",
+        "CVE-2026-27654",
+        "CVE-2026-27784",
+        "CVE-2026-28753",
+        "CVE-2026-32647",
+        "CVE-2026-40701",
+        "CVE-2026-42934",
+        "CVE-2026-42945",
+        "CVE-2026-42946"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "1.18.0-6.1+deb11u6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DLA-4634-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:44.467685486Z",
+      "cves": [
+        "CVE-2026-9256"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "1.18.0-6.1+deb11u7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DLA-4660-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:37.131682893Z",
+      "cves": [
+        "CVE-2026-42055",
+        "CVE-2026-48142"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "1.18.0-6.1+deb11u8"
+          ]
+        }
+      ]
+    },
+    {
       "id": "DSA-5281-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:11:28.866675Z",
+      "modified": "2026-11-20T01:19:07.368196269Z",
       "cves": [
         "CVE-2022-41741",
         "CVE-2022-41742"

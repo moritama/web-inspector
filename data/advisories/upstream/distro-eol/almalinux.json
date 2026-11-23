@@ -1,6 +1,6 @@
 {
   "slug": "almalinux",
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "cycles": [
     {
       "cycle": "10",
@@ -10,7 +10,7 @@
       "support": "2030-05-31",
       "extendedSupport": null,
       "lts": false,
-      "latest": "10.2"
+      "latest": "10.3"
     },
     {
       "cycle": "9",
@@ -20,7 +20,7 @@
       "support": "2027-05-31",
       "extendedSupport": null,
       "lts": false,
-      "latest": "9.8"
+      "latest": "9.9"
     },
     {
       "cycle": "8",

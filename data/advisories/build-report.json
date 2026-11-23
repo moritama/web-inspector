@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-15",
+  "asOf": "2026-11-23",
   "products": {
     "jquery": {
       "curated": 4,
@@ -297,10 +297,780 @@
     "releases": 22,
     "mapEntries": 74,
     "advisories": 30,
-    "advisoryEntries": 1896,
+    "advisoryEntries": 2131,
     "skipped": {
-      "no-cve": 67
+      "no-cve": 74
     },
     "warnings": []
+  },
+  "distroMapDrift": {
+    "checkedAt": "2026-11-23T00:57:31.757Z",
+    "status": "drift",
+    "counts": {
+      "drift": 1,
+      "none": 39,
+      "unchecked": 0,
+      "outOfScope": 34
+    },
+    "outOfScopeByFamily": {
+      "rhel": 12,
+      "rocky": 11,
+      "centos": 3,
+      "almalinux": 8
+    },
+    "items": [
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.29"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.29-1ubuntu4.27",
+          "2.4.29-1ubuntu4"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fbionic&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.14.0"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.14.0-0ubuntu1.11",
+          "1.14.0-0ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fbionic&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "php",
+        "sourcePackage": "php7.2",
+        "mapUpstreamVersions": [
+          "7.2.3",
+          "7.2.5",
+          "7.2.7",
+          "7.2.10",
+          "7.2.15",
+          "7.2.17",
+          "7.2.19",
+          "7.2.24"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "7.2.24-0ubuntu0.18.04.17",
+          "7.2.3-1ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php7.2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fbionic&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:18.04",
+        "codename": "bionic",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "1.1.0g",
+          "1.1.1"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.1.1-1ubuntu2.1~18.04.23",
+          "1.1.0g-2ubuntu4"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fbionic&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.41"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.41-4ubuntu3.23",
+          "2.4.41-4ubuntu3"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Ffocal&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.17.10",
+          "1.18.0"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.18.0-0ubuntu1.7",
+          "1.17.10-0ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Ffocal&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "php",
+        "sourcePackage": "php7.4",
+        "mapUpstreamVersions": [
+          "7.4.3"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "7.4.3-4ubuntu2.29",
+          "7.4.3-4ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php7.4&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Ffocal&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:20.04",
+        "codename": "focal",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "1.1.1f"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.1.1f-1ubuntu2.24",
+          "1.1.1f-1ubuntu2"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Ffocal&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.52"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.52-1ubuntu4.27",
+          "2.4.52-1ubuntu4"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fjammy&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.18.0"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.18.0-6ubuntu14.24",
+          "1.18.0-6ubuntu14"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fjammy&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "php",
+        "sourcePackage": "php8.1",
+        "mapUpstreamVersions": [
+          "8.1.2"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.1.2-1ubuntu2.29",
+          "8.1.2-1ubuntu2"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.1&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fjammy&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:22.04",
+        "codename": "jammy",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "3.0.2"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "3.0.2-0ubuntu1.30",
+          "3.0.2-0ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fjammy&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.58"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.58-1ubuntu8.19",
+          "2.4.58-1ubuntu8"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fnoble&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.24.0"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.24.0-2ubuntu7.21",
+          "1.24.0-2ubuntu7"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fnoble&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "php",
+        "sourcePackage": "php8.3",
+        "mapUpstreamVersions": [
+          "8.3.6"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.3.6-0ubuntu0.24.04.14",
+          "8.3.6-0maysync1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.3&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fnoble&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:24.04",
+        "codename": "noble",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "3.0.13"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "3.0.13-0ubuntu3.16",
+          "3.0.13-0ubuntu3"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fnoble&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.66"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.66-2ubuntu2.8",
+          "2.4.66-2ubuntu2"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fresolute&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.28.3"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.28.3-2ubuntu1.14",
+          "1.28.3-2ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fresolute&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "php",
+        "sourcePackage": "php8.5",
+        "mapUpstreamVersions": [
+          "8.5.4"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.5.4-0ubuntu1.6",
+          "8.5.4-0ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.5&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fresolute&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.04",
+        "codename": "resolute",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "3.5.5"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "3.5.5-1ubuntu3.7",
+          "3.5.5-1ubuntu3"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fresolute&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.68"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.68-1ubuntu6.2",
+          "2.4.68-1ubuntu4"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=apache2&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fstonking&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.30.4"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.30.4-7ubuntu1.3",
+          "1.30.4-7ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=nginx&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fstonking&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "php",
+        "sourcePackage": "php8.5",
+        "mapUpstreamVersions": [
+          "8.5.9"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.5.9-0ubuntu2.2",
+          "8.5.9-0ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=php8.5&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fstonking&status=Published"
+      },
+      {
+        "family": "ubuntu",
+        "release": "ubuntu:26.10",
+        "codename": "stonking",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "4.0.3"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "4.0.3-1ubuntu1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=openssl&exact_match=true&distro_series=https%3A%2F%2Fapi.launchpad.net%2F1.0%2Fubuntu%2Fstonking&status=Published"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.38"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.38-3+deb10u8"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/apache2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.14.2"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.14.2-2+deb10u4"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/nginx/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "php",
+        "sourcePackage": "php7.3",
+        "mapUpstreamVersions": [
+          "7.3.4",
+          "7.3.9",
+          "7.3.11",
+          "7.3.14",
+          "7.3.19",
+          "7.3.27",
+          "7.3.29",
+          "7.3.31"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "7.3.31-1~deb10u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/php7.3/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:10",
+        "codename": "buster",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "1.1.1n"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.1.1n-0+deb10u3"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/openssl/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.48",
+          "2.4.49",
+          "2.4.50",
+          "2.4.51",
+          "2.4.52",
+          "2.4.53",
+          "2.4.54",
+          "2.4.55",
+          "2.4.56",
+          "2.4.59",
+          "2.4.61",
+          "2.4.62",
+          "2.4.65",
+          "2.4.66",
+          "2.4.67"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.62-1~deb11u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/apache2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.18.0"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.18.0-6.1+deb11u3"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/nginx/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "php",
+        "sourcePackage": "php7.4",
+        "mapUpstreamVersions": [
+          "7.4.21",
+          "7.4.25",
+          "7.4.28",
+          "7.4.30",
+          "7.4.33"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "7.4.33-1+deb11u5"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/php7.4/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:11",
+        "codename": "bullseye",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "1.1.1k",
+          "1.1.1n",
+          "1.1.1v",
+          "1.1.1w"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.1.1w-0+deb11u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/openssl/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.57",
+          "2.4.59",
+          "2.4.61",
+          "2.4.62",
+          "2.4.65",
+          "2.4.66",
+          "2.4.67",
+          "2.4.68",
+          "2.4.71"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.68-1~deb12u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/apache2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.22.1"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.22.1-9+deb12u9"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/nginx/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "php",
+        "sourcePackage": "php8.2",
+        "mapUpstreamVersions": [
+          "8.2.7",
+          "8.2.18",
+          "8.2.20",
+          "8.2.23",
+          "8.2.24",
+          "8.2.25",
+          "8.2.26",
+          "8.2.28",
+          "8.2.29",
+          "8.2.30",
+          "8.2.31",
+          "8.2.32",
+          "8.2.33",
+          "8.2.34",
+          "8.2.35"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.2.32-1~deb12u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/php8.2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:12",
+        "codename": "bookworm",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "3.0.9",
+          "3.0.10",
+          "3.0.11",
+          "3.0.13",
+          "3.0.14",
+          "3.0.15",
+          "3.0.16",
+          "3.0.17",
+          "3.0.18",
+          "3.0.19",
+          "3.0.20",
+          "3.0.22"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "3.0.20-1~deb12u2",
+          "3.0.17-1~deb12u2"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/openssl/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "apache",
+        "sourcePackage": "apache2",
+        "mapUpstreamVersions": [
+          "2.4.65",
+          "2.4.66",
+          "2.4.67",
+          "2.4.68",
+          "2.4.69",
+          "2.4.71"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "2.4.71-1~deb13u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/apache2/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "nginx",
+        "sourcePackage": "nginx",
+        "mapUpstreamVersions": [
+          "1.26.3"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "1.26.3-3+deb13u10"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/nginx/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "php",
+        "sourcePackage": "php8.4",
+        "mapUpstreamVersions": [
+          "8.4.11",
+          "8.4.16",
+          "8.4.21",
+          "8.4.23",
+          "8.4.24",
+          "8.4.26",
+          "8.4.27"
+        ],
+        "status": "none",
+        "publishedVersions": [
+          "8.4.27-1~deb13u1"
+        ],
+        "unlistedUpstreamVersions": [],
+        "sourceUrl": "https://sources.debian.org/api/src/php8.4/"
+      },
+      {
+        "family": "debian",
+        "release": "debian:13",
+        "codename": "trixie",
+        "product": "openssl",
+        "sourcePackage": "openssl",
+        "mapUpstreamVersions": [
+          "3.5.1",
+          "3.5.4",
+          "3.5.5",
+          "3.5.6",
+          "3.5.7"
+        ],
+        "status": "drift",
+        "publishedVersions": [
+          "3.5.9-1~deb13u1",
+          "3.5.7-1~deb13u2"
+        ],
+        "unlistedUpstreamVersions": [
+          "3.5.9"
+        ],
+        "sourceUrl": "https://sources.debian.org/api/src/openssl/"
+      }
+    ]
   }
 }

@@ -3,7 +3,7 @@
     "ecosystem": "Debian:11",
     "name": "apache2"
   },
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
     {
       "id": "DEBIAN-CVE-2024-43394",
@@ -26,7 +26,7 @@
     {
       "id": "DLA-3921-1",
       "withdrawn": null,
-      "modified": "2025-05-26T07:02:01.724776Z",
+      "modified": "2026-11-20T01:18:55.081196709Z",
       "cves": [],
       "cveLevel": false,
       "affected": [
@@ -42,7 +42,7 @@
     {
       "id": "DLA-4270-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:11:17.491650Z",
+      "modified": "2026-11-20T01:19:00.224503516Z",
       "cves": [
         "CVE-2024-42516",
         "CVE-2024-43204",
@@ -67,7 +67,7 @@
     {
       "id": "DLA-4452-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:11:34.622438Z",
+      "modified": "2026-11-20T01:19:01.766690868Z",
       "cves": [
         "CVE-2025-55753",
         "CVE-2025-58098",
@@ -86,9 +86,83 @@
       ]
     },
     {
+      "id": "DLA-4571-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:45.924743747Z",
+      "cves": [
+        "CVE-2026-24072",
+        "CVE-2026-28780",
+        "CVE-2026-29168",
+        "CVE-2026-29169",
+        "CVE-2026-33006",
+        "CVE-2026-33007",
+        "CVE-2026-33523",
+        "CVE-2026-33857",
+        "CVE-2026-34032",
+        "CVE-2026-34059"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "2.4.67-1~deb11u1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DLA-4620-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:45.510268802Z",
+      "cves": [
+        "CVE-2026-49975"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "2.4.67-1~deb11u2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "DLA-4629-1",
+      "withdrawn": null,
+      "modified": "2026-11-20T01:28:41.527220148Z",
+      "cves": [
+        "CVE-2026-29167",
+        "CVE-2026-29170",
+        "CVE-2026-34355",
+        "CVE-2026-34356",
+        "CVE-2026-42535",
+        "CVE-2026-42536",
+        "CVE-2026-43951",
+        "CVE-2026-44119",
+        "CVE-2026-44185",
+        "CVE-2026-44186",
+        "CVE-2026-44631",
+        "CVE-2026-48913"
+      ],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Debian:11",
+          "introduced": true,
+          "fixed": [
+            "2.4.67-1~deb11u3"
+          ]
+        }
+      ]
+    },
+    {
       "id": "DSA-4982-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:09:02.783030Z",
+      "modified": "2026-11-20T01:19:05.296265745Z",
       "cves": [
         "CVE-2021-34798",
         "CVE-2021-36160",
@@ -109,7 +183,7 @@
     {
       "id": "DSA-5035-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:10:27.629520Z",
+      "modified": "2026-11-20T01:19:16.500097334Z",
       "cves": [
         "CVE-2021-44224",
         "CVE-2021-44790"
@@ -128,7 +202,7 @@
     {
       "id": "DSA-5376-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:10:27.747457Z",
+      "modified": "2026-11-20T01:19:07.947928745Z",
       "cves": [
         "CVE-2006-20001",
         "CVE-2022-36760",
@@ -150,7 +224,7 @@
     {
       "id": "DSA-5662-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:11:26.616225Z",
+      "modified": "2026-11-20T01:19:03.883964768Z",
       "cves": [
         "CVE-2023-31122",
         "CVE-2023-38709",
@@ -173,7 +247,7 @@
     {
       "id": "DSA-5729-1",
       "withdrawn": null,
-      "modified": "2026-03-09T02:10:28.179605Z",
+      "modified": "2026-11-20T01:19:03.881020246Z",
       "cves": [
         "CVE-2024-36387",
         "CVE-2024-38473",

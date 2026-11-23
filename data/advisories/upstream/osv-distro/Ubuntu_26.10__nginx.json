@@ -3,8 +3,168 @@
     "ecosystem": "Ubuntu:26.10",
     "name": "nginx"
   },
-  "fetchedAt": "2026-11-15T15:53:23.777Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "vulns": [
+    {
+      "id": "UBUNTU-CVE-2026-113425",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:15:54.318786515Z",
+      "cves": [
+        "CVE-2026-113425"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-118899",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:06.195687696Z",
+      "cves": [
+        "CVE-2026-118899"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-120967",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:07.015853051Z",
+      "cves": [
+        "CVE-2026-120967"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-121810",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:05.503109666Z",
+      "cves": [
+        "CVE-2026-121810"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-123007",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:05.700514505Z",
+      "cves": [
+        "CVE-2026-123007"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-123633",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:06.752537229Z",
+      "cves": [
+        "CVE-2026-123633"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-123634",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:15:58.189977524Z",
+      "cves": [
+        "CVE-2026-123634"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-123640",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:04.839111192Z",
+      "cves": [
+        "CVE-2026-123640"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UBUNTU-CVE-2026-125283",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:08.501589550Z",
+      "cves": [
+        "CVE-2026-125283"
+      ],
+      "cveLevel": true,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": []
+        }
+      ]
+    },
     {
       "id": "UBUNTU-CVE-2026-15176",
       "withdrawn": null,
@@ -113,6 +273,22 @@
           "introduced": true,
           "fixed": [
             "1.30.4-7ubuntu1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "USN-9159-1",
+      "withdrawn": null,
+      "modified": "2026-11-19T15:16:06.039180126Z",
+      "cves": [],
+      "cveLevel": false,
+      "affected": [
+        {
+          "ecosystem": "Ubuntu:26.10",
+          "introduced": true,
+          "fixed": [
+            "1.30.4-7ubuntu1.2"
           ]
         }
       ]

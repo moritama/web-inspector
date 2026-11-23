@@ -1,13 +1,13 @@
 {
   "slug": "vue",
-  "fetchedAt": "2026-11-15T23:59:48.920Z",
+  "fetchedAt": "2026-11-23T00:56:37.374Z",
   "cycles": [
     {
       "cycle": "3.5",
       "releaseDate": "2024-09-03",
       "eol": false,
       "support": true,
-      "latest": "3.5.45"
+      "latest": "3.5.46"
     },
     {
       "cycle": "3.4",
